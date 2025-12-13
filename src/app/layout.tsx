@@ -42,15 +42,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 text-gray-900`}
       >
-        <div className="max-w-2xl mx-auto min-h-screen bg-white/50 backdrop-blur-sm pb-24 relative shadow-2xl shadow-gray-200 border-x border-white/50">
-          <AuthWrapper>
+        <AuthWrapper>
+          <div className="max-w-2xl mx-auto min-h-screen bg-white/50 backdrop-blur-sm pb-24 relative shadow-2xl shadow-gray-200 border-x border-white/50">
             {children}
-          </AuthWrapper>
-          {/* Navigation injected here in page wrappers or globally? 
-               Globally is better, but we need to ensure Auth checks. 
-               The MainLayout handled auth. We might need a global Auth wrapper.
-           */}
-        </div>
+          </div>
+        </AuthWrapper>
       </body>
     </html>
   );
