@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { subDays, format, parseISO } from 'date-fns';
 
 export interface DailyLog {
     id?: string;
@@ -24,6 +25,16 @@ export interface DailyLog {
     daily_note?: string | null;
     created_at?: string;
     updated_at?: string;
+}
+
+export interface BodyMetrics {
+    id?: string;
+    user_id?: string;
+    date: string;
+    weight?: number | null;
+    photo_url?: string | null;
+    measurements?: Record<string, number> | null;
+    created_at?: string;
 }
 
 export async function getDailyLog(date: string) {
@@ -62,11 +73,6 @@ export async function upsertDailyLog(log: Partial<DailyLog>) {
     return data as DailyLog;
 }
 
-// ... imports ...
-import { subDays, format, differenceInCalendarDays, parseISO } from 'date-fns';
-
-// ... existing code ...
-
 export async function getMonthlyLogs(startDate: string, endDate: string) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
@@ -88,7 +94,6 @@ export async function getStreak() {
     if (!session) return 0;
 
     // Fetch last 100 days of history to calculate streak
-    // Ideally this should be a stored procedure for performance, but client-side is fine for MVP
     const { data } = await supabase
         .from('daily_logs')
         .select('date, movement_completed')
@@ -113,49 +118,8 @@ export async function getStreak() {
         return 0;
     }
 
-    // Now count backwards
-    // We need to iterate and check for gaps
-    // Since data is ordered desc, we can just checking difference
-
-    // We can't just iterate the array because there might be multiple entries (unlikely due to unique constraint)
-    // or gaps.
-
     // Let's create a Set of dates for easy lookup
     const loggedDates = new Set(data.map(d => d.date));
-
-    // Check today
-    if (loggedDates.has(todayStr)) {
-        streak++;
-    }
-
-    // Check yesterday and backwards
-    let currentCheck = subDays(today, loggedDates.has(todayStr) ? 1 : 0); // If we logged today, verify yesterday. If we NOT logged today, we start verifying from yesterday (streak might be active if we moved yesterday). Wait, if we didn't log today, streak is maintained if we logged yesterday.
-
-    // Re-logic:
-    // If today is logged, current streak = 1 + ...
-    // If today is NOT logged, but yesterday IS, current streak = ... (starts from yesterday)
-
-    let checkDate = today;
-    if (!loggedDates.has(todayStr)) {
-        checkDate = subDays(today, 1);
-        if (!loggedDates.has(yesterdayStr)) return 0; // neither today nor yesterday
-    }
-
-    while (true) {
-        const checkStr = format(checkDate, 'yyyy-MM-dd');
-        if (loggedDates.has(checkStr)) {
-            // Only increment if we didn't already count it (i.e. if we started with today)
-            // Actually, simpler loop:
-            // start from "most recent valid streak day" and go back 1 day at a time
-        } else {
-            break;
-        }
-        checkDate = subDays(checkDate, 1);
-    }
-
-    // Alternative Simple Logic using the sorted array:
-    // 1. Determine "Anchor Day" (Today or Yesterday). If neither, 0.
-    // 2. Count consecutive days backwards from Anchor Day.
 
     const anchorDateStr = loggedDates.has(todayStr) ? todayStr : (loggedDates.has(yesterdayStr) ? yesterdayStr : null);
     if (!anchorDateStr) return 0;
@@ -169,4 +133,37 @@ export async function getStreak() {
     }
 
     return streak;
+}
+
+export async function upsertBodyMetrics(metrics: Partial<BodyMetrics>) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+        .from('body_metrics')
+        .upsert({
+            ...metrics,
+            user_id: session.user.id,
+        }, { onConflict: 'user_id,date' })
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data as BodyMetrics;
+}
+
+export async function getBodyMetricsHistory(startDate: string, endDate: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+        .from('body_metrics')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('date', { ascending: true });
+
+    if (error) throw error;
+    return data as BodyMetrics[];
 }
