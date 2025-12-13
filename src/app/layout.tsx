@@ -42,7 +42,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 text-gray-900`}
       >
-        <div className="max-w-md mx-auto min-h-screen bg-gray-50 pb-24 relative shadow-2xl shadow-gray-200">
+        <div className="max-w-2xl mx-auto min-h-screen bg-white/50 backdrop-blur-sm pb-24 relative shadow-2xl shadow-gray-200 border-x border-white/50">
           <AuthWrapper>
             {children}
           </AuthWrapper>

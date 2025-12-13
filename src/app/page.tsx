@@ -25,24 +25,29 @@ export default function Dashboard() {
       </header>
 
       {/* Streak Card */}
-      <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl p-6 text-white shadow-lg shadow-orange-200">
-        <div className="flex items-center gap-2 mb-2">
-          <Flame className="w-5 h-5" />
-          <span className="font-semibold opacity-90">Current Streak</span>
+      <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl p-6 text-white shadow-xl shadow-orange-200/50 relative overflow-hidden">
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-2">
+            <Flame className="w-5 h-5 animate-pulse" />
+            <span className="font-semibold opacity-90 tracking-wide uppercase text-xs">Current Streak</span>
+          </div>
+          <div className="text-5xl font-black tracking-tight">{streak} <span className="text-2xl font-medium opacity-80">Days</span></div>
+          <p className="text-sm opacity-80 mt-2 font-medium">Keep the fire burning! 🔥</p>
         </div>
-        <div className="text-4xl font-bold">{streak} Days</div>
-        <p className="text-sm opacity-80 mt-1">Keep it up!</p>
+        <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12">
+          <Flame className="w-32 h-32" />
+        </div>
       </div>
 
       {/* Quick Actions */}
       <Link href="/log" className="block group">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between group-active:scale-95 transition-all">
+        <div className="glass-card p-6 rounded-2xl flex items-center justify-between group-active:scale-[0.98] transition-all duration-200 hover:shadow-lg hover:shadow-blue-100/50 hover:border-blue-200">
           <div>
-            <h3 className="font-bold text-lg text-gray-900">Log Today</h3>
-            <p className="text-sm text-gray-500">Track movement & food</p>
+            <h3 className="font-bold text-xl text-gray-800 mb-1">Log Today</h3>
+            <p className="text-sm text-gray-600 font-medium">Track movement & nutrition</p>
           </div>
-          <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
-            <ArrowRight className="w-5 h-5" />
+          <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
+            <ArrowRight className="w-6 h-6" />
           </div>
         </div>
       </Link>

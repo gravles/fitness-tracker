@@ -17,16 +17,25 @@
   }
 }
 
+/* Modern Background & Utilities */
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: radial-gradient(circle at 50% 0%, #f0f7ff 0%, #ffffff 100%);
+  color: #1a1a1a; /* Darker standard black */
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overscroll-behavior-y: none; /* Prevent pull-to-refresh on body */
+  overscroll-behavior-y: none;
+}
+
+/* Glassmorphism Utility */
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 /* Mobile optimizations */
 input, select, textarea {
-  font-size: 16px !important; /* Prevent iOS zoom */
+  font-size: 16px !important;
 }
