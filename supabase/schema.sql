@@ -45,7 +45,9 @@ create table body_metrics (
   photo_url text,
   measurements jsonb, -- Flexible storage for waist, chest, etc.
   
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  
+  unique(user_id, date)
 );
 
 -- Saved Foods Table

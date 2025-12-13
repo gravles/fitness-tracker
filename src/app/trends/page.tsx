@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getMonthlyLogs, getBodyMetricsHistory, getSettings } from '@/lib/api';
 import { subDays, format } from 'date-fns';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, LabelList } from 'recharts';
 import { Loader2, TrendingUp, Scale } from 'lucide-react';
 import Link from 'next/link';
 
@@ -79,10 +79,12 @@ export default function TrendsPage() {
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={proteinData}>
                             <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={2} />
-                            <YAxis hide />
+                            <YAxis width={30} tick={{ fontSize: 10 }} />
                             <Tooltip />
                             <ReferenceLine y={goal} stroke="green" strokeDasharray="3 3" label={`Goal: ${goal}g`} />
-                            <Bar dataKey="protein" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="protein" fill="#3b82f6" radius={[4, 4, 0, 0]}>
+                                <LabelList dataKey="protein" position="top" fontSize={10} fill="#666" />
+                            </Bar>
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
@@ -99,9 +101,11 @@ export default function TrendsPage() {
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={weightData}>
                                 <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                                <YAxis domain={['dataMin - 5', 'dataMax + 5']} hide />
+                                <YAxis domain={['dataMin - 5', 'dataMax + 5']} width={30} tick={{ fontSize: 10 }} />
                                 <Tooltip />
-                                <Line type="monotone" dataKey="weight" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} />
+                                <Line type="monotone" dataKey="weight" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }}>
+                                    <LabelList dataKey="weight" position="top" offset={10} fontSize={10} fill="#666" />
+                                </Line>
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
