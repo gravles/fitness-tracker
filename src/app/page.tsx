@@ -3,26 +3,70 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Flame, Trophy } from 'lucide-react';
-import { format } from 'date-fns';
-import { getStreak } from '@/lib/api';
+import { format, subDays } from 'date-fns';
+import { getStreak, getMonthlyLogs, getBodyMetricsHistory } from '@/lib/api';
+import { SmartCoach } from '@/components/SmartCoach';
+import { WeeklySummary } from '@/components/WeeklySummary';
+import { RecentLogs } from '@/components/RecentLogs';
+import { getSmartAdvice, CoachingTip } from '@/lib/smartCoach';
 
 export default function Dashboard() {
   const today = new Date();
   const [streak, setStreak] = useState(0);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [advice, setAdvice] = useState<CoachingTip | null>(null);
+  const [weeklyStats, setWeeklyStats] = useState({ avgWeight: 0, totalMovement: 0, avgProtein: 0 });
 
   useEffect(() => {
-    getStreak().then(setStreak).catch(console.error);
+    loadData();
   }, []);
+
+  async function loadData() {
+    try {
+      const streakVal = await getStreak();
+      setStreak(streakVal);
+
+      // Fetch last 7 days + buffer
+      const start = format(subDays(today, 7), 'yyyy-MM-dd');
+      const end = format(today, 'yyyy-MM-dd');
+      const [recentLogs, recentMetrics] = await Promise.all([
+        getMonthlyLogs(start, end),
+        getBodyMetricsHistory(start, end)
+      ]);
+
+      setLogs(recentLogs);
+      setAdvice(getSmartAdvice(recentLogs, streakVal));
+
+      // Calculate Weekly Stats
+      const totalMoved = recentLogs.reduce((acc, log) => acc + (log.movement_duration || 0), 0);
+      const totalProtein = recentLogs.reduce((acc, log) => acc + (log.protein_grams || 0), 0);
+
+      // Calculate avg weight (if any)
+      const weights = recentMetrics.map(m => m.weight).filter(w => w) as number[];
+      const avgWeight = weights.length > 0 ? weights.reduce((a, b) => a + b, 0) / weights.length : 0;
+
+      setWeeklyStats({
+        avgWeight: parseFloat(avgWeight.toFixed(1)),
+        totalMovement: totalMoved,
+        avgProtein: Math.round(totalProtein / (recentLogs.length || 1))
+      });
+
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
   return (
     <main className="p-6 pt-12 pb-24 space-y-6">
-      <header className="flex justify-between items-center">
+      <header className="flex justify-between items-center mb-2">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500">{format(today, 'EEEE, MMMM d')}</p>
         </div>
-        {/* User avatar/profile link could go here */}
       </header>
+
+      {/* Smart Coach Widget */}
+      <SmartCoach tip={advice} />
 
       {/* Streak Card */}
       <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl p-6 text-white shadow-xl shadow-orange-200/50 relative overflow-hidden">
@@ -39,6 +83,9 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Weekly Summary */}
+      <WeeklySummary stats={weeklyStats} />
+
       {/* Quick Actions */}
       <Link href="/log" className="block group">
         <div className="glass-card p-6 rounded-2xl flex items-center justify-between group-active:scale-[0.98] transition-all duration-200 hover:shadow-lg hover:shadow-blue-100/50 hover:border-blue-200">
@@ -52,10 +99,8 @@ export default function Dashboard() {
         </div>
       </Link>
 
-      {/* Weekly Summary - Placeholder can remain or be updated. 
-                For MVP Phase 1 completion, Streak is the big one. 
-                I will leave Weekly Summary static for now to minimize scope creep unless explicitly asked.
-            */}
+      {/* Recent Activity */}
+      <RecentLogs logs={logs} />
     </main>
   );
 }
