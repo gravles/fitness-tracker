@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getDailyLog, upsertDailyLog } from '@/lib/api';
 import { Loader2, Plus, Minus, Moon, Zap, Activity, Brain } from 'lucide-react';
-import { format } from 'date-fns';
 
-export function DailyLogForm() {
-    const [date, setDate] = useState(new Date());
+interface DailyLogFormProps {
+    date: Date;
+}
+
+export function DailyLogForm({ date }: DailyLogFormProps) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -31,18 +33,12 @@ export function DailyLogForm() {
 
     async function fetchLog() {
         setLoading(true);
-        const dateStr = format(date, 'yyyy-MM-dd');
+        // Ensure local date string YYYY-MM-DD
+        const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+        const dateStr = offsetDate.toISOString().split('T')[0];
 
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const { data, error } = await supabase
-                .from('daily_logs')
-                .select('*')
-                .eq('user_id', session.user.id)
-                .eq('date', dateStr)
-                .single();
+            const data = await getDailyLog(dateStr);
 
             if (data) {
                 setMovementCompleted(data.movement_completed);
@@ -84,41 +80,32 @@ export function DailyLogForm() {
 
     async function handleSave() {
         setSaving(true);
-        const dateStr = format(date, 'yyyy-MM-dd');
+        const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+        const dateStr = offsetDate.toISOString().split('T')[0];
 
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const { error } = await supabase
-                .from('daily_logs')
-                .upsert({
-                    user_id: session.user.id,
-                    date: dateStr,
-                    movement_completed: movementCompleted || false,
-                    movement_type: movementDetails.type,
-                    movement_duration: movementDetails.duration,
-                    movement_intensity: movementDetails.intensity,
-                    eating_window_start: nutrition.windowStart || null,
-                    eating_window_end: nutrition.windowEnd || null,
-                    protein_grams: nutrition.protein,
-                    carbs_grams: nutrition.carbs,
-                    fat_grams: nutrition.fat,
-                    calories: nutrition.calories,
-                    alcohol_drinks: alcohol,
-                    sleep_quality: subjective.sleep,
-                    energy_level: subjective.energy,
-                    motivation_level: subjective.motivation,
-                    stress_level: subjective.stress,
-                    daily_note: subjective.note,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'user_id,date' });
-
-            if (error) throw error;
+            await upsertDailyLog({
+                date: dateStr,
+                movement_completed: movementCompleted || false,
+                movement_type: movementDetails.type,
+                movement_duration: movementDetails.duration,
+                movement_intensity: movementDetails.intensity,
+                eating_window_start: nutrition.windowStart || null,
+                eating_window_end: nutrition.windowEnd || null,
+                protein_grams: nutrition.protein,
+                carbs_grams: nutrition.carbs,
+                fat_grams: nutrition.fat,
+                calories: nutrition.calories,
+                alcohol_drinks: alcohol,
+                sleep_quality: subjective.sleep,
+                energy_level: subjective.energy,
+                motivation_level: subjective.motivation,
+                stress_level: subjective.stress,
+                daily_note: subjective.note,
+            });
 
             // Visual feedback
-            alert('Saved!'); // Replace with toast later
-
+            alert('Saved!');
         } catch (error) {
             console.error('Error saving:', error);
             alert('Failed to save');
@@ -300,8 +287,8 @@ export function DailyLogForm() {
                                         key={val}
                                         onClick={() => setSubjective({ ...subjective, [metric.key]: val })}
                                         className={`h-8 w-full rounded transition-all ${(subjective as any)[metric.key] >= val
-                                                ? 'bg-purple-500'
-                                                : 'bg-gray-100'
+                                            ? 'bg-purple-500'
+                                            : 'bg-gray-100'
                                             }`}
                                     />
                                 ))}

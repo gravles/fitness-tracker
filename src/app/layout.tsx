@@ -30,6 +30,8 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
+import { AuthWrapper } from "@/components/AuthWrapper";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -38,9 +40,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 text-gray-900`}
       >
-        {children}
+        <div className="max-w-md mx-auto min-h-screen bg-gray-50 pb-24 relative shadow-2xl shadow-gray-200">
+          <AuthWrapper>
+            {children}
+          </AuthWrapper>
+          {/* Navigation injected here in page wrappers or globally? 
+               Globally is better, but we need to ensure Auth checks. 
+               The MainLayout handled auth. We might need a global Auth wrapper.
+           */}
+        </div>
       </body>
     </html>
   );
