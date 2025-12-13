@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getMonthlyLogs, getBodyMetricsHistory } from '@/lib/api';
+import { getMonthlyLogs, getBodyMetricsHistory, getSettings } from '@/lib/api';
 import { subDays, format } from 'date-fns';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Loader2, TrendingUp, Scale } from 'lucide-react';
@@ -11,6 +11,7 @@ export default function TrendsPage() {
     const [loading, setLoading] = useState(true);
     const [weightData, setWeightData] = useState<any[]>([]);
     const [proteinData, setProteinData] = useState<any[]>([]);
+    const [goal, setGoal] = useState(150);
 
     useEffect(() => {
         fetchData();
@@ -24,10 +25,15 @@ export default function TrendsPage() {
         const endStr = format(end, 'yyyy-MM-dd');
 
         try {
-            const [logs, metrics] = await Promise.all([
+            const [logs, metrics, settings] = await Promise.all([
                 getMonthlyLogs(startStr, endStr),
-                getBodyMetricsHistory(startStr, endStr)
+                getBodyMetricsHistory(startStr, endStr),
+                getSettings()
             ]);
+
+            if (settings?.target_protein) {
+                setGoal(settings.target_protein);
+            }
 
             // Process Protein Data from Daily Logs
             const pData = logs.map(log => ({
@@ -75,7 +81,7 @@ export default function TrendsPage() {
                             <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={2} />
                             <YAxis hide />
                             <Tooltip />
-                            <ReferenceLine y={150} stroke="green" strokeDasharray="3 3" label="Goal" />
+                            <ReferenceLine y={goal} stroke="green" strokeDasharray="3 3" label={`Goal: ${goal}g`} />
                             <Bar dataKey="protein" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>

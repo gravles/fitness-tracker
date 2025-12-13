@@ -167,3 +167,45 @@ export async function getBodyMetricsHistory(startDate: string, endDate: string) 
     if (error) throw error;
     return data as BodyMetrics[];
 }
+
+export interface UserSettings {
+    user_id?: string;
+    target_weight?: number | null;
+    target_calories?: number | null;
+    target_protein?: number | null;
+}
+
+export async function getSettings() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .single();
+
+    // It's okay if no settings exist yet, return defaults or null
+    if (error && error.code === 'PGRST116') return null;
+    if (error) throw error;
+
+    return data as UserSettings;
+}
+
+export async function updateSettings(settings: Partial<UserSettings>) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+        .from('user_settings')
+        .upsert({
+            ...settings,
+            user_id: session.user.id,
+            updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data as UserSettings;
+}
