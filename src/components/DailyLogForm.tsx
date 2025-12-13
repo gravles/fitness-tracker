@@ -18,7 +18,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
 
     const [nutrition, setNutrition] = useState({
         protein: 0, carbs: 0, fat: 0, calories: 0,
-        windowStart: '', windowEnd: ''
+        windowStart: '', windowEnd: '', logged: true
     });
 
     const [alcohol, setAlcohol] = useState(0);
@@ -53,7 +53,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     fat: data.fat_grams || 0,
                     calories: data.calories || 0,
                     windowStart: data.eating_window_start || '',
-                    windowEnd: data.eating_window_end || ''
+                    windowEnd: data.eating_window_end || '',
+                    logged: data.protein_grams !== null || data.calories !== null
                 });
                 setAlcohol(data.alcohol_drinks || 0);
                 setSubjective({
@@ -67,7 +68,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 // Reset form for fresh day
                 setMovementCompleted(null);
                 setMovementDetails({ type: '', duration: 0, intensity: 'Moderate' });
-                setNutrition({ protein: 0, carbs: 0, fat: 0, calories: 0, windowStart: '', windowEnd: '' });
+                setNutrition({ protein: 0, carbs: 0, fat: 0, calories: 0, windowStart: '', windowEnd: '', logged: true });
                 setAlcohol(0);
                 setSubjective({ sleep: 3, energy: 3, motivation: 3, stress: 3, note: '' });
             }
@@ -92,10 +93,10 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 movement_intensity: movementDetails.intensity,
                 eating_window_start: nutrition.windowStart || null,
                 eating_window_end: nutrition.windowEnd || null,
-                protein_grams: nutrition.protein,
+                protein_grams: nutrition.protein === 0 && !nutrition.logged ? null : nutrition.protein,
                 carbs_grams: nutrition.carbs,
                 fat_grams: nutrition.fat,
-                calories: nutrition.calories,
+                calories: nutrition.calories === 0 && !nutrition.logged ? null : nutrition.calories,
                 alcohol_drinks: alcohol,
                 sleep_quality: subjective.sleep,
                 energy_level: subjective.energy,
@@ -180,61 +181,77 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
 
             {/* Nutrition Section */}
             <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <span className="text-xl">🥗</span> Nutrition
-                </h3>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-bold flex items-center gap-2">
+                        <span className="text-xl">🥗</span> Nutrition
+                    </h3>
+                    <button
+                        onClick={() => setNutrition({ ...nutrition, logged: !nutrition.logged })}
+                        className={`text-xs font-semibold px-3 py-1 rounded-full border transition-all ${!nutrition.logged
+                            ? 'bg-orange-100 text-orange-700 border-orange-200'
+                            : 'bg-gray-50 text-gray-400 border-gray-100'}`}
+                    >
+                        {nutrition.logged ? "Mark as Not Tracked" : "Not Tracked"}
+                    </button>
+                </div>
 
-                <div className="space-y-4">
-                    <div>
-                        <label className="text-sm font-medium text-gray-500 flex justify-between">
-                            Protein (g) <span className="text-blue-600 font-bold">{nutrition.protein}g</span>
-                        </label>
-                        <input
-                            type="range" min="0" max="300" step="5"
-                            value={nutrition.protein}
-                            onChange={e => setNutrition({ ...nutrition, protein: parseInt(e.target.value) })}
-                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2 accent-blue-600"
-                        />
-                        <div className="flex gap-2 mt-2">
-                            <input
-                                type="number"
-                                value={nutrition.protein || ''}
-                                onChange={e => setNutrition({ ...nutrition, protein: parseInt(e.target.value) || 0 })}
-                                className="w-20 p-2 bg-gray-50 rounded-lg text-center"
-                            />
-                        </div>
+                {!nutrition.logged ? (
+                    <div className="p-4 bg-gray-50 rounded-xl text-center text-gray-500 text-sm italic">
+                        Nutrition skipped for today.
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4">
+                ) : (
+                    <div className="space-y-4 animate-in fade-in">
                         <div>
-                            <label className="text-sm font-medium text-gray-500">Calories</label>
+                            <label className="text-sm font-medium text-gray-500 flex justify-between">
+                                Protein (g) <span className="text-blue-600 font-bold">{nutrition.protein}g</span>
+                            </label>
                             <input
-                                type="number"
-                                value={nutrition.calories || ''}
-                                onChange={e => setNutrition({ ...nutrition, calories: parseInt(e.target.value) || 0 })}
-                                className="w-full mt-1 p-3 bg-gray-50 rounded-xl"
+                                type="range" min="0" max="300" step="5"
+                                value={nutrition.protein}
+                                onChange={e => setNutrition({ ...nutrition, protein: parseInt(e.target.value) })}
+                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2 accent-blue-600"
                             />
-                        </div>
-                        <div>
-                            <label className="text-sm font-medium text-gray-500">Eating Window</label>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex gap-2 mt-2">
                                 <input
-                                    type="time"
-                                    value={nutrition.windowStart}
-                                    onChange={e => setNutrition({ ...nutrition, windowStart: e.target.value })}
-                                    className="w-full p-2 bg-gray-50 rounded-lg text-xs"
-                                />
-                                <span className="text-gray-400">-</span>
-                                <input
-                                    type="time"
-                                    value={nutrition.windowEnd}
-                                    onChange={e => setNutrition({ ...nutrition, windowEnd: e.target.value })}
-                                    className="w-full p-2 bg-gray-50 rounded-lg text-xs"
+                                    type="number"
+                                    value={nutrition.protein || ''}
+                                    onChange={e => setNutrition({ ...nutrition, protein: parseInt(e.target.value) || 0 })}
+                                    className="w-20 p-2 bg-gray-50 rounded-lg text-center"
                                 />
                             </div>
                         </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-sm font-medium text-gray-500">Calories</label>
+                                <input
+                                    type="number"
+                                    value={nutrition.calories || ''}
+                                    onChange={e => setNutrition({ ...nutrition, calories: parseInt(e.target.value) || 0 })}
+                                    className="w-full mt-1 p-3 bg-gray-50 rounded-xl"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-gray-500">Eating Window</label>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <input
+                                        type="time"
+                                        value={nutrition.windowStart}
+                                        onChange={e => setNutrition({ ...nutrition, windowStart: e.target.value })}
+                                        className="w-full p-2 bg-gray-50 rounded-lg text-xs"
+                                    />
+                                    <span className="text-gray-400">-</span>
+                                    <input
+                                        type="time"
+                                        value={nutrition.windowEnd}
+                                        onChange={e => setNutrition({ ...nutrition, windowEnd: e.target.value })}
+                                        className="w-full p-2 bg-gray-50 rounded-lg text-xs"
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                )}
             </section>
 
             {/* Alcohol Section */}
@@ -303,10 +320,10 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     onChange={e => setSubjective({ ...subjective, note: e.target.value })}
                     className="w-full mt-6 p-3 bg-gray-50 rounded-xl h-24 resize-none"
                 />
-            </section>
+            </section >
 
             {/* Floating Save Button */}
-            <div className="fixed bottom-20 right-6 md:right-[max(1.5rem,calc(50vw-220px))]">
+            < div className="fixed bottom-20 right-6 md:right-[max(1.5rem,calc(50vw-220px))]" >
                 <button
                     onClick={handleSave}
                     disabled={saving}
@@ -314,7 +331,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 >
                     {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Log'}
                 </button>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }

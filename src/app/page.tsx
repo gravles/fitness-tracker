@@ -39,7 +39,9 @@ export default function Dashboard() {
 
       // Calculate Weekly Stats
       const totalMoved = recentLogs.reduce((acc, log) => acc + (log.movement_duration || 0), 0);
-      const totalProtein = recentLogs.reduce((acc, log) => acc + (log.protein_grams || 0), 0);
+
+      const proteinLogs = recentLogs.filter(l => (l.protein_grams || 0) > 0);
+      const totalProtein = proteinLogs.reduce((acc, log) => acc + (log.protein_grams || 0), 0);
 
       // Calculate avg weight (if any)
       const weights = recentMetrics.map(m => m.weight).filter(w => w) as number[];
@@ -48,7 +50,7 @@ export default function Dashboard() {
       setWeeklyStats({
         avgWeight: parseFloat(avgWeight.toFixed(1)),
         totalMovement: totalMoved,
-        avgProtein: Math.round(totalProtein / (recentLogs.length || 1))
+        avgProtein: proteinLogs.length > 0 ? Math.round(totalProtein / proteinLogs.length) : 0
       });
 
     } catch (error) {

@@ -38,7 +38,7 @@ export default function TrendsPage() {
             // Process Protein Data from Daily Logs
             const pData = logs.map(log => ({
                 date: format(new Date(log.date), 'MM/dd'),
-                protein: log.protein_grams || 0
+                protein: log.protein_grams // Allow nulls to skip painting the bar
             }));
             setProteinData(pData);
 
