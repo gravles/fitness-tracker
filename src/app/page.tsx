@@ -15,7 +15,7 @@ export default function Dashboard() {
   const [streak, setStreak] = useState(0);
   const [logs, setLogs] = useState<any[]>([]);
   const [advice, setAdvice] = useState<CoachingTip | null>(null);
-  const [weeklyStats, setWeeklyStats] = useState({ avgWeight: 0, totalMovement: 0, avgProtein: 0 });
+  const [weeklyStats, setWeeklyStats] = useState({ avgWeight: 0, totalMovement: 0, avgProtein: 0, totalAlcohol: 0 });
 
   useEffect(() => {
     loadData();
@@ -42,6 +42,7 @@ export default function Dashboard() {
 
       const proteinLogs = recentLogs.filter(l => (l.protein_grams || 0) > 0);
       const totalProtein = proteinLogs.reduce((acc, log) => acc + (log.protein_grams || 0), 0);
+      const totalAlcohol = recentLogs.reduce((acc, log) => acc + (log.alcohol_drinks || 0), 0);
 
       // Calculate avg weight (if any)
       const weights = recentMetrics.map(m => m.weight).filter(w => w) as number[];
@@ -50,7 +51,8 @@ export default function Dashboard() {
       setWeeklyStats({
         avgWeight: parseFloat(avgWeight.toFixed(1)),
         totalMovement: totalMoved,
-        avgProtein: proteinLogs.length > 0 ? Math.round(totalProtein / proteinLogs.length) : 0
+        avgProtein: proteinLogs.length > 0 ? Math.round(totalProtein / proteinLogs.length) : 0,
+        totalAlcohol: totalAlcohol
       });
 
     } catch (error) {

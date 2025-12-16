@@ -11,6 +11,7 @@ export default function TrendsPage() {
     const [loading, setLoading] = useState(true);
     const [weightData, setWeightData] = useState<any[]>([]);
     const [proteinData, setProteinData] = useState<any[]>([]);
+    const [alcoholData, setAlcoholData] = useState<any[]>([]);
     const [goal, setGoal] = useState(150);
 
     useEffect(() => {
@@ -41,6 +42,13 @@ export default function TrendsPage() {
                 protein: log.protein_grams // Allow nulls to skip painting the bar
             }));
             setProteinData(pData);
+
+            // Process Alcohol Data
+            const aData = logs.map(log => ({
+                date: format(new Date(log.date), 'MM/dd'),
+                drinks: log.alcohol_drinks || 0
+            }));
+            setAlcoholData(aData);
 
             // Process Weight Data from Body Metrics
             const wData = metrics
@@ -84,6 +92,26 @@ export default function TrendsPage() {
                             <ReferenceLine y={goal} stroke="green" strokeDasharray="3 3" label={`Goal: ${goal}g`} />
                             <Bar dataKey="protein" fill="#3b82f6" radius={[4, 4, 0, 0]}>
                                 <LabelList dataKey="protein" position="top" fontSize={10} fill="#666" />
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </section>
+
+            {/* Alcohol Chart */}
+            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2 mb-6">
+                    <span className="text-xl">🍺</span>
+                    <h3 className="font-bold text-lg">Alcohol Consumption</h3>
+                </div>
+                <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={alcoholData}>
+                            <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={2} />
+                            <YAxis width={30} tick={{ fontSize: 10 }} allowDecimals={false} />
+                            <Tooltip />
+                            <Bar dataKey="drinks" fill="#f59e0b" radius={[4, 4, 0, 0]}>
+                                <LabelList dataKey="drinks" position="top" fontSize={10} fill="#666" />
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>
