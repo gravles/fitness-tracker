@@ -175,6 +175,8 @@ export interface UserSettings {
     target_weight?: number | null;
     target_calories?: number | null;
     target_protein?: number | null;
+    enable_cycle_tracking?: boolean;
+    custom_habits?: string[];
 }
 
 export async function getSettings() {

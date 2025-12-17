@@ -63,7 +63,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 setSubjective({
                     sleep: data.sleep_quality || 3,
                     energy: data.energy_level || 3,
-                    motivation: data.motivation_level || 3,
+                    motivation_level: data.motivation_level || 3,
                     stress: data.stress_level || 3,
                     note: data.daily_note || ''
                 });
@@ -83,6 +83,30 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             console.error('Error fetching log:', error);
         } finally {
             setLoading(false);
+        }
+    }
+
+    // Settings State
+    const [settings, setSettings] = useState<{ cycle: boolean, habits: string[] }>({ cycle: true, habits: [] });
+
+    useEffect(() => {
+        loadSettings();
+    }, []);
+
+    async function loadSettings() {
+        // Load user settings for habits/cycle preference
+        const s = await import('@/lib/api').then(m => m.getSettings());
+        if (s) {
+            setSettings({
+                cycle: s.enable_cycle_tracking ?? true,
+                habits: s.custom_habits && s.custom_habits.length > 0 ? s.custom_habits : ['Meditation', 'Cold Plunge', 'Reading', 'Stretching', 'No Sugar']
+            });
+        } else {
+            // Defaults if no settings found
+            setSettings({
+                cycle: true,
+                habits: ['Meditation', 'Cold Plunge', 'Reading', 'Stretching', 'No Sugar']
+            });
         }
     }
 
@@ -337,7 +361,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     <span className="text-xl">🧘</span> Daily Habits
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
-                    {['Meditation', 'Cold Plunge', 'Reading', 'Stretching', 'No Sugar'].map(habit => (
+                    {settings.habits.map(habit => (
                         <button
                             key={habit}
                             onClick={() => {
@@ -359,28 +383,30 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             </section>
 
             {/* Cycle Tracking (Optional) */}
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <span className="text-xl">🌸</span> Cycle Tracking
-                </h3>
-                <div className="grid grid-cols-4 gap-2">
-                    {['None', 'Light', 'Medium', 'Heavy'].map(flow => (
-                        <button
-                            key={flow}
-                            onClick={() => setMenstrualFlow(flow === 'None' ? null : flow)}
-                            className={`py-2 rounded-lg text-xs font-bold transition-all ${(menstrualFlow === flow || (flow === 'None' && menstrualFlow === null))
-                                    ? 'bg-pink-100 text-pink-700 border border-pink-200'
-                                    : 'bg-gray-50 text-gray-400 border border-transparent'
-                                }`}
-                        >
-                            {flow}
-                        </button>
-                    ))}
-                </div>
-            </section>
+            {settings.cycle && (
+                <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <span className="text-xl">🌸</span> Cycle Tracking
+                    </h3>
+                    <div className="grid grid-cols-4 gap-2">
+                        {['None', 'Light', 'Medium', 'Heavy'].map(flow => (
+                            <button
+                                key={flow}
+                                onClick={() => setMenstrualFlow(flow === 'None' ? null : flow)}
+                                className={`py-2 rounded-lg text-xs font-bold transition-all ${(menstrualFlow === flow || (flow === 'None' && menstrualFlow === null))
+                                        ? 'bg-pink-100 text-pink-700 border border-pink-200'
+                                        : 'bg-gray-50 text-gray-400 border border-transparent'
+                                    }`}
+                            >
+                                {flow}
+                            </button>
+                        ))}
+                    </div>
+                </section>
+            )}
 
             {/* Floating Save Button */}
-            < div className="fixed bottom-20 right-6 md:right-[max(1.5rem,calc(50vw-220px))]" >
+            <div className="fixed bottom-20 right-6 md:right-[max(1.5rem,calc(50vw-220px))]">
                 <button
                     onClick={handleSave}
                     disabled={saving}
@@ -388,7 +414,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 >
                     {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Log'}
                 </button>
-            </div >
-        </div >
+            </div>
+        </div>
     );
 }
