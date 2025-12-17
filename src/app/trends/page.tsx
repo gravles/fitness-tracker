@@ -12,6 +12,8 @@ export default function TrendsPage() {
     const [weightData, setWeightData] = useState<any[]>([]);
     const [proteinData, setProteinData] = useState<any[]>([]);
     const [alcoholData, setAlcoholData] = useState<any[]>([]);
+    const [cycleData, setCycleData] = useState<any[]>([]);
+    const [settings, setSettings] = useState<any>(null);
     const [goal, setGoal] = useState(150);
 
     useEffect(() => {
@@ -26,14 +28,16 @@ export default function TrendsPage() {
         const endStr = format(end, 'yyyy-MM-dd');
 
         try {
-            const [logs, metrics, settings] = await Promise.all([
+            const [logs, metrics, userSettings] = await Promise.all([
                 getMonthlyLogs(startStr, endStr),
                 getBodyMetricsHistory(startStr, endStr),
                 getSettings()
             ]);
 
-            if (settings?.target_protein) {
-                setGoal(settings.target_protein);
+            setSettings(userSettings);
+
+            if (userSettings?.target_protein) {
+                setGoal(userSettings.target_protein);
             }
 
             // Process Protein Data from Daily Logs
@@ -58,6 +62,43 @@ export default function TrendsPage() {
                     weight: m.weight
                 }));
             setWeightData(wData);
+
+            // Process Cycle Data (if enabled)
+            if (userSettings?.enable_cycle_tracking !== false) {
+                // We need to fetch workouts to correlate, but getMonthlyLogs gives us basic movement_completed.
+                // For a deeper analysis (duration), we ideally need detailed workouts or legacy data.
+                // For now, let's use 'movement_duration' from logs (legacy) combined with a future fetchWorkouts if we had a bulk endpoint (which we don't yet).
+                // Actually, let's rely on daily_logs.movement_duration (legacy) AND we'll assume for MVP we only check the logs table data for now, 
+                // as the new 'workouts' table data isn't bulk fetchable efficiently without a new API method.
+                // LIMITATION: This chart currently only correlates LEGACY single-workout duration or boolean completion.
+                // TODO: Add getWorkoutsRange to API for full support.
+
+                // Group by Menstrual Flow
+                const cycleStats: Record<string, { count: number, totalDuration: number }> = {
+                    'None': { count: 0, totalDuration: 0 },
+                    'Light': { count: 0, totalDuration: 0 },
+                    'Medium': { count: 0, totalDuration: 0 },
+                    'Heavy': { count: 0, totalDuration: 0 },
+                };
+
+                logs.forEach(log => {
+                    const flow = log.menstrual_flow || 'None';
+                    // Fallback to 0 if duration is missing
+                    const duration = log.movement_duration || 0;
+
+                    if (cycleStats[flow]) {
+                        cycleStats[flow].count += 1;
+                        cycleStats[flow].totalDuration += duration;
+                    }
+                });
+
+                const cData = Object.entries(cycleStats).map(([flow, stats]) => ({
+                    flow,
+                    avgDuration: stats.count > 0 ? Math.round(stats.totalDuration / stats.count) : 0
+                })).filter(d => d.flow !== 'None'); // Optional: hide 'None' if we only care about the period phases
+
+                setCycleData(cData);
+            }
 
         } catch (error) {
             console.error(error);
@@ -117,6 +158,31 @@ export default function TrendsPage() {
                     </ResponsiveContainer>
                 </div>
             </section>
+
+            {/* Cycle Intelligence Chart */}
+            {(settings?.enable_cycle_tracking !== false && cycleData.length > 0) && (
+                <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                    <div className="flex items-center gap-2 mb-6">
+                        <span className="text-xl">🌸</span>
+                        <h3 className="font-bold text-lg">Cycle Phase vs Workout Duration</h3>
+                    </div>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={cycleData}>
+                                <XAxis dataKey="flow" tick={{ fontSize: 12 }} />
+                                <YAxis width={30} tick={{ fontSize: 10 }} label={{ value: 'Mins', angle: -90, position: 'insideLeft' }} />
+                                <Tooltip />
+                                <Bar dataKey="avgDuration" fill="#ec4899" radius={[4, 4, 0, 0]}>
+                                    <LabelList dataKey="avgDuration" position="top" fontSize={10} fill="#666" />
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                        <p className="text-xs text-center text-gray-500 mt-4 italic">
+                            Average workout duration (minutes) grouped by menstrual flow intensity.
+                        </p>
+                    </div>
+                </section>
+            )}
 
             {/* Weight Chart */}
             <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
