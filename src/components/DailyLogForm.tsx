@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getDailyLog, upsertDailyLog } from '@/lib/api';
-import { Loader2, Plus, Minus, Moon, Zap, Activity, Brain } from 'lucide-react';
+import { getDailyLog, upsertDailyLog, getWorkouts, addWorkout, deleteWorkout, Workout } from '@/lib/api';
+import { Loader2, Plus, Minus, Moon, Zap, Activity, Brain, Trash2, Clock, Dumbbell } from 'lucide-react';
 
 interface DailyLogFormProps {
     date: Date;
@@ -14,7 +14,15 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
 
     // Form State
     const [movementCompleted, setMovementCompleted] = useState<boolean | null>(null);
-    const [movementDetails, setMovementDetails] = useState({ type: '', duration: 0, intensity: 'Moderate' });
+    const [workouts, setWorkouts] = useState<Workout[]>([]);
+
+    // New Workout Form State
+    const [newWorkout, setNewWorkout] = useState({
+        activity_type: '',
+        duration: 30,
+        intensity: 'Moderate' as 'Light' | 'Moderate' | 'Hard'
+    });
+    const [addingWorkout, setAddingWorkout] = useState(false);
 
     const [nutrition, setNutrition] = useState({
         protein: 0, carbs: 0, fat: 0, calories: 0,
@@ -41,44 +49,45 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         const dateStr = offsetDate.toISOString().split('T')[0];
 
         try {
-            const data = await getDailyLog(dateStr);
+            const [logData, workoutData] = await Promise.all([
+                getDailyLog(dateStr),
+                getWorkouts(dateStr)
+            ]);
 
-            if (data) {
-                setMovementCompleted(data.movement_completed);
-                setMovementDetails({
-                    type: data.movement_type || '',
-                    duration: data.movement_duration || 0,
-                    intensity: data.movement_intensity || 'Moderate'
-                });
+            if (logData) {
+                // If workouts exist, we can assume movement was completed even if the flag says false (legacy)
+                setMovementCompleted(logData.movement_completed || (workoutData && workoutData.length > 0));
+
                 setNutrition({
-                    protein: data.protein_grams || 0,
-                    carbs: data.carbs_grams || 0,
-                    fat: data.fat_grams || 0,
-                    calories: data.calories || 0,
-                    windowStart: data.eating_window_start || '',
-                    windowEnd: data.eating_window_end || '',
-                    logged: data.protein_grams !== null || data.calories !== null
+                    protein: logData.protein_grams || 0,
+                    carbs: logData.carbs_grams || 0,
+                    fat: logData.fat_grams || 0,
+                    calories: logData.calories || 0,
+                    windowStart: logData.eating_window_start || '',
+                    windowEnd: logData.eating_window_end || '',
+                    logged: logData.protein_grams !== null || logData.calories !== null
                 });
-                setAlcohol(data.alcohol_drinks || 0);
+                setAlcohol(logData.alcohol_drinks || 0);
                 setSubjective({
-                    sleep: data.sleep_quality || 3,
-                    energy: data.energy_level || 3,
-                    motivation: data.motivation_level || 3,
-                    stress: data.stress_level || 3,
-                    note: data.daily_note || ''
+                    sleep: logData.sleep_quality || 3,
+                    energy: logData.energy_level || 3,
+                    motivation: logData.motivation_level || 3,
+                    stress: logData.stress_level || 3,
+                    note: logData.daily_note || ''
                 });
-                setHabits(data.habits || []);
-                setMenstrualFlow(data.menstrual_flow || null);
+                setHabits(logData.habits || []);
+                setMenstrualFlow(logData.menstrual_flow || null);
             } else {
                 // Reset form for fresh day
                 setMovementCompleted(null);
-                setMovementDetails({ type: '', duration: 0, intensity: 'Moderate' });
                 setNutrition({ protein: 0, carbs: 0, fat: 0, calories: 0, windowStart: '', windowEnd: '', logged: true });
                 setAlcohol(0);
                 setSubjective({ sleep: 3, energy: 3, motivation: 3, stress: 3, note: '' });
                 setHabits([]);
                 setMenstrualFlow(null);
             }
+            setWorkouts(workoutData || []);
+
         } catch (error) {
             console.error('Error fetching log:', error);
         } finally {
@@ -110,6 +119,39 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         }
     }
 
+    async function handleAddWorkout() {
+        if (!newWorkout.activity_type) return;
+        setAddingWorkout(true);
+        const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+        const dateStr = offsetDate.toISOString().split('T')[0];
+
+        try {
+            const added = await addWorkout({
+                date: dateStr,
+                activity_type: newWorkout.activity_type,
+                duration: newWorkout.duration,
+                intensity: newWorkout.intensity,
+            });
+            setWorkouts([...workouts, added]);
+            setNewWorkout({ activity_type: '', duration: 30, intensity: 'Moderate' }); // Reset form
+        } catch (error) {
+            console.error('Error adding workout', error);
+            alert('Failed to add workout');
+        } finally {
+            setAddingWorkout(false);
+        }
+    }
+
+    async function handleDeleteWorkout(id: string) {
+        if (!confirm('Delete this workout?')) return;
+        try {
+            await deleteWorkout(id);
+            setWorkouts(workouts.filter(w => w.id !== id));
+        } catch (error) {
+            console.error('Error deleting workout', error);
+        }
+    }
+
     async function handleSave() {
         setSaving(true);
         const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
@@ -118,10 +160,9 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         try {
             await upsertDailyLog({
                 date: dateStr,
-                movement_completed: movementCompleted || false,
-                movement_type: movementDetails.type,
-                movement_duration: movementDetails.duration,
-                movement_intensity: movementDetails.intensity,
+                // If user says "No" explicitly, movement_completed is false.
+                // If user says "Yes" (or has workouts), it is true.
+                movement_completed: movementCompleted === false ? false : (movementCompleted === true || workouts.length > 0),
                 eating_window_start: nutrition.windowStart || null,
                 eating_window_end: nutrition.windowEnd || null,
                 protein_grams: nutrition.protein === 0 && !nutrition.logged ? null : nutrition.protein,
@@ -150,6 +191,9 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
 
     if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-gray-400" /></div>;
 
+    // Calculate daily total duration
+    const totalDuration = workouts.reduce((sum, w) => sum + (w.duration || 0), 0);
+
     return (
         <div className="space-y-8 pb-24">
             {/* Movement Section */}
@@ -174,38 +218,85 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 </div>
 
                 {movementCompleted && (
-                    <div className="space-y-4 animate-in fade-in slide-in-from-top-4">
-                        <div>
-                            <label className="text-sm font-medium text-gray-500">Activity Type</label>
-                            <input
-                                type="text"
-                                placeholder="e.g. Cycling, Lifting"
-                                value={movementDetails.type}
-                                onChange={e => setMovementDetails({ ...movementDetails, type: e.target.value })}
-                                className="w-full mt-1 p-3 bg-gray-50 rounded-xl"
-                            />
-                        </div>
-                        <div className="flex gap-4">
-                            <div className="flex-1">
-                                <label className="text-sm font-medium text-gray-500">Duration (min)</label>
-                                <input
-                                    type="number"
-                                    value={movementDetails.duration || ''}
-                                    onChange={e => setMovementDetails({ ...movementDetails, duration: parseInt(e.target.value) || 0 })}
-                                    className="w-full mt-1 p-3 bg-gray-50 rounded-xl"
-                                />
+                    <div className="animate-in fade-in slide-in-from-top-4 space-y-6">
+
+                        {/* List of Today's Workouts */}
+                        {workouts.length > 0 && (
+                            <div className="space-y-3">
+                                {workouts.map(workout => (
+                                    <div key={workout.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center border border-gray-100 shadow-sm">
+                                                <Dumbbell className="w-5 h-5 text-blue-500" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-gray-900">{workout.activity_type}</h4>
+                                                <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                                                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {workout.duration} min</span>
+                                                    <span className="px-2 py-0.5 bg-gray-200 rounded-full text-gray-700 font-medium">{workout.intensity}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => handleDeleteWorkout(workout.id!)}
+                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                                <div className="text-right text-sm text-gray-500 font-medium pt-2 border-t border-gray-100">
+                                    Total Duration: <span className="text-blue-600 font-bold">{totalDuration} min</span>
+                                </div>
                             </div>
-                            <div className="flex-1">
-                                <label className="text-sm font-medium text-gray-500">Intensity</label>
-                                <select
-                                    value={movementDetails.intensity}
-                                    onChange={e => setMovementDetails({ ...movementDetails, intensity: e.target.value })}
-                                    className="w-full mt-1 p-3 bg-gray-50 rounded-xl"
+                        )}
+
+                        {/* Add New Workout Form */}
+                        <div className="bg-blue-50/50 p-5 rounded-xl border border-blue-100">
+                            <h4 className="text-sm font-bold text-blue-900 mb-3 uppercase tracking-wider flex items-center gap-2">
+                                <Plus className="w-4 h-4" /> Add Workout
+                            </h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Activity</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Cycling, Lifting, Yoga"
+                                        value={newWorkout.activity_type}
+                                        onChange={e => setNewWorkout({ ...newWorkout, activity_type: e.target.value })}
+                                        className="w-full mt-1 p-3 bg-white rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                                    />
+                                </div>
+                                <div className="flex gap-4">
+                                    <div className="flex-1">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Mins</label>
+                                        <input
+                                            type="number"
+                                            value={newWorkout.duration}
+                                            onChange={e => setNewWorkout({ ...newWorkout, duration: parseInt(e.target.value) || 0 })}
+                                            className="w-full mt-1 p-3 bg-white rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Intensity</label>
+                                        <select
+                                            value={newWorkout.intensity}
+                                            onChange={e => setNewWorkout({ ...newWorkout, intensity: e.target.value as any })}
+                                            className="w-full mt-1 p-3 bg-white rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                                        >
+                                            <option>Light</option>
+                                            <option>Moderate</option>
+                                            <option>Hard</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={handleAddWorkout}
+                                    disabled={!newWorkout.activity_type || addingWorkout}
+                                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none"
                                 >
-                                    <option>Light</option>
-                                    <option>Moderate</option>
-                                    <option>Hard</option>
-                                </select>
+                                    {addingWorkout ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Add Workout'}
+                                </button>
                             </div>
                         </div>
                     </div>

@@ -6,9 +6,9 @@ export interface DailyLog {
     user_id?: string;
     date: string; // YYYY-MM-DD
     movement_completed: boolean;
-    movement_type?: string | null;
-    movement_duration?: number | null;
-    movement_intensity?: string | null;
+    movement_type?: string | null; // Deprecated in favor of workouts table
+    movement_duration?: number | null; // Deprecated
+    movement_intensity?: string | null; // Deprecated
     movement_notes?: string | null;
     eating_window_start?: string | null;
     eating_window_end?: string | null;
@@ -27,6 +27,17 @@ export interface DailyLog {
     menstrual_flow?: string | null;
     created_at?: string;
     updated_at?: string;
+}
+
+export interface Workout {
+    id?: string;
+    user_id?: string;
+    date: string;
+    activity_type: string;
+    duration: number; // minutes
+    intensity: 'Light' | 'Moderate' | 'Hard';
+    notes?: string;
+    created_at?: string;
 }
 
 export interface BodyMetrics {
@@ -212,4 +223,50 @@ export async function updateSettings(settings: Partial<UserSettings>) {
 
     if (error) throw error;
     return data as UserSettings;
+}
+
+// Workout API
+export async function getWorkouts(date: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('date', date)
+        .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data as Workout[];
+}
+
+export async function addWorkout(workout: Omit<Workout, 'id' | 'user_id' | 'created_at'>) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+        .from('workouts')
+        .insert({
+            ...workout,
+            user_id: session.user.id
+        })
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data as Workout;
+}
+
+export async function deleteWorkout(id: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { error } = await supabase
+        .from('workouts')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', session.user.id);
+
+    if (error) throw error;
 }
