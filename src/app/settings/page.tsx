@@ -102,12 +102,11 @@ export default function SettingsPage() {
                         />
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-             {/* Customization Section */ }
-             <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6">
-                 <div className="flex items-center gap-2 border-b border-gray-100 pb-4">
+            {/* Customization Section */}
+            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6">
+                <div className="flex items-center gap-2 border-b border-gray-100 pb-4">
                     <span className="text-xl">⚙️</span>
                     <h2 className="font-bold text-lg">Customization</h2>
                 </div>
@@ -128,14 +127,14 @@ export default function SettingsPage() {
 
                 {/* Habit Manager */}
                 <div>
-                     <h3 className="font-medium text-gray-900 mb-2">My Habits</h3>
-                     <p className="text-sm text-gray-500 mb-4">Customize the habits you want to track daily.</p>
-                     
-                     <div className="flex flex-wrap gap-2 mb-4">
+                    <h3 className="font-medium text-gray-900 mb-2">My Habits</h3>
+                    <p className="text-sm text-gray-500 mb-4">Customize the habits you want to track daily.</p>
+
+                    <div className="flex flex-wrap gap-2 mb-4">
                         {targets.habits.map(habit => (
                             <div key={habit} className="bg-gray-100 px-3 py-1 rounded-lg text-sm flex items-center gap-2">
                                 {habit}
-                                <button 
+                                <button
                                     onClick={() => setTargets({ ...targets, habits: targets.habits.filter(h => h !== habit) })}
                                     className="text-gray-400 hover:text-red-500"
                                 >
@@ -143,34 +142,34 @@ export default function SettingsPage() {
                                 </button>
                             </div>
                         ))}
-                     </div>
+                    </div>
 
-                     <div className="flex gap-2">
-                            <input 
-                                type="text"
-                                placeholder="Add new habit..."
-                                className="flex-1 p-3 bg-gray-50 rounded-xl"
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        const val = e.currentTarget.value.trim();
-                                        if (val && !targets.habits.includes(val)) {
-                                            setTargets({ ...targets, habits: [...targets.habits, val] });
-                                            e.currentTarget.value = '';
-                                        }
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            placeholder="Add new habit..."
+                            className="flex-1 p-3 bg-gray-50 rounded-xl"
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    const val = e.currentTarget.value.trim();
+                                    if (val && !targets.habits.includes(val)) {
+                                        setTargets({ ...targets, habits: [...targets.habits, val] });
+                                        e.currentTarget.value = '';
                                     }
-                                }}
-                            />
-                             <button className="bg-gray-900 text-white px-4 rounded-xl font-bold" onClick={(e) => {
-                                const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                                const val = input.value.trim();
-                                if (val && !targets.habits.includes(val)) {
-                                    setTargets({ ...targets, habits: [...targets.habits, val] });
-                                    input.value = '';
                                 }
-                            }}>
-                                <Plus className="w-5 h-5" />
-                            </button>
-                     </div>
+                            }}
+                        />
+                        <button className="bg-gray-900 text-white px-4 rounded-xl font-bold" onClick={(e) => {
+                            const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                            const val = input.value.trim();
+                            if (val && !targets.habits.includes(val)) {
+                                setTargets({ ...targets, habits: [...targets.habits, val] });
+                                input.value = '';
+                            }
+                        }}>
+                            <Plus className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
 
                 <button
