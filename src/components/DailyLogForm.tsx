@@ -63,7 +63,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 setSubjective({
                     sleep: data.sleep_quality || 3,
                     energy: data.energy_level || 3,
-                    motivation_level: data.motivation_level || 3,
+                    motivation: data.motivation_level || 3,
                     stress: data.stress_level || 3,
                     note: data.daily_note || ''
                 });
@@ -372,8 +372,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                                 }
                             }}
                             className={`p-3 rounded-xl border text-sm font-medium transition-all ${habits.includes(habit)
-                                    ? 'bg-green-50 border-green-200 text-green-700 shadow-sm'
-                                    : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'
+                                ? 'bg-green-50 border-green-200 text-green-700 shadow-sm'
+                                : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'
                                 }`}
                         >
                             {habits.includes(habit) ? '✅ ' : '⬜ '}{habit}
@@ -394,8 +394,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                                 key={flow}
                                 onClick={() => setMenstrualFlow(flow === 'None' ? null : flow)}
                                 className={`py-2 rounded-lg text-xs font-bold transition-all ${(menstrualFlow === flow || (flow === 'None' && menstrualFlow === null))
-                                        ? 'bg-pink-100 text-pink-700 border border-pink-200'
-                                        : 'bg-gray-50 text-gray-400 border border-transparent'
+                                    ? 'bg-pink-100 text-pink-700 border border-pink-200'
+                                    : 'bg-gray-50 text-gray-400 border border-transparent'
                                     }`}
                             >
                                 {flow}
