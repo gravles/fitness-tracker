@@ -1,5 +1,5 @@
 import { DailyLog } from './api';
-import { differenceInDays, parseISO } from 'date-fns';
+import { differenceInDays, parseISO, format } from 'date-fns';
 
 export interface CoachingTip {
     title: string;
@@ -46,7 +46,25 @@ export function getSmartAdvice(logs: DailyLog[], streak: number): CoachingTip {
         };
     }
 
-    // 3. Fallback / General Advice
+    // 3. What's Left? (Protein Check)
+    // Assuming a default target of 150g if not passed (Future: pass target as prop)
+    const targetProtein = 150;
+    const currentProtein = logs[logs.length - 1]?.protein_grams || 0;
+
+    // Only show if it's "Today" (log date matches today)
+    const lastLogDate = logs[logs.length - 1]?.date;
+    const isToday = lastLogDate === format(new Date(), 'yyyy-MM-dd');
+
+    if (isToday && currentProtein < targetProtein) {
+        const remaining = targetProtein - currentProtein;
+        return {
+            title: 'Protein Goal 🥩',
+            message: `You need ${remaining}g more to hit your goal!`,
+            type: 'info'
+        };
+    }
+
+    // 4. Fallback / General Advice
     return {
         title: 'Daily Tip 💡',
         message: 'Consistency beats intensity. Just show up today!',

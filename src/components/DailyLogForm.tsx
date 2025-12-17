@@ -27,6 +27,9 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         sleep: 3, energy: 3, motivation: 3, stress: 3, note: ''
     });
 
+    const [habits, setHabits] = useState<string[]>([]);
+    const [menstrualFlow, setMenstrualFlow] = useState<string | null>(null);
+
     useEffect(() => {
         fetchLog();
     }, [date]);
@@ -64,6 +67,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     stress: data.stress_level || 3,
                     note: data.daily_note || ''
                 });
+                setHabits(data.habits || []);
+                setMenstrualFlow(data.menstrual_flow || null);
             } else {
                 // Reset form for fresh day
                 setMovementCompleted(null);
@@ -71,6 +76,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 setNutrition({ protein: 0, carbs: 0, fat: 0, calories: 0, windowStart: '', windowEnd: '', logged: true });
                 setAlcohol(0);
                 setSubjective({ sleep: 3, energy: 3, motivation: 3, stress: 3, note: '' });
+                setHabits([]);
+                setMenstrualFlow(null);
             }
         } catch (error) {
             console.error('Error fetching log:', error);
@@ -103,6 +110,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 motivation_level: subjective.motivation,
                 stress_level: subjective.stress,
                 daily_note: subjective.note,
+                habits: habits,
+                menstrual_flow: menstrualFlow,
             });
 
             // Visual feedback
@@ -320,7 +329,55 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     onChange={e => setSubjective({ ...subjective, note: e.target.value })}
                     className="w-full mt-6 p-3 bg-gray-50 rounded-xl h-24 resize-none"
                 />
-            </section >
+            </section>
+
+            {/* Habits Section */}
+            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <span className="text-xl">🧘</span> Daily Habits
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                    {['Meditation', 'Cold Plunge', 'Reading', 'Stretching', 'No Sugar'].map(habit => (
+                        <button
+                            key={habit}
+                            onClick={() => {
+                                if (habits.includes(habit)) {
+                                    setHabits(habits.filter(h => h !== habit));
+                                } else {
+                                    setHabits([...habits, habit]);
+                                }
+                            }}
+                            className={`p-3 rounded-xl border text-sm font-medium transition-all ${habits.includes(habit)
+                                    ? 'bg-green-50 border-green-200 text-green-700 shadow-sm'
+                                    : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'
+                                }`}
+                        >
+                            {habits.includes(habit) ? '✅ ' : '⬜ '}{habit}
+                        </button>
+                    ))}
+                </div>
+            </section>
+
+            {/* Cycle Tracking (Optional) */}
+            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <span className="text-xl">🌸</span> Cycle Tracking
+                </h3>
+                <div className="grid grid-cols-4 gap-2">
+                    {['None', 'Light', 'Medium', 'Heavy'].map(flow => (
+                        <button
+                            key={flow}
+                            onClick={() => setMenstrualFlow(flow === 'None' ? null : flow)}
+                            className={`py-2 rounded-lg text-xs font-bold transition-all ${(menstrualFlow === flow || (flow === 'None' && menstrualFlow === null))
+                                    ? 'bg-pink-100 text-pink-700 border border-pink-200'
+                                    : 'bg-gray-50 text-gray-400 border border-transparent'
+                                }`}
+                        >
+                            {flow}
+                        </button>
+                    ))}
+                </div>
+            </section>
 
             {/* Floating Save Button */}
             < div className="fixed bottom-20 right-6 md:right-[max(1.5rem,calc(50vw-220px))]" >

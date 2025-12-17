@@ -23,6 +23,8 @@ export interface DailyLog {
     motivation_level?: number | null;
     stress_level?: number | null;
     daily_note?: string | null;
+    habits?: string[] | null;
+    menstrual_flow?: string | null;
     created_at?: string;
     updated_at?: string;
 }
