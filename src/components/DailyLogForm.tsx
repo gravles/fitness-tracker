@@ -86,7 +86,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     calories: logData.calories || 0,
                     windowStart: logData.eating_window_start || '',
                     windowEnd: logData.eating_window_end || '',
-                    logged: true
+                    logged: logData.nutrition_logged ?? true
                 });
                 setAlcohol(logData.alcohol_drinks || 0);
                 setSubjective({
@@ -207,6 +207,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 calories: nutrition.calories,
                 eating_window_start: nutrition.windowStart,
                 eating_window_end: nutrition.windowEnd,
+                nutrition_logged: nutrition.logged,
 
                 alcohol_drinks: alcohol,
 
