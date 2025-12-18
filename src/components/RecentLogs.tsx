@@ -1,3 +1,4 @@
+import { DailyLog } from '@/lib/api';
 import { format, parse } from 'date-fns';
 import { Activity } from 'lucide-react';
 
