@@ -12,7 +12,6 @@ export interface DailyLog {
     movement_notes?: string | null;
     eating_window_start?: string | null;
     eating_window_end?: string | null;
-    nutrition_logged?: boolean;
     protein_grams?: number | null;
     carbs_grams?: number | null;
     fat_grams?: number | null;
