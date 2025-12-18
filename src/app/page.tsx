@@ -12,6 +12,7 @@ import { getSmartAdvice, CoachingTip } from '@/lib/smartCoach';
 
 // ... imports
 import { LevelProgress } from '@/components/LevelProgress';
+import { XPHistoryModal } from '@/components/XPHistoryModal';
 import { getSettings } from '@/lib/api';
 
 export default function Dashboard() {
@@ -23,6 +24,7 @@ export default function Dashboard() {
 
   // Gamification State
   const [userLevel, setUserLevel] = useState({ level: 1, xp: 0 });
+  const [showXPModal, setShowXPModal] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -86,7 +88,16 @@ export default function Dashboard() {
       </header>
 
       {/* Level Progress */}
-      <LevelProgress level={userLevel.level} xp={userLevel.xp} />
+      <LevelProgress
+        level={userLevel.level}
+        xp={userLevel.xp}
+        onClick={() => setShowXPModal(true)}
+      />
+
+      <XPHistoryModal
+        isOpen={showXPModal}
+        onClose={() => setShowXPModal(false)}
+      />
 
       {/* Smart Coach Widget */}
       <SmartCoach tip={advice} />

@@ -5,9 +5,10 @@ import { Zap } from 'lucide-react';
 interface LevelProgressProps {
     level: number;
     xp: number;
+    onClick?: () => void;
 }
 
-export function LevelProgress({ level, xp }: LevelProgressProps) {
+export function LevelProgress({ level, xp, onClick }: LevelProgressProps) {
     // Determine bounds for current level
     // Level 1: 0-100
     // Level 2: 100-200
@@ -18,7 +19,10 @@ export function LevelProgress({ level, xp }: LevelProgressProps) {
     const percent = Math.min(100, Math.max(0, (progressXP / 100) * 100));
 
     return (
-        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+        <div
+            onClick={onClick}
+            className={`bg-white p-4 rounded-xl border border-gray-100 shadow-sm transition-all ${onClick ? 'cursor-pointer hover:border-blue-200 hover:shadow-md' : ''}`}
+        >
             <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-2">
                     <div className="w-8 h-8 bg-yellow-400 text-yellow-900 font-bold rounded-lg flex items-center justify-center shadow-sm">
