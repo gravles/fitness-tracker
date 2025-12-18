@@ -38,9 +38,18 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     const [habits, setHabits] = useState<string[]>([]);
     const [menstrualFlow, setMenstrualFlow] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchLog();
-    }, [date]);
+    // Settings State (for UI toggles)
+    const [settings, setSettings] = useState({
+        cycle: true,
+        habits: ['Meditation', 'Cold Plunge', 'Reading', 'Stretching', 'No Sugar']
+    });
+
+    // Gamification State
+    const [initialXP, setInitialXP] = useState(0);
+    const [targetsState, setTargetsState] = useState<{ protein: number, calories: number } | null>(null);
+
+    // Computed
+    const totalDuration = workouts.reduce((acc, curr) => acc + curr.duration, 0);
 
     async function fetchLog() {
         setLoading(true);
@@ -49,15 +58,27 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         const dateStr = offsetDate.toISOString().split('T')[0];
 
         try {
-            const [logData, workoutData] = await Promise.all([
+            // Fetch everything we need: Log, Workouts, AND Settings (for targets)
+            const [logData, workoutData, settingsData] = await Promise.all([
                 getDailyLog(dateStr),
-                getWorkouts(dateStr)
+                getWorkouts(dateStr),
+                import('@/lib/api').then(m => m.getSettings())
             ]);
 
-            if (logData) {
-                // If workouts exist, we can assume movement was completed even if the flag says false (legacy)
-                setMovementCompleted(logData.movement_completed || (workoutData && workoutData.length > 0));
+            // Update Settings State
+            if (settingsData) {
+                setSettings({
+                    cycle: settingsData.enable_cycle_tracking ?? true,
+                    habits: settingsData.custom_habits && settingsData.custom_habits.length > 0 ? settingsData.custom_habits : ['Meditation', 'Cold Plunge', 'Reading', 'Stretching', 'No Sugar']
+                });
+                setTargetsState({
+                    protein: settingsData.target_protein || 0,
+                    calories: settingsData.target_calories || 0
+                });
+            }
 
+            if (logData) {
+                setMovementCompleted(logData.movement_completed);
                 setNutrition({
                     protein: logData.protein_grams || 0,
                     carbs: logData.carbs_grams || 0,
@@ -65,7 +86,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     calories: logData.calories || 0,
                     windowStart: logData.eating_window_start || '',
                     windowEnd: logData.eating_window_end || '',
-                    logged: logData.protein_grams !== null || logData.calories !== null
+                    logged: logData.nutrition_logged ?? true
                 });
                 setAlcohol(logData.alcohol_drinks || 0);
                 setSubjective({
@@ -77,14 +98,27 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 });
                 setHabits(logData.habits || []);
                 setMenstrualFlow(logData.menstrual_flow || null);
+
+                // Calculate Initial XP from existing data
+                const { calculateXP } = await import('@/lib/gamification');
+                const t = settingsData ? { daily_protein: settingsData.target_protein || 0, daily_calories: settingsData.target_calories || 0 } : undefined;
+                const baseline = calculateXP(logData, t);
+                setInitialXP(baseline);
+
             } else {
-                // Reset form for fresh day
+                // Reset form defaults if no log exists
                 setMovementCompleted(null);
-                setNutrition({ protein: 0, carbs: 0, fat: 0, calories: 0, windowStart: '', windowEnd: '', logged: true });
+                setNutrition({
+                    protein: 0, carbs: 0, fat: 0, calories: 0,
+                    windowStart: '', windowEnd: '', logged: true
+                });
                 setAlcohol(0);
-                setSubjective({ sleep: 3, energy: 3, motivation: 3, stress: 3, note: '' });
+                setSubjective({
+                    sleep: 3, energy: 3, motivation: 3, stress: 3, note: ''
+                });
                 setHabits([]);
                 setMenstrualFlow(null);
+                setInitialXP(0);
             }
             setWorkouts(workoutData || []);
 
@@ -95,33 +129,15 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         }
     }
 
-    // Settings State
-    const [settings, setSettings] = useState<{ cycle: boolean, habits: string[] }>({ cycle: true, habits: [] });
-
     useEffect(() => {
-        loadSettings();
-    }, []);
-
-    async function loadSettings() {
-        // Load user settings for habits/cycle preference
-        const s = await import('@/lib/api').then(m => m.getSettings());
-        if (s) {
-            setSettings({
-                cycle: s.enable_cycle_tracking ?? true,
-                habits: s.custom_habits && s.custom_habits.length > 0 ? s.custom_habits : ['Meditation', 'Cold Plunge', 'Reading', 'Stretching', 'No Sugar']
-            });
-        } else {
-            // Defaults if no settings found
-            setSettings({
-                cycle: true,
-                habits: ['Meditation', 'Cold Plunge', 'Reading', 'Stretching', 'No Sugar']
-            });
-        }
-    }
+        fetchLog();
+    }, [date]);
 
     async function handleAddWorkout() {
         if (!newWorkout.activity_type) return;
         setAddingWorkout(true);
+
+        // Ensure local date string YYYY-MM-DD
         const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
         const dateStr = offsetDate.toISOString().split('T')[0];
 
@@ -158,86 +174,111 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         const dateStr = offsetDate.toISOString().split('T')[0];
 
         try {
-            await upsertDailyLog({
-                date: dateStr,
-                // If user says "No" explicitly, movement_completed is false.
-                // If user says "Yes" (or has workouts), it is true.
+            // --- GAMIFICATION LOGIC START ---
+            const { calculateXP } = await import('@/lib/gamification');
+
+            // 1. Reconstruct New State
+            const currentLogState: any = {
                 movement_completed: movementCompleted === false ? false : (movementCompleted === true || workouts.length > 0),
-                eating_window_start: nutrition.windowStart || null,
-                eating_window_end: nutrition.windowEnd || null,
-                protein_grams: nutrition.protein === 0 && !nutrition.logged ? null : nutrition.protein,
+                movement_duration: totalDuration,
+                protein_grams: nutrition.protein,
+                calories: nutrition.calories,
+                habits: habits,
+                date: dateStr
+            };
+
+            // 2. Refresh Targets (ensure we use latest keys)
+            const activeTargets = targetsState ? { daily_protein: targetsState.protein, daily_calories: targetsState.calories } : undefined;
+            const newDailyXP = calculateXP(currentLogState, activeTargets);
+
+            // 3. Calculate Delta
+            const xpDelta = newDailyXP - initialXP;
+
+            // --- END GAMIFICATION PRE-CALC ---
+
+            const logData = {
+                date: dateStr,
+                movement_completed: currentLogState.movement_completed,
+                movement_duration: totalDuration,
+
+                protein_grams: nutrition.protein,
                 carbs_grams: nutrition.carbs,
                 fat_grams: nutrition.fat,
-                calories: nutrition.calories === 0 && !nutrition.logged ? null : nutrition.calories,
+                calories: nutrition.calories,
+                eating_window_start: nutrition.windowStart,
+                eating_window_end: nutrition.windowEnd,
+                nutrition_logged: nutrition.logged,
+
                 alcohol_drinks: alcohol,
+
                 sleep_quality: subjective.sleep,
                 energy_level: subjective.energy,
                 motivation_level: subjective.motivation,
                 stress_level: subjective.stress,
                 daily_note: subjective.note,
-                habits: habits,
-                menstrual_flow: menstrualFlow,
-            });
 
-            // --- GAMIFICATION LOGIC START ---
-            let xpGained = 0;
-            const logForCalc: any = {
-                movement_completed: movementCompleted === false ? false : (movementCompleted === true || workouts.length > 0),
-                movement_duration: totalDuration, // Use aggregated duration
-                movement_intensity: workouts.length > 0 ? workouts[0].intensity : 'Moderate', // simplify for MVP
-                protein_grams: nutrition.protein,
-                eating_window_start: nutrition.windowStart,
-                eating_window_end: nutrition.windowEnd,
                 habits: habits,
-                date: dateStr
+                menstrual_flow: menstrualFlow
             };
 
-            // Calculate base XP
-            const { calculateXP } = await import('@/lib/gamification');
-            xpGained = calculateXP(logForCalc);
+            await upsertDailyLog(logData);
 
-            // Update XP in DB
-            const { updateUserXP } = await import('@/lib/api');
-            const result = await updateUserXP(xpGained);
+            // Apply XP update if any
+            if (xpDelta !== 0) {
+                const { updateUserXP } = await import('@/lib/api');
+                const result = await updateUserXP(xpDelta);
+                setInitialXP(newDailyXP); // Update baseline for next save
 
-            // TODO: In a real app we would check for badges here too using badge definitions
-            // --- GAMIFICATION LOGIC END ---
+                if (xpDelta > 0) {
+                    alert(`Saved! You earned +${xpDelta} XP! (Daily Total: ${newDailyXP}) ${result?.leveledUp ? 'LEVEL UP! 🎉' : ''}`);
+                } else {
+                    alert(`Saved! Updated daily stats.`);
+                }
+            } else {
+                alert('Saved!');
+            }
 
-            // Visual feedback
-            alert(`Saved! You earned +${xpGained} XP! ${result?.leveledUp ? 'LEVEL UP! 🎉' : ''}`);
         } catch (error) {
-            console.error('Error saving:', error);
-            alert('Failed to save');
+            console.error('Error saving log:', error);
+            alert('Failed to save log');
         } finally {
             setSaving(false);
         }
     }
 
-    if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-gray-400" /></div>;
-
-    // Calculate daily total duration
-    const totalDuration = workouts.reduce((sum, w) => sum + (w.duration || 0), 0);
+    if (loading) {
+        return (
+            <div className="flex justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-8 pb-24">
+        <div className="space-y-6 pb-32">
             {/* Movement Section */}
             <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-blue-500" /> Movement
+                    <span className="text-xl">🔥</span> Movement
                 </h3>
 
+                {/* Did you move? Toggle */}
                 <div className="flex gap-4 mb-6">
                     <button
                         onClick={() => setMovementCompleted(true)}
-                        className={`flex-1 py-4 rounded-xl font-medium transition-all ${movementCompleted === true ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}
+                        className={`flex-1 py-4 rounded-xl font-bold transition-all border-2 ${movementCompleted === true
+                            ? 'bg-blue-600 border-blue-600 text-white shadow-lg scale-[1.02]'
+                            : 'bg-white border-gray-100 text-gray-400 hover:border-blue-200'}`}
                     >
-                        Yes, I moved
+                        Yes, I moved!
                     </button>
                     <button
                         onClick={() => setMovementCompleted(false)}
-                        className={`flex-1 py-4 rounded-xl font-medium transition-all ${movementCompleted === false ? 'bg-gray-800 text-white' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}
+                        className={`flex-1 py-4 rounded-xl font-bold transition-all border-2 ${movementCompleted === false
+                            ? 'bg-gray-800 border-gray-800 text-white shadow-lg scale-[1.02]'
+                            : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
                     >
-                        No
+                        Rest Day
                     </button>
                 </div>
 
@@ -437,6 +478,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     {[
                         { label: 'Sleep Quality', icon: <Moon className="w-4 h-4" />, key: 'sleep' },
                         { label: 'Energy', icon: <Zap className="w-4 h-4" />, key: 'energy' },
+                        { label: 'Motivation', icon: <Activity className="w-4 h-4" />, key: 'motivation' },
                         { label: 'Stress', icon: <Activity className="w-4 h-4" />, key: 'stress' },
                     ].map((metric) => (
                         <div key={metric.key}>
