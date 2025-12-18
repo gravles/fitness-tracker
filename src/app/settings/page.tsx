@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getSettings, updateSettings } from '@/lib/api';
-import { Loader2, Save, Target, Plus } from 'lucide-react';
+import { getSettings, updateSettings, getUserBadges, UserBadge } from '@/lib/api';
+import { Loader2, Save, Target, Plus, Trophy } from 'lucide-react';
+import { TrophyCase } from '@/components/TrophyCase';
 
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
@@ -14,6 +15,7 @@ export default function SettingsPage() {
         enableCycle: true,
         habits: [] as string[]
     });
+    const [earnedBadges, setEarnedBadges] = useState<UserBadge[]>([]);
 
     useEffect(() => {
         loadSettings();
@@ -21,7 +23,13 @@ export default function SettingsPage() {
 
     async function loadSettings() {
         try {
-            const data = await getSettings();
+            const [data, badges] = await Promise.all([
+                getSettings(),
+                getUserBadges()
+            ]);
+
+            setEarnedBadges(badges);
+
             if (data) {
                 setTargets({
                     weight: data.target_weight?.toString() || '',
@@ -179,6 +187,11 @@ export default function SettingsPage() {
                 >
                     {saving ? <Loader2 className="animate-spin" /> : <><Save className="w-4 h-4" /> Save All Settings</>}
                 </button>
+            </section>
+
+            {/* Trophy Case Section */}
+            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6">
+                <TrophyCase earnedBadges={earnedBadges} />
             </section>
 
             <section className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
