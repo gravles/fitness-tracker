@@ -205,8 +205,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 carbs_grams: nutrition.carbs,
                 fat_grams: nutrition.fat,
                 calories: nutrition.calories,
-                eating_window_start: nutrition.windowStart,
-                eating_window_end: nutrition.windowEnd,
+                eating_window_start: nutrition.windowStart || null,
+                eating_window_end: nutrition.windowEnd || null,
                 nutrition_logged: nutrition.logged,
 
                 alcohol_drinks: alcohol,
