@@ -1,5 +1,4 @@
-import { DailyLog } from '@/lib/api';
-import { format } from 'date-fns';
+import { format, parse } from 'date-fns';
 import { Activity } from 'lucide-react';
 
 export function RecentLogs({ logs }: { logs: DailyLog[] }) {
@@ -18,7 +17,7 @@ export function RecentLogs({ logs }: { logs: DailyLog[] }) {
                                 <Activity className="w-4 h-4" />
                             </div>
                             <div>
-                                <p className="font-bold text-sm text-gray-800">{format(new Date(log.date), 'EEEE')}</p>
+                                <p className="font-bold text-sm text-gray-800">{format(parse(log.date, 'yyyy-MM-dd', new Date()), 'EEEE')}</p>
                                 <p className="text-xs text-gray-500">{log.movement_completed ? log.movement_type || 'Workout' : 'Rest Day'}</p>
                             </div>
                         </div>
