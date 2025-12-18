@@ -188,6 +188,9 @@ export interface UserSettings {
     target_protein?: number | null;
     enable_cycle_tracking?: boolean;
     custom_habits?: string[];
+    // Gamification
+    total_xp?: number;
+    current_level?: number;
 }
 
 export async function getSettings() {
@@ -269,4 +272,68 @@ export async function deleteWorkout(id: string) {
         .eq('user_id', session.user.id);
 
     if (error) throw error;
+}
+
+// Gamification API
+export interface UserBadge {
+    id?: string;
+    badge_id: string;
+    earned_at: string;
+    metadata?: any;
+}
+
+export async function getUserBadges() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
+
+    const { data, error } = await supabase
+        .from('user_badges')
+        .select('*')
+        .eq('user_id', session.user.id);
+
+    if (error) {
+        console.error('Error fetching badges:', error);
+        return [];
+    }
+    return data as UserBadge[];
+}
+
+export async function awardBadge(badgeId: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const { data: existing } = await supabase
+        .from('user_badges')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('badge_id', badgeId)
+        .single();
+
+    if (existing) return;
+
+    const { error } = await supabase
+        .from('user_badges')
+        .insert({
+            user_id: session.user.id,
+            badge_id: badgeId
+        });
+
+    if (error) console.error('Error awarding badge:', error);
+}
+
+export async function updateUserXP(xpToAdd: number) {
+    const settings = await getSettings();
+    if (!settings) return;
+
+    const currentXP = settings.total_xp || 0;
+    const newXP = currentXP + xpToAdd;
+    const newLevel = Math.floor(newXP / 100) + 1;
+
+    await updateSettings({
+        ...settings,
+        total_xp: newXP,
+        current_level: newLevel
+    });
+
+    return { newXP, newLevel, leveledUp: newLevel > (settings.current_level || 1) };
 }

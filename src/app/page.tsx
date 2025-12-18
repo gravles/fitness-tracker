@@ -10,6 +10,10 @@ import { WeeklySummary } from '@/components/WeeklySummary';
 import { RecentLogs } from '@/components/RecentLogs';
 import { getSmartAdvice, CoachingTip } from '@/lib/smartCoach';
 
+// ... imports
+import { LevelProgress } from '@/components/LevelProgress';
+import { getSettings } from '@/lib/api';
+
 export default function Dashboard() {
   const today = new Date();
   const [streak, setStreak] = useState(0);
@@ -17,34 +21,43 @@ export default function Dashboard() {
   const [advice, setAdvice] = useState<CoachingTip | null>(null);
   const [weeklyStats, setWeeklyStats] = useState({ avgWeight: 0, totalMovement: 0, avgProtein: 0, totalAlcohol: 0 });
 
+  // Gamification State
+  const [userLevel, setUserLevel] = useState({ level: 1, xp: 0 });
+
   useEffect(() => {
     loadData();
   }, []);
 
   async function loadData() {
     try {
-      const streakVal = await getStreak();
-      setStreak(streakVal);
-
-      // Fetch last 7 days + buffer
       const start = format(subDays(today, 7), 'yyyy-MM-dd');
       const end = format(today, 'yyyy-MM-dd');
-      const [recentLogs, recentMetrics] = await Promise.all([
+
+      // Parallel Fetching
+      const [streakVal, recentLogs, recentMetrics, settings] = await Promise.all([
+        getStreak(),
         getMonthlyLogs(start, end),
-        getBodyMetricsHistory(start, end)
+        getBodyMetricsHistory(start, end),
+        getSettings()
       ]);
 
+      setStreak(streakVal);
       setLogs(recentLogs);
       setAdvice(getSmartAdvice(recentLogs, streakVal));
 
-      // Calculate Weekly Stats
-      const totalMoved = recentLogs.reduce((acc, log) => acc + (log.movement_duration || 0), 0);
+      if (settings) {
+        setUserLevel({
+          level: settings.current_level || 1,
+          xp: settings.total_xp || 0
+        });
+      }
 
+      // Calculate Weekly Stats
+      // ... existing calculation ...
+      const totalMoved = recentLogs.reduce((acc, log) => acc + (log.movement_duration || 0), 0);
       const proteinLogs = recentLogs.filter(l => (l.protein_grams || 0) > 0);
       const totalProtein = proteinLogs.reduce((acc, log) => acc + (log.protein_grams || 0), 0);
       const totalAlcohol = recentLogs.reduce((acc, log) => acc + (log.alcohol_drinks || 0), 0);
-
-      // Calculate avg weight (if any)
       const weights = recentMetrics.map(m => m.weight).filter(w => w) as number[];
       const avgWeight = weights.length > 0 ? weights.reduce((a, b) => a + b, 0) / weights.length : 0;
 
@@ -72,11 +85,15 @@ export default function Dashboard() {
         </Link>
       </header>
 
+      {/* Level Progress */}
+      <LevelProgress level={userLevel.level} xp={userLevel.xp} />
+
       {/* Smart Coach Widget */}
       <SmartCoach tip={advice} />
 
       {/* Streak Card */}
       <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl p-6 text-white shadow-xl shadow-orange-200/50 relative overflow-hidden">
+        {/* ... existing streak content ... */}
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-2">
             <Flame className="w-5 h-5 animate-pulse" />

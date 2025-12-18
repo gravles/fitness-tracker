@@ -179,8 +179,32 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 menstrual_flow: menstrualFlow,
             });
 
+            // --- GAMIFICATION LOGIC START ---
+            let xpGained = 0;
+            const logForCalc: any = {
+                movement_completed: movementCompleted === false ? false : (movementCompleted === true || workouts.length > 0),
+                movement_duration: totalDuration, // Use aggregated duration
+                movement_intensity: workouts.length > 0 ? workouts[0].intensity : 'Moderate', // simplify for MVP
+                protein_grams: nutrition.protein,
+                eating_window_start: nutrition.windowStart,
+                eating_window_end: nutrition.windowEnd,
+                habits: habits,
+                date: dateStr
+            };
+
+            // Calculate base XP
+            const { calculateXP } = await import('@/lib/gamification');
+            xpGained = calculateXP(logForCalc);
+
+            // Update XP in DB
+            const { updateUserXP } = await import('@/lib/api');
+            const result = await updateUserXP(xpGained);
+
+            // TODO: In a real app we would check for badges here too using badge definitions
+            // --- GAMIFICATION LOGIC END ---
+
             // Visual feedback
-            alert('Saved!');
+            alert(`Saved! You earned +${xpGained} XP! ${result?.leveledUp ? 'LEVEL UP! 🎉' : ''}`);
         } catch (error) {
             console.error('Error saving:', error);
             alert('Failed to save');
