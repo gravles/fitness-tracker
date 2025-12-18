@@ -97,6 +97,8 @@ export default function Dashboard() {
       <XPHistoryModal
         isOpen={showXPModal}
         onClose={() => setShowXPModal(false)}
+        lifetimeXP={userLevel.xp}
+        onSync={loadData}
       />
 
       {/* Smart Coach Widget */}

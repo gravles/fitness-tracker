@@ -338,3 +338,42 @@ export async function updateUserXP(xpToAdd: number) {
 
     return { newXP, newLevel, leveledUp: newLevel > (settings.current_level || 1) };
 }
+
+export async function recalculateTotalXP() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    // 1. Fetch History (Last 365 days max for now)
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 365);
+
+    // Use getMonthlyLogs to fetch range
+    const logs = await getMonthlyLogs(format(start, 'yyyy-MM-dd'), format(end, 'yyyy-MM-dd'));
+    const settings = await getSettings();
+    if (!settings) return null;
+
+    // 2. Calculate Total
+    const { calculateXP } = await import('./gamification');
+
+    const targets = {
+        daily_protein: settings.target_protein || 0,
+        daily_calories: settings.target_calories || 0
+    };
+
+    let totalXP = 0;
+    logs.forEach(log => {
+        totalXP += calculateXP(log, targets);
+    });
+
+    // 3. Update Settings
+    const newLevel = Math.floor(totalXP / 100) + 1;
+
+    await updateSettings({
+        ...settings,
+        total_xp: totalXP,
+        current_level: newLevel
+    });
+
+    return { totalXP, newLevel };
+}

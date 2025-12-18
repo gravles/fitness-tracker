@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2, Trophy } from 'lucide-react';
 import { format, subDays, parseISO } from 'date-fns';
-import { getMonthlyLogs, getSettings } from '@/lib/api';
+import { getMonthlyLogs, getSettings, recalculateTotalXP } from '@/lib/api';
 import { calculateXP, XPTargets } from '@/lib/gamification';
 
 interface XPHistoryModalProps {
     isOpen: boolean;
     onClose: () => void;
+    lifetimeXP: number;
+    onSync?: () => void;
 }
 
 interface XPLog {
@@ -17,8 +19,9 @@ interface XPLog {
     details: string[];
 }
 
-export function XPHistoryModal({ isOpen, onClose }: XPHistoryModalProps) {
+export function XPHistoryModal({ isOpen, onClose, lifetimeXP, onSync }: XPHistoryModalProps) {
     const [loading, setLoading] = useState(true);
+    const [syncing, setSyncing] = useState(false);
     const [history, setHistory] = useState<XPLog[]>([]);
     const [totalRecentXP, setTotalRecentXP] = useState(0);
 
@@ -72,7 +75,25 @@ export function XPHistoryModal({ isOpen, onClose }: XPHistoryModalProps) {
         }
     }
 
+    async function handleSync() {
+        if (!confirm('This will recalculate your total XP based on your complete history. Continue?')) return;
+        setSyncing(true);
+        try {
+            await recalculateTotalXP();
+            if (onSync) onSync();
+            onClose();
+            alert('XP Synced Successfully!');
+        } catch (error) {
+            console.error(error);
+            alert('Failed to sync XP');
+        } finally {
+            setSyncing(false);
+        }
+    }
+
     if (!isOpen) return null;
+
+    const showSync = totalRecentXP > lifetimeXP;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
@@ -87,9 +108,20 @@ export function XPHistoryModal({ isOpen, onClose }: XPHistoryModalProps) {
                     </button>
                 </div>
 
-                <div className="p-4 bg-blue-50 border-b border-blue-100">
-                    <p className="text-xs font-bold text-blue-600 uppercase tracking-wide">Recent Gains</p>
-                    <p className="text-2xl font-black text-blue-900">+{totalRecentXP} XP</p>
+                <div className="p-4 bg-blue-50 border-b border-blue-100 flex justify-between items-center">
+                    <div>
+                        <p className="text-xs font-bold text-blue-600 uppercase tracking-wide">Recent Gains</p>
+                        <p className="text-2xl font-black text-blue-900">+{totalRecentXP} XP</p>
+                    </div>
+                    {showSync && (
+                        <button
+                            onClick={handleSync}
+                            disabled={syncing}
+                            className="text-xs bg-blue-600 text-white px-3 py-2 rounded-lg font-bold shadow-md hover:bg-blue-700 transition-colors flex items-center gap-1"
+                        >
+                            {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Sync XP'}
+                        </button>
+                    )}
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
