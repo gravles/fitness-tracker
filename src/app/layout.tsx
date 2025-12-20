@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   title: "Life Logger",
   description: "Daily fitness and nutrition tracker",
   manifest: "/manifest.json",
+  icons: {
+    apple: "/icon-192.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -24,6 +27,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  themeColor: "#ffffff",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
