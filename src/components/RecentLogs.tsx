@@ -3,7 +3,7 @@ import { format, parse } from 'date-fns';
 import { Activity } from 'lucide-react';
 
 export function RecentLogs({ logs }: { logs: DailyLog[] }) {
-    const recent = logs.slice(0, 3).reverse(); // Show last 3, newest first
+    const recent = [...logs].reverse().slice(0, 3); // Show last 3, newest first
 
     if (recent.length === 0) return null;
 
