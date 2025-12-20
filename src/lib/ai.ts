@@ -32,10 +32,16 @@ export async function analyzeFoodImage(base64Image: string): Promise<FoodAnalysi
             {
                 role: "system",
                 content: `You are a nutritionist AI. Analyze the food image and estimate the nutritional content.
+        
+        Rules for Portion Estimation:
+        - If showing a PREPARED MEAL (e.g., plate of food), estimate for the ENTIRE visible amount. Set portion_estimate to "1 plate" or "1 bowl".
+        - If showing a PACKAGED ITEM (e.g., box of cookies, whole cake), estimate for the FULL container/unit if possible, or a clear standard serving, so the user can scale down (e.g., portion_estimate: "1 box" or "1 cake").
+        
         Return ONLY a JSON object with the following structure:
         {
           "name": "Short descriptive name of the food",
-          "calories": number (estimated total calories),
+          "portion_estimate": "e.g., '1 slice', '1 bowl', '1 box'",
+          "calories": number (estimated calories per portion),
           "protein": number (grams),
           "carbs": number (grams),
           "fat": number (grams),

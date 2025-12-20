@@ -164,39 +164,51 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
 
     // Food Item Management
     function addFoodItems(items: any[]) {
-        setFoodItems(prev => [...prev, ...items]);
+        // Init quantity to 1 if not present
+        const newItems = items.map(i => ({ ...i, quantity: i.quantity || 1 }));
+        setFoodItems(prev => {
+            const updatedList = [...prev, ...newItems];
+            updateNutritionTotals(updatedList);
+            return updatedList;
+        });
+    }
 
-        // Update totals
-        setNutrition(prev => {
-            let p = prev.protein || 0;
-            let c = prev.calories || 0;
-            let carbs = prev.carbs || 0;
-            let fat = prev.fat || 0;
-
-            items.forEach(item => {
-                p += (item.protein || 0);
-                c += (item.calories || 0);
-                carbs += (item.carbs || 0);
-                fat += (item.fat || 0);
-            });
-
-            return { ...prev, protein: Math.round(p), calories: Math.round(c), carbs: Math.round(carbs), fat: Math.round(fat) };
+    function updateFoodItemQuantity(index: number, newQuantity: number) {
+        if (newQuantity < 0) return;
+        setFoodItems(prev => {
+            const updated = [...prev];
+            updated[index].quantity = newQuantity;
+            updateNutritionTotals(updated);
+            return updated;
         });
     }
 
     function removeFoodItem(index: number) {
-        const itemToRemove = foodItems[index];
-        setFoodItems(prev => prev.filter((_, i) => i !== index));
+        setFoodItems(prev => {
+            const updated = prev.filter((_, i) => i !== index);
+            updateNutritionTotals(updated);
+            return updated;
+        });
+    }
 
-        if (itemToRemove) {
-            setNutrition(prev => ({
-                ...prev,
-                protein: Math.max(0, Math.round((prev.protein || 0) - (itemToRemove.protein || 0))),
-                calories: Math.max(0, Math.round((prev.calories || 0) - (itemToRemove.calories || 0))),
-                carbs: Math.max(0, Math.round((prev.carbs || 0) - (itemToRemove.carbs || 0))),
-                fat: Math.max(0, Math.round((prev.fat || 0) - (itemToRemove.fat || 0)))
-            }));
-        }
+    function updateNutritionTotals(items: any[]) {
+        let p = 0, c = 0, carbs = 0, fat = 0;
+
+        items.forEach(item => {
+            const q = item.quantity || 1;
+            p += (item.protein || 0) * q;
+            c += (item.calories || 0) * q;
+            carbs += (item.carbs || 0) * q;
+            fat += (item.fat || 0) * q;
+        });
+
+        setNutrition(prev => ({
+            ...prev,
+            protein: Math.round(p),
+            calories: Math.round(c),
+            carbs: Math.round(carbs),
+            fat: Math.round(fat)
+        }));
     }
 
     async function handleAddWorkout() {
@@ -534,18 +546,33 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                             <div className="space-y-2 mb-4">
                                 {foodItems.map((item, idx) => (
                                     <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm">
-                                        <div className="flex flex-col">
-                                            <span className="font-bold text-gray-800">{item.name}</span>
+                                        <div className="flex-1">
+                                            <span className="font-bold text-gray-800 block">{item.name}</span>
+                                            {item.portion_estimate && <span className="text-xs text-gray-400 block mb-0.5">Unit: {item.portion_estimate}</span>}
                                             <span className="text-xs text-gray-500">
-                                                {item.calories} kcal • {item.protein}g P • {item.carbs}g C • {item.fat}g F
+                                                {Math.round(item.calories * (item.quantity || 1))} kcal • {Math.round(item.protein * (item.quantity || 1))}g P • {Math.round(item.carbs * (item.quantity || 1))}g C
                                             </span>
                                         </div>
-                                        <button
-                                            onClick={() => removeFoodItem(idx)}
-                                            className="text-gray-400 hover:text-red-500 p-1"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex flex-col items-center">
+                                                <label className="text-[10px] uppercase font-bold text-gray-400">Qty</label>
+                                                <input
+                                                    type="number"
+                                                    min="0.1"
+                                                    step="0.1"
+                                                    value={item.quantity || 1}
+                                                    onChange={(e) => updateFoodItemQuantity(idx, parseFloat(e.target.value) || 0)}
+                                                    className="w-16 p-1 text-center bg-white border border-gray-200 rounded text-sm font-bold"
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={() => removeFoodItem(idx)}
+                                                className="text-gray-400 hover:text-red-500 p-2"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
