@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { getDailyLog, upsertDailyLog, getWorkouts, addWorkout, deleteWorkout, Workout } from '@/lib/api';
-import { Loader2, Plus, Minus, Moon, Zap, Activity, Brain, Trash2, Clock, Dumbbell } from 'lucide-react';
+import { Loader2, Plus, Minus, Moon, Zap, Activity, Brain, Trash2, Clock, Dumbbell, Camera, X } from 'lucide-react';
+import { FoodCamera } from './FoodCamera';
+import { VoiceInput } from './VoiceInput';
 
 interface DailyLogFormProps {
     date: Date;
@@ -11,6 +13,8 @@ interface DailyLogFormProps {
 export function DailyLogForm({ date }: DailyLogFormProps) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [showCamera, setShowCamera] = useState(false);
+    const [loadingAI, setLoadingAI] = useState(false);
 
     // Form State
     const [movementCompleted, setMovementCompleted] = useState<boolean | null>(null);
@@ -369,20 +373,79 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             </section>
 
             {/* Nutrition Section */}
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-bold flex items-center gap-2">
                         <span className="text-xl">🥗</span> Nutrition
                     </h3>
-                    <button
-                        onClick={() => setNutrition({ ...nutrition, logged: !nutrition.logged })}
-                        className={`text-xs font-semibold px-3 py-1 rounded-full border transition-all ${!nutrition.logged
-                            ? 'bg-orange-100 text-orange-700 border-orange-200'
-                            : 'bg-gray-50 text-gray-400 border-gray-100'}`}
-                    >
-                        {nutrition.logged ? "Mark as Not Tracked" : "Not Tracked"}
-                    </button>
+                    <div className="flex gap-2">
+                        <VoiceInput onIntentDetected={(intent) => {
+                            if (intent.intent === 'log_food') {
+                                // Simple text fallback if AI returns raw text
+                                setSubjective(prev => ({ ...prev, note: (prev.note + ' ' + (intent.data?.item || intent.original)).trim() }));
+                                alert(`Voice Logged: ${intent.data?.item || intent.original}`);
+                            }
+                        }} />
+                        <button
+                            onClick={() => setShowCamera(true)}
+                            className="p-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
+                        >
+                            <Camera className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={() => setNutrition({ ...nutrition, logged: !nutrition.logged })}
+                            className={`text-xs font-semibold px-3 py-1 rounded-full border transition-all ${!nutrition.logged
+                                ? 'bg-orange-100 text-orange-700 border-orange-200'
+                                : 'bg-gray-50 text-gray-400 border-gray-100'}`}
+                        >
+                            {nutrition.logged ? "Mark as Not Tracked" : "Not Tracked"}
+                        </button>
+                    </div>
                 </div>
+
+                {showCamera && (
+                    <div className="mb-6 animate-in slide-in-from-top-4">
+                        <div className="flex justify-between items-center mb-2">
+                            <h4 className="text-sm font-bold text-gray-600">Scan Meal</h4>
+                            <button onClick={() => setShowCamera(false)}><X className="w-4 h-4 text-gray-400" /></button>
+                        </div>
+                        <FoodCamera
+                            onClose={() => setShowCamera(false)}
+                            onCapture={async (img) => {
+                                setShowCamera(false);
+                                setLoadingAI(true);
+                                try {
+                                    const res = await fetch('/api/ai/analyze-food', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ image: img })
+                                    });
+                                    const data = await res.json();
+                                    setNutrition(prev => ({
+                                        ...prev,
+                                        calories: (prev.calories || 0) + data.calories,
+                                        protein: (prev.protein || 0) + data.protein,
+                                        carbs: (prev.carbs || 0) + data.carbs,
+                                        fat: (prev.fat || 0) + data.fat
+                                    }));
+                                    setSubjective(prev => ({ ...prev, note: (prev.note + `\n[AI Scan]: ${data.name}`).trim() }));
+                                } catch (e: any) {
+                                    console.error(e);
+                                    alert('AI Error: ' + (e.message || 'Failed to analyze food. Check usage limits.'));
+                                } finally {
+                                    setLoadingAI(false);
+                                }
+                            }}
+                        />
+                    </div>
+                )}
+
+                {loadingAI && (
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-blue-600">
+                        <Brain className="w-8 h-8 animate-pulse mb-2" />
+                        <p className="text-sm font-bold animate-pulse">Analyzing Food...</p>
+                    </div>
+                )}
 
                 {!nutrition.logged ? (
                     <div className="p-4 bg-gray-50 rounded-xl text-center text-gray-500 text-sm italic">
