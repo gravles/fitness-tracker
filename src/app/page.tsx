@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Flame, Trophy } from 'lucide-react';
+import { ArrowRight, Flame, Trophy, Mic, Camera } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { getStreak, getMonthlyLogs, getBodyMetricsHistory } from '@/lib/api';
 import { SmartCoach } from '@/components/SmartCoach';
@@ -124,13 +124,29 @@ export default function Dashboard() {
       <WeeklySummary stats={weeklyStats} />
 
       {/* Quick Actions */}
+      <h3 className="font-bold text-gray-900 mb-2 px-1">Quick Add</h3>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <Link href="/log?action=voice" className="p-4 bg-purple-50 text-purple-700 rounded-2xl flex flex-col items-center justify-center gap-2 border border-purple-100 shadow-sm active:scale-95 transition-all">
+          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
+            <Mic className="w-5 h-5 text-purple-600" />
+          </div>
+          <span className="font-bold text-sm">Voice Log</span>
+        </Link>
+        <Link href="/log?action=camera" className="p-4 bg-blue-50 text-blue-700 rounded-2xl flex flex-col items-center justify-center gap-2 border border-blue-100 shadow-sm active:scale-95 transition-all">
+          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
+            <Camera className="w-5 h-5 text-blue-600" />
+          </div>
+          <span className="font-bold text-sm">Snap Meal</span>
+        </Link>
+      </div>
+
       <Link href="/log" className="block group">
         <div className="glass-card p-6 rounded-2xl flex items-center justify-between group-active:scale-[0.98] transition-all duration-200 hover:shadow-lg hover:shadow-blue-100/50 hover:border-blue-200">
           <div>
             <h3 className="font-bold text-xl text-gray-800 mb-1">Log Today</h3>
-            <p className="text-sm text-gray-600 font-medium">Track movement & nutrition</p>
+            <p className="text-sm text-gray-600 font-medium">Full daily log & details</p>
           </div>
-          <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
+          <div className="w-12 h-12 bg-gray-900 text-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
             <ArrowRight className="w-6 h-6" />
           </div>
         </div>

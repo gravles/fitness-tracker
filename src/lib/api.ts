@@ -25,6 +25,7 @@ export interface DailyLog {
     stress_level?: number | null;
     daily_note?: string | null;
     habits?: string[] | null;
+    food_items?: any[] | null; // { name, calories, protein, carbs, fat }
     menstrual_flow?: string | null;
     created_at?: string;
     updated_at?: string;

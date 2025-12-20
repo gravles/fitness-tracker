@@ -70,7 +70,13 @@ export async function processVoiceIntent(transcript: string) {
         // Simple mock parser
         const lower = transcript.toLowerCase();
         if (lower.includes('log') || lower.includes('eat') || lower.includes('ate')) {
-            return { intent: 'log_food', original: transcript };
+            return {
+                intent: 'log_food',
+                data: {
+                    items: [{ name: "Mock Food Item", calories: 150, protein: 5, carbs: 20, fat: 5 }]
+                },
+                original: transcript
+            };
         }
         return { intent: 'unknown', original: transcript };
     }
@@ -80,9 +86,15 @@ export async function processVoiceIntent(transcript: string) {
         messages: [
             {
                 role: "system",
-                content: `You are a fitness logger assistant. Extract the intent and data from the user's spoken text.
-                Possible intents: "log_food", "log_workout", "update_weight".
-                Return JSON.`
+                content: `You are a fitness logger assistant. Extract the intent and data.
+                
+                Rules:
+                - If the user describes food, intent="log_food". Return data={"items": [{ "name": "food name", "calories": number, "protein": number, "carbs": number, "fat": number }]}. ESTIMATE macros.
+                - If the user describes exercise, intent="log_workout". Return data={"activity": "name", "duration": number_minutes, "intensity": "Light"|"Moderate"|"Hard"}.
+                - If unknown, intent="unknown".
+
+                Output Example:
+                { "intent": "log_food", "data": { "items": [{ "name": "Apple", "calories": 95, "protein": 0.5, "carbs": 25, "fat": 0.3 }] } }`
             },
             { role: "user", content: transcript }
         ],
@@ -90,5 +102,8 @@ export async function processVoiceIntent(transcript: string) {
     });
 
     const content = response.choices[0].message.content;
-    return content ? JSON.parse(content) : null;
+    const result = content ? JSON.parse(content) : { intent: 'unknown' };
+
+    // Always attach the original text so we have a fallback
+    return { ...result, original: transcript };
 }

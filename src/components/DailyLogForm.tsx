@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { getDailyLog, upsertDailyLog, getWorkouts, addWorkout, deleteWorkout, Workout } from '@/lib/api';
 import { Loader2, Plus, Minus, Moon, Zap, Activity, Brain, Trash2, Clock, Dumbbell, Camera, X } from 'lucide-react';
 import { FoodCamera } from './FoodCamera';
@@ -11,49 +12,69 @@ interface DailyLogFormProps {
 }
 
 export function DailyLogForm({ date }: DailyLogFormProps) {
+    const searchParams = useSearchParams();
+    const router = useRouter();
+
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [showCamera, setShowCamera] = useState(false);
-    const [loadingAI, setLoadingAI] = useState(false);
+    const [foodItems, setFoodItems] = useState<any[]>([]);
 
-    // Form State
+    // Restored State Variables
+    const [settings, setSettings] = useState({ cycle: true, habits: [] as string[] });
+    const [targetsState, setTargetsState] = useState({ protein: 0, calories: 0 });
     const [movementCompleted, setMovementCompleted] = useState<boolean | null>(null);
-    const [workouts, setWorkouts] = useState<Workout[]>([]);
-
-    // New Workout Form State
-    const [newWorkout, setNewWorkout] = useState({
-        activity_type: '',
-        duration: 30,
-        intensity: 'Moderate' as 'Light' | 'Moderate' | 'Hard'
-    });
-    const [addingWorkout, setAddingWorkout] = useState(false);
-
     const [nutrition, setNutrition] = useState({
         protein: 0, carbs: 0, fat: 0, calories: 0,
         windowStart: '', windowEnd: '', logged: true
     });
-
     const [alcohol, setAlcohol] = useState(0);
-
     const [subjective, setSubjective] = useState({
         sleep: 3, energy: 3, motivation: 3, stress: 3, note: ''
     });
-
     const [habits, setHabits] = useState<string[]>([]);
     const [menstrualFlow, setMenstrualFlow] = useState<string | null>(null);
-
-    // Settings State (for UI toggles)
-    const [settings, setSettings] = useState({
-        cycle: true,
-        habits: ['Meditation', 'Cold Plunge', 'Reading', 'Stretching', 'No Sugar']
-    });
-
-    // Gamification State
     const [initialXP, setInitialXP] = useState(0);
-    const [targetsState, setTargetsState] = useState<{ protein: number, calories: number } | null>(null);
 
-    // Computed
-    const totalDuration = workouts.reduce((acc, curr) => acc + curr.duration, 0);
+    const [workouts, setWorkouts] = useState<Workout[]>([]);
+    const [newWorkout, setNewWorkout] = useState<{ activity_type: string, duration: number, intensity: 'Moderate' | 'Light' | 'Hard' }>({ activity_type: '', duration: 30, intensity: 'Moderate' });
+    const [addingWorkout, setAddingWorkout] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [showCamera, setShowCamera] = useState(false);
+    const [loadingAI, setLoadingAI] = useState(false);
+    const [autoStartVoice, setAutoStartVoice] = useState(false);
+
+    // Autosave Ref
+    const autosaveTimeout = useRef<NodeJS.Timeout | null>(null);
+    const isFirstLoad = useRef(true);
+
+    const totalDuration = workouts.reduce((acc, w) => acc + w.duration, 0);
+
+    // Quick Actions Handling
+    useEffect(() => {
+        const action = searchParams.get('action');
+        if (action === 'camera') {
+            setShowCamera(true);
+        } else if (action === 'voice') {
+            setAutoStartVoice(true);
+        }
+    }, [searchParams]);
+
+    // Autosave Logic
+    useEffect(() => {
+        if (loading || isFirstLoad.current) return;
+
+        if (autosaveTimeout.current) clearTimeout(autosaveTimeout.current);
+
+        autosaveTimeout.current = setTimeout(() => {
+            handleSave(true); // true = autosave mode
+        }, 2000); // 2 second debounce
+
+        return () => {
+            if (autosaveTimeout.current) clearTimeout(autosaveTimeout.current);
+        };
+    }, [
+        movementCompleted, workouts, nutrition, alcohol, subjective, habits, menstrualFlow, foodItems
+    ]);
+
 
     async function fetchLog() {
         setLoading(true);
@@ -92,6 +113,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     windowEnd: logData.eating_window_end || '',
                     logged: logData.nutrition_logged ?? true
                 });
+                setFoodItems(logData.food_items || []);
                 setAlcohol(logData.alcohol_drinks || 0);
                 setSubjective({
                     sleep: logData.sleep_quality || 3,
@@ -116,6 +138,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     protein: 0, carbs: 0, fat: 0, calories: 0,
                     windowStart: '', windowEnd: '', logged: true
                 });
+                setFoodItems([]);
                 setAlcohol(0);
                 setSubjective({
                     sleep: 3, energy: 3, motivation: 3, stress: 3, note: ''
@@ -130,12 +153,51 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             console.error('Error fetching log:', error);
         } finally {
             setLoading(false);
+            // Allow autosave after initial load
+            setTimeout(() => { isFirstLoad.current = false; }, 1000);
         }
     }
 
     useEffect(() => {
         fetchLog();
     }, [date]);
+
+    // Food Item Management
+    function addFoodItems(items: any[]) {
+        setFoodItems(prev => [...prev, ...items]);
+
+        // Update totals
+        setNutrition(prev => {
+            let p = prev.protein || 0;
+            let c = prev.calories || 0;
+            let carbs = prev.carbs || 0;
+            let fat = prev.fat || 0;
+
+            items.forEach(item => {
+                p += (item.protein || 0);
+                c += (item.calories || 0);
+                carbs += (item.carbs || 0);
+                fat += (item.fat || 0);
+            });
+
+            return { ...prev, protein: Math.round(p), calories: Math.round(c), carbs: Math.round(carbs), fat: Math.round(fat) };
+        });
+    }
+
+    function removeFoodItem(index: number) {
+        const itemToRemove = foodItems[index];
+        setFoodItems(prev => prev.filter((_, i) => i !== index));
+
+        if (itemToRemove) {
+            setNutrition(prev => ({
+                ...prev,
+                protein: Math.max(0, Math.round((prev.protein || 0) - (itemToRemove.protein || 0))),
+                calories: Math.max(0, Math.round((prev.calories || 0) - (itemToRemove.calories || 0))),
+                carbs: Math.max(0, Math.round((prev.carbs || 0) - (itemToRemove.carbs || 0))),
+                fat: Math.max(0, Math.round((prev.fat || 0) - (itemToRemove.fat || 0)))
+            }));
+        }
+    }
 
     async function handleAddWorkout() {
         if (!newWorkout.activity_type) return;
@@ -172,7 +234,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         }
     }
 
-    async function handleSave() {
+    async function handleSave(isAutosave = false) {
         setSaving(true);
         const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
         const dateStr = offsetDate.toISOString().split('T')[0];
@@ -213,6 +275,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 eating_window_end: nutrition.windowEnd || null,
                 nutrition_logged: nutrition.logged,
 
+                food_items: foodItems,
+
                 alcohol_drinks: alcohol,
 
                 sleep_quality: subjective.sleep,
@@ -233,18 +297,20 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 const result = await updateUserXP(xpDelta);
                 setInitialXP(newDailyXP); // Update baseline for next save
 
-                if (xpDelta > 0) {
-                    alert(`Saved! You earned +${xpDelta} XP! (Daily Total: ${newDailyXP}) ${result?.leveledUp ? 'LEVEL UP! 🎉' : ''}`);
-                } else {
-                    alert(`Saved! Updated daily stats.`);
+                if (!isAutosave) {
+                    if (xpDelta > 0) {
+                        alert(`Saved! You earned +${xpDelta} XP! (Daily Total: ${newDailyXP}) ${result?.leveledUp ? 'LEVEL UP! 🎉' : ''}`);
+                    } else {
+                        alert(`Saved! Updated daily stats.`);
+                    }
                 }
             } else {
-                alert('Saved!');
+                if (!isAutosave) alert('Saved!');
             }
 
         } catch (error) {
             console.error('Error saving log:', error);
-            alert('Failed to save log');
+            if (!isAutosave) alert('Failed to save log');
         } finally {
             setSaving(false);
         }
@@ -379,13 +445,20 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                         <span className="text-xl">🥗</span> Nutrition
                     </h3>
                     <div className="flex gap-2">
-                        <VoiceInput onIntentDetected={(intent) => {
-                            if (intent.intent === 'log_food') {
-                                // Simple text fallback if AI returns raw text
-                                setSubjective(prev => ({ ...prev, note: (prev.note + ' ' + (intent.data?.item || intent.original)).trim() }));
-                                alert(`Voice Logged: ${intent.data?.item || intent.original}`);
-                            }
-                        }} />
+                        <VoiceInput
+                            autoStart={autoStartVoice}
+                            onIntentDetected={(intent) => {
+                                if (intent.intent === 'log_food') {
+                                    if (intent.data?.items) {
+                                        addFoodItems(intent.data.items);
+                                        alert(`Added: ${intent.data.items.map((i: any) => i.name).join(', ')}`);
+                                    } else if (intent.data?.item) {
+                                        setSubjective(prev => ({ ...prev, note: (prev.note + ' ' + intent.data.item).trim() }));
+                                        alert(`Voice text added to notes (no specific items detected)`);
+                                    }
+                                }
+                            }}
+                        />
                         <button
                             onClick={() => setShowCamera(true)}
                             className="p-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
@@ -421,14 +494,16 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                                         body: JSON.stringify({ image: img })
                                     });
                                     const data = await res.json();
-                                    setNutrition(prev => ({
-                                        ...prev,
-                                        calories: (prev.calories || 0) + data.calories,
-                                        protein: (prev.protein || 0) + data.protein,
-                                        carbs: (prev.carbs || 0) + data.carbs,
-                                        fat: (prev.fat || 0) + data.fat
-                                    }));
-                                    setSubjective(prev => ({ ...prev, note: (prev.note + `\n[AI Scan]: ${data.name}`).trim() }));
+
+                                    // Add as a specific food item
+                                    addFoodItems([{
+                                        name: data.name || "Scanned  Meal",
+                                        calories: data.calories,
+                                        protein: data.protein,
+                                        carbs: data.carbs,
+                                        fat: data.fat
+                                    }]);
+
                                 } catch (e: any) {
                                     console.error(e);
                                     alert('AI Error: ' + (e.message || 'Failed to analyze food. Check usage limits.'));
@@ -453,6 +528,29 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     </div>
                 ) : (
                     <div className="space-y-4 animate-in fade-in">
+
+                        {/* Food Items List */}
+                        {foodItems.length > 0 && (
+                            <div className="space-y-2 mb-4">
+                                {foodItems.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm">
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-gray-800">{item.name}</span>
+                                            <span className="text-xs text-gray-500">
+                                                {item.calories} kcal • {item.protein}g P • {item.carbs}g C • {item.fat}g F
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={() => removeFoodItem(idx)}
+                                            className="text-gray-400 hover:text-red-500 p-1"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         <div>
                             <label className="text-sm font-medium text-gray-500 flex justify-between">
                                 Protein (g) <span className="text-blue-600 font-bold">{nutrition.protein}g</span>
@@ -628,7 +726,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             {/* Floating Save Button */}
             <div className="fixed bottom-20 right-6 md:right-[max(1.5rem,calc(50vw-220px))]">
                 <button
-                    onClick={handleSave}
+                    onClick={() => handleSave(false)}
                     disabled={saving}
                     className="flex items-center gap-2 px-6 py-4 bg-black text-white rounded-full shadow-xl hover:scale-105 active:scale-95 transition-all font-bold text-lg"
                 >

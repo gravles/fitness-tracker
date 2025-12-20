@@ -1,17 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 
 interface VoiceInputProps {
     onIntentDetected: (intent: any) => void;
+    autoStart?: boolean;
 }
 
-export function VoiceInput({ onIntentDetected }: VoiceInputProps) {
+export function VoiceInput({ onIntentDetected, autoStart = false }: VoiceInputProps) {
     const [isListening, setIsListening] = useState(false);
     const [transcript, setTranscript] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [recognition, setRecognition] = useState<any>(null);
+    const hasAutoStarted = useRef(false); // Ref for autoStart
 
     useEffect(() => {
         if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
@@ -34,6 +36,20 @@ export function VoiceInput({ onIntentDetected }: VoiceInputProps) {
             setRecognition(recognition);
         }
     }, []);
+
+    useEffect(() => {
+        if (autoStart && recognition && !isListening && !isProcessing && !hasAutoStarted.current) {
+            try {
+                recognition.start();
+                setIsListening(true);
+                setTranscript('');
+                hasAutoStarted.current = true;
+            } catch (e) {
+                console.warn("Auto-start failed", e);
+            }
+        }
+    }, [autoStart, recognition, isListening, isProcessing]);
+
 
     const toggleListening = () => {
         if (!recognition) {
