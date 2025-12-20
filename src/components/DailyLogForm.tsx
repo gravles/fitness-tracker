@@ -173,8 +173,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         });
     }
 
-    function updateFoodItemQuantity(index: number, newQuantity: number) {
-        if (newQuantity < 0) return;
+    function updateFoodItemQuantity(index: number, newQuantity: string | number) {
         setFoodItems(prev => {
             const updated = [...prev];
             updated[index].quantity = newQuantity;
@@ -195,11 +194,14 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         let p = 0, c = 0, carbs = 0, fat = 0;
 
         items.forEach(item => {
-            const q = item.quantity || 1;
-            p += (item.protein || 0) * q;
-            c += (item.calories || 0) * q;
-            carbs += (item.carbs || 0) * q;
-            fat += (item.fat || 0) * q;
+            const rawQ = item.quantity !== undefined ? item.quantity : 1;
+            const q = parseFloat(String(rawQ));
+            const multiplier = isNaN(q) ? 0 : q;
+
+            p += (item.protein || 0) * multiplier;
+            c += (item.calories || 0) * multiplier;
+            carbs += (item.carbs || 0) * multiplier;
+            fat += (item.fat || 0) * multiplier;
         });
 
         setNutrition(prev => ({
@@ -559,10 +561,10 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                                                 <label className="text-[10px] uppercase font-bold text-gray-400">Qty</label>
                                                 <input
                                                     type="number"
-                                                    min="0.1"
+                                                    min="0"
                                                     step="0.1"
-                                                    value={item.quantity || 1}
-                                                    onChange={(e) => updateFoodItemQuantity(idx, parseFloat(e.target.value) || 0)}
+                                                    value={item.quantity !== undefined ? item.quantity : 1}
+                                                    onChange={(e) => updateFoodItemQuantity(idx, e.target.value)}
                                                     className="w-16 p-1 text-center bg-white border border-gray-200 rounded text-sm font-bold"
                                                 />
                                             </div>
