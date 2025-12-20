@@ -464,8 +464,20 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                             onIntentDetected={(intent) => {
                                 if (intent.intent === 'log_food') {
                                     if (intent.data?.items) {
-                                        addFoodItems(intent.data.items);
-                                        alert(`Added: ${intent.data.items.map((i: any) => i.name).join(', ')}`);
+                                        let alcoholAdded = 0;
+                                        const newItems = intent.data.items.map((i: any) => {
+                                            if (i.alcohol_units) alcoholAdded += i.alcohol_units;
+                                            return i;
+                                        });
+
+                                        addFoodItems(newItems);
+                                        if (alcoholAdded > 0) {
+                                            setAlcohol(prev => prev + alcoholAdded);
+                                            alert(`Added: ${newItems.map((i: any) => i.name).join(', ')} (and +${alcoholAdded} standard drinks)`);
+                                        } else {
+                                            alert(`Added: ${newItems.map((i: any) => i.name).join(', ')}`);
+                                        }
+
                                     } else if (intent.data?.item) {
                                         setSubjective(prev => ({ ...prev, note: (prev.note + ' ' + intent.data.item).trim() }));
                                         alert(`Voice text added to notes (no specific items detected)`);
@@ -517,6 +529,11 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                                         carbs: data.carbs,
                                         fat: data.fat
                                     }]);
+
+                                    if (data.alcohol_units && data.alcohol_units > 0) {
+                                        setAlcohol(prev => prev + data.alcohol_units);
+                                        alert(`Logged '${data.name}' and added +${data.alcohol_units} standard drinks.`);
+                                    }
 
                                 } catch (e: any) {
                                     console.error(e);
