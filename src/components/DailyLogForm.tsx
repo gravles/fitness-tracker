@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { getDailyLog, upsertDailyLog, getWorkouts, addWorkout, deleteWorkout, Workout } from '@/lib/api';
-import { Loader2, Plus, Minus, Moon, Zap, Activity, Brain, Trash2, Clock, Dumbbell, Camera, X } from 'lucide-react';
+import { Loader2, Plus, Minus, Moon, Zap, Activity, Brain, Trash2, Clock, Dumbbell, Camera, X, ChefHat } from 'lucide-react';
 import { FoodCamera } from './FoodCamera';
 import { VoiceInput } from './VoiceInput';
+import { MenuScanner } from './MenuScanner';
 
 interface DailyLogFormProps {
     date: Date;
@@ -17,6 +18,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
 
     const [loading, setLoading] = useState(true);
     const [foodItems, setFoodItems] = useState<any[]>([]);
+    const [showMenuScanner, setShowMenuScanner] = useState(false);
 
     // Restored State Variables
     const [settings, setSettings] = useState({ cycle: true, habits: [] as string[] });
@@ -493,6 +495,13 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                             }}
                         />
                         <button
+                            onClick={() => setShowMenuScanner(true)}
+                            className="p-2 bg-yellow-50 text-yellow-600 rounded-full hover:bg-yellow-100 transition-colors"
+                            title="Scan Restaurant Menu"
+                        >
+                            <ChefHat className="w-5 h-5" />
+                        </button>
+                        <button
                             onClick={() => setShowCamera(true)}
                             className="p-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
                         >
@@ -508,6 +517,17 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                         </button>
                     </div>
                 </div>
+
+                {showMenuScanner && (
+                    <MenuScanner
+                        onClose={() => setShowMenuScanner(false)}
+                        onLog={(item) => {
+                            setShowMenuScanner(false);
+                            addFoodItems([item]);
+                            alert(`Logged: ${item.name}`);
+                        }}
+                    />
+                )}
 
                 {showCamera && (
                     <div className="mb-6 animate-in slide-in-from-top-4">
