@@ -115,7 +115,13 @@ export async function processVoiceIntent(transcript: string) {
     });
 
     const content = response.choices[0].message.content;
-    const result = content ? JSON.parse(content) : { intent: 'unknown' };
+    let result;
+    try {
+        result = content ? JSON.parse(content) : { intent: 'unknown' };
+    } catch (e) {
+        console.error("Failed to parse AI response", content);
+        result = { intent: 'unknown', error: 'Failed to parse intent' };
+    }
 
     // Always attach the original text so we have a fallback
     return { ...result, original: transcript };

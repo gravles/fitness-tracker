@@ -462,6 +462,11 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                         <VoiceInput
                             autoStart={autoStartVoice}
                             onIntentDetected={(intent) => {
+                                if (intent.error) {
+                                    alert("Voice Error: " + intent.error);
+                                    return;
+                                }
+
                                 if (intent.intent === 'log_food') {
                                     if (intent.data?.items) {
                                         let alcoholAdded = 0;
@@ -482,6 +487,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                                         setSubjective(prev => ({ ...prev, note: (prev.note + ' ' + intent.data.item).trim() }));
                                         alert(`Voice text added to notes (no specific items detected)`);
                                     }
+                                } else {
+                                    alert(`Could not understand: "${intent.original}"`);
                                 }
                             }}
                         />
