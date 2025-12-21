@@ -518,16 +518,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     </div>
                 </div>
 
-                {showMenuScanner && (
-                    <MenuScanner
-                        onClose={() => setShowMenuScanner(false)}
-                        onLog={(item) => {
-                            setShowMenuScanner(false);
-                            addFoodItems([item]);
-                            alert(`Logged: ${item.name}`);
-                        }}
-                    />
-                )}
+
 
                 {showCamera && (
                     <div className="mb-6 animate-in slide-in-from-top-4">
@@ -806,6 +797,17 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Log'}
                 </button>
             </div>
+
+            {showMenuScanner && (
+                <MenuScanner
+                    onClose={() => setShowMenuScanner(false)}
+                    onLog={(item) => {
+                        setShowMenuScanner(false);
+                        addFoodItems([item]);
+                        alert(`Logged: ${item.name}`);
+                    }}
+                />
+            )}
         </div>
     );
 }

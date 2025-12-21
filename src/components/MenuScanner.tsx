@@ -15,12 +15,18 @@ export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
 
     async function handleCapture(imageSrc: string) {
         setStep('analyzing');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout
+
         try {
             const res = await fetch('/api/ai/scan-menu', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: imageSrc })
+                body: JSON.stringify({ image: imageSrc }),
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
+
             const data = await res.json();
 
             if (data.error) throw new Error(data.error);
@@ -32,9 +38,16 @@ export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
             }
 
         } catch (error: any) {
-            console.error(error);
-            alert('Scane Failed: ' + error.message);
+            if (error.name === 'AbortError') {
+                console.error("Menu scan timed out");
+                alert("Scan Timed Out: The menu image might be too large or the AI is taking too long. Try a smaller section of the menu.");
+            } else {
+                console.error(error);
+                alert('Scan Failed: ' + error.message);
+            }
             onClose();
+        } finally {
+            clearTimeout(timeoutId);
         }
     }
 
