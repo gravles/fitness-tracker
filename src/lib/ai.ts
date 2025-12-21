@@ -97,7 +97,7 @@ export async function processVoiceIntent(transcript: string) {
         messages: [
             {
                 role: "system",
-                content: `You are a fitness logger assistant. Extract the intent and data.
+                content: `You are a fitness logger assistant. Extract the intent and data. Return valid JSON.
                 
                 Rules:
                 - If the user describes food/drink, intent="log_food". Return data={"items": [{ "name": "name", "calories": number, "protein": number, "carbs": number, "fat": number, "alcohol_units": number }]}. 
