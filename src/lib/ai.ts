@@ -206,6 +206,7 @@ export async function scanMenu(base64Image: string): Promise<MenuRecommendation[
         max_tokens: 1000
     });
 
+
     const content = response.choices[0].message.content;
     try {
         const parsed = content ? JSON.parse(content) : { recommendations: [] };
@@ -214,4 +215,79 @@ export async function scanMenu(base64Image: string): Promise<MenuRecommendation[
         console.error("Failed to parse menu recommendations", content);
         return [];
     }
+}
+
+export interface WorkoutChatState {
+    history: { role: 'user' | 'assistant' | 'system', content: string }[];
+    workoutData?: {
+        activity_type?: string;
+        duration?: number;
+        intensity?: 'Light' | 'Moderate' | 'Hard';
+        calories?: number;
+        muscles?: string[];
+    };
+    missing_fields: string[];
+    status: 'continue' | 'completed';
+    reply: string;
+}
+
+export async function chatWithTrainer(state: WorkoutChatState, newUserInput: string): Promise<WorkoutChatState> {
+    if (!process.env.OPENAI_API_KEY) {
+        // Mock response for testing
+        return {
+            history: [...state.history, { role: 'user', content: newUserInput }, { role: 'assistant', content: "That sounds great! (Mock response)" }],
+            status: 'completed',
+            missing_fields: [],
+            reply: "That sounds great! I've logged it as a mock workout.",
+            workoutData: { activity_type: 'Mock Run', duration: 30, intensity: 'Moderate', calories: 300, muscles: ['Legs'] }
+        };
+    }
+
+    const messages = [
+        {
+            role: "system",
+            content: `You are an energetic, encouraging AI Fitness Coach. 
+            Your goal is to help the user log a workout by extracting: Activity Type, Duration (minutes), and Intensity (Light/Moderate/Hard).
+            
+            1. Conversational Style: Be concise, friendly, and encouraging. Ask ONE question at a time if information is missing.
+            2. Estimation: Once you have the core details, ESTIMATE the calories burned and primary muscle groups worked based on the specific application of the activity and user stats (assume average if unknown).
+            3. Final Output: When you have all 3 core fields (activity, duration, intensity), set status to "completed" and output the final JSON.
+            
+            Current known data: ${JSON.stringify(state.workoutData || {})}
+            
+            Return JSON ONLY:
+            {
+                "reply": "Your conversational response to the user",
+                "status": "continue" | "completed",
+                "missing_fields": ["duration", "intensity", ...],
+                "workout_data": { 
+                    "activity_type": string, 
+                    "duration": number, 
+                    "intensity": "Light"|"Moderate"|"Hard",
+                    "calories": number (estimated),
+                    "muscles": string[] (e.g. ["Quads", "Cardio"])
+                }
+            }`
+        },
+        ...state.history.map(m => ({ role: m.role as any, content: m.content })),
+        { role: "user", content: newUserInput }
+    ];
+
+    const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: messages as any,
+        response_format: { type: "json_object" },
+        max_tokens: 300
+    });
+
+    const content = response.choices[0].message.content;
+    const result = content ? JSON.parse(content) : { reply: "Error", status: "continue" };
+
+    return {
+        history: [...state.history, { role: 'user', content: newUserInput }, { role: 'assistant', content: result.reply }],
+        workoutData: result.workout_data || state.workoutData,
+        missing_fields: result.missing_fields || [],
+        status: result.status || 'continue',
+        reply: result.reply
+    };
 }

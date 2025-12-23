@@ -7,6 +7,7 @@ import { Loader2, Plus, Minus, Moon, Zap, Activity, Brain, Trash2, Clock, Dumbbe
 import { FoodCamera } from './FoodCamera';
 import { VoiceInput } from './VoiceInput';
 import { MenuScanner } from './MenuScanner';
+import { WorkoutChatModal } from './WorkoutChatModal';
 
 interface DailyLogFormProps {
     date: Date;
@@ -19,6 +20,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     const [loading, setLoading] = useState(true);
     const [foodItems, setFoodItems] = useState<any[]>([]);
     const [showMenuScanner, setShowMenuScanner] = useState(false);
+    const [showWorkoutChat, setShowWorkoutChat] = useState(false);
+    const [chatInitialInput, setChatInitialInput] = useState('');
 
     // Restored State Variables
     const [settings, setSettings] = useState({ cycle: true, habits: [] as string[] });
@@ -386,6 +389,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                                                     <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {workout.duration} min</span>
                                                     <span className="px-2 py-0.5 bg-gray-200 rounded-full text-gray-700 font-medium">{workout.intensity}</span>
                                                 </div>
+                                                {workout.notes && <p className="text-xs text-gray-500 mt-1 italic">{workout.notes}</p>}
                                             </div>
                                         </div>
                                         <button
@@ -404,8 +408,14 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
 
                         {/* Add New Workout Form */}
                         <div className="bg-blue-50/50 p-5 rounded-xl border border-blue-100">
-                            <h4 className="text-sm font-bold text-blue-900 mb-3 uppercase tracking-wider flex items-center gap-2">
-                                <Plus className="w-4 h-4" /> Add Workout
+                            <h4 className="text-sm font-bold text-blue-900 mb-3 uppercase tracking-wider flex items-center justify-between">
+                                <span className="flex items-center gap-2"><Plus className="w-4 h-4" /> Add Workout</span>
+                                <button
+                                    onClick={() => setShowWorkoutChat(true)}
+                                    className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md active:scale-95 transition-all flex items-center gap-1"
+                                >
+                                    <Sparkles className="w-3 h-3" /> AI Coach
+                                </button>
                             </h4>
                             <div className="space-y-4">
                                 <div>
@@ -484,11 +494,13 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                                         } else {
                                             alert(`Added: ${newItems.map((i: any) => i.name).join(', ')}`);
                                         }
-
                                     } else if (intent.data?.item) {
                                         setSubjective(prev => ({ ...prev, note: (prev.note + ' ' + intent.data.item).trim() }));
                                         alert(`Voice text added to notes (no specific items detected)`);
                                     }
+                                } else if (intent.intent === 'log_workout') {
+                                    setChatInitialInput(intent.original || '');
+                                    setShowWorkoutChat(true);
                                 } else {
                                     alert(`Could not understand: "${intent.original}"`);
                                 }
@@ -797,6 +809,43 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Log'}
                 </button>
             </div>
+
+            <WorkoutChatModal
+                isOpen={showWorkoutChat}
+                initialData={chatInitialInput}
+                onClose={() => {
+                    setShowWorkoutChat(false);
+                    setChatInitialInput('');
+                }}
+                onSave={async (data) => {
+                    setShowWorkoutChat(false);
+                    setChatInitialInput('');
+                    const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+                    const dateStr = offsetDate.toISOString().split('T')[0];
+
+                    const notes = [
+                        data.calories ? `Burned ~${data.calories} kcal` : '',
+                        data.muscles && data.muscles.length ? `Muscles: ${data.muscles.join(', ')}` : ''
+                    ].filter(Boolean).join('. ');
+
+                    try {
+                        const added = await addWorkout({
+                            date: dateStr,
+                            activity_type: data.activity_type,
+                            duration: data.duration,
+                            intensity: data.intensity,
+                            notes: notes
+                        });
+                        setWorkouts([...workouts, added]);
+                        // Trigger Gamification Check? (It happens on Save Log, but we can alert)
+                        if (data.calories) alert(`Workout logged! AI estimated ${data.calories} calories burned.`);
+                        else alert('Workout logged!');
+                    } catch (e) {
+                        console.error(e);
+                        alert('Failed to save workout.');
+                    }
+                }}
+            />
 
             {showMenuScanner && (
                 <MenuScanner
