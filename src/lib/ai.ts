@@ -356,5 +356,12 @@ export async function generateWeeklyInsights(logs: any[]): Promise<WeeklyInsight
     });
 
     const content = response.choices[0].message.content;
-    return content ? JSON.parse(content) : { summary: "Could not generate analysis." };
+    return content ? JSON.parse(content) : {
+        summary: "Could not generate analysis.",
+        wins: [],
+        improvements: [],
+        alcohol_analysis: "N/A",
+        nutrition_tip: "N/A",
+        workout_tip: "N/A"
+    };
 }
