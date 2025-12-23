@@ -53,7 +53,7 @@ export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
 
     if (step === 'camera') {
         return (
-            <div className="fixed inset-0 z-50 bg-black">
+            <div className="fixed inset-0 z-[100] bg-black">
                 <div className="absolute top-4 right-4 z-10">
                     <button onClick={onClose} className="p-2 bg-black/50 text-white rounded-full">
                         <X className="w-6 h-6" />
@@ -71,7 +71,7 @@ export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
 
     if (step === 'analyzing') {
         return (
-            <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur flex flex-col items-center justify-center text-white">
+            <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur flex flex-col items-center justify-center text-white">
                 <ChefHat className="w-16 h-16 text-yellow-500 animate-bounce mb-4" />
                 <h3 className="text-xl font-bold mb-2">Analyzing Menu...</h3>
                 <p className="text-gray-400 text-sm">Finding high-protein gems 💎</p>
@@ -80,7 +80,7 @@ export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
     }
 
     return (
-        <div className="fixed inset-0 z-50 bg-gray-50 flex flex-col">
+        <div className="fixed inset-0 z-[100] bg-gray-50 flex flex-col">
             {/* Header */}
             <div className="bg-white p-4 border-b flex justify-between items-center shadow-sm">
                 <h3 className="font-bold text-lg flex items-center gap-2">
