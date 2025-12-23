@@ -235,11 +235,11 @@ export async function chatWithTrainer(state: WorkoutChatState, newUserInput: str
     if (!process.env.OPENAI_API_KEY) {
         // Mock response for testing
         return {
-            history: [...state.history, { role: 'user', content: newUserInput }, { role: 'assistant', content: "That sounds great! (Mock response)" }],
+            history: [...state.history, { role: 'user', content: newUserInput }, { role: 'assistant', content: "[DEV] I'm in mock mode because no API key is set. I'll just log a generic run." }],
             status: 'completed',
             missing_fields: [],
-            reply: "That sounds great! I've logged it as a mock workout.",
-            workoutData: { activity_type: 'Mock Run', duration: 30, intensity: 'Moderate', calories: 300, muscles: ['Legs'] }
+            reply: "[DEV] Mock mode: I've logged a 30-min Moderate Run (300 kcal) for you.",
+            workoutData: { activity_type: 'Mock Run', duration: 30, intensity: 'Moderate', calories: 300, muscles: ['Legs', 'Cardio'] }
         };
     }
 

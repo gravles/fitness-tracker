@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { getDailyLog, upsertDailyLog, getWorkouts, addWorkout, deleteWorkout, Workout } from '@/lib/api';
 import { Loader2, Plus, Minus, Moon, Zap, Activity, Brain, Trash2, Clock, Dumbbell, Camera, X, ChefHat, Sparkles } from 'lucide-react';
 import { FoodCamera } from './FoodCamera';
@@ -15,7 +15,7 @@ interface DailyLogFormProps {
 
 export function DailyLogForm({ date }: DailyLogFormProps) {
     const searchParams = useSearchParams();
-    const router = useRouter();
+
 
     const [loading, setLoading] = useState(true);
     const [foodItems, setFoodItems] = useState<any[]>([]);

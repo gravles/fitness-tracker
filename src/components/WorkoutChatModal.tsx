@@ -8,7 +8,7 @@ interface WorkoutChatModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (workout: any) => void;
-    initialData?: string; // If string, treats as user message. If object (TODO), treats as partial data. For now just passing text is easier.
+    initialData?: string; // Optional: Passing text handles it as an immediate user message
 }
 
 export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: WorkoutChatModalProps) {
