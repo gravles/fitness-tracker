@@ -75,7 +75,7 @@ export function FeatureTutorial({ onClose, forceOpen }: FeatureTutorialProps) {
     const current = steps[step];
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md p-6">
+        <div className="fixed inset-0 z-[200] flex items-start justify-center bg-black/60 backdrop-blur-md p-6 pt-20">
             <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
 
                 {/* Hero Section */}
