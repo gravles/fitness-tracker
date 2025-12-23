@@ -186,7 +186,10 @@ export default function Dashboard() {
         logs={logs} // Passing the 7-day log cache we already fetched
       />
 
-      {showFeatureTutorial && <FeatureTutorial onClose={() => setShowFeatureTutorial(false)} />}
+      <FeatureTutorial
+        forceOpen={showFeatureTutorial}
+        onClose={() => setShowFeatureTutorial(false)}
+      />
     </main>
   );
 }
