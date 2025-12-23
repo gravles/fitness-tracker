@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation'; // Added useRouter for cleanup
 import { ArrowRight, Flame, Trophy, Mic, Camera } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { getStreak, getMonthlyLogs, getBodyMetricsHistory } from '@/lib/api';
@@ -9,6 +10,7 @@ import { SmartCoach } from '@/components/SmartCoach';
 import { WeeklySummary } from '@/components/WeeklySummary';
 import { RecentLogs } from '@/components/RecentLogs';
 import { AIWeeklyInsightModal } from '@/components/AIWeeklyInsightModal';
+import { FeatureTutorial } from '@/components/FeatureTutorial';
 import { getSmartAdvice, CoachingTip } from '@/lib/smartCoach';
 
 // ... imports
@@ -18,6 +20,9 @@ import { getSettings } from '@/lib/api';
 
 export default function Dashboard() {
   const today = new Date();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [streak, setStreak] = useState(0);
   const [logs, setLogs] = useState<any[]>([]);
   const [advice, setAdvice] = useState<CoachingTip | null>(null);
@@ -27,6 +32,15 @@ export default function Dashboard() {
   const [userLevel, setUserLevel] = useState({ level: 1, xp: 0 });
   const [showXPModal, setShowXPModal] = useState(false);
   const [showInsightModal, setShowInsightModal] = useState(false);
+  const [showFeatureTutorial, setShowFeatureTutorial] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('tutorial') === 'true') {
+      setShowFeatureTutorial(true);
+      // Optional: clear the param so reload doesn't trigger it again
+      router.replace('/');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     loadData();
@@ -171,6 +185,8 @@ export default function Dashboard() {
         onClose={() => setShowInsightModal(false)}
         logs={logs} // Passing the 7-day log cache we already fetched
       />
+
+      {showFeatureTutorial && <FeatureTutorial onClose={() => setShowFeatureTutorial(false)} />}
     </main>
   );
 }

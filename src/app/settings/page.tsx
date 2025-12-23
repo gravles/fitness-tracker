@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { getSettings, updateSettings, getUserBadges, UserBadge } from '@/lib/api';
-import { Loader2, Save, Target, Plus, Trophy } from 'lucide-react';
+import { Loader2, Save, Target, Plus, Trophy, Sparkles, Rocket } from 'lucide-react';
 import { TrophyCase } from '@/components/TrophyCase';
+import { ChangelogModal } from '@/components/ChangelogModal';
 
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [showChangelog, setShowChangelog] = useState(false);
     const [targets, setTargets] = useState({
         weight: '',
         protein: '',
@@ -194,13 +196,38 @@ export default function SettingsPage() {
                 <TrophyCase earnedBadges={earnedBadges} />
             </section>
 
+            {/* Help & Updates */}
+            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-100 pb-4">
+                    <span className="text-xl">ℹ️</span>
+                    <h2 className="font-bold text-lg">Help & Updates</h2>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button
+                        onClick={() => window.location.href = '/?tutorial=true'}
+                        className="p-4 bg-blue-50 text-blue-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition-colors"
+                    >
+                        <Sparkles className="w-5 h-5" /> Re-run Onboarding
+                    </button>
+                    <button
+                        onClick={() => setShowChangelog(true)}
+                        className="p-4 bg-purple-50 text-purple-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-purple-100 transition-colors"
+                    >
+                        <Rocket className="w-5 h-5" /> What's New?
+                    </button>
+                </div>
+            </section>
+
             <section className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
                 <h3 className="font-bold text-gray-400 text-sm uppercase tracking-wide mb-4">About</h3>
                 <p className="text-xs text-gray-500">
-                    Fitness Tracker v1.1<br />
+                    Fitness Tracker v1.2 (AI Edition)<br />
                     Built with Next.js & Supabase
                 </p>
             </section>
+
+            <ChangelogModal isOpen={showChangelog} onClose={() => setShowChangelog(false)} />
         </main >
     );
 }
