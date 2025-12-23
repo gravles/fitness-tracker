@@ -291,3 +291,70 @@ export async function chatWithTrainer(state: WorkoutChatState, newUserInput: str
         reply: result.reply
     };
 }
+
+export interface WeeklyInsight {
+    summary: string;
+    wins: string[];
+    improvements: string[];
+    alcohol_analysis: string;
+    nutrition_tip: string;
+    workout_tip: string;
+}
+
+export async function generateWeeklyInsights(logs: any[]): Promise<WeeklyInsight> {
+    if (!process.env.OPENAI_API_KEY) {
+        // Mock response
+        return new Promise(resolve => setTimeout(() => resolve({
+            summary: "You had a solid week of consistency! Your protein intake is improving.",
+            wins: ["Logged 5 days in a row", "Hit protein goal 3x"],
+            improvements: ["Missed workouts on weekend", "Alcohol intake slightly high on Friday"],
+            alcohol_analysis: "You consumed 5 drinks this week. Try to limit to 2-3 for better recovery.",
+            nutrition_tip: "Try prepping chicken breast for quick protein access.",
+            workout_tip: "Focus on leg recovery this weekend."
+        }), 2000));
+    }
+
+    const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+            {
+                role: "system",
+                content: `You are an expert fitness coach and data analyst. Analyze the user's last 7 days of logs.
+                
+                Data items per day: 
+                - date
+                - movement_duration (mins)
+                - intensity
+                - calories, protein_grams, etc.
+                - alcohol_drinks
+                - sleep_quality (1-5), energy_level (1-5)
+                - subjective notes
+
+                Your analysis MUST include:
+                1. Summary: 1-2 sentences overview.
+                2. Wins: 2-3 bullet points of what went well.
+                3. Improvements: 2-3 areas to work on.
+                4. Alcohol Analysis: SPECIFICALLY comment on alcohol consumption patterns and its potential impact on their reported sleep/energy. Be direct but non-judgmental.
+                5. Tips: One actionable tip for nutrition and one for workouts.
+
+                Return JSON ONLY:
+                {
+                    "summary": "...",
+                    "wins": ["...", "..."],
+                    "improvements": ["...", "..."],
+                    "alcohol_analysis": "...",
+                    "nutrition_tip": "...",
+                    "workout_tip": "..."
+                }`
+            },
+            {
+                role: "user",
+                content: JSON.stringify(logs)
+            }
+        ],
+        response_format: { type: "json_object" }
+    });
+
+    const content = response.choices[0].message.content;
+    return content ? JSON.parse(content) : { summary: "Could not generate analysis." };
+}

@@ -8,6 +8,7 @@ import { getStreak, getMonthlyLogs, getBodyMetricsHistory } from '@/lib/api';
 import { SmartCoach } from '@/components/SmartCoach';
 import { WeeklySummary } from '@/components/WeeklySummary';
 import { RecentLogs } from '@/components/RecentLogs';
+import { AIWeeklyInsightModal } from '@/components/AIWeeklyInsightModal';
 import { getSmartAdvice, CoachingTip } from '@/lib/smartCoach';
 
 // ... imports
@@ -25,6 +26,7 @@ export default function Dashboard() {
   // Gamification State
   const [userLevel, setUserLevel] = useState({ level: 1, xp: 0 });
   const [showXPModal, setShowXPModal] = useState(false);
+  const [showInsightModal, setShowInsightModal] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -102,7 +104,15 @@ export default function Dashboard() {
       />
 
       {/* Smart Coach Widget */}
-      <SmartCoach tip={advice} />
+      <div className="space-y-2">
+        <SmartCoach tip={advice} />
+        <button
+          onClick={() => setShowInsightModal(true)}
+          className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-purple-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+        >
+          <span className="text-xl">📊</span> View AI Weekly Analysis
+        </button>
+      </div>
 
       {/* Streak Card */}
       <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl p-6 text-white shadow-xl shadow-orange-200/50 relative overflow-hidden">
@@ -119,6 +129,7 @@ export default function Dashboard() {
           <Flame className="w-32 h-32" />
         </div>
       </div>
+
 
       {/* Weekly Summary */}
       <WeeklySummary stats={weeklyStats} />
@@ -154,6 +165,12 @@ export default function Dashboard() {
 
       {/* Recent Activity */}
       <RecentLogs logs={logs} />
+
+      <AIWeeklyInsightModal
+        isOpen={showInsightModal}
+        onClose={() => setShowInsightModal(false)}
+        logs={logs} // Passing the 7-day log cache we already fetched
+      />
     </main>
   );
 }
