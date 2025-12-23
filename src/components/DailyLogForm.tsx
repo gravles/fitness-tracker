@@ -678,6 +678,20 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                         </div>
                     </div>
                 )}
+
+                {/* Completion Toggle */}
+                <div className="mt-6 p-4 bg-green-50 rounded-xl border border-green-100 flex items-center justify-between">
+                    <div>
+                        <h4 className="font-bold text-green-900 text-sm">Log Complete?</h4>
+                        <p className="text-xs text-green-700">Mark this day as fully tracked.</p>
+                    </div>
+                    <button
+                        onClick={() => setNutrition({ ...nutrition, logged: !nutrition.logged })}
+                        className={`relative w-12 h-6 rounded-full transition-colors ${nutrition.logged ? 'bg-green-600' : 'bg-green-200'}`}
+                    >
+                        <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${nutrition.logged ? 'translate-x-6' : ''}`} />
+                    </button>
+                </div>
             </section>
 
             {/* Alcohol Section */}
