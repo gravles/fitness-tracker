@@ -116,7 +116,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     calories: logData.calories || 0,
                     windowStart: logData.eating_window_start || '',
                     windowEnd: logData.eating_window_end || '',
-                    logged: logData.nutrition_logged ?? true
+                    logged: logData.nutrition_logged ?? false
                 });
                 setFoodItems(logData.food_items || []);
                 setAlcohol(logData.alcohol_drinks || 0);
@@ -141,7 +141,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 setMovementCompleted(null);
                 setNutrition({
                     protein: 0, carbs: 0, fat: 0, calories: 0,
-                    windowStart: '', windowEnd: '', logged: true
+                    windowStart: '', windowEnd: '', logged: false
                 });
                 setFoodItems([]);
                 setAlcohol(0);
@@ -583,101 +583,95 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     </div>
                 )}
 
-                {!nutrition.logged ? (
-                    <div className="p-4 bg-gray-50 rounded-xl text-center text-gray-500 text-sm italic">
-                        Nutrition skipped for today.
-                    </div>
-                ) : (
-                    <div className="space-y-4 animate-in fade-in">
+                <div className="space-y-4 animate-in fade-in">
 
-                        {/* Food Items List */}
-                        {foodItems.length > 0 && (
-                            <div className="space-y-2 mb-4">
-                                {foodItems.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm">
-                                        <div className="flex-1">
-                                            <span className="font-bold text-gray-800 block">{item.name}</span>
-                                            {item.portion_estimate && <span className="text-xs text-gray-400 block mb-0.5">Unit: {item.portion_estimate}</span>}
-                                            <span className="text-xs text-gray-500">
-                                                {Math.round(item.calories * (item.quantity || 1))} kcal • {Math.round(item.protein * (item.quantity || 1))}g P • {Math.round(item.carbs * (item.quantity || 1))}g C
-                                            </span>
-                                        </div>
-
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex flex-col items-center">
-                                                <label className="text-[10px] uppercase font-bold text-gray-400">Qty</label>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.1"
-                                                    value={item.quantity !== undefined ? item.quantity : 1}
-                                                    onChange={(e) => updateFoodItemQuantity(idx, e.target.value)}
-                                                    className="w-16 p-1 text-center bg-white border border-gray-200 rounded text-sm font-bold"
-                                                />
-                                            </div>
-                                            <button
-                                                onClick={() => removeFoodItem(idx)}
-                                                className="text-gray-400 hover:text-red-500 p-2"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
+                    {/* Food Items List */}
+                    {foodItems.length > 0 && (
+                        <div className="space-y-2 mb-4">
+                            {foodItems.map((item, idx) => (
+                                <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm">
+                                    <div className="flex-1">
+                                        <span className="font-bold text-gray-800 block">{item.name}</span>
+                                        {item.portion_estimate && <span className="text-xs text-gray-400 block mb-0.5">Unit: {item.portion_estimate}</span>}
+                                        <span className="text-xs text-gray-500">
+                                            {Math.round(item.calories * (item.quantity || 1))} kcal • {Math.round(item.protein * (item.quantity || 1))}g P • {Math.round(item.carbs * (item.quantity || 1))}g C
+                                        </span>
                                     </div>
-                                ))}
-                            </div>
-                        )}
 
-                        <div>
-                            <label className="text-sm font-medium text-gray-500 flex justify-between">
-                                Protein (g) <span className="text-blue-600 font-bold">{nutrition.protein}g</span>
-                            </label>
-                            <input
-                                type="range" min="0" max="300" step="5"
-                                value={nutrition.protein}
-                                onChange={e => setNutrition({ ...nutrition, protein: parseInt(e.target.value) })}
-                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2 accent-blue-600"
-                            />
-                            <div className="flex gap-2 mt-2">
-                                <input
-                                    type="number"
-                                    value={nutrition.protein || ''}
-                                    onChange={e => setNutrition({ ...nutrition, protein: parseInt(e.target.value) || 0 })}
-                                    className="w-20 p-2 bg-gray-50 rounded-lg text-center"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-sm font-medium text-gray-500">Calories</label>
-                                <input
-                                    type="number"
-                                    value={nutrition.calories || ''}
-                                    onChange={e => setNutrition({ ...nutrition, calories: parseInt(e.target.value) || 0 })}
-                                    className="w-full mt-1 p-3 bg-gray-50 rounded-xl"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium text-gray-500">Eating Window</label>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <input
-                                        type="time"
-                                        value={nutrition.windowStart}
-                                        onChange={e => setNutrition({ ...nutrition, windowStart: e.target.value })}
-                                        className="w-full p-2 bg-gray-50 rounded-lg text-xs"
-                                    />
-                                    <span className="text-gray-400">-</span>
-                                    <input
-                                        type="time"
-                                        value={nutrition.windowEnd}
-                                        onChange={e => setNutrition({ ...nutrition, windowEnd: e.target.value })}
-                                        className="w-full p-2 bg-gray-50 rounded-lg text-xs"
-                                    />
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex flex-col items-center">
+                                            <label className="text-[10px] uppercase font-bold text-gray-400">Qty</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.1"
+                                                value={item.quantity !== undefined ? item.quantity : 1}
+                                                onChange={(e) => updateFoodItemQuantity(idx, e.target.value)}
+                                                className="w-16 p-1 text-center bg-white border border-gray-200 rounded text-sm font-bold"
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={() => removeFoodItem(idx)}
+                                            className="text-gray-400 hover:text-red-500 p-2"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-500 flex justify-between">
+                            Protein (g) <span className="text-blue-600 font-bold">{nutrition.protein}g</span>
+                        </label>
+                        <input
+                            type="range" min="0" max="300" step="5"
+                            value={nutrition.protein}
+                            onChange={e => setNutrition({ ...nutrition, protein: parseInt(e.target.value) })}
+                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2 accent-blue-600"
+                        />
+                        <div className="flex gap-2 mt-2">
+                            <input
+                                type="number"
+                                value={nutrition.protein || ''}
+                                onChange={e => setNutrition({ ...nutrition, protein: parseInt(e.target.value) || 0 })}
+                                className="w-20 p-2 bg-gray-50 rounded-lg text-center"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-sm font-medium text-gray-500">Calories</label>
+                            <input
+                                type="number"
+                                value={nutrition.calories || ''}
+                                onChange={e => setNutrition({ ...nutrition, calories: parseInt(e.target.value) || 0 })}
+                                className="w-full mt-1 p-3 bg-gray-50 rounded-xl"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-500">Eating Window</label>
+                            <div className="flex items-center gap-2 mt-1">
+                                <input
+                                    type="time"
+                                    value={nutrition.windowStart}
+                                    onChange={e => setNutrition({ ...nutrition, windowStart: e.target.value })}
+                                    className="w-full p-2 bg-gray-50 rounded-lg text-xs"
+                                />
+                                <span className="text-gray-400">-</span>
+                                <input
+                                    type="time"
+                                    value={nutrition.windowEnd}
+                                    onChange={e => setNutrition({ ...nutrition, windowEnd: e.target.value })}
+                                    className="w-full p-2 bg-gray-50 rounded-lg text-xs"
+                                />
                             </div>
                         </div>
                     </div>
-                )}
+                </div>
 
                 {/* Completion Toggle */}
                 <div className="mt-6 p-4 bg-green-50 rounded-xl border border-green-100 flex items-center justify-between">
