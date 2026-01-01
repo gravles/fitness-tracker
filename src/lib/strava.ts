@@ -144,6 +144,8 @@ export async function syncStravaActivities(userId: string) {
     let syncedCount = 0;
     const addedActivities: { date: string, name: string }[] = [];
 
+    const affectedDates = new Set<string>();
+
     for (const activity of activities) {
         // Check if already exists using external_id
         // We'll trust the database generic query for now, but ideally we'd add external_id to getWorkouts or a separate check
@@ -183,6 +185,53 @@ export async function syncStravaActivities(userId: string) {
         });
         syncedCount++;
         addedActivities.push({ date: dateStr, name: activity.name });
+        affectedDates.add(dateStr);
+    }
+
+    // Update Daily Logs for affected dates to ensure "Movement" is checked
+    if (affectedDates.size > 0) {
+        for (const date of Array.from(affectedDates)) {
+            // We use upsert to create the log if it doesn't exist, or just update the flag if it does
+            // Note: We need to be careful not to overwrite other fields if we use upsert without fetching first?
+            // Supabase upsert merges if we don't specify ignoreDuplicates, but we need to specify all required constraint keys.
+            // Actually, a simple update is safer if it exists, but we want to create it if missing.
+
+            // Let's check if it exists first to be safe, or use a specific upsert query.
+            // Getting the log first is safer logic-wise to avoid wiping data if we accidentally pass only one field in upsert (Supabase upsert acts like PATCH only if configured, but default SQL upsert replaces row unless you use specific query).
+            // Actually supabase-js upsert acts as an "INSERT ... ON CONFLICT UPDATE"
+            // So providing only partial data will result in nulls for other columns if it's a new row,
+            // or UPDATE only the provided columns if it exists? 
+            // NO. standard behavior for `upsert` in supabase-js:
+            // "If the row exists, it updates it. If it doesn't, it inserts it."
+            // Critically: "When updating, it only updates the columns specified in the object." -> This is true for `update`, but `upsert`?
+            // "Performs an UPSERT into the table."
+
+            // To be safe and ensure we don't data loss on existing logs:
+            // logic:
+            // 1. Fetch log.
+            // 2. If exists, update movement_completed = true.
+            // 3. If not, insert new log with movement_completed = true.
+
+            const { data: existingLog } = await supabase
+                .from('daily_logs')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('date', date)
+                .single();
+
+            if (existingLog) {
+                await supabase.from('daily_logs')
+                    .update({ movement_completed: true })
+                    .eq('id', existingLog.id);
+            } else {
+                await supabase.from('daily_logs')
+                    .insert({
+                        user_id: userId,
+                        date: date,
+                        movement_completed: true
+                    });
+            }
+        }
     }
 
     return { count: syncedCount, added: addedActivities };
