@@ -130,10 +130,12 @@ export async function fetchStravaActivities(accessToken: string, after?: number,
     return await response.json() as StravaActivity[];
 }
 
+import { SupabaseClient } from '@supabase/supabase-js';
+
 /**
  * Syncs recent activities to our workouts table
  */
-export async function syncStravaActivities(userId: string) {
+export async function syncStravaActivities(userId: string, supabase: SupabaseClient) {
     const token = await getValidToken(userId);
     if (!token) throw new Error('No valid strava connection');
 
@@ -153,12 +155,17 @@ export async function syncStravaActivities(userId: string) {
         // But `addWorkout` generates a new ID. We updated the schema to include `external_id`.
         // Let's check first.
 
-        const { data: existing } = await supabase
+        const { data: existing, error: findError } = await supabase
             .from('workouts')
             .select('id')
             .eq('user_id', userId)
             .eq('external_id', activity.id.toString())
             .single();
+
+        if (findError && findError.code !== 'PGRST116') {
+            console.error('Error finding workout', findError);
+            continue;
+        }
 
         if (existing) continue;
 
@@ -173,7 +180,7 @@ export async function syncStravaActivities(userId: string) {
         const dateStr = activity.start_date_local.split('T')[0];
 
         // Add to DB
-        await supabase.from('workouts').insert({
+        const { error: insertError } = await supabase.from('workouts').insert({
             user_id: userId,
             date: dateStr,
             activity_type: activity.type, // Map Strava specific names e.g. "Run" -> "Running" if needed, but "Run" is fine
@@ -183,6 +190,11 @@ export async function syncStravaActivities(userId: string) {
             external_id: activity.id.toString(),
             source: 'strava'
         });
+
+        if (insertError) {
+            console.error('Failed to insert workout', insertError);
+            continue;
+        }
         syncedCount++;
         addedActivities.push({ date: dateStr, name: activity.name });
         affectedDates.add(dateStr);
