@@ -188,30 +188,19 @@ export async function syncStravaActivities(userId: string) {
         affectedDates.add(dateStr);
     }
 
-    // Update Daily Logs for affected dates to ensure "Movement" is checked
+    // Update Daily Logs for affected dates to ensure "Movement" is checked AND duration is updated
     if (affectedDates.size > 0) {
         for (const date of Array.from(affectedDates)) {
-            // We use upsert to create the log if it doesn't exist, or just update the flag if it does
-            // Note: We need to be careful not to overwrite other fields if we use upsert without fetching first?
-            // Supabase upsert merges if we don't specify ignoreDuplicates, but we need to specify all required constraint keys.
-            // Actually, a simple update is safer if it exists, but we want to create it if missing.
+            // 1. Calculate Total Duration for the day
+            const { data: workouts } = await supabase
+                .from('workouts')
+                .select('duration')
+                .eq('user_id', userId)
+                .eq('date', date);
 
-            // Let's check if it exists first to be safe, or use a specific upsert query.
-            // Getting the log first is safer logic-wise to avoid wiping data if we accidentally pass only one field in upsert (Supabase upsert acts like PATCH only if configured, but default SQL upsert replaces row unless you use specific query).
-            // Actually supabase-js upsert acts as an "INSERT ... ON CONFLICT UPDATE"
-            // So providing only partial data will result in nulls for other columns if it's a new row,
-            // or UPDATE only the provided columns if it exists? 
-            // NO. standard behavior for `upsert` in supabase-js:
-            // "If the row exists, it updates it. If it doesn't, it inserts it."
-            // Critically: "When updating, it only updates the columns specified in the object." -> This is true for `update`, but `upsert`?
-            // "Performs an UPSERT into the table."
+            const totalDuration = workouts?.reduce((acc, w) => acc + (w.duration || 0), 0) || 0;
 
-            // To be safe and ensure we don't data loss on existing logs:
-            // logic:
-            // 1. Fetch log.
-            // 2. If exists, update movement_completed = true.
-            // 3. If not, insert new log with movement_completed = true.
-
+            // 2. Update Log
             const { data: existingLog } = await supabase
                 .from('daily_logs')
                 .select('id')
@@ -221,14 +210,18 @@ export async function syncStravaActivities(userId: string) {
 
             if (existingLog) {
                 await supabase.from('daily_logs')
-                    .update({ movement_completed: true })
+                    .update({
+                        movement_completed: true,
+                        movement_duration: totalDuration
+                    })
                     .eq('id', existingLog.id);
             } else {
                 await supabase.from('daily_logs')
                     .insert({
                         user_id: userId,
                         date: date,
-                        movement_completed: true
+                        movement_completed: true,
+                        movement_duration: totalDuration
                     });
             }
         }
