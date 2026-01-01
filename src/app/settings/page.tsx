@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { getSettings, updateSettings, getUserBadges, UserBadge } from '@/lib/api';
 import { Loader2, Save, Target, Plus, Trophy, Sparkles, Rocket } from 'lucide-react';
 import { TrophyCase } from '@/components/TrophyCase';
+import { StravaConnect } from '@/components/StravaConnect';
 import { ChangelogModal } from '@/components/ChangelogModal';
 
 export default function SettingsPage() {
@@ -113,6 +114,9 @@ export default function SettingsPage() {
                     </div>
                 </div>
             </section>
+
+            {/* Integrations Section */}
+            <StravaConnect />
 
             {/* Customization Section */}
             <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6">
