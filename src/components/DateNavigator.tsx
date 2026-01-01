@@ -21,13 +21,32 @@ export function DateNavigator({ date, setDate }: DateNavigatorProps) {
                 <ChevronLeft className="w-5 h-5" />
             </button>
 
-            <div className="flex flex-col items-center">
-                <span className="text-sm font-medium text-gray-500 uppercase tracking-widest">
+
+            <div className="relative flex flex-col items-center group cursor-pointer">
+                {/* Hidden Date Input Overlay */}
+                <input
+                    type="date"
+                    value={format(date, 'yyyy-MM-dd')}
+                    onChange={(e) => {
+                        if (e.target.valueAsDate) {
+                            // Adjust for timezone offset to ensure the date picked is the date set
+                            // valueAsDate returns UTC midnight. We want to treat it as local.
+                            // Actually, e.target.value is "YYYY-MM-DD".
+                            // new Date("YYYY-MM-DD") in JS acts... variably. 
+                            // Best to use a library or appending time.
+                            const [y, m, d] = e.target.value.split('-').map(Number);
+                            setDate(new Date(y, m - 1, d));
+                        }
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                />
+
+                <span className="text-sm font-medium text-gray-500 uppercase tracking-widest group-hover:text-blue-500 transition-colors">
                     {isToday ? 'Today' : format(date, 'EEEE')}
                 </span>
                 <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-blue-500" />
-                    <span className="text-xl font-bold text-gray-900">
+                    <span className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                         {format(date, 'MMM d, yyyy')}
                     </span>
                 </div>
