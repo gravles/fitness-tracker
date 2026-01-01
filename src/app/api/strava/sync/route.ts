@@ -18,9 +18,9 @@ export async function POST(request: Request) {
         }
 
         // 2. Perform Sync
-        const count = await syncStravaActivities(user.id);
+        const results = await syncStravaActivities(user.id);
 
-        return NextResponse.json({ success: true, count });
+        return NextResponse.json({ success: true, ...results });
 
     } catch (error: any) {
         console.error('Sync error:', error);

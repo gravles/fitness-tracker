@@ -54,7 +54,12 @@ export function StravaConnect() {
 
             const data = await res.json();
             if (res.ok) {
-                alert(`Synced ${data.count} new activities!`);
+                if (data.count > 0) {
+                    const names = data.added.map((a: any) => `• ${a.name} (${a.date})`).join('\n');
+                    alert(`Synced ${data.count} new activities:\n${names}`);
+                } else {
+                    alert('No new activities found (checked last 30 days).');
+                }
                 router.refresh();
             } else {
                 alert('Sync failed: ' + data.error);

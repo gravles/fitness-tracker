@@ -138,10 +138,11 @@ export async function syncStravaActivities(userId: string) {
     if (!token) throw new Error('No valid strava connection');
 
     // Sync last 7 days by default
-    const after = Math.floor(subDays(new Date(), 7).getTime() / 1000);
+    const after = Math.floor(subDays(new Date(), 30).getTime() / 1000);
     const activities = await fetchStravaActivities(token, after);
 
     let syncedCount = 0;
+    const addedActivities: { date: string, name: string }[] = [];
 
     for (const activity of activities) {
         // Check if already exists using external_id
@@ -181,7 +182,8 @@ export async function syncStravaActivities(userId: string) {
             source: 'strava'
         });
         syncedCount++;
+        addedActivities.push({ date: dateStr, name: activity.name });
     }
 
-    return syncedCount;
+    return { count: syncedCount, added: addedActivities };
 }
