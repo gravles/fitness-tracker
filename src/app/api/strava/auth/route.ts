@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 
 const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
-export async function GET() {
+
+export async function GET(request: Request) {
     if (!STRAVA_CLIENT_ID) {
         return NextResponse.json({ error: 'Strava Client ID not configured' }, { status: 500 });
     }
 
-    const redirectUri = `${BASE_URL}/settings/strava-callback`;
+    // Dynamic Base URL
+    const { origin } = new URL(request.url);
+    const redirectUri = `${origin}/settings/strava-callback`;
     const scope = 'read,activity:read_all'; // We need read_all to get private activities if user wants
 
     // Construct Strava Auth URL
