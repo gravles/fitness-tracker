@@ -229,6 +229,10 @@ export interface WorkoutChatState {
     missing_fields: string[];
     status: 'continue' | 'completed';
     reply: string;
+    suggested_workout?: {
+        title: string;
+        exercises: { name: string; sets: number; reps: string; }[];
+    };
 }
 
 export async function chatWithTrainer(state: WorkoutChatState, newUserInput: string): Promise<WorkoutChatState> {
@@ -257,15 +261,16 @@ export async function chatWithTrainer(state: WorkoutChatState, newUserInput: str
             
             Return JSON ONLY:
             {
-                "reply": "Your conversational response to the user",
+                "reply": "Your conversational response...",
                 "status": "continue" | "completed",
-                "missing_fields": ["duration", "intensity", ...],
-                "workout_data": { 
-                    "activity_type": string, 
-                    "duration": number, 
-                    "intensity": "Light"|"Moderate"|"Hard",
-                    "calories": number (estimated),
-                    "muscles": string[] (e.g. ["Quads", "Cardio"])
+                // "workout_data" is for LOGGING a past workout
+                "workout_data": { ... },
+                // "suggested_workout" is for PLANNING a future workout
+                "suggested_workout": {
+                     "title": "Workout Name",
+                     "exercises": [
+                         { "name": "Exercise Name", "sets": 3, "reps": "10-12" }
+                     ]
                 }
             }`
         },
@@ -288,7 +293,8 @@ export async function chatWithTrainer(state: WorkoutChatState, newUserInput: str
         workoutData: result.workout_data || state.workoutData,
         missing_fields: result.missing_fields || [],
         status: result.status || 'continue',
-        reply: result.reply
+        reply: result.reply,
+        suggested_workout: result.suggested_workout
     };
 }
 

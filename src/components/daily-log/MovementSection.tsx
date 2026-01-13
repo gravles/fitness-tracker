@@ -4,6 +4,8 @@ import { Workout, addWorkout, deleteWorkout } from '@/lib/api';
 import { Loader2, Plus, Dumbbell, Clock, Trash2, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 
+import { useRouter } from 'next/navigation';
+
 interface MovementSectionProps {
     movementCompleted: boolean | null;
     setMovementCompleted: (val: boolean) => void;
@@ -28,6 +30,7 @@ export function MovementSection({
     onDeleteWorkoutStart // Pass callback to notify parent if needed, effectively just state update wrappers in parent
 }: MovementSectionProps) {
 
+    const router = useRouter();
     const [newWorkout, setNewWorkout] = useState<{ activity_type: string, duration: number, intensity: 'Moderate' | 'Light' | 'Hard' }>({ activity_type: '', duration: 30, intensity: 'Moderate' });
     const [localAdding, setLocalAdding] = useState(false);
 
@@ -180,6 +183,15 @@ export function MovementSection({
                                 {localAdding ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Add Workout'}
                             </button>
                         </div>
+                    </div>
+                    <div className="pt-4 border-t border-gray-100">
+                        <button
+                            onClick={() => router.push('/workout/builder')}
+                            className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-black transition-colors"
+                        >
+                            <span>🏋️‍♀️</span>
+                            Open Workout Builder & Tracker
+                        </button>
                     </div>
                 </div>
             )}

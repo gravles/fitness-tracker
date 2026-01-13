@@ -3,12 +3,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { Loader2, Send, Bot, User, Sparkles } from 'lucide-react';
 import { getMonthlyLogs, getSettings } from '@/lib/api';
-import { getTemplates } from '@/lib/workout-api';
+import { getTemplates, createTemplate } from '@/lib/workout-api';
 import { subDays, format } from 'date-fns';
 
 interface Message {
     role: 'user' | 'assistant';
     content: string;
+    suggested_workout?: {
+        title: string;
+        exercises: { name: string; sets: number; reps: string; }[];
+    };
 }
 
 export default function CoachPage() {
@@ -108,6 +112,40 @@ export default function CoachPage() {
                             : 'bg-white text-gray-800 border border-gray-100 shadow-sm rounded-tl-none'
                             }`}>
                             {m.content}
+                            {m.suggested_workout && (
+                                <div className="mt-3 pt-3 border-t border-gray-100">
+                                    <div className="bg-gray-50 rounded-lg p-3 mb-2">
+                                        <h4 className="font-bold text-gray-900 mb-1">{m.suggested_workout.title}</h4>
+                                        <ul className="text-xs text-gray-500 space-y-1">
+                                            {m.suggested_workout.exercises.map((e, idx) => (
+                                                <li key={idx}>• {e.name} ({e.sets}x{e.reps})</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            if (!m.suggested_workout) return;
+                                            if (confirm(`Save "${m.suggested_workout.title}" to your templates?`)) {
+                                                try {
+                                                    await createTemplate(m.suggested_workout.title, m.suggested_workout.exercises.map(e => ({
+                                                        exercise_name: e.name,
+                                                        target_sets: e.sets,
+                                                        target_reps: e.reps,
+                                                        order_index: 0
+                                                    })));
+                                                    alert('Saved! Redirecting to builder...');
+                                                    window.location.href = '/workout/builder';
+                                                } catch (e) {
+                                                    alert('Failed to save template');
+                                                }
+                                            }
+                                        }}
+                                        className="w-full py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700"
+                                    >
+                                        Save to Templates
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ))}
