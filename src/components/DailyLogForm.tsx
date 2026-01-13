@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getDailyLog, upsertDailyLog, getWorkouts, Workout, getFavoriteFoods, FavoriteFood } from '@/lib/api';
+import { getDailyLog, upsertDailyLog, getWorkouts, Workout, getFavoriteFoods, FavoriteFood, addWorkout } from '@/lib/api';
 import { Loader2 } from 'lucide-react';
 import { MenuScanner } from './MenuScanner';
 import { WorkoutChatModal } from './WorkoutChatModal';
@@ -389,13 +389,13 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             <WorkoutChatModal
                 isOpen={showWorkoutChat}
                 onClose={() => setShowWorkoutChat(false)}
-                onAddWorkout={(w) => {
+                onSave={(w) => {
                     addWorkout({ ...w, date: dateStr }).then(added => {
                         setWorkouts([...workouts, added]);
                         alert('Workout added!');
                     });
                 }}
-                initialMessage={chatInitialInput}
+                initialData={chatInitialInput}
             />
 
             {showFoodSelector && (
