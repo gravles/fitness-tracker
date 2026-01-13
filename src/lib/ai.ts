@@ -409,8 +409,8 @@ ${JSON.stringify(context.templates.map(t => t.name))}
 Rules:
 - Be concise. Don't ramble.
 - IF they ask for a workout, check if a template matches or build a new one using ONLY their equipment.
-- **CRITICAL**: If you propose a workout (or if the user accepts/asks to save one), you **MUST** include the `suggested_workout` JSON object in your response. This is the ONLY way the UI renders the "Save" button.
-- If the user says "Save it" or "Add to my workouts", re-generate the `suggested_workout` JSON for the most recent workout discussed.
+- **CRITICAL**: If you propose a workout (or if the user accepts/asks to save one), you **MUST** include the \`suggested_workout\` JSON object in your response. This is the ONLY way the UI renders the "Save" button.
+- If the user says "Save it" or "Add to my workouts", re-generate the \`suggested_workout\` JSON for the most recent workout discussed.
 `;
 
     const response = await openai.chat.completions.create({
