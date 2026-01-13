@@ -20,12 +20,16 @@ export default function WorkoutBuilderPage() {
         loadTemplates();
     }, []);
 
+    const [error, setError] = useState<string | null>(null);
+
     async function loadTemplates() {
         try {
+            setError(null);
             const data = await getTemplates();
             setTemplates(data || []);
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
+            setError(e.message || 'Failed to load templates');
         } finally {
             setLoading(false);
         }
