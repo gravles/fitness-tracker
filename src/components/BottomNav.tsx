@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PlusCircle, Calendar, Settings, TrendingUp } from 'lucide-react';
+import { Home, PlusCircle, Calendar, Settings, TrendingUp, Bot } from 'lucide-react';
 
 export function BottomNav() {
     const pathname = usePathname();
@@ -19,6 +19,11 @@ export function BottomNav() {
             <Link href="/log" className={`flex flex-col items-center gap-1 p-2 ${isActive('/log') ? 'text-blue-600' : 'text-gray-400'}`}>
                 <PlusCircle className="w-6 h-6" />
                 <span className="text-[10px] font-medium">Log</span>
+            </Link>
+
+            <Link href="/coach" className={`flex flex-col items-center gap-1 p-2 ${isActive('/coach') ? 'text-blue-600' : 'text-gray-400'}`}>
+                <Bot className="w-6 h-6" />
+                <span className="text-[10px] font-medium">Coach</span>
             </Link>
 
             <Link href="/calendar" className={`flex flex-col items-center gap-1 p-2 ${isActive('/calendar') ? 'text-blue-600' : 'text-gray-400'}`}>

@@ -365,3 +365,55 @@ export async function generateWeeklyInsights(logs: any[]): Promise<WeeklyInsight
         workout_tip: "N/A"
     };
 }
+
+// --- Smart Coach Logic ---
+
+export interface CoachContext {
+    recentLogs: any[];
+    userSettings: any;
+    templates: any[];
+}
+
+export async function chatWithCoach(history: any[], newMessage: string, context: CoachContext) {
+    if (!process.env.OPENAI_API_KEY) {
+        return {
+            role: 'assistant',
+            content: "I'm in DEV mode (no API key). I see your data! You can ask me about your protein, workouts, or how to build a routine."
+        };
+    }
+
+    const systemPrompt = `
+You are an elite Fitness & Lifestyle Coach. You have full access to the user's recent 30-day logs and settings.
+Your capabilities:
+1. Analysis: "Why am I tired?" (Correlate sleep, alcohol, food).
+2. Planning: "Build me a workout." (Use their available equipment: ${JSON.stringify(context.userSettings?.available_equipment || [])}).
+3. Motivation: tough love or gentle encouragement based on their vibe.
+
+User Profile:
+- Goal: ${context.userSettings?.target_weight ? `Reach ${context.userSettings.target_weight}lbs` : 'General Fitness'}
+- Equipment: ${JSON.stringify(context.userSettings?.available_equipment || [])}
+- Recent Workouts Logged: ${context.recentLogs.filter(l => l.movement_completed).length} in last 30 days.
+
+Data Context (Last 30 days summary or snippet):
+${JSON.stringify(context.recentLogs.slice(-7))} (Only last 7 days detailed here for brevity, but assume you know the trends)
+
+Existing Workout Templates they have:
+${JSON.stringify(context.templates.map(t => t.name))}
+
+Rules:
+- Be concise. Don't ramble.
+- IF they ask for a workout, check if a template matches or build a new one using ONLY their equipment.
+- If you suggest a workout, format it clearly (Warmup, Exercises with Sets/Reps, Cooldown).
+`;
+
+    const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+            { role: "system", content: systemPrompt },
+            ...history,
+            { role: "user", content: newMessage }
+        ]
+    });
+
+    return response.choices[0].message;
+}
