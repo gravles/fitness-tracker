@@ -189,6 +189,71 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
+                {/* Equipment Manager */}
+                <div>
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg">🏋️‍♂️</span>
+                        <h3 className="font-medium text-gray-900">Home Equipment</h3>
+                    </div>
+                    <p className="text-sm text-gray-500 mb-4">Select what you have at home for the AI Coach to suggest appropriate workouts.</p>
+
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        {targets.equipment.map(item => (
+                            <div key={item} className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-sm flex items-center gap-2 border border-blue-100">
+                                {item}
+                                <button
+                                    onClick={() => setTargets({ ...targets, equipment: targets.equipment.filter(e => e !== item) })}
+                                    className="text-blue-400 hover:text-blue-600"
+                                >
+                                    <span className="sr-only">Remove</span>x
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            placeholder="Add equipment (e.g. Dumbbells, Pull-up Bar)..."
+                            className="flex-1 p-3 bg-gray-50 rounded-xl"
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    const val = e.currentTarget.value.trim();
+                                    if (val && !targets.equipment.includes(val)) {
+                                        setTargets({ ...targets, equipment: [...targets.equipment, val] });
+                                        e.currentTarget.value = '';
+                                    }
+                                }
+                            }}
+                        />
+                        <button className="bg-gray-900 text-white px-4 rounded-xl font-bold" onClick={(e) => {
+                            const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                            const val = input.value.trim();
+                            if (val && !targets.equipment.includes(val)) {
+                                setTargets({ ...targets, equipment: [...targets.equipment, val] });
+                                input.value = '';
+                            }
+                        }}>
+                            <Plus className="w-5 h-5" />
+                        </button>
+                    </div>
+                    <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
+                        {['Dumbbells', 'Kettlebell', 'Pull-up Bar', 'Resistance Bands', 'Bench', 'Yoga Mat'].map(s => (
+                            <button
+                                key={s}
+                                onClick={() => {
+                                    if (!targets.equipment.includes(s)) {
+                                        setTargets({ ...targets, equipment: [...targets.equipment, s] });
+                                    }
+                                }}
+                                className="px-3 py-1 rounded-full border border-gray-200 text-xs font-bold text-gray-500 hover:bg-gray-50 whitespace-nowrap"
+                            >
+                                + {s}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 <button
                     onClick={handleSave}
                     disabled={saving}
