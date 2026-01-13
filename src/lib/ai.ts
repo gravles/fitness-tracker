@@ -409,8 +409,19 @@ ${JSON.stringify(context.templates.map(t => t.name))}
 Rules:
 - Be concise. Don't ramble.
 - IF they ask for a workout, check if a template matches or build a new one using ONLY their equipment.
-- **CRITICAL**: If you propose a workout (or if the user accepts/asks to save one), you **MUST** include the \`suggested_workout\` JSON object in your response. This is the ONLY way the UI renders the "Save" button.
-- If the user says "Save it" or "Add to my workouts", re-generate the \`suggested_workout\` JSON for the most recent workout discussed.
+
+CRITICAL JSON STRUCTURE:
+You MUST return a JSON object with this EXACT structure:
+{
+  "reply": "Your conversational answer here...",
+  "suggested_workout": { ... } // OPTIONAL: Only include this if proposing/saving a workout
+}
+
+Example of "suggested_workout":
+{
+  "title": "Workout Name",
+  "exercises": [ { "name": "Exercise Name", "sets": 3, "reps": "10-12" } ]
+}
 `;
 
     const response = await openai.chat.completions.create({
@@ -428,8 +439,15 @@ Rules:
     try {
         parsed = content ? JSON.parse(content) : { reply: "I'm having trouble thinking right now." };
     } catch (e) {
-        // Fallback if it returns malformed JSON (e.g. standard text)
         parsed = { reply: content || "Error parsing response" };
+    }
+
+    // fallback: if AI returned the workout object directly as the root
+    if (parsed.exercises && Array.isArray(parsed.exercises) && !parsed.reply) {
+        parsed = {
+            reply: "Here is the workout plan I built for you:",
+            suggested_workout: parsed
+        };
     }
 
     return {
