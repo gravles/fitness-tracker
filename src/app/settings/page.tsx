@@ -288,6 +288,12 @@ export default function SettingsPage() {
                     >
                         <Rocket className="w-5 h-5" /> What's New?
                     </button>
+                    <button
+                        onClick={() => window.location.href = '/help'}
+                        className="p-4 bg-green-50 text-green-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-100 transition-colors md:col-span-2"
+                    >
+                        <span className="text-xl">📚</span> User Manual
+                    </button>
                 </div>
             </section>
 
