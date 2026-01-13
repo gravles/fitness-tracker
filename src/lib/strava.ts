@@ -177,7 +177,21 @@ export async function syncStravaActivities(userId: string, supabase: SupabaseCli
             else if (activity.average_heartrate < 120) intensity = 'Light';
         }
 
-        const dateStr = activity.start_date_local.split('T')[0];
+        // Parse local date strictly from the string
+        // Strava sends "2018-05-02T05:15:09Z" for start_date_local. 
+        // We strip 'Z' to treat it as "Local Wall Time" in JS Date constructor.
+        const rawLocal = activity.start_date_local.replace('Z', '');
+        const localDateObj = new Date(rawLocal);
+
+        // "Night Owl" Logic: If workout is before 4AM, count it as previous day
+        // (Use .getHours(), which works on the local-time-constructed object)
+        if (localDateObj.getHours() < 4) {
+            // Shift back one day
+            // We can use the date object modification directly
+            localDateObj.setDate(localDateObj.getDate() - 1);
+        }
+
+        const dateStr = localDateObj.toISOString().split('T')[0];
 
         // Add to DB
         const { error: insertError } = await supabase.from('workouts').insert({
