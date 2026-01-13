@@ -76,36 +76,47 @@ export default function ActiveWorkoutPage() {
     };
 
     const finishWorkout = async () => {
+        // 1. Filter: Only keep exercises with at least one completed set
+        const completedExercises = exercises.filter(e => e.sets.some(s => s.completed));
+
+        if (completedExercises.length === 0) {
+            alert('No exercises completed! Please mark at least one set as done.');
+            return;
+        }
+
         if (!confirm('Finish and log this workout?')) return;
         setLoading(true);
 
         try {
-            // 1. Create Workout Entry (Using existing API for now to log to `workouts` table)
-            // Note: In the future we should use the new `active_workouts` table if we want pause/resume, 
-            // but for now we follow the "Finish" = "Log" pattern.
-            // We'll log to the old `workouts` table for summary, and maybe eventually the new detailed tables.
-            // For MVP: Log to `workouts` table so it shows up in history.
+            // 2. Calorie Estimation
+            // METs: Moderate Weight Lifting ~ 5.0
+            // Formula: Calories = MET * Weight(kg) * Duration(hr)
+            const settings = await import('@/lib/api').then(m => m.getSettings());
+            const weightLbs = settings?.target_weight || 160; // Default to 160 if unknown
+            const weightKg = weightLbs * 0.453592;
+            const durationHrs = elapsedSeconds / 3600;
+            const met = 5.0; // Moderate intensity
+            const caloriesBurned = Math.round(met * weightKg * durationHrs);
 
-            const summary = exercises.map(e => `${e.sets.filter(s => s.completed).length} x ${e.name}`).join(', ');
+            // 3. Construct Log
+            const summary = completedExercises.map(e => `${e.sets.filter(s => s.completed).length} x ${e.name}`).join(', ');
 
-            // Format for `workouts` table
             const workoutData = {
                 date: new Date().toISOString().split('T')[0],
                 activity_type: title,
                 duration: Math.floor(elapsedSeconds / 60),
-                intensity: 'Moderate' as const, // User can edit later
-                notes: `Detailed Log:\n${exercises.map(e =>
-                    `${e.name}: ${e.sets.map(s => `${s.weight}lbs x ${s.reps}`).join(' | ')}`
+                intensity: 'Moderate' as const,
+                notes: `Calories Burned: ~${caloriesBurned} kcal\n\nDetailed Log:\n${completedExercises.map(e =>
+                    `${e.name}: ${e.sets.filter(s => s.completed).map(s => `${s.weight}lbs x ${s.reps}`).join(' | ')}`
                 ).join('\n')}`
             };
 
             await addWorkout(workoutData);
 
-            // Also update Daily Log movement status
             await upsertDailyLog({
                 date: workoutData.date,
                 movement_completed: true,
-                movement_duration: workoutData.duration // This might overwrite sum, but simple for now
+                movement_duration: workoutData.duration
             });
 
             router.push('/');
