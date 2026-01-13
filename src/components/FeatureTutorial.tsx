@@ -52,9 +52,15 @@ export function FeatureTutorial({ onClose, forceOpen }: FeatureTutorialProps) {
         },
         {
             title: "AI Workout Coach 🏋️",
-            desc: "Chat with your AI Trainer to log workouts. It asks the right questions and estimates your calories burned.",
-            icon: <Dumbbell className="w-12 h-12 text-green-400" />,
+            desc: "Ask the Coach to 'Build me a chest workout'. It creates a plan based on your equipment. Click 'Save' to track it instantly.",
+            icon: <Brain className="w-12 h-12 text-green-400" />,
             color: "bg-green-600"
+        },
+        {
+            title: "Workout Builder 🛠️",
+            desc: "Create your own custom templates or edit the AI's suggestions. Track sets, reps, and weights in real-time.",
+            icon: <Dumbbell className="w-12 h-12 text-pink-400" />,
+            color: "bg-pink-600"
         },
         {
             title: "Menu Scanner 🍽️",

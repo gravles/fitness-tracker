@@ -12,6 +12,15 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
 
     const changes = [
         {
+            version: "v1.3 (Workout Builder)",
+            date: "Just Now",
+            features: [
+                { icon: <Dumbbell className="w-4 h-4 text-pink-500" />, text: "Added Workout Builder & Active Tracker." },
+                { icon: <Brain className="w-4 h-4 text-green-500" />, text: "Smart Coach can now build and save workouts." },
+                { icon: <Zap className="w-4 h-4 text-yellow-500" />, text: "Integrated real-time set/rep logging." },
+            ]
+        },
+        {
             version: "v1.2 (AI Update)",
             date: "Today",
             features: [
