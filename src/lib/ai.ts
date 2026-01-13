@@ -419,8 +419,22 @@ Rules:
             { role: "system", content: systemPrompt },
             ...history,
             { role: "user", content: newMessage }
-        ]
+        ],
+        response_format: { type: "json_object" }
     });
 
-    return response.choices[0].message;
+    const content = response.choices[0].message.content;
+    let parsed;
+    try {
+        parsed = content ? JSON.parse(content) : { reply: "I'm having trouble thinking right now." };
+    } catch (e) {
+        // Fallback if it returns malformed JSON (e.g. standard text)
+        parsed = { reply: content || "Error parsing response" };
+    }
+
+    return {
+        role: 'assistant',
+        content: parsed.reply || parsed.message || JSON.stringify(parsed),
+        suggested_workout: parsed.suggested_workout
+    };
 }
