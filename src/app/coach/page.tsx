@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Loader2, Send, Bot, User, Sparkles } from 'lucide-react';
+import { getMonthlyLogs, getSettings } from '@/lib/api';
+import { getTemplates } from '@/lib/workout-api';
+import { subDays, format } from 'date-fns';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -14,11 +17,30 @@ export default function CoachPage() {
     const [loading, setLoading] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
+    const [context, setContext] = useState<any>(null);
+
     useEffect(() => {
         // Initial Greeting
         setMessages([
             { role: 'assistant', content: "Hi! I'm your Smart Coach. I've analyzed your last 30 days of activity. How can I help you today? (Try asking me to build a workout!)" }
         ]);
+
+        // Prefetch Context
+        async function loadContext() {
+            try {
+                const end = new Date();
+                const start = subDays(end, 30);
+                const [logs, settings, templates] = await Promise.all([
+                    getMonthlyLogs(format(start, 'yyyy-MM-dd'), format(end, 'yyyy-MM-dd')),
+                    getSettings(),
+                    getTemplates()
+                ]);
+                setContext({ recentLogs: logs, userSettings: settings, templates });
+            } catch (e) {
+                console.error("Failed to load context", e);
+            }
+        }
+        loadContext();
     }, []);
 
     useEffect(() => {
@@ -37,7 +59,10 @@ export default function CoachPage() {
             const res = await fetch('/api/ai/coach', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messages: [...messages, newMsg] })
+                body: JSON.stringify({
+                    messages: [...messages, newMsg],
+                    context: context // Pass fetched context
+                })
             });
 
             const data = await res.json();
