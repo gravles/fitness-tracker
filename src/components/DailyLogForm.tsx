@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getDailyLog, upsertDailyLog, getWorkouts, addWorkout, deleteWorkout, Workout } from '@/lib/api';
-import { Loader2, Plus, Minus, Moon, Zap, Activity, Brain, Trash2, Clock, Dumbbell, Camera, X, ChefHat, Sparkles } from 'lucide-react';
+import { Loader2, Plus, Minus, Moon, Zap, Activity, Brain, Trash2, Clock, Dumbbell, Camera, X, ChefHat, Sparkles, Keyboard } from 'lucide-react';
 import { FoodCamera } from './FoodCamera';
 import { VoiceInput } from './VoiceInput';
 import { MenuScanner } from './MenuScanner';
@@ -22,6 +22,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     const [showMenuScanner, setShowMenuScanner] = useState(false);
     const [showWorkoutChat, setShowWorkoutChat] = useState(false);
     const [chatInitialInput, setChatInitialInput] = useState('');
+    const [showTextInput, setShowTextInput] = useState(false);
+    const [textInputVal, setTextInputVal] = useState('');
 
     // Restored State Variables
     const [settings, setSettings] = useState({ cycle: true, habits: [] as string[] });
@@ -507,6 +509,13 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                             }}
                         />
                         <button
+                            onClick={() => setShowTextInput(true)}
+                            className="p-2 bg-indigo-50 text-indigo-600 rounded-full hover:bg-indigo-100 transition-colors"
+                            title="Type to Log"
+                        >
+                            <Keyboard className="w-5 h-5" />
+                        </button>
+                        <button
                             onClick={() => setShowMenuScanner(true)}
                             className="p-2 bg-yellow-50 text-yellow-600 rounded-full hover:bg-yellow-100 transition-colors"
                             title="Scan Restaurant Menu"
@@ -864,6 +873,86 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                         alert(`Logged: ${item.name}`);
                     }}
                 />
+            )}
+
+            {showTextInput && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95">
+                        <div className="flex justify-between items-center mb-4">
+                            <h4 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                <Keyboard className="w-5 h-5" /> Type to Log
+                            </h4>
+                            <button onClick={() => setShowTextInput(false)}><X className="w-6 h-6 text-gray-400" /></button>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-4">
+                            Describe what you ate or your workout. <br />
+                            <span className="italic text-xs">Ex: "2 eggs and toast", "Ran 5k in 25 mins"</span>
+                        </p>
+                        <textarea
+                            autoFocus
+                            value={textInputVal}
+                            onChange={e => setTextInputVal(e.target.value)}
+                            className="w-full h-32 p-4 bg-gray-50 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none mb-4 font-medium text-gray-700"
+                            placeholder="What's on the menu?"
+                        />
+                        <button
+                            onClick={async () => {
+                                if (!textInputVal.trim()) return;
+                                setLoadingAI(true);
+                                try {
+                                    const res = await fetch('/api/ai/process-intent', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ transcript: textInputVal })
+                                    });
+                                    const intent = await res.json();
+
+                                    if (intent.error) {
+                                        alert("Error: " + intent.error);
+                                    } else if (intent.intent === 'log_food') {
+                                        if (intent.data?.items) {
+                                            let alcoholAdded = 0;
+                                            const newItems = intent.data.items.map((i: any) => {
+                                                if (i.alcohol_units) alcoholAdded += i.alcohol_units;
+                                                return i;
+                                            });
+
+                                            addFoodItems(newItems);
+                                            if (alcoholAdded > 0) {
+                                                setAlcohol(prev => prev + alcoholAdded);
+                                                alert(`Added: ${newItems.map((i: any) => i.name).join(', ')} (and +${alcoholAdded} standard drinks)`);
+                                            } else {
+                                                alert(`Added: ${newItems.map((i: any) => i.name).join(', ')}`);
+                                            }
+                                        } else if (intent.data?.item) {
+                                            setSubjective(prev => ({ ...prev, note: (prev.note + ' ' + intent.data.item).trim() }));
+                                            alert(`Added to notes`);
+                                        }
+                                        setShowTextInput(false);
+                                        setTextInputVal('');
+                                    } else if (intent.intent === 'log_workout') {
+                                        setChatInitialInput(intent.original || '');
+                                        setShowWorkoutChat(true);
+                                        setShowTextInput(false);
+                                        setTextInputVal('');
+                                    } else {
+                                        alert(`Could not understand: "${intent.original}"`);
+                                    }
+
+                                } catch (e) {
+                                    console.error(e);
+                                    alert('Failed to process text.');
+                                } finally {
+                                    setLoadingAI(false);
+                                }
+                            }}
+                            disabled={loadingAI}
+                            className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold shadow-lg active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {loadingAI ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Analyze <Sparkles className="w-4 h-4" /></>}
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );
