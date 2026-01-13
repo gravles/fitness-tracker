@@ -135,8 +135,9 @@ export default function CoachPage() {
                                                     })));
                                                     alert('Saved! Redirecting to builder...');
                                                     window.location.href = '/workout/builder';
-                                                } catch (e) {
-                                                    alert('Failed to save template');
+                                                } catch (e: any) {
+                                                    console.error(e);
+                                                    alert(`Failed to save template: ${e.message}`);
                                                 }
                                             }
                                         }}

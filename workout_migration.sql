@@ -43,15 +43,18 @@ CREATE TABLE IF NOT EXISTS workout_sets (
 );
 
 -- Enable RLS
+-- Enable RLS
 ALTER TABLE workout_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE template_exercises ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workout_exercises ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workout_sets ENABLE ROW LEVEL SECURITY;
 
--- Policies
+-- Policies (Drop first to allow re-running)
+DROP POLICY IF EXISTS "Users can manage their own templates" ON workout_templates;
 CREATE POLICY "Users can manage their own templates" ON workout_templates
   FOR ALL USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can manage their own template exercises" ON template_exercises;
 CREATE POLICY "Users can manage their own template exercises" ON template_exercises
   FOR ALL USING (
     EXISTS (
@@ -61,7 +64,7 @@ CREATE POLICY "Users can manage their own template exercises" ON template_exerci
     )
   );
 
--- For workout_exercises, we need to join back to workouts -> user_id
+DROP POLICY IF EXISTS "Users can manage their own workout exercises" ON workout_exercises;
 CREATE POLICY "Users can manage their own workout exercises" ON workout_exercises
   FOR ALL USING (
     EXISTS (
@@ -71,6 +74,7 @@ CREATE POLICY "Users can manage their own workout exercises" ON workout_exercise
     )
   );
 
+DROP POLICY IF EXISTS "Users can manage their own workout sets" ON workout_sets;
 CREATE POLICY "Users can manage their own workout sets" ON workout_sets
   FOR ALL USING (
     EXISTS (
