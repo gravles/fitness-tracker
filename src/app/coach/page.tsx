@@ -47,7 +47,7 @@ export default function CoachPage() {
 
         } catch (error) {
             console.error(error);
-            setMessages(prev => [...prev, { role: 'assistant', content: `Sorry, there was an error: ${error.message || 'Connection failed'}` }]);
+            setMessages(prev => [...prev, { role: 'assistant', content: `Sorry, there was an error: ${(error as any).message || 'Connection failed'}` }]);
         } finally {
             setLoading(false);
         }
