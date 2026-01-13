@@ -378,3 +378,98 @@ export async function recalculateTotalXP() {
 
     return { totalXP, newLevel };
 }
+
+// Favorites & History API
+
+export interface FavoriteFood {
+    id: string;
+    user_id: string;
+    name: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    portion_estimate?: string;
+    created_at: string;
+}
+
+export async function getFavoriteFoods() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+        .from('favorite_foods')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('name', { ascending: true });
+
+    if (error) throw error;
+    return data as FavoriteFood[];
+}
+
+export async function addFavoriteFood(item: Omit<FavoriteFood, 'id' | 'user_id' | 'created_at'>) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+        .from('favorite_foods')
+        .insert({
+            ...item,
+            user_id: session.user.id
+        })
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data as FavoriteFood;
+}
+
+export async function deleteFavoriteFood(id: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { error } = await supabase
+        .from('favorite_foods')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', session.user.id);
+
+    if (error) throw error;
+}
+
+export async function getRecentFoods(limit = 50) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    // Fetch last 30 days of logs
+    const today = new Date();
+    const startDate = subDays(today, 30).toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+        .from('daily_logs')
+        .select('food_items')
+        .eq('user_id', session.user.id)
+        .gte('date', startDate)
+        .not('food_items', 'is', null)
+        .order('date', { ascending: false });
+
+    if (error) throw error;
+
+    // Flatten and deduplicate
+    const allItems: any[] = [];
+    const seenNames = new Set<string>();
+
+    data?.forEach(log => {
+        if (Array.isArray(log.food_items)) {
+            log.food_items.forEach((item: any) => {
+                const normName = item.name.trim().toLowerCase();
+                if (!seenNames.has(normName)) {
+                    seenNames.add(normName);
+                    allItems.push(item);
+                }
+            });
+        }
+    });
+
+    return allItems.slice(0, limit);
+}

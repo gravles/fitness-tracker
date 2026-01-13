@@ -3,11 +3,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getDailyLog, upsertDailyLog, getWorkouts, addWorkout, deleteWorkout, Workout } from '@/lib/api';
-import { Loader2, Plus, Minus, Moon, Zap, Activity, Brain, Trash2, Clock, Dumbbell, Camera, X, ChefHat, Sparkles, Keyboard } from 'lucide-react';
+import { Loader2, Plus, Minus, Moon, Zap, Activity, Brain, Trash2, Clock, Dumbbell, Camera, X, ChefHat, Sparkles, Keyboard, Heart, BookOpen } from 'lucide-react';
 import { FoodCamera } from './FoodCamera';
 import { VoiceInput } from './VoiceInput';
 import { MenuScanner } from './MenuScanner';
 import { WorkoutChatModal } from './WorkoutChatModal';
+import { FoodSelector } from './FoodSelector';
+import { addFavoriteFood } from '@/lib/api';
 
 interface DailyLogFormProps {
     date: Date;
@@ -24,6 +26,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     const [chatInitialInput, setChatInitialInput] = useState('');
     const [showTextInput, setShowTextInput] = useState(false);
     const [textInputVal, setTextInputVal] = useState('');
+    const [showFoodSelector, setShowFoodSelector] = useState(false);
 
     // Restored State Variables
     const [settings, setSettings] = useState({ cycle: true, habits: [] as string[] });
@@ -509,6 +512,13 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                             }}
                         />
                         <button
+                            onClick={() => setShowFoodSelector(true)}
+                            className="p-2 bg-pink-50 text-pink-600 rounded-full hover:bg-pink-100 transition-colors"
+                            title="Favorites & History"
+                        >
+                            <BookOpen className="w-5 h-5" />
+                        </button>
+                        <button
                             onClick={() => setShowTextInput(true)}
                             className="p-2 bg-indigo-50 text-indigo-600 rounded-full hover:bg-indigo-100 transition-colors"
                             title="Type to Log"
@@ -619,6 +629,28 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                                                 className="w-16 p-1 text-center bg-white border border-gray-200 rounded text-sm font-bold"
                                             />
                                         </div>
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    await addFavoriteFood({
+                                                        name: item.name,
+                                                        calories: item.calories,
+                                                        protein: item.protein,
+                                                        carbs: item.carbs,
+                                                        fat: item.fat,
+                                                        portion_estimate: item.portion_estimate
+                                                    });
+                                                    alert(`Saved '${item.name}' to favorites!`);
+                                                } catch (e) {
+                                                    console.error(e);
+                                                    alert('Failed to save favorite');
+                                                }
+                                            }}
+                                            className="text-gray-300 hover:text-pink-500 p-2 transition-colors"
+                                            title="Save to Favorites"
+                                        >
+                                            <Heart className="w-4 h-4" />
+                                        </button>
                                         <button
                                             onClick={() => removeFoodItem(idx)}
                                             className="text-gray-400 hover:text-red-500 p-2"
@@ -871,6 +903,17 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                         setShowMenuScanner(false);
                         addFoodItems([item]);
                         alert(`Logged: ${item.name}`);
+                    }}
+                />
+            )}
+
+            {showFoodSelector && (
+                <FoodSelector
+                    onClose={() => setShowFoodSelector(false)}
+                    onSelect={(item) => {
+                        addFoodItems([item]);
+                        setShowFoodSelector(false);
+                        alert(`Added ${item.name}`);
                     }}
                 />
             )}
