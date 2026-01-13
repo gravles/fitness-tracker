@@ -47,7 +47,7 @@ export default function CoachPage() {
 
         } catch (error) {
             console.error(error);
-            setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I had trouble connecting to the server." }]);
+            setMessages(prev => [...prev, { role: 'assistant', content: `Sorry, there was an error: ${error.message || 'Connection failed'}` }]);
         } finally {
             setLoading(false);
         }
@@ -79,8 +79,8 @@ export default function CoachPage() {
                             {m.role === 'user' ? <User className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
                         </div>
                         <div className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${m.role === 'user'
-                                ? 'bg-gray-900 text-white rounded-tr-none'
-                                : 'bg-white text-gray-800 border border-gray-100 shadow-sm rounded-tl-none'
+                            ? 'bg-gray-900 text-white rounded-tr-none'
+                            : 'bg-white text-gray-800 border border-gray-100 shadow-sm rounded-tl-none'
                             }`}>
                             {m.content}
                         </div>
