@@ -39,12 +39,6 @@ export default function WorkoutBuilderPage() {
                 exercise_name: e.name,
                 target_sets: e.sets,
                 target_reps: e.reps,
-                order_index: 0 // API will handle index based on array order if we modified it, but currently array map index logic is in API call? 
-                               // Actually API expects array and maps it. Let's check API.
-                               // Checking api: insert(exercises.map((e, idx) => ({ ... order_index: idx })))
-                               // So we don't need to send correct order_index here if API handles it, 
-                               // but the Type requires it? API signature: `exercises: Omit<TemplateExercise, 'id' | 'template_id' | 'created_at'>[]`
-                               // The Omit doesn't omit `order_index`. So I should provide it.
                 order_index: 0
             })));
 
