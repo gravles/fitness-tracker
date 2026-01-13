@@ -377,8 +377,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                         </div>
                         <MenuScanner
                             onClose={() => setShowMenuScanner(false)}
-                            onItemsDetected={(items) => {
-                                addFoodItems(items);
+                            onLog={(item) => {
+                                addFoodItems([item]);
                                 setShowMenuScanner(false);
                             }}
                         />
