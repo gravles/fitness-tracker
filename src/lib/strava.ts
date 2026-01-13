@@ -77,7 +77,7 @@ export async function getValidToken(userId: string): Promise<string | null> {
     }
 
     // 3. Refresh if needed
-    console.log('Refreshing Strava Token...');
+
     const response = await fetch('https://www.strava.com/oauth/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -61,7 +61,7 @@ export default function Dashboard() {
 
       setStreak(streakVal);
       setLogs(recentLogs);
-      setAdvice(getSmartAdvice(recentLogs, streakVal));
+      setAdvice(getSmartAdvice(recentLogs, streakVal, settings || undefined));
 
       if (settings) {
         setUserLevel({

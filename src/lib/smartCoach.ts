@@ -7,7 +7,7 @@ export interface CoachingTip {
     type: 'success' | 'warning' | 'info';
 }
 
-export function getSmartAdvice(logs: DailyLog[], streak: number): CoachingTip {
+export function getSmartAdvice(logs: DailyLog[], streak: number, settings?: { target_protein?: number | null }): CoachingTip {
 
     // Helper to get a stable index based on the day of the year
     const getDailyIndex = (length: number) => {
@@ -65,7 +65,7 @@ export function getSmartAdvice(logs: DailyLog[], streak: number): CoachingTip {
     }
 
     // 3. What's Left? (Protein Check)
-    const targetProtein = 150; // TODO: Fetch from settings
+    const targetProtein = settings?.target_protein || 150;
     const currentProtein = logs[logs.length - 1]?.protein_grams || 0;
     const lastLogDate = logs[logs.length - 1]?.date;
     const isToday = lastLogDate === format(new Date(), 'yyyy-MM-dd');

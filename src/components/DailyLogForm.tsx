@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getDailyLog, upsertDailyLog, getWorkouts, addWorkout, deleteWorkout, Workout } from '@/lib/api';
-import { Loader2, Plus, Minus, Moon, Zap, Activity, Brain, Trash2, Clock, Dumbbell, Camera, X, ChefHat, Sparkles, Keyboard, Heart, BookOpen } from 'lucide-react';
-import { FoodCamera } from './FoodCamera';
-import { VoiceInput } from './VoiceInput';
+import { getDailyLog, upsertDailyLog, getWorkouts, Workout, getFavoriteFoods, FavoriteFood } from '@/lib/api';
+import { Loader2 } from 'lucide-react';
 import { MenuScanner } from './MenuScanner';
 import { WorkoutChatModal } from './WorkoutChatModal';
 import { FoodSelector } from './FoodSelector';
-import { addFavoriteFood, getFavoriteFoods, deleteFavoriteFood, FavoriteFood } from '@/lib/api';
+import { MovementSection } from './daily-log/MovementSection';
+import { NutritionSection } from './daily-log/NutritionSection';
+import { AlcoholSection } from './daily-log/AlcoholSection';
+import { SubjectiveSection } from './daily-log/SubjectiveSection';
 
 interface DailyLogFormProps {
     date: Date;
@@ -18,17 +19,20 @@ interface DailyLogFormProps {
 export function DailyLogForm({ date }: DailyLogFormProps) {
     const searchParams = useSearchParams();
 
-
     const [loading, setLoading] = useState(true);
     const [foodItems, setFoodItems] = useState<any[]>([]);
     const [showMenuScanner, setShowMenuScanner] = useState(false);
     const [showWorkoutChat, setShowWorkoutChat] = useState(false);
     const [chatInitialInput, setChatInitialInput] = useState('');
     const [showTextInput, setShowTextInput] = useState(false);
-    const [textInputVal, setTextInputVal] = useState('');
+    const [textInputVal, setTextInputVal] = useState(''); // Note: Used in simple text input modal if we keep it, otherwise unused? Re-checking usage.
+    // The original file had `setShowTextInput` triggered by a button. I probably need to keep that modal or logic.
+    // I see `NutritionSection` triggers `setShowTextInput`.
+    // So the modal for text input must be here.
+
     const [showFoodSelector, setShowFoodSelector] = useState(false);
 
-    // Restored State Variables
+    // State Variables
     const [settings, setSettings] = useState({ cycle: true, habits: [] as string[] });
     const [targetsState, setTargetsState] = useState({ protein: 0, calories: 0 });
     const [movementCompleted, setMovementCompleted] = useState<boolean | null>(null);
@@ -46,11 +50,9 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
 
     const [workouts, setWorkouts] = useState<Workout[]>([]);
     const [favorites, setFavorites] = useState<FavoriteFood[]>([]);
-    const [newWorkout, setNewWorkout] = useState<{ activity_type: string, duration: number, intensity: 'Moderate' | 'Light' | 'Hard' }>({ activity_type: '', duration: 30, intensity: 'Moderate' });
     const [addingWorkout, setAddingWorkout] = useState(false);
     const [saving, setSaving] = useState(false);
     const [showCamera, setShowCamera] = useState(false);
-    const [loadingAI, setLoadingAI] = useState(false);
     const [autoStartVoice, setAutoStartVoice] = useState(false);
 
     // Autosave Ref
@@ -187,23 +189,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         });
     }
 
-    function updateFoodItemQuantity(index: number, newQuantity: string | number) {
-        setFoodItems(prev => {
-            const updated = [...prev];
-            updated[index].quantity = newQuantity;
-            updateNutritionTotals(updated);
-            return updated;
-        });
-    }
-
-    function removeFoodItem(index: number) {
-        setFoodItems(prev => {
-            const updated = prev.filter((_, i) => i !== index);
-            updateNutritionTotals(updated);
-            return updated;
-        });
-    }
-
+    // Helper needed for addFoodItems above
     function updateNutritionTotals(items: any[]) {
         let p = 0, c = 0, carbs = 0, fat = 0;
 
@@ -225,73 +211,6 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             carbs: Math.round(carbs),
             fat: Math.round(fat)
         }));
-    }
-
-    async function handleAddWorkout() {
-        if (!newWorkout.activity_type) return;
-        setAddingWorkout(true);
-
-        // Ensure local date string YYYY-MM-DD
-        const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
-        const dateStr = offsetDate.toISOString().split('T')[0];
-
-        try {
-            const added = await addWorkout({
-                date: dateStr,
-                activity_type: newWorkout.activity_type,
-                duration: newWorkout.duration,
-                intensity: newWorkout.intensity,
-            });
-            setWorkouts([...workouts, added]);
-            setNewWorkout({ activity_type: '', duration: 30, intensity: 'Moderate' }); // Reset form
-        } catch (error) {
-            console.error('Error adding workout', error);
-            alert('Failed to add workout');
-        } finally {
-            setAddingWorkout(false);
-        }
-    }
-
-    async function handleDeleteWorkout(id: string) {
-        if (!confirm('Delete this workout?')) return;
-        try {
-            await deleteWorkout(id);
-            setWorkouts(workouts.filter(w => w.id !== id));
-        } catch (error) {
-            console.error('Error deleting workout', error);
-        }
-    }
-
-    function isFavorite(name: string) {
-        return favorites.some(f => f.name.toLowerCase() === name.toLowerCase());
-    }
-
-    async function toggleFavorite(item: any) {
-        const existing = favorites.find(f => f.name.toLowerCase() === item.name.toLowerCase());
-
-        try {
-            if (existing) {
-                // Remove
-                if (!confirm(`Remove '${item.name}' from favorites?`)) return;
-                await deleteFavoriteFood(existing.id);
-                setFavorites(prev => prev.filter(f => f.id !== existing.id));
-            } else {
-                // Add
-                const newFav = await addFavoriteFood({
-                    name: item.name,
-                    calories: item.calories,
-                    protein: item.protein,
-                    carbs: item.carbs,
-                    fat: item.fat,
-                    portion_estimate: item.portion_estimate
-                });
-                setFavorites(prev => [...prev, newFav]);
-                alert(`Saved '${item.name}' to favorites!`);
-            }
-        } catch (e) {
-            console.error('Error toggling favorite:', e);
-            alert('Failed to update favorite');
-        }
     }
 
     async function handleSave(isAutosave = false) {
@@ -384,552 +303,100 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         );
     }
 
+    // Offset date for children who need it
+    const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+    const dateStr = offsetDate.toISOString().split('T')[0];
+
     return (
         <div className="space-y-6 pb-32">
-            {/* Movement Section */}
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <span className="text-xl">🔥</span> Movement
-                </h3>
 
-                {/* Did you move? Toggle */}
-                <div className="flex gap-4 mb-6">
-                    <button
-                        onClick={() => setMovementCompleted(true)}
-                        className={`flex-1 py-4 rounded-xl font-bold transition-all border-2 ${movementCompleted === true
-                            ? 'bg-blue-600 border-blue-600 text-white shadow-lg scale-[1.02]'
-                            : 'bg-white border-gray-100 text-gray-400 hover:border-blue-200'}`}
-                    >
-                        Yes, I moved!
-                    </button>
-                    <button
-                        onClick={() => setMovementCompleted(false)}
-                        className={`flex-1 py-4 rounded-xl font-bold transition-all border-2 ${movementCompleted === false
-                            ? 'bg-gray-800 border-gray-800 text-white shadow-lg scale-[1.02]'
-                            : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
-                    >
-                        Rest Day
-                    </button>
-                </div>
+            <MovementSection
+                movementCompleted={movementCompleted}
+                setMovementCompleted={setMovementCompleted}
+                workouts={workouts}
+                setWorkouts={setWorkouts}
+                dateStr={dateStr}
+                onOpenAiCoach={() => setShowWorkoutChat(true)}
+                onAddWorkoutStart={() => setAddingWorkout(true)} // Note: MovementSection has local adding state, this might be redundant or unused, but keeps consistency
+                addingWorkout={addingWorkout}
+                onDeleteWorkoutStart={() => { }}
+            />
 
-                {movementCompleted && (
-                    <div className="animate-in fade-in slide-in-from-top-4 space-y-6">
+            <NutritionSection
+                nutrition={nutrition}
+                setNutrition={setNutrition}
+                foodItems={foodItems}
+                setFoodItems={setFoodItems}
+                setAlcohol={setAlcohol}
+                setSubjective={setSubjective}
+                setChatInitialInput={setChatInitialInput}
+                setShowWorkoutChat={setShowWorkoutChat}
+                onAddFoodItems={addFoodItems}
+                autoStartVoice={autoStartVoice}
+                showCamera={showCamera}
+                setShowCamera={setShowCamera}
+                setShowMenuScanner={setShowMenuScanner}
+                setShowFoodSelector={setShowFoodSelector}
+                setShowTextInput={setShowTextInput}
+                favorites={favorites}
+                setFavorites={setFavorites}
+            />
 
-                        {/* List of Today's Workouts */}
-                        {workouts.length > 0 && (
-                            <div className="space-y-3">
-                                {workouts.map(workout => (
-                                    <div key={workout.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center border border-gray-100 shadow-sm">
-                                                <Dumbbell className="w-5 h-5 text-blue-500" />
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-gray-900">{workout.activity_type}</h4>
-                                                <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                                                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {workout.duration} min</span>
-                                                    <span className="px-2 py-0.5 bg-gray-200 rounded-full text-gray-700 font-medium">{workout.intensity}</span>
-                                                </div>
-                                                {workout.notes && <p className="text-xs text-gray-500 mt-1 italic">{workout.notes}</p>}
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => handleDeleteWorkout(workout.id!)}
-                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                ))}
-                                <div className="text-right text-sm text-gray-500 font-medium pt-2 border-t border-gray-100">
-                                    Total Duration: <span className="text-blue-600 font-bold">{totalDuration} min</span>
-                                </div>
-                            </div>
-                        )}
+            <AlcoholSection
+                alcohol={alcohol}
+                setAlcohol={setAlcohol}
+            />
 
-                        {/* Add New Workout Form */}
-                        <div className="bg-blue-50/50 p-5 rounded-xl border border-blue-100">
-                            <h4 className="text-sm font-bold text-blue-900 mb-3 uppercase tracking-wider flex items-center justify-between">
-                                <span className="flex items-center gap-2"><Plus className="w-4 h-4" /> Add Workout</span>
-                                <button
-                                    onClick={() => setShowWorkoutChat(true)}
-                                    className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md active:scale-95 transition-all flex items-center gap-1"
-                                >
-                                    <Sparkles className="w-3 h-3" /> AI Coach
-                                </button>
-                            </h4>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Activity</label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. Cycling, Lifting, Yoga"
-                                        value={newWorkout.activity_type}
-                                        onChange={e => setNewWorkout({ ...newWorkout, activity_type: e.target.value })}
-                                        className="w-full mt-1 p-3 bg-white rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                                    />
-                                </div>
-                                <div className="flex gap-4">
-                                    <div className="flex-1">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Mins</label>
-                                        <input
-                                            type="number"
-                                            value={newWorkout.duration}
-                                            onChange={e => setNewWorkout({ ...newWorkout, duration: parseInt(e.target.value) || 0 })}
-                                            className="w-full mt-1 p-3 bg-white rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        />
-                                    </div>
-                                    <div className="flex-1">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Intensity</label>
-                                        <select
-                                            value={newWorkout.intensity}
-                                            onChange={e => setNewWorkout({ ...newWorkout, intensity: e.target.value as any })}
-                                            className="w-full mt-1 p-3 bg-white rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        >
-                                            <option>Light</option>
-                                            <option>Moderate</option>
-                                            <option>Hard</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={handleAddWorkout}
-                                    disabled={!newWorkout.activity_type || addingWorkout}
-                                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none"
-                                >
-                                    {addingWorkout ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Add Workout'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </section>
+            <SubjectiveSection
+                subjective={subjective}
+                setSubjective={setSubjective}
+            />
 
-            {/* Nutrition Section */}
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-bold flex items-center gap-2">
-                        <span className="text-xl">🥗</span> Nutrition
-                    </h3>
-                    <div className="flex gap-2">
-                        <VoiceInput
-                            autoStart={autoStartVoice}
-                            onIntentDetected={(intent) => {
-                                if (intent.error) {
-                                    alert("Voice Error: " + intent.error);
-                                    return;
-                                }
-
-                                if (intent.intent === 'log_food') {
-                                    if (intent.data?.items) {
-                                        let alcoholAdded = 0;
-                                        const newItems = intent.data.items.map((i: any) => {
-                                            if (i.alcohol_units) alcoholAdded += i.alcohol_units;
-                                            return i;
-                                        });
-
-                                        addFoodItems(newItems);
-                                        if (alcoholAdded > 0) {
-                                            setAlcohol(prev => prev + alcoholAdded);
-                                            alert(`Added: ${newItems.map((i: any) => i.name).join(', ')} (and +${alcoholAdded} standard drinks)`);
-                                        } else {
-                                            alert(`Added: ${newItems.map((i: any) => i.name).join(', ')}`);
-                                        }
-                                    } else if (intent.data?.item) {
-                                        setSubjective(prev => ({ ...prev, note: (prev.note + ' ' + intent.data.item).trim() }));
-                                        alert(`Voice text added to notes (no specific items detected)`);
-                                    }
-                                } else if (intent.intent === 'log_workout') {
-                                    setChatInitialInput(intent.original || '');
-                                    setShowWorkoutChat(true);
-                                } else {
-                                    alert(`Could not understand: "${intent.original}"`);
-                                }
-                            }}
-                        />
-                        <button
-                            onClick={() => setShowFoodSelector(true)}
-                            className="p-2 bg-pink-50 text-pink-600 rounded-full hover:bg-pink-100 transition-colors"
-                            title="Favorites & History"
-                        >
-                            <BookOpen className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={() => setShowTextInput(true)}
-                            className="p-2 bg-indigo-50 text-indigo-600 rounded-full hover:bg-indigo-100 transition-colors"
-                            title="Type to Log"
-                        >
-                            <Keyboard className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={() => setShowMenuScanner(true)}
-                            className="p-2 bg-yellow-50 text-yellow-600 rounded-full hover:bg-yellow-100 transition-colors"
-                            title="Scan Restaurant Menu"
-                        >
-                            <ChefHat className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={() => setShowCamera(true)}
-                            className="p-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
-                        >
-                            <Camera className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={() => setNutrition({ ...nutrition, logged: !nutrition.logged })}
-                            className={`text-xs font-semibold px-3 py-1 rounded-full border transition-all ${!nutrition.logged
-                                ? 'bg-orange-100 text-orange-700 border-orange-200'
-                                : 'bg-gray-50 text-gray-400 border-gray-100'}`}
-                        >
-                            {nutrition.logged ? "Mark as Not Tracked" : "Not Tracked"}
-                        </button>
-                    </div>
-                </div>
-
-
-
-                {showCamera && (
-                    <div className="mb-6 animate-in slide-in-from-top-4">
-                        <div className="flex justify-between items-center mb-2">
-                            <h4 className="text-sm font-bold text-gray-600">Scan Meal</h4>
-                            <button onClick={() => setShowCamera(false)}><X className="w-4 h-4 text-gray-400" /></button>
-                        </div>
-                        <FoodCamera
-                            onClose={() => setShowCamera(false)}
-                            onCapture={async (img) => {
-                                setShowCamera(false);
-                                setLoadingAI(true);
-                                try {
-                                    const res = await fetch('/api/ai/analyze-food', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ image: img })
-                                    });
-                                    const data = await res.json();
-
-                                    // Add as a specific food item
-                                    addFoodItems([{
-                                        name: data.name || "Scanned  Meal",
-                                        calories: data.calories,
-                                        protein: data.protein,
-                                        carbs: data.carbs,
-                                        fat: data.fat
-                                    }]);
-
-                                    if (data.alcohol_units && data.alcohol_units > 0) {
-                                        setAlcohol(prev => prev + data.alcohol_units);
-                                        alert(`Logged '${data.name}' and added +${data.alcohol_units} standard drinks.`);
-                                    }
-
-                                } catch (e: any) {
-                                    console.error(e);
-                                    alert('AI Error: ' + (e.message || 'Failed to analyze food. Check usage limits.'));
-                                } finally {
-                                    setLoadingAI(false);
-                                }
-                            }}
-                        />
-                    </div>
-                )}
-
-                {loadingAI && (
-                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-blue-600">
-                        <Brain className="w-8 h-8 animate-pulse mb-2" />
-                        <p className="text-sm font-bold animate-pulse">Analyzing Food...</p>
-                    </div>
-                )}
-
-                <div className="space-y-4 animate-in fade-in">
-
-                    {/* Food Items List */}
-                    {foodItems.length > 0 && (
-                        <div className="space-y-2 mb-4">
-                            {foodItems.map((item, idx) => (
-                                <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm">
-                                    <div className="flex-1">
-                                        <span className="font-bold text-gray-800 block">{item.name}</span>
-                                        {item.portion_estimate && <span className="text-xs text-gray-400 block mb-0.5">Unit: {item.portion_estimate}</span>}
-                                        <span className="text-xs text-gray-500">
-                                            {Math.round(item.calories * (item.quantity || 1))} kcal • {Math.round(item.protein * (item.quantity || 1))}g P • {Math.round(item.carbs * (item.quantity || 1))}g C
-                                        </span>
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex flex-col items-center">
-                                            <label className="text-[10px] uppercase font-bold text-gray-400">Qty</label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.1"
-                                                value={item.quantity !== undefined ? item.quantity : 1}
-                                                onChange={(e) => updateFoodItemQuantity(idx, e.target.value)}
-                                                className="w-16 p-1 text-center bg-white border border-gray-200 rounded text-sm font-bold"
-                                            />
-                                        </div>
-                                        <button
-                                            onClick={() => toggleFavorite(item)}
-                                            className={`p-2 transition-colors ${isFavorite(item.name)
-                                                    ? 'text-red-500 bg-red-50 hover:bg-red-100'
-                                                    : 'text-gray-300 hover:text-pink-500'
-                                                }`}
-                                            title={isFavorite(item.name) ? "Remove from Favorites" : "Save to Favorites"}
-                                        >
-                                            <Heart className={`w-4 h-4 ${isFavorite(item.name) ? 'fill-current' : ''}`} />
-                                        </button>
-                                        <button
-                                            onClick={() => removeFoodItem(idx)}
-                                            className="text-gray-400 hover:text-red-500 p-2"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-500 flex justify-between">
-                            Protein (g) <span className="text-blue-600 font-bold">{nutrition.protein}g</span>
-                        </label>
-                        <input
-                            type="range" min="0" max="300" step="5"
-                            value={nutrition.protein}
-                            onChange={e => setNutrition({ ...nutrition, protein: parseInt(e.target.value) })}
-                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2 accent-blue-600"
-                        />
-                        <div className="flex gap-2 mt-2">
-                            <input
-                                type="number"
-                                value={nutrition.protein || ''}
-                                onChange={e => setNutrition({ ...nutrition, protein: parseInt(e.target.value) || 0 })}
-                                className="w-20 p-2 bg-gray-50 rounded-lg text-center"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-sm font-medium text-gray-500">Calories</label>
-                            <input
-                                type="number"
-                                value={nutrition.calories || ''}
-                                onChange={e => setNutrition({ ...nutrition, calories: parseInt(e.target.value) || 0 })}
-                                className="w-full mt-1 p-3 bg-gray-50 rounded-xl"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-sm font-medium text-gray-500">Eating Window</label>
-                            <div className="flex items-center gap-2 mt-1">
-                                <input
-                                    type="time"
-                                    value={nutrition.windowStart}
-                                    onChange={e => setNutrition({ ...nutrition, windowStart: e.target.value })}
-                                    className="w-full p-2 bg-gray-50 rounded-lg text-xs"
-                                />
-                                <span className="text-gray-400">-</span>
-                                <input
-                                    type="time"
-                                    value={nutrition.windowEnd}
-                                    onChange={e => setNutrition({ ...nutrition, windowEnd: e.target.value })}
-                                    className="w-full p-2 bg-gray-50 rounded-lg text-xs"
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Completion Toggle */}
-                <div className="mt-6 p-4 bg-green-50 rounded-xl border border-green-100 flex items-center justify-between">
-                    <div>
-                        <h4 className="font-bold text-green-900 text-sm">Log Complete?</h4>
-                        <p className="text-xs text-green-700">Mark this day as fully tracked.</p>
-                    </div>
-                    <button
-                        onClick={() => setNutrition({ ...nutrition, logged: !nutrition.logged })}
-                        className={`relative w-12 h-6 rounded-full transition-colors ${nutrition.logged ? 'bg-green-600' : 'bg-green-200'}`}
-                    >
-                        <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${nutrition.logged ? 'translate-x-6' : ''}`} />
-                    </button>
-                </div>
-            </section>
-
-            {/* Alcohol Section */}
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <span className="text-xl">🍺</span> Alcohol
-                </h3>
-                <div className="flex items-center justify-between">
-                    <span className="text-gray-600 font-medium">Standard Drinks</span>
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => setAlcohol(Math.max(0, alcohol - 1))}
-                            className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 active:bg-gray-200"
-                        >
-                            <Minus className="w-5 h-5" />
-                        </button>
-                        <span className="text-2xl font-bold w-8 text-center">{alcohol}</span>
-                        <button
-                            onClick={() => setAlcohol(alcohol + 1)}
-                            className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 active:bg-blue-100"
-                        >
-                            <Plus className="w-5 h-5" />
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            {/* Subjective Metrics */}
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <Brain className="w-5 h-5 text-purple-500" /> How did you feel?
-                </h3>
-
-                <div className="space-y-6">
-                    {[
-                        { label: 'Sleep Quality', icon: <Moon className="w-4 h-4" />, key: 'sleep' },
-                        { label: 'Energy', icon: <Zap className="w-4 h-4" />, key: 'energy' },
-                        { label: 'Motivation', icon: <Activity className="w-4 h-4" />, key: 'motivation' },
-                        { label: 'Stress', icon: <Activity className="w-4 h-4" />, key: 'stress' },
-                    ].map((metric) => (
-                        <div key={metric.key}>
-                            <div className="flex justify-between mb-2">
-                                <label className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                                    {metric.icon} {metric.label}
-                                </label>
-                                <span className="font-bold text-gray-900">{(subjective as any)[metric.key]}/5</span>
-                            </div>
-                            <div className="flex justify-between gap-1">
-                                {[1, 2, 3, 4, 5].map((val) => (
-                                    <button
-                                        key={val}
-                                        onClick={() => setSubjective({ ...subjective, [metric.key]: val })}
-                                        className={`h-8 w-full rounded transition-all ${(subjective as any)[metric.key] >= val
-                                            ? 'bg-purple-500'
-                                            : 'bg-gray-100'
-                                            }`}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                <textarea
-                    placeholder="Daily notes..."
-                    value={subjective.note}
-                    onChange={e => setSubjective({ ...subjective, note: e.target.value })}
-                    className="w-full mt-6 p-3 bg-gray-50 rounded-xl h-24 resize-none"
-                />
-            </section>
-
-            {/* Habits Section */}
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <span className="text-xl">🧘</span> Daily Habits
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                    {settings.habits.map(habit => (
-                        <button
-                            key={habit}
-                            onClick={() => {
-                                if (habits.includes(habit)) {
-                                    setHabits(habits.filter(h => h !== habit));
-                                } else {
-                                    setHabits([...habits, habit]);
-                                }
-                            }}
-                            className={`p-3 rounded-xl border text-sm font-medium transition-all ${habits.includes(habit)
-                                ? 'bg-green-50 border-green-200 text-green-700 shadow-sm'
-                                : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'
-                                }`}
-                        >
-                            {habits.includes(habit) ? '✅ ' : '⬜ '}{habit}
-                        </button>
-                    ))}
-                </div>
-            </section>
-
-            {/* Cycle Tracking (Optional) */}
-            {settings.cycle && (
-                <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                        <span className="text-xl">🌸</span> Cycle Tracking
-                    </h3>
-                    <div className="grid grid-cols-4 gap-2">
-                        {['None', 'Light', 'Medium', 'Heavy'].map(flow => (
-                            <button
-                                key={flow}
-                                onClick={() => setMenstrualFlow(flow === 'None' ? null : flow)}
-                                className={`py-2 rounded-lg text-xs font-bold transition-all ${(menstrualFlow === flow || (flow === 'None' && menstrualFlow === null))
-                                    ? 'bg-pink-100 text-pink-700 border border-pink-200'
-                                    : 'bg-gray-50 text-gray-400 border border-transparent'
-                                    }`}
-                            >
-                                {flow}
-                            </button>
-                        ))}
-                    </div>
-                </section>
-            )}
-
-            {/* Floating Save Button */}
-            <div className="fixed bottom-20 right-6 md:right-[max(1.5rem,calc(50vw-220px))]">
+            {/* Floating Action Button for Manual Save (optional as autosave exists, but good for UX) */}
+            <div className="fixed bottom-24 right-6 md:right-1/2 md:translate-x-32 z-30">
                 <button
                     onClick={() => handleSave(false)}
                     disabled={saving}
-                    className="flex items-center gap-2 px-6 py-4 bg-black text-white rounded-full shadow-xl hover:scale-105 active:scale-95 transition-all font-bold text-lg"
+                    className="bg-gray-900 text-white rounded-full p-4 shadow-xl shadow-gray-400 hover:scale-110 transition-transform active:scale-95 disabled:opacity-50"
                 >
-                    {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Log'}
+                    {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <span className="font-bold text-sm">SAVE</span>}
                 </button>
             </div>
 
-            <WorkoutChatModal
-                isOpen={showWorkoutChat}
-                initialData={chatInitialInput}
-                onClose={() => {
-                    setShowWorkoutChat(false);
-                    setChatInitialInput('');
-                }}
-                onSave={async (data) => {
-                    setShowWorkoutChat(false);
-                    setChatInitialInput('');
-                    const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
-                    const dateStr = offsetDate.toISOString().split('T')[0];
 
-                    const notes = [
-                        data.calories ? `Burned ~${data.calories} kcal` : '',
-                        data.muscles && data.muscles.length ? `Muscles: ${data.muscles.join(', ')}` : ''
-                    ].filter(Boolean).join('. ');
-
-                    try {
-                        const added = await addWorkout({
-                            date: dateStr,
-                            activity_type: data.activity_type,
-                            duration: data.duration,
-                            intensity: data.intensity,
-                            notes: notes
-                        });
-                        setWorkouts([...workouts, added]);
-                        // Trigger Gamification Check? (It happens on Save Log, but we can alert)
-                        if (data.calories) alert(`Workout logged! AI estimated ${data.calories} calories burned.`);
-                        else alert('Workout logged!');
-                    } catch (e) {
-                        console.error(e);
-                        alert('Failed to save workout.');
-                    }
-                }}
-            />
+            {/* Modals and Overlays */}
 
             {showMenuScanner && (
-                <MenuScanner
-                    onClose={() => setShowMenuScanner(false)}
-                    onLog={(item) => {
-                        setShowMenuScanner(false);
-                        addFoodItems([item]);
-                        alert(`Logged: ${item.name}`);
-                    }}
-                />
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <div className="p-4 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                            <h3 className="font-bold text-lg">Scan Menu</h3>
+                            <button onClick={() => setShowMenuScanner(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                                <span className="text-xl">×</span>
+                            </button>
+                        </div>
+                        <MenuScanner
+                            onClose={() => setShowMenuScanner(false)}
+                            onItemsDetected={(items) => {
+                                addFoodItems(items);
+                                setShowMenuScanner(false);
+                            }}
+                        />
+                    </div>
+                </div>
             )}
+
+            <WorkoutChatModal
+                isOpen={showWorkoutChat}
+                onClose={() => setShowWorkoutChat(false)}
+                onAddWorkout={(w) => {
+                    addWorkout({ ...w, date: dateStr }).then(added => {
+                        setWorkouts([...workouts, added]);
+                        alert('Workout added!');
+                    });
+                }}
+                initialMessage={chatInitialInput}
+            />
 
             {showFoodSelector && (
                 <FoodSelector
@@ -937,87 +404,88 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     onSelect={(item) => {
                         addFoodItems([item]);
                         setShowFoodSelector(false);
-                        alert(`Added ${item.name}`);
                     }}
                 />
             )}
 
             {showTextInput && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-                    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95">
-                        <div className="flex justify-between items-center mb-4">
-                            <h4 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                <Keyboard className="w-5 h-5" /> Type to Log
-                            </h4>
-                            <button onClick={() => setShowTextInput(false)}><X className="w-6 h-6 text-gray-400" /></button>
-                        </div>
-                        <p className="text-sm text-gray-500 mb-4">
-                            Describe what you ate or your workout. <br />
-                            <span className="italic text-xs">Ex: "2 eggs and toast", "Ran 5k in 25 mins"</span>
-                        </p>
+                <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
+                    <div className="bg-white w-full max-w-lg rounded-2xl p-6 shadow-2xl animate-in slide-in-from-bottom-4">
+                        <h3 className="text-lg font-bold mb-4">Quick Log</h3>
                         <textarea
-                            autoFocus
+                            className="w-full p-4 bg-gray-50 rounded-xl border border-gray-100 focus:ring-2 focus:ring-blue-500 outline-none h-32 resize-none"
+                            placeholder="Type what you ate or did... (e.g. 'Chicken breast and rice' or '30 min run')"
                             value={textInputVal}
                             onChange={e => setTextInputVal(e.target.value)}
-                            className="w-full h-32 p-4 bg-gray-50 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none mb-4 font-medium text-gray-700"
-                            placeholder="What's on the menu?"
+                            autoFocus
                         />
-                        <button
-                            onClick={async () => {
-                                if (!textInputVal.trim()) return;
-                                setLoadingAI(true);
-                                try {
-                                    const res = await fetch('/api/ai/process-intent', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ transcript: textInputVal })
-                                    });
-                                    const intent = await res.json();
+                        <div className="flex gap-3 mt-4">
+                            <button
+                                onClick={() => setShowTextInput(false)}
+                                className="flex-1 py-3 text-gray-500 font-bold"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!textInputVal.trim()) return;
+                                    setLoading(true);
+                                    try {
+                                        const res = await fetch('/api/ai/process-intent', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ transcript: textInputVal })
+                                        });
+                                        const intent = await res.json();
 
-                                    if (intent.error) {
-                                        alert("Error: " + intent.error);
-                                    } else if (intent.intent === 'log_food') {
-                                        if (intent.data?.items) {
-                                            let alcoholAdded = 0;
-                                            const newItems = intent.data.items.map((i: any) => {
-                                                if (i.alcohol_units) alcoholAdded += i.alcohol_units;
-                                                return i;
-                                            });
-
-                                            addFoodItems(newItems);
-                                            if (alcoholAdded > 0) {
-                                                setAlcohol(prev => prev + alcoholAdded);
-                                                alert(`Added: ${newItems.map((i: any) => i.name).join(', ')} (and +${alcoholAdded} standard drinks)`);
-                                            } else {
-                                                alert(`Added: ${newItems.map((i: any) => i.name).join(', ')}`);
-                                            }
-                                        } else if (intent.data?.item) {
-                                            setSubjective(prev => ({ ...prev, note: (prev.note + ' ' + intent.data.item).trim() }));
-                                            alert(`Added to notes`);
+                                        if (intent.error) {
+                                            alert("Error: " + intent.error);
+                                            setLoading(false);
+                                            return;
                                         }
-                                        setShowTextInput(false);
-                                        setTextInputVal('');
-                                    } else if (intent.intent === 'log_workout') {
-                                        setChatInitialInput(intent.original || '');
-                                        setShowWorkoutChat(true);
-                                        setShowTextInput(false);
-                                        setTextInputVal('');
-                                    } else {
-                                        alert(`Could not understand: "${intent.original}"`);
-                                    }
 
-                                } catch (e) {
-                                    console.error(e);
-                                    alert('Failed to process text.');
-                                } finally {
-                                    setLoadingAI(false);
-                                }
-                            }}
-                            disabled={loadingAI}
-                            className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold shadow-lg active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                            {loadingAI ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Analyze <Sparkles className="w-4 h-4" /></>}
-                        </button>
+                                        if (intent.intent === 'log_food') {
+                                            if (intent.data?.items) {
+                                                let alcoholAdded = 0;
+                                                const newItems = intent.data.items.map((i: any) => {
+                                                    if (i.alcohol_units) alcoholAdded += i.alcohol_units;
+                                                    return i;
+                                                });
+
+                                                addFoodItems(newItems);
+                                                if (alcoholAdded > 0) {
+                                                    setAlcohol(prev => prev + alcoholAdded);
+                                                    alert(`Added: ${newItems.map((i: any) => i.name).join(', ')} (and +${alcoholAdded} standard drinks)`);
+                                                } else {
+                                                    alert(`Added: ${newItems.map((i: any) => i.name).join(', ')}`);
+                                                }
+                                            } else if (intent.data?.item) {
+                                                setSubjective(prev => ({ ...prev, note: (prev.note + ' ' + intent.data.item).trim() }));
+                                                alert(`Text added to notes (no specific items detected)`);
+                                            }
+                                        } else if (intent.intent === 'log_workout') {
+                                            setChatInitialInput(textInputVal);
+                                            setShowWorkoutChat(true);
+                                        } else {
+                                            alert(`Could not understand: "${textInputVal}"`);
+                                        }
+
+                                        setShowTextInput(false);
+                                        setTextInputVal('');
+
+                                    } catch (e: any) {
+                                        console.error(e);
+                                        alert('Failed to process text: ' + e.message);
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg disabled:opacity-50"
+                                disabled={loading}
+                            >
+                                {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Process'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
