@@ -9,7 +9,7 @@ import { VoiceInput } from './VoiceInput';
 import { MenuScanner } from './MenuScanner';
 import { WorkoutChatModal } from './WorkoutChatModal';
 import { FoodSelector } from './FoodSelector';
-import { addFavoriteFood } from '@/lib/api';
+import { addFavoriteFood, getFavoriteFoods, deleteFavoriteFood, FavoriteFood } from '@/lib/api';
 
 interface DailyLogFormProps {
     date: Date;
@@ -45,6 +45,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     const [initialXP, setInitialXP] = useState(0);
 
     const [workouts, setWorkouts] = useState<Workout[]>([]);
+    const [favorites, setFavorites] = useState<FavoriteFood[]>([]);
     const [newWorkout, setNewWorkout] = useState<{ activity_type: string, duration: number, intensity: 'Moderate' | 'Light' | 'Hard' }>({ activity_type: '', duration: 30, intensity: 'Moderate' });
     const [addingWorkout, setAddingWorkout] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -94,9 +95,10 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
 
         try {
             // Fetch everything we need: Log, Workouts, AND Settings (for targets)
-            const [logData, workoutData, settingsData] = await Promise.all([
+            const [logData, workoutData, favoritesData, settingsData] = await Promise.all([
                 getDailyLog(dateStr),
                 getWorkouts(dateStr),
+                getFavoriteFoods(),
                 import('@/lib/api').then(m => m.getSettings())
             ]);
 
@@ -155,9 +157,11 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 });
                 setHabits([]);
                 setMenstrualFlow(null);
+                setMenstrualFlow(null);
                 setInitialXP(0);
             }
             setWorkouts(workoutData || []);
+            setFavorites(favoritesData || []);
 
         } catch (error) {
             console.error('Error fetching log:', error);
@@ -255,6 +259,38 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             setWorkouts(workouts.filter(w => w.id !== id));
         } catch (error) {
             console.error('Error deleting workout', error);
+        }
+    }
+
+    function isFavorite(name: string) {
+        return favorites.some(f => f.name.toLowerCase() === name.toLowerCase());
+    }
+
+    async function toggleFavorite(item: any) {
+        const existing = favorites.find(f => f.name.toLowerCase() === item.name.toLowerCase());
+
+        try {
+            if (existing) {
+                // Remove
+                if (!confirm(`Remove '${item.name}' from favorites?`)) return;
+                await deleteFavoriteFood(existing.id);
+                setFavorites(prev => prev.filter(f => f.id !== existing.id));
+            } else {
+                // Add
+                const newFav = await addFavoriteFood({
+                    name: item.name,
+                    calories: item.calories,
+                    protein: item.protein,
+                    carbs: item.carbs,
+                    fat: item.fat,
+                    portion_estimate: item.portion_estimate
+                });
+                setFavorites(prev => [...prev, newFav]);
+                alert(`Saved '${item.name}' to favorites!`);
+            }
+        } catch (e) {
+            console.error('Error toggling favorite:', e);
+            alert('Failed to update favorite');
         }
     }
 
@@ -630,26 +666,14 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                                             />
                                         </div>
                                         <button
-                                            onClick={async () => {
-                                                try {
-                                                    await addFavoriteFood({
-                                                        name: item.name,
-                                                        calories: item.calories,
-                                                        protein: item.protein,
-                                                        carbs: item.carbs,
-                                                        fat: item.fat,
-                                                        portion_estimate: item.portion_estimate
-                                                    });
-                                                    alert(`Saved '${item.name}' to favorites!`);
-                                                } catch (e) {
-                                                    console.error(e);
-                                                    alert('Failed to save favorite');
-                                                }
-                                            }}
-                                            className="text-gray-300 hover:text-pink-500 p-2 transition-colors"
-                                            title="Save to Favorites"
+                                            onClick={() => toggleFavorite(item)}
+                                            className={`p-2 transition-colors ${isFavorite(item.name)
+                                                    ? 'text-red-500 bg-red-50 hover:bg-red-100'
+                                                    : 'text-gray-300 hover:text-pink-500'
+                                                }`}
+                                            title={isFavorite(item.name) ? "Remove from Favorites" : "Save to Favorites"}
                                         >
-                                            <Heart className="w-4 h-4" />
+                                            <Heart className={`w-4 h-4 ${isFavorite(item.name) ? 'fill-current' : ''}`} />
                                         </button>
                                         <button
                                             onClick={() => removeFoodItem(idx)}
