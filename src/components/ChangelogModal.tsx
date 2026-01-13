@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Sparkles, Rocket, Zap, Bug } from 'lucide-react';
+import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain } from 'lucide-react';
 
 interface ChangelogModalProps {
     isOpen: boolean;
