@@ -190,6 +190,7 @@ export interface UserSettings {
     target_protein?: number | null;
     enable_cycle_tracking?: boolean;
     custom_habits?: string[];
+    available_equipment?: string[];
     // Gamification
     total_xp?: number;
     current_level?: number;

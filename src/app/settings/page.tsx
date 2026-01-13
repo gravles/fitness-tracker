@@ -16,7 +16,8 @@ export default function SettingsPage() {
         protein: '',
         calories: '',
         enableCycle: true,
-        habits: [] as string[]
+        habits: [] as string[],
+        equipment: [] as string[]
     });
     const [earnedBadges, setEarnedBadges] = useState<UserBadge[]>([]);
 
@@ -39,7 +40,8 @@ export default function SettingsPage() {
                     protein: data.target_protein?.toString() || '',
                     calories: data.target_calories?.toString() || '',
                     enableCycle: data.enable_cycle_tracking ?? true,
-                    habits: data.custom_habits || []
+                    habits: data.custom_habits || [],
+                    equipment: data.available_equipment || []
                 });
             }
         } catch (error) {
@@ -57,7 +59,8 @@ export default function SettingsPage() {
                 target_protein: parseInt(targets.protein) || null,
                 target_calories: parseInt(targets.calories) || null,
                 enable_cycle_tracking: targets.enableCycle,
-                custom_habits: targets.habits
+                custom_habits: targets.habits,
+                available_equipment: targets.equipment
             });
             alert('Settings saved!');
         } catch (error) {
