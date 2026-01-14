@@ -299,10 +299,37 @@ export default function SettingsPage() {
 
             <section className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
                 <h3 className="font-bold text-gray-400 text-sm uppercase tracking-wide mb-4">About</h3>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 mb-2">
                     Fitness Tracker v1.2 (AI Edition)<br />
                     Built with Next.js & Supabase
                 </p>
+
+                {/* PWA Diagnostics */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                    <h4 className="font-bold text-xs text-gray-400 uppercase mb-2">PWA Status</h4>
+                    <div className="text-xs space-y-1 font-mono">
+                        <div className="flex justify-between">
+                            <span className="text-gray-500">Service Worker:</span>
+                            <span className={typeof navigator !== 'undefined' && 'serviceWorker' in navigator ? 'text-green-600' : 'text-red-500'}>
+                                {typeof navigator !== 'undefined' && 'serviceWorker' in navigator ? 'Supported' : 'Unsupported'}
+                            </span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-500">Registration:</span>
+                            <span id="sw-status" className="text-gray-400">Checking...</span>
+                        </div>
+                        <script dangerouslySetInnerHTML={{
+                            __html: `
+                                if ('serviceWorker' in navigator) {
+                                    navigator.serviceWorker.getRegistration().then(reg => {
+                                        document.getElementById('sw-status').innerText = reg ? 'Active ✅' : 'Missing ❌';
+                                        document.getElementById('sw-status').className = reg ? 'text-green-600' : 'text-red-500';
+                                    });
+                                }
+                            `
+                        }} />
+                    </div>
+                </div>
             </section>
 
             <ChangelogModal isOpen={showChangelog} onClose={() => setShowChangelog(false)} />
