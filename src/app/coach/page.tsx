@@ -24,12 +24,34 @@ export default function CoachPage() {
     const [context, setContext] = useState<any>(null);
 
     useEffect(() => {
-        // Initial Greeting
-        setMessages([
-            { role: 'assistant', content: "Hi! I'm your Smart Coach. I've analyzed your last 30 days of activity. How can I help you today? (Try asking me to build a workout!)" }
-        ]);
+        // Load history or set initial
+        const saved = localStorage.getItem('coach_history');
+        if (saved) {
+            try {
+                setMessages(JSON.parse(saved));
+            } catch (e) {
+                console.error("Failed to parse history", e);
+                setInitialGreeting();
+            }
+        } else {
+            setInitialGreeting();
+        }
 
-        // Prefetch Context
+        function setInitialGreeting() {
+            setMessages([
+                { role: 'assistant', content: "Hi! I'm your Smart Coach. I've analyzed your last 30 days of activity. How can I help you today? (Try asking me to build a workout!)" }
+            ]);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (messages.length > 0) {
+            localStorage.setItem('coach_history', JSON.stringify(messages));
+        }
+    }, [messages]);
+
+    // Prefetch Context
+    useEffect(() => {
         async function loadContext() {
             try {
                 const end = new Date();
@@ -87,17 +109,32 @@ export default function CoachPage() {
         <main className="h-screen flex flex-col bg-gray-50 pb-20"> {/* pb-20 for mobile nav if needed */}
 
             {/* Header */}
-            <div className="bg-white border-b border-gray-200 p-4 pt-12 sticky top-0 z-10 flex items-center gap-3 shadow-sm">
-                <div className="bg-gradient-to-tr from-blue-500 to-purple-500 p-2 rounded-xl text-white">
-                    <Bot className="w-6 h-6" />
+            <div className="bg-white border-b border-gray-200 p-4 pt-12 sticky top-0 z-10 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-3">
+                    <div className="bg-gradient-to-tr from-blue-500 to-purple-500 p-2 rounded-xl text-white">
+                        <Bot className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h1 className="font-bold text-xl text-gray-900">Smart Coach</h1>
+                        <p className="text-xs text-green-600 flex items-center gap-1">
+                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                            Online • Analyzing your data
+                        </p>
+                    </div>
                 </div>
-                <div>
-                    <h1 className="font-bold text-xl text-gray-900">Smart Coach</h1>
-                    <p className="text-xs text-green-600 flex items-center gap-1">
-                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                        Online • Analyzing your data
-                    </p>
-                </div>
+                {messages.length > 1 && (
+                    <button
+                        onClick={() => {
+                            if (confirm('Clear chat history?')) {
+                                setMessages([{ role: 'assistant', content: "Hi! I'm your Smart Coach. I've analyzed your last 30 days of activity. How can I help you today? (Try asking me to build a workout!)" }]);
+                                localStorage.removeItem('coach_history');
+                            }
+                        }}
+                        className="text-xs font-bold text-gray-400 hover:text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                    >
+                        Clear Chat
+                    </button>
+                )}
             </div>
 
             {/* Chat Area */}
