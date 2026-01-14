@@ -108,12 +108,32 @@ export function MovementSection({
                                             <Dumbbell className="w-5 h-5 text-blue-500" />
                                         </div>
                                         <div>
-                                            <h4 className="font-bold text-gray-900">{workout.activity_type}</h4>
-                                            <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="font-bold text-gray-900">{workout.activity_type}</h4>
+                                                {workout.source === 'strava' && (
+                                                    <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-bold">Strava</span>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
                                                 <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {workout.duration} min</span>
+                                                {workout.distance && (
+                                                    <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                        📏 {(workout.distance / 1000).toFixed(2)} km
+                                                    </span>
+                                                )}
+                                                {workout.calories && (
+                                                    <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                        🔥 {workout.calories} kcal
+                                                    </span>
+                                                )}
+                                                {workout.average_heartrate && (
+                                                    <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                        ❤️ {Math.round(workout.average_heartrate)} bpm
+                                                    </span>
+                                                )}
                                                 <span className="px-2 py-0.5 bg-gray-200 rounded-full text-gray-700 font-medium">{workout.intensity}</span>
                                             </div>
-                                            {workout.notes && <p className="text-xs text-gray-500 mt-1 italic">{workout.notes}</p>}
+                                            {workout.notes && <p className="text-xs text-gray-400 mt-1 italic line-clamp-1">{workout.notes}</p>}
                                         </div>
                                     </div>
                                     <button
