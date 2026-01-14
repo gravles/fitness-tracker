@@ -169,57 +169,58 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
 
                 {/* Completion State */}
                 {chatState.status === 'completed' && chatState.workoutData && (
-                    <div className="flex gap-4 items-center mb-4">
-                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600">
-                            <Dumbbell className="w-6 h-6" />
+                    <div className="p-4 bg-green-50 border-t border-green-100 animate-in slide-in-from-bottom">
+                        <div className="flex gap-4 items-center mb-4">
+                            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+                                <Dumbbell className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-gray-900">{chatState.workoutData.activity_type}</h4>
+                                <p className="text-xs text-gray-500">
+                                    {chatState.workoutData.duration || '--'} min • {chatState.workoutData.intensity || 'Moderate'} • ~{chatState.workoutData.calories || '--'} kcal
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <h4 className="font-bold text-gray-900">{chatState.workoutData.activity_type}</h4>
-                            <p className="text-xs text-gray-500">
-                                {chatState.workoutData.duration || '--'} min • {chatState.workoutData.intensity || 'Moderate'} • ~{chatState.workoutData.calories || '--'} kcal
-                            </p>
-                        </div>
+                        <button
+                            onClick={handleSave}
+                            disabled={isSaving || isLoading}
+                            className="w-full py-3 bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-200 active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none flex justify-center items-center gap-2"
+                        >
+                            {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirm & Log Workout"}
+                        </button>
                     </div>
-                    <button
-                        onClick={handleSave}
-                        disabled={isSaving || isLoading}
-                        className="w-full py-3 bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-200 active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none flex justify-center items-center gap-2"
-                    >
-                        {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirm & Log Workout"}
-                    </button>
-                </div>
                 )}
 
-            {/* Input Area */}
-            {chatState.status !== 'completed' && (
-                <div className="p-4 bg-white border-t border-gray-100">
-                    <div className="flex gap-2">
-                        <button
-                            onClick={toggleListening}
-                            className={`p-3 rounded-full transition-all ${isListening ? 'bg-red-500 animate-pulse text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                        >
-                            {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                        </button>
-                        <input
-                            type="text"
-                            value={input}
-                            onChange={e => setInput(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleSend(input)}
-                            placeholder="Type or speak..."
-                            className="flex-1 bg-gray-50 rounded-xl px-4 outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
-                        />
-                        <button
-                            onClick={() => handleSend(input)}
-                            disabled={!input.trim() || isLoading}
-                            className="p-3 bg-blue-600 text-white rounded-xl disabled:opacity-50 disabled:shadow-none shadow-lg shadow-blue-200 active:scale-95 transition-all"
-                        >
-                            <Send className="w-5 h-5" />
-                        </button>
+                {/* Input Area */}
+                {chatState.status !== 'completed' && (
+                    <div className="p-4 bg-white border-t border-gray-100">
+                        <div className="flex gap-2">
+                            <button
+                                onClick={toggleListening}
+                                className={`p-3 rounded-full transition-all ${isListening ? 'bg-red-500 animate-pulse text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    }`}
+                            >
+                                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                            </button>
+                            <input
+                                type="text"
+                                value={input}
+                                onChange={e => setInput(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleSend(input)}
+                                placeholder="Type or speak..."
+                                className="flex-1 bg-gray-50 rounded-xl px-4 outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
+                            />
+                            <button
+                                onClick={() => handleSend(input)}
+                                disabled={!input.trim() || isLoading}
+                                className="p-3 bg-blue-600 text-white rounded-xl disabled:opacity-50 disabled:shadow-none shadow-lg shadow-blue-200 active:scale-95 transition-all"
+                            >
+                                <Send className="w-5 h-5" />
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )}
+            </div>
         </div >
     );
 
