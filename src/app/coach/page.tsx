@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Loader2, Send, Bot, User, Sparkles } from 'lucide-react';
-import { getMonthlyLogs, getSettings } from '@/lib/api';
+import { getMonthlyLogs, getSettings, getWorkoutsRange } from '@/lib/api';
 import { getTemplates, createTemplate } from '@/lib/workout-api';
 import { subDays, format } from 'date-fns';
 
@@ -34,12 +34,13 @@ export default function CoachPage() {
             try {
                 const end = new Date();
                 const start = subDays(end, 30);
-                const [logs, settings, templates] = await Promise.all([
+                const [logs, workouts, settings, templates] = await Promise.all([
                     getMonthlyLogs(format(start, 'yyyy-MM-dd'), format(end, 'yyyy-MM-dd')),
+                    getWorkoutsRange(format(start, 'yyyy-MM-dd'), format(end, 'yyyy-MM-dd')),
                     getSettings(),
                     getTemplates()
                 ]);
-                setContext({ recentLogs: logs, userSettings: settings, templates });
+                setContext({ recentLogs: logs, recentWorkouts: workouts, userSettings: settings, templates });
             } catch (e) {
                 console.error("Failed to load context", e);
             }

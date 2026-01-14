@@ -39,6 +39,14 @@ export interface Workout {
     duration: number; // minutes
     intensity: 'Light' | 'Moderate' | 'Hard';
     notes?: string;
+    distance?: number; // meters
+    calories?: number;
+    average_heartrate?: number;
+    max_heartrate?: number;
+    elevation_gain?: number; // meters
+    average_speed?: number; // m/s
+    external_id?: string;
+    source?: 'manual' | 'strava';
     created_at?: string;
 }
 
@@ -241,6 +249,22 @@ export async function getWorkouts(date: string) {
         .select('*')
         .eq('user_id', session.user.id)
         .eq('date', date)
+        .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data as Workout[];
+}
+
+export async function getWorkoutsRange(startDate: string, endDate: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .gte('date', startDate)
+        .lte('date', endDate)
         .order('created_at', { ascending: true });
 
     if (error) throw error;

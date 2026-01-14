@@ -202,7 +202,16 @@ export async function syncStravaActivities(userId: string, supabase: SupabaseCli
             intensity: intensity,
             notes: `Imported from Strava: ${activity.name}`,
             external_id: activity.id.toString(),
-            source: 'strava'
+            source: 'strava',
+            // New Metrics
+            distance: activity.distance, // meters
+            elevation_gain: activity.total_elevation_gain,
+            average_speed: activity.average_speed,
+            average_heartrate: activity.average_heartrate,
+            max_heartrate: activity.max_heartrate,
+            // Calories: Strava summary doesn't always have it, but we can try 'kilojoules' for rides / 4.184. 
+            // For now, let's leave calories null unless we add logic later, or if property exists on the object (ignoring TS for a sec or updating interface).
+            // Actually, let's stick to what we defined in the interface.
         });
 
         if (insertError) {

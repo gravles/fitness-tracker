@@ -376,6 +376,7 @@ export async function generateWeeklyInsights(logs: any[]): Promise<WeeklyInsight
 
 export interface CoachContext {
     recentLogs: any[];
+    recentWorkouts?: any[]; // Detailed workouts from workouts table
     userSettings: any;
     templates: any[];
 }
@@ -401,10 +402,22 @@ Your capabilities:
 User Profile:
 - Goal: ${context.userSettings?.target_weight ? `Reach ${context.userSettings.target_weight}lbs` : 'General Fitness'}
 - Equipment: ${JSON.stringify(context.userSettings?.available_equipment || [])}
-- Recent Workouts Logged: ${context.recentLogs.filter(l => l.movement_completed).length} in last 30 days.
+- Recent Activity: ${context.recentWorkouts?.length || context.recentLogs.filter(l => l.movement_completed).length} sessions in last 30 days.
 
-Data Context (Last 30 days summary or snippet):
-${JSON.stringify(context.recentLogs.slice(-7))} (Only last 7 days detailed here for brevity, but assume you know the trends)
+Data Context:
+1. Daily Summaries (Last 7 days):
+${JSON.stringify(context.recentLogs.slice(-7))}
+
+2. Detailed Workout History (Last 10 sessions - Strava/Manual):
+${JSON.stringify((context.recentWorkouts || []).slice(-10).map(w => ({
+        date: w.date,
+        type: w.activity_type,
+        duration: w.duration + 'm',
+        dist: w.distance ? (w.distance / 1000).toFixed(2) + 'km' : null,
+        hr: w.average_heartrate ? `Avg ${Math.round(w.average_heartrate)} bpm` : null,
+        cals: w.calories,
+        notes: w.notes
+    })))}
 
 Existing Workout Templates they have:
 ${JSON.stringify(context.templates.map(t => t.name))}
