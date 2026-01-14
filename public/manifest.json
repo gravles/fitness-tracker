@@ -17,5 +17,43 @@
             "sizes": "512x512",
             "type": "image/png"
         }
+    ],
+    "shortcuts": [
+        {
+            "name": "Snap Meal",
+            "short_name": "Snap",
+            "description": "Take a photo of your food",
+            "url": "/log?action=camera",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        },
+        {
+            "name": "Voice Log",
+            "short_name": "Voice",
+            "description": "Log food by voice",
+            "url": "/log?action=voice",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        },
+        {
+            "name": "Scan Menu",
+            "short_name": "Menu",
+            "description": "Scan a menu for healthy options",
+            "url": "/log?action=scan",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        }
     ]
 }

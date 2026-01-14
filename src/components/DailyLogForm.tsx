@@ -74,6 +74,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             setShowCamera(true);
         } else if (action === 'voice') {
             setAutoStartVoice(true);
+        } else if (action === 'scan') {
+            setShowMenuScanner(true);
         }
     }, [searchParams]);
 
