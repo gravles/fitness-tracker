@@ -1,5 +1,6 @@
 {
     "name": "Life Logger",
+    "id": "/",
     "short_name": "Life",
     "description": "Daily fitness and nutrition tracker",
     "start_url": "/",
