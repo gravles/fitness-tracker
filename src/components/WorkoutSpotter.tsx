@@ -51,26 +51,34 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
         if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
             // @ts-ignore
             const recognition = new window.webkitSpeechRecognition();
-            recognition.continuous = false; // We restart manually to handle processing gaps
+            recognition.continuous = true; // Keep listening indefinitely
             recognition.interimResults = false;
             recognition.lang = 'en-US';
 
             recognition.onstart = () => setStatus('listening');
 
             recognition.onresult = (event: any) => {
-                const text = event.results[0][0].transcript;
+                const current = event.resultIndex;
+                const text = event.results[current][0].transcript;
                 setTranscript(text);
                 processCommand(text);
             };
 
             recognition.onend = () => {
-                // If active and not processing/speaking, restart listening
-                // slightly delayed to prevent rapid loop on errors
-                if (isActive && status !== 'processing' && status !== 'speaking') {
-                    retryTimeoutRef.current = setTimeout(() => {
-                        if (isActive) startListening();
-                    }, 1000);
-                } else if (!isActive) {
+                // If active, ALWAYS try to restart. The browser (especially on mobile)
+                // likes to kill the listener after silence or valid results.
+                if (isActive) {
+                    // Don't restart immediately if we are purposefully speaking/processing
+                    // unless we want to allow barge-in (which is hard to handle).
+                    // For now, we wait for processing/speaking to finish naturally, 
+                    // BUT if onend happened due to error/timeout, we must restart.
+
+                    if (status !== 'speaking') {
+                        retryTimeoutRef.current = setTimeout(() => {
+                            if (isActive) startListening();
+                        }, 100);
+                    }
+                } else {
                     setStatus('idle');
                 }
             };
