@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@serwist/next": "^9.5.0",
+    "@serwist/precaching": "^9.5.0",
+    "@serwist/sw": "^9.5.0",
     "@supabase/supabase-js": "^2.87.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.561.0",
