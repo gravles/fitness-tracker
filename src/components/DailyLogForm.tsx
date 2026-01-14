@@ -11,6 +11,9 @@ import { MovementSection } from './daily-log/MovementSection';
 import { NutritionSection } from './daily-log/NutritionSection';
 import { AlcoholSection } from './daily-log/AlcoholSection';
 import { SubjectiveSection } from './daily-log/SubjectiveSection';
+import { HabitsSection } from './daily-log/HabitsSection';
+
+
 
 interface DailyLogFormProps {
     date: Date;
@@ -378,6 +381,12 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             <SubjectiveSection
                 subjective={subjective}
                 setSubjective={setSubjective}
+            />
+
+            <HabitsSection
+                habits={habits}
+                setHabits={setHabits}
+                availableHabits={settings.habits}
             />
 
             {/* Floating Action Button for Manual Save (optional as autosave exists, but good for UX) */}
