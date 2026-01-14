@@ -71,7 +71,7 @@ export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
                         <X className="w-6 h-6" />
                     </button>
                 </div>
-                <FoodCamera onClose={onClose} onCapture={handleCapture} />
+                <FoodCamera onClose={onClose} onCapture={handleCapture} autoStart={true} />
                 <div className="absolute top-10 left-0 right-0 text-center pointer-events-none">
                     <span className="bg-black/60 text-white px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md">
                         Scan Menu for Healthy Options

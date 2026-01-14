@@ -142,16 +142,6 @@ export function NutritionSection({
 
             {/* Quick Actions Row */}
             <div className="flex gap-3 overflow-x-auto pb-4 -mx-6 px-6 scrollbar-hide">
-                <button
-                    onClick={() => setShowFoodSelector(true)}
-                    className="flex flex-col items-center gap-1 min-w-[70px]"
-                >
-                    <div className="w-12 h-12 bg-pink-50 text-pink-600 rounded-2xl flex items-center justify-center shadow-sm border border-pink-100">
-                        <BookOpen className="w-6 h-6" />
-                    </div>
-                    <span className="text-xs font-bold text-gray-600">History</span>
-                </button>
-
                 <VoiceInput
                     autoStart={autoStartVoice}
                     onIntentDetected={(intent) => {
@@ -200,6 +190,16 @@ export function NutritionSection({
                 />
 
                 <button
+                    onClick={() => setShowCamera(true)}
+                    className="flex flex-col items-center gap-1 min-w-[70px]"
+                >
+                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm border border-blue-100">
+                        <Camera className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-600">Camera</span>
+                </button>
+
+                <button
                     onClick={() => setShowTextInput(true)}
                     className="flex flex-col items-center gap-1 min-w-[70px]"
                 >
@@ -220,13 +220,13 @@ export function NutritionSection({
                 </button>
 
                 <button
-                    onClick={() => setShowCamera(true)}
+                    onClick={() => setShowFoodSelector(true)}
                     className="flex flex-col items-center gap-1 min-w-[70px]"
                 >
-                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm border border-blue-100">
-                        <Camera className="w-6 h-6" />
+                    <div className="w-12 h-12 bg-pink-50 text-pink-600 rounded-2xl flex items-center justify-center shadow-sm border border-pink-100">
+                        <BookOpen className="w-6 h-6" />
                     </div>
-                    <span className="text-xs font-bold text-gray-600">Camera</span>
+                    <span className="text-xs font-bold text-gray-600">History</span>
                 </button>
             </div>
 
@@ -238,6 +238,7 @@ export function NutritionSection({
                     </div>
                     <FoodCamera
                         onClose={() => setShowCamera(false)}
+                        autoStart={true}
                         onCapture={async (img) => {
                             setShowCamera(false);
                             setLoadingAI(true);

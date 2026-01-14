@@ -1,16 +1,27 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Camera, Loader2, X } from 'lucide-react';
 
 interface FoodCameraProps {
     onCapture: (imageSrc: string) => void;
     onClose: () => void;
+    autoStart?: boolean;
 }
 
-export function FoodCamera({ onCapture, onClose }: FoodCameraProps) {
+export function FoodCamera({ onCapture, onClose, autoStart = false }: FoodCameraProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [preview, setPreview] = useState<string | null>(null);
+
+    // Auto-open camera if requested
+    useEffect(() => {
+        if (autoStart) {
+            // Small timeout to ensure DOM is ready
+            setTimeout(() => {
+                fileInputRef.current?.click();
+            }, 100);
+        }
+    }, [autoStart]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
