@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
-import { Loader2, Plus, Check, Clock, Save, MoreVertical, X } from 'lucide-react';
+import { Loader2, Plus, Check, Clock, Save, MoreVertical, X, Play, Pause } from 'lucide-react';
 import { getTemplates, getWorkoutDetails, createWorkoutExercise, logSet, WorkoutTemplate } from '@/lib/workout-api';
 import { upsertDailyLog, addWorkout } from '@/lib/api';
 import { WorkoutSpotter } from '@/components/WorkoutSpotter';
@@ -29,14 +29,19 @@ export default function ActiveWorkoutPage() {
 
     const [loading, setLoading] = useState(true);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [isPaused, setIsPaused] = useState(false);
     const [title, setTitle] = useState('New Workout');
     const [exercises, setExercises] = useState<ActiveExercise[]>([]);
 
     // Timer
     useEffect(() => {
-        const interval = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
+        const interval = setInterval(() => {
+            if (!isPaused) {
+                setElapsedSeconds(s => s + 1);
+            }
+        }, 1000);
         return () => clearInterval(interval);
-    }, []);
+    }, [isPaused]);
 
     // Initial Load
     useEffect(() => {
@@ -76,6 +81,14 @@ export default function ActiveWorkoutPage() {
         setExercises(copy);
     };
 
+    const deleteExercise = (index: number) => {
+        if (confirm('Delete this exercise?')) {
+            const copy = [...exercises];
+            copy.splice(index, 1);
+            setExercises(copy);
+        }
+    };
+
     const finishWorkout = async () => {
         // 1. Filter: Only keep exercises with at least one completed set
         const completedExercises = exercises.filter(e => e.sets.some(s => s.completed));
@@ -84,6 +97,8 @@ export default function ActiveWorkoutPage() {
             alert('No exercises completed! Please mark at least one set as done.');
             return;
         }
+
+        if (isPaused) setIsPaused(false); // Resume for a second just in case logic depends on it, but mostly just semantic
 
         if (!confirm('Finish and log this workout?')) return;
         setLoading(true);
@@ -99,7 +114,7 @@ export default function ActiveWorkoutPage() {
             const met = 5.0; // Moderate intensity
             const caloriesBurned = Math.round(met * weightKg * durationHrs);
 
-            // 3. Construct Log
+            // 3. Construct Log - Structured Data
             const summary = completedExercises.map(e => `${e.sets.filter(s => s.completed).length} x ${e.name}`).join(', ');
 
             const workoutData = {
@@ -107,17 +122,47 @@ export default function ActiveWorkoutPage() {
                 activity_type: title,
                 duration: Math.floor(elapsedSeconds / 60),
                 intensity: 'Moderate' as const,
+                calories: caloriesBurned,
+                // KEEPING LEGACY NOTES for backward compatibility & easy reading
                 notes: `Calories Burned: ~${caloriesBurned} kcal\n\nDetailed Log:\n${completedExercises.map(e =>
                     `${e.name}: ${e.sets.filter(s => s.completed).map(s => `${s.weight}lbs x ${s.reps}`).join(' | ')}`
                 ).join('\n')}`
             };
 
-            await addWorkout(workoutData);
+            // A. Save Header
+            const savedWorkout = await addWorkout(workoutData);
+
+            if (savedWorkout && savedWorkout.id) {
+                // B. Save Structured Exercises & Sets
+                for (let i = 0; i < completedExercises.length; i++) {
+                    const exData = completedExercises[i];
+                    // Create Exercise
+                    const savedEx = await createWorkoutExercise(savedWorkout.id, exData.name, i);
+
+                    if (savedEx && savedEx.id) {
+                        // Create Sets
+                        const validSets = exData.sets.filter(s => s.completed);
+                        for (let j = 0; j < validSets.length; j++) {
+                            const s = validSets[j];
+                            await logSet(
+                                savedEx.id,
+                                j + 1, // set number (1-based)
+                                parseFloat(s.weight) || 0,
+                                parseFloat(s.reps) || 0,
+                                true
+                            );
+                        }
+                    }
+                }
+            }
 
             await upsertDailyLog({
                 date: workoutData.date,
                 movement_completed: true,
-                movement_duration: workoutData.duration
+                movement_duration: workoutData.duration,
+                calories: (await import('@/lib/api').then(m => m.getDailyLog(workoutData.date)))?.calories // Simple update? No, we might want to Add to daily cal.
+                // Actually `upsertDailyLog` overwrites. We should ideally fetch first if we want to add calories, 
+                // but for now let's just mark movement. The nutrition log handles calories mostly.
             });
 
             router.push('/');
@@ -178,19 +223,26 @@ export default function ActiveWorkoutPage() {
     return (
         <main className="h-screen flex flex-col bg-white">
             {/* Header */}
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
-                <div>
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10 shadow-sm">
+                <div className="flex-1">
                     <input
                         value={title}
                         onChange={e => setTitle(e.target.value)}
                         className="font-bold text-xl text-gray-900 bg-transparent outline-none w-full"
                     />
-                    <div className="flex items-center gap-1 text-blue-600 font-mono text-sm">
+                    <div className={`flex items-center gap-2 font-mono text-sm transition-colors ${isPaused ? 'text-orange-500 animate-pulse' : 'text-blue-600'}`}>
                         <Clock className="w-3 h-3" />
                         {formatTime(elapsedSeconds)}
+                        {isPaused && <span className="text-xs font-bold uppercase border border-orange-200 bg-orange-50 px-1 rounded">Paused</span>}
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setIsPaused(!isPaused)}
+                        className={`p-2 rounded-full transition-colors ${isPaused ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-600'}`}
+                    >
+                        {isPaused ? <Play className="w-5 h-5 fill-current" /> : <Pause className="w-5 h-5 fill-current" />}
+                    </button>
                     <WorkoutSpotter onSetDetected={handleSetDetected} />
                     <button onClick={finishWorkout} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm hover:bg-green-700">
                         Finish
@@ -199,12 +251,18 @@ export default function ActiveWorkoutPage() {
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32">
+            <div className={`flex-1 overflow-y-auto p-4 space-y-6 pb-32 transition-opacity ${isPaused ? 'opacity-50 grayscale-[50%]' : ''}`}>
                 {exercises.map((ex, i) => (
                     <div key={i}>
                         <div className="flex justify-between items-center mb-2">
                             <h3 className="font-bold text-lg">{ex.name}</h3>
-                            <button className="text-gray-400 p-1"><MoreVertical className="w-4 h-4" /></button>
+                            <button
+                                onClick={() => deleteExercise(i)}
+                                className="text-gray-400 p-2 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors"
+                                title="Delete Exercise"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
                         </div>
 
                         <div className="space-y-2">

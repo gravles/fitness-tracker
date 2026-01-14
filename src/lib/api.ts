@@ -78,6 +78,39 @@ export async function getDailyLog(date: string) {
     return data as DailyLog | null;
 }
 
+export async function getWorkoutByDate(date: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+
+    const { data, error } = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('date', date)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data as Workout | null;
+}
+
+export async function updateWorkout(id: string, updates: Partial<Workout>) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+        .from('workouts')
+        .update(updates)
+        .eq('id', id)
+        .eq('user_id', session.user.id) // Security
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
 export async function upsertDailyLog(log: Partial<DailyLog>) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
