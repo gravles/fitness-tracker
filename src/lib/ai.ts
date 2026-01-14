@@ -265,7 +265,12 @@ export async function chatWithTrainer(state: WorkoutChatState, newUserInput: str
                 "reply": "Your conversational response...",
                 "status": "continue" | "completed",
                 // "workout_data" is for LOGGING a past workout
-                "workout_data": { ... },
+                "workout_data": { 
+                    "activity_type": "string (e.g. Running, Yoga)",
+                    "duration": number (minutes, REQUIRED, cannot be null), 
+                    "intensity": "Light"|"Moderate"|"Hard",
+                    "calories": number (estimated total kcal, REQUIRED)
+                },
                 // "suggested_workout" is for PLANNING a future workout
                 "suggested_workout": {
                      "title": "Workout Name",
@@ -273,7 +278,10 @@ export async function chatWithTrainer(state: WorkoutChatState, newUserInput: str
                          { "name": "Exercise Name", "sets": 3, "reps": "10-12" }
                      ]
                 }
-            }`
+            }
+            
+            IMPORTANT: Do NOT return 'workout_data' until you have ALL fields: activity_type, duration (mins), intensity. 
+            Estimated calories MUST be a number.`
         },
         ...state.history.map(m => ({ role: m.role as any, content: m.content })),
         { role: "user", content: newUserInput }

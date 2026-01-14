@@ -419,11 +419,17 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             <WorkoutChatModal
                 isOpen={showWorkoutChat}
                 onClose={() => setShowWorkoutChat(false)}
-                onSave={(w) => {
-                    addWorkout({ ...w, date: dateStr }).then(added => {
+                onSave={async (w) => {
+                    try {
+                        const added = await addWorkout({ ...w, date: dateStr });
                         setWorkouts([...workouts, added]);
                         alert('Workout added!');
-                    });
+                        setShowWorkoutChat(false);
+                        setChatInitialInput(''); // Clear for next time
+                    } catch (e) {
+                        console.error("Failed to add workout", e);
+                        alert("Failed to save workout. Please try again.");
+                    }
                 }}
                 initialData={chatInitialInput}
             />

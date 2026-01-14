@@ -23,6 +23,7 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
         status: 'continue',
         reply: ''
     });
+    const [isSaving, setIsSaving] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const recognitionRef = useRef<any>(null);
@@ -108,6 +109,16 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
         }
     };
 
+    const handleSave = async () => {
+        if (!chatState.workoutData) return;
+        setIsSaving(true);
+        try {
+            await onSave(chatState.workoutData);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -157,26 +168,40 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
                 </div>
 
                 {/* Completion State */}
-                {chatState.status === 'completed' && chatState.workoutData && (
-                    <div className="p-4 bg-green-50 border-t border-green-100 animate-in slide-in-from-bottom">
-                        <div className="flex gap-4 items-center mb-4">
-                            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600">
-                                <Dumbbell className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-gray-900">{chatState.workoutData.activity_type}</h4>
-                                <p className="text-xs text-gray-500">
-                                    {chatState.workoutData.duration} min • {chatState.workoutData.intensity} • ~{chatState.workoutData.calories} kcal
-                                </p>
-                            </div>
+                const [isSaving, setIsSaving] = useState(false);
+
+    const handleSave = async () => {
+        if (!chatState.workoutData) return;
+                setIsSaving(true);
+                try {
+                    await onSave(chatState.workoutData);
+        } finally {
+                    setIsSaving(false);
+        }
+    };
+
+                // ... inside the render ...
+
+                <div className="p-4 bg-green-50 border-t border-green-100 animate-in slide-in-from-bottom">
+                    <div className="flex gap-4 items-center mb-4">
+                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+                            <Dumbbell className="w-6 h-6" />
                         </div>
-                        <button
-                            onClick={() => onSave(chatState.workoutData)}
-                            className="w-full py-3 bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-200 active:scale-95 transition-all"
-                        >
-                            Confirm & Log Workout
-                        </button>
+                        <div>
+                            <h4 className="font-bold text-gray-900">{chatState.workoutData.activity_type}</h4>
+                            <p className="text-xs text-gray-500">
+                                {chatState.workoutData.duration || '--'} min • {chatState.workoutData.intensity || 'Moderate'} • ~{chatState.workoutData.calories || '--'} kcal
+                            </p>
+                        </div>
                     </div>
+                    <button
+                        onClick={handleSave}
+                        disabled={isSaving || isLoading}
+                        className="w-full py-3 bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-200 active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none flex justify-center items-center gap-2"
+                    >
+                        {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirm & Log Workout"}
+                    </button>
+                </div>
                 )}
 
                 {/* Input Area */}
