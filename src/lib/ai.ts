@@ -104,10 +104,11 @@ export async function processVoiceIntent(transcript: string) {
                   - ESTIMATE macros. 
                   - ESTIMATE "alcohol_units" for alcoholic drinks (1 beer/wine/shot = 1 unit).
                 - If the user describes exercise, intent="log_workout". Return data={"activity": "name", "duration": number_minutes, "intensity": "Light"|"Moderate"|"Hard"}.
+                - If the user describes a SET (reps/weight), intent="log_set". Return data={"exercise": "name" (optional if implied), "reps": number, "weight": number, "weight_unit": "lbs"|"kg" (default lbs)}.
                 - If unknown, intent="unknown".
 
                 Output Example:
-                { "intent": "log_food", "data": { "items": [{ "name": "Beer", "calories": 150, "protein": 1, "carbs": 12, "fat": 0, "alcohol_units": 1 }] } }`
+                { "intent": "log_set", "data": { "reps": 12, "weight": 135, "weight_unit": "lbs" } }`
             },
             { role: "user", content: transcript }
         ],

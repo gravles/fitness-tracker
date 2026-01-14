@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { Loader2, Plus, Check, Clock, Save, MoreVertical, X } from 'lucide-react';
 import { getTemplates, getWorkoutDetails, createWorkoutExercise, logSet, WorkoutTemplate } from '@/lib/workout-api';
 import { upsertDailyLog, addWorkout } from '@/lib/api';
+import { WorkoutSpotter } from '@/components/WorkoutSpotter';
 
 // Types for local state
 interface ActiveSet {
@@ -128,6 +129,50 @@ export default function ActiveWorkoutPage() {
         }
     };
 
+    const handleSetDetected = (data: { exercise?: string, reps: number, weight: number, weight_unit: string }) => {
+        setExercises(prev => {
+            const copy = [...prev];
+            let targetExIndex = -1;
+
+            // 1. Try to match by name
+            if (data.exercise) {
+                targetExIndex = copy.findIndex(e => e.name.toLowerCase().includes(data.exercise!.toLowerCase()));
+            }
+
+            // 2. If no name or no match, find first exercise with incomplete sets
+            if (targetExIndex === -1) {
+                targetExIndex = copy.findIndex(e => e.sets.some(s => !s.completed));
+            }
+
+            // 3. Fallback to last exercise if everything is done (to add a set)
+            if (targetExIndex === -1 && copy.length > 0) {
+                targetExIndex = copy.length - 1;
+            }
+
+            if (targetExIndex === -1) return prev; // No exercises
+
+            // Find first incomplete set
+            const ex = copy[targetExIndex];
+            let setIndex = ex.sets.findIndex(s => !s.completed);
+
+            if (setIndex === -1) {
+                // All sets done, add a new one
+                ex.sets.push({ weight: '', reps: '', completed: false });
+                setIndex = ex.sets.length - 1;
+            }
+
+            // Update the set
+            copy[targetExIndex].sets[setIndex] = {
+                ...copy[targetExIndex].sets[setIndex],
+                weight: data.weight.toString(),
+                reps: data.reps.toString(),
+                completed: true
+            };
+
+            return copy;
+        });
+    };
+
     if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin" /></div>;
 
     return (
@@ -145,9 +190,12 @@ export default function ActiveWorkoutPage() {
                         {formatTime(elapsedSeconds)}
                     </div>
                 </div>
-                <button onClick={finishWorkout} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm hover:bg-green-700">
-                    Finish
-                </button>
+                <div className="flex items-center gap-2">
+                    <WorkoutSpotter onSetDetected={handleSetDetected} />
+                    <button onClick={finishWorkout} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm hover:bg-green-700">
+                        Finish
+                    </button>
+                </div>
             </div>
 
             {/* List */}
