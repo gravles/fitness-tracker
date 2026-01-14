@@ -168,21 +168,7 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
                 </div>
 
                 {/* Completion State */}
-                const [isSaving, setIsSaving] = useState(false);
-
-    const handleSave = async () => {
-        if (!chatState.workoutData) return;
-                setIsSaving(true);
-                try {
-                    await onSave(chatState.workoutData);
-        } finally {
-                    setIsSaving(false);
-        }
-    };
-
-                // ... inside the render ...
-
-                <div className="p-4 bg-green-50 border-t border-green-100 animate-in slide-in-from-bottom">
+                {chatState.status === 'completed' && chatState.workoutData && (
                     <div className="flex gap-4 items-center mb-4">
                         <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600">
                             <Dumbbell className="w-6 h-6" />
@@ -204,37 +190,37 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
                 </div>
                 )}
 
-                {/* Input Area */}
-                {chatState.status !== 'completed' && (
-                    <div className="p-4 bg-white border-t border-gray-100">
-                        <div className="flex gap-2">
-                            <button
-                                onClick={toggleListening}
-                                className={`p-3 rounded-full transition-all ${isListening ? 'bg-red-500 animate-pulse text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                    }`}
-                            >
-                                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                            </button>
-                            <input
-                                type="text"
-                                value={input}
-                                onChange={e => setInput(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && handleSend(input)}
-                                placeholder="Type or speak..."
-                                className="flex-1 bg-gray-50 rounded-xl px-4 outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
-                            />
-                            <button
-                                onClick={() => handleSend(input)}
-                                disabled={!input.trim() || isLoading}
-                                className="p-3 bg-blue-600 text-white rounded-xl disabled:opacity-50 disabled:shadow-none shadow-lg shadow-blue-200 active:scale-95 transition-all"
-                            >
-                                <Send className="w-5 h-5" />
-                            </button>
-                        </div>
+            {/* Input Area */}
+            {chatState.status !== 'completed' && (
+                <div className="p-4 bg-white border-t border-gray-100">
+                    <div className="flex gap-2">
+                        <button
+                            onClick={toggleListening}
+                            className={`p-3 rounded-full transition-all ${isListening ? 'bg-red-500 animate-pulse text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                        >
+                            {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                        </button>
+                        <input
+                            type="text"
+                            value={input}
+                            onChange={e => setInput(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleSend(input)}
+                            placeholder="Type or speak..."
+                            className="flex-1 bg-gray-50 rounded-xl px-4 outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
+                        />
+                        <button
+                            onClick={() => handleSend(input)}
+                            disabled={!input.trim() || isLoading}
+                            className="p-3 bg-blue-600 text-white rounded-xl disabled:opacity-50 disabled:shadow-none shadow-lg shadow-blue-200 active:scale-95 transition-all"
+                        >
+                            <Send className="w-5 h-5" />
+                        </button>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
+        </div >
     );
 
     return createPortal(content, document.body);
