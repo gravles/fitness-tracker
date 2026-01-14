@@ -7,6 +7,74 @@ import { TrophyCase } from '@/components/TrophyCase';
 import { StravaConnect } from '@/components/StravaConnect';
 import { ChangelogModal } from '@/components/ChangelogModal';
 
+function PWADiagnostic() {
+    const [status, setStatus] = useState<'checking' | 'active' | 'missing'>('checking');
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        checkStatus();
+    }, []);
+
+    function checkStatus() {
+        navigator.serviceWorker.getRegistration().then(reg => {
+            if (reg) {
+                setStatus('active');
+            } else {
+                setStatus('missing');
+            }
+        });
+    }
+
+    function register() {
+        setStatus('checking');
+        navigator.serviceWorker.register('/sw.js')
+            .then(() => {
+                setTimeout(checkStatus, 500);
+            })
+            .catch(err => {
+                setStatus('missing');
+                setError(err.message);
+            });
+    }
+
+    return (
+        <div className="mt-4 pt-4 border-t border-gray-200">
+            <h4 className="font-bold text-xs text-gray-400 uppercase mb-2">PWA Status</h4>
+            <div className="text-xs space-y-2 font-mono">
+                <div className="flex justify-between">
+                    <span className="text-gray-500">Service Worker:</span>
+                    <span className="text-green-600">Supported</span>
+                </div>
+                <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Registration:</span>
+                    <span className={status === 'active' ? 'text-green-600' : status === 'missing' ? 'text-red-500' : 'text-gray-400'}>
+                        {status === 'active' ? 'Active ✅' : status === 'missing' ? 'Missing ❌' : 'Checking...'}
+                    </span>
+                </div>
+
+                {status === 'missing' && (
+                    <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+                        <p className="text-red-600 mb-2">Worker not running.</p>
+                        <button
+                            onClick={register}
+                            className="w-full py-2 bg-red-100 text-red-700 font-bold rounded hover:bg-red-200 transaction-colors"
+                        >
+                            Force Register
+                        </button>
+                        {error && <p className="mt-2 text-[10px] text-red-500">{error}</p>}
+                    </div>
+                )}
+
+                {status === 'active' && (
+                    <div className="bg-green-50 p-2 rounded text-green-700 text-center">
+                        Ready to Install!
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -305,31 +373,9 @@ export default function SettingsPage() {
                 </p>
 
                 {/* PWA Diagnostics */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                    <h4 className="font-bold text-xs text-gray-400 uppercase mb-2">PWA Status</h4>
-                    <div className="text-xs space-y-1 font-mono">
-                        <div className="flex justify-between">
-                            <span className="text-gray-500">Service Worker:</span>
-                            <span className={typeof navigator !== 'undefined' && 'serviceWorker' in navigator ? 'text-green-600' : 'text-red-500'}>
-                                {typeof navigator !== 'undefined' && 'serviceWorker' in navigator ? 'Supported' : 'Unsupported'}
-                            </span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-gray-500">Registration:</span>
-                            <span id="sw-status" className="text-gray-400">Checking...</span>
-                        </div>
-                        <script dangerouslySetInnerHTML={{
-                            __html: `
-                                if ('serviceWorker' in navigator) {
-                                    navigator.serviceWorker.getRegistration().then(reg => {
-                                        document.getElementById('sw-status').innerText = reg ? 'Active ✅' : 'Missing ❌';
-                                        document.getElementById('sw-status').className = reg ? 'text-green-600' : 'text-red-500';
-                                    });
-                                }
-                            `
-                        }} />
-                    </div>
-                </div>
+                {typeof window !== 'undefined' && 'serviceWorker' in navigator && (
+                    <PWADiagnostic />
+                )}
             </section>
 
             <ChangelogModal isOpen={showChangelog} onClose={() => setShowChangelog(false)} />
