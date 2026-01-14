@@ -34,6 +34,7 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
+import { SWRegister } from "@/components/SWRegister";
 import { AuthWrapper } from "@/components/AuthWrapper";
 
 export default function RootLayout({
@@ -46,6 +47,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 text-gray-900`}
       >
+        <SWRegister />
         <AuthWrapper>
           <div className="max-w-2xl mx-auto min-h-screen bg-white/50 backdrop-blur-sm pb-24 relative shadow-2xl shadow-gray-200 border-x border-white/50">
             {children}
