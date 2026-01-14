@@ -48,14 +48,20 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
 
     // 2. Speech Recognition Setup
     useEffect(() => {
+        if (!isActive) return;
+
+        let recognition: any = null;
+
         if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
             // @ts-ignore
-            const recognition = new window.webkitSpeechRecognition();
-            recognition.continuous = true; // Keep listening indefinitely
+            recognition = new window.webkitSpeechRecognition();
+            recognition.continuous = true;
             recognition.interimResults = false;
             recognition.lang = 'en-US';
 
-            recognition.onstart = () => setStatus('listening');
+            recognition.onstart = () => {
+                setStatus('listening');
+            };
 
             recognition.onresult = (event: any) => {
                 const current = event.resultIndex;
@@ -65,19 +71,21 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
             };
 
             recognition.onend = () => {
-                // If active, ALWAYS try to restart. The browser (especially on mobile)
-                // likes to kill the listener after silence or valid results.
+                // Check if we should still be active
                 if (isActive) {
-                    // Don't restart immediately if we are purposefully speaking/processing
-                    // unless we want to allow barge-in (which is hard to handle).
-                    // For now, we wait for processing/speaking to finish naturally, 
-                    // BUT if onend happened due to error/timeout, we must restart.
+                    // Don't restart if we are speaking (we will manually restart after speech)
+                    if (status === 'speaking') return;
 
-                    if (status !== 'speaking') {
-                        retryTimeoutRef.current = setTimeout(() => {
-                            if (isActive) startListening();
-                        }, 100);
-                    }
+                    retryTimeoutRef.current = setTimeout(() => {
+                        // Check ref to ensure we haven't been unmounted/stopped in the meantime
+                        if (recognitionRef.current && isActive) {
+                            try {
+                                recognitionRef.current.start();
+                            } catch (e) {
+                                console.warn("Restart failed", e);
+                            }
+                        }
+                    }, 100);
                 } else {
                     setStatus('idle');
                 }
@@ -85,36 +93,29 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
 
             recognition.onerror = (e: any) => {
                 console.warn("Speech error", e);
-                // Will trigger onend, which handles restart
+                if (e.error === 'not-allowed') {
+                    setIsActive(false);
+                    alert("Microphone access denied. Please check permission settings.");
+                }
             };
 
             recognitionRef.current = recognition;
+            try {
+                recognition.start();
+            } catch (e) {
+                console.error("Start error", e);
+            }
         }
 
         return () => {
-            if (recognitionRef.current) recognitionRef.current.stop();
+            if (recognition) recognition.stop();
+            recognitionRef.current = null;
             if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+            setStatus('idle');
         };
-    }, [isActive, status]); // Re-bind if status logic depends on it, but use refs for stability usually
+    }, [isActive]); // CRITICAL: Only depend on isActive
 
-    // 3. Control Logic
-    useEffect(() => {
-        if (isActive && status === 'idle') {
-            startListening();
-        } else if (!isActive && recognitionRef.current) {
-            recognitionRef.current.stop();
-        }
-    }, [isActive]);
-
-    function startListening() {
-        try {
-            if (recognitionRef.current && status !== 'listening') {
-                recognitionRef.current.start();
-            }
-        } catch (e) {
-            console.warn("Start failed (already started?)", e);
-        }
-    }
+    // 3. Removed redundant Control Logic effect since lifecycle is handled above
 
     // 4. Processing & Feedback
     async function processCommand(text: string) {
@@ -136,9 +137,15 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
                 setLastAction(msg);
                 speak(msg);
             } else {
-                // Silent ignore for noise, or maybe a soft beep?
-                // For now, just restart listening
-                setStatus('idle'); // Will trigger restart via useEffect/onend
+                setStatus('idle'); // Will trigger restart via onend if recognition stops? 
+                // Wait, if recognition is continuous, it won't stop. 
+                // We just update status for UI.
+
+                // If the user stopped talking but recognition is 'continuous', it might not fire 'onend' immediately.
+                // But we want to go back to 'listening'.
+
+                // If recognition is still running (it should be), we just set status back.
+                setTimeout(() => setStatus('listening'), 500);
             }
 
         } catch (error) {
@@ -148,14 +155,25 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
     }
 
     function speak(text: string) {
-        setStatus('speaking');
+        // Stop listening while speaking to avoid feedback loop
+        if (recognitionRef.current) {
+            // We set status FIRST so onend knows to ignore the stop
+            setStatus('speaking');
+            recognitionRef.current.stop();
+        }
+
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.rate = 1.1;
         utterance.onend = () => {
             // Resume listening after speaking
-            if (isActive) {
+            if (isActive && recognitionRef.current) {
+                setStatus('listening');
+                try {
+                    recognitionRef.current.start();
+                } catch (e) { console.warn("Restart after speak failed", e); }
+            } else if (isActive) {
+                // Should trigger re-init if ref is gone but active? No, ref is stable.
                 setStatus('idle');
-                startListening();
             }
         };
         window.speechSynthesis.speak(utterance);
