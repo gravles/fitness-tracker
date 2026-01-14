@@ -6,14 +6,15 @@ import { Mic, MicOff, Loader2 } from 'lucide-react';
 interface VoiceInputProps {
     onIntentDetected: (intent: any) => void;
     autoStart?: boolean;
+    customTrigger?: (onClick: () => void, isListening: boolean, isProcessing: boolean) => React.ReactNode;
 }
 
-export function VoiceInput({ onIntentDetected, autoStart = false }: VoiceInputProps) {
+export function VoiceInput({ onIntentDetected, autoStart = false, customTrigger }: VoiceInputProps) {
     const [isListening, setIsListening] = useState(false);
     const [transcript, setTranscript] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [recognition, setRecognition] = useState<any>(null);
-    const hasAutoStarted = useRef(false); // Ref for autoStart
+    const hasAutoStarted = useRef(false);
 
     useEffect(() => {
         if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
@@ -84,6 +85,10 @@ export function VoiceInput({ onIntentDetected, autoStart = false }: VoiceInputPr
     };
 
     if (!recognition) return null;
+
+    if (customTrigger) {
+        return <>{customTrigger(toggleListening, isListening, isProcessing)}</>;
+    }
 
     return (
         <div className="flex flex-col items-center">

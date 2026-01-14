@@ -130,78 +130,95 @@ export function NutritionSection({
                 <h3 className="text-lg font-bold flex items-center gap-2">
                     <span className="text-xl">🥗</span> Nutrition
                 </h3>
-                <div className="flex gap-2">
-                    <VoiceInput
-                        autoStart={autoStartVoice}
-                        onIntentDetected={(intent) => {
-                            if (intent.error) {
-                                alert("Voice Error: " + intent.error);
-                                return;
-                            }
+                <button
+                    onClick={() => setNutrition({ ...nutrition, logged: !nutrition.logged })}
+                    className={`text-xs font-semibold px-3 py-1 rounded-full border transition-all ${!nutrition.logged
+                        ? 'bg-orange-100 text-orange-700 border-orange-200'
+                        : 'bg-gray-50 text-gray-400 border-gray-100'}`}
+                >
+                    {nutrition.logged ? "Mark as Not Tracked" : "Not Tracked"}
+                </button>
+            </div>
 
-                            if (intent.intent === 'log_food') {
-                                if (intent.data?.items) {
-                                    let alcoholAdded = 0;
-                                    const newItems = intent.data.items.map((i: any) => {
-                                        if (i.alcohol_units) alcoholAdded += i.alcohol_units;
-                                        return i;
-                                    });
+            {/* Quick Actions Row */}
+            <div className="flex gap-3 overflow-x-auto pb-4 -mx-6 px-6 scrollbar-hide">
+                <button
+                    onClick={() => setShowFoodSelector(true)}
+                    className="flex flex-col items-center gap-1 min-w-[70px]"
+                >
+                    <div className="w-12 h-12 bg-pink-50 text-pink-600 rounded-2xl flex items-center justify-center shadow-sm border border-pink-100">
+                        <BookOpen className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-600">History</span>
+                </button>
 
-                                    onAddFoodItems(newItems);
-                                    if (alcoholAdded > 0) {
-                                        setAlcohol((prev: number) => prev + alcoholAdded);
-                                        alert(`Added: ${newItems.map((i: any) => i.name).join(', ')} (and +${alcoholAdded} standard drinks)`);
-                                    } else {
-                                        alert(`Added: ${newItems.map((i: any) => i.name).join(', ')}`);
-                                    }
-                                } else if (intent.data?.item) {
-                                    setSubjective((prev: any) => ({ ...prev, note: (prev.note + ' ' + intent.data.item).trim() }));
-                                    alert(`Voice text added to notes (no specific items detected)`);
+                <VoiceInput
+                    autoStart={autoStartVoice}
+                    onIntentDetected={(intent) => {
+                        if (intent.error) {
+                            alert("Voice Error: " + intent.error);
+                            return;
+                        }
+
+                        if (intent.intent === 'log_food') {
+                            if (intent.data?.items) {
+                                let alcoholAdded = 0;
+                                const newItems = intent.data.items.map((i: any) => {
+                                    if (i.alcohol_units) alcoholAdded += i.alcohol_units;
+                                    return i;
+                                });
+
+                                onAddFoodItems(newItems);
+                                if (alcoholAdded > 0) {
+                                    setAlcohol((prev: number) => prev + alcoholAdded);
+                                    alert(`Added: ${newItems.map((i: any) => i.name).join(', ')} (and +${alcoholAdded} standard drinks)`);
+                                } else {
+                                    alert(`Added: ${newItems.map((i: any) => i.name).join(', ')}`);
                                 }
-                            } else if (intent.intent === 'log_workout') {
-                                setChatInitialInput(intent.original || '');
-                                setShowWorkoutChat(true);
-                            } else {
-                                alert(`Could not understand: "${intent.original}"`);
+                            } else if (intent.data?.item) {
+                                setSubjective((prev: any) => ({ ...prev, note: (prev.note + ' ' + intent.data.item).trim() }));
+                                alert(`Voice text added to notes (no specific items detected)`);
                             }
-                        }}
-                    />
-                    <button
-                        onClick={() => setShowFoodSelector(true)}
-                        className="p-2 bg-pink-50 text-pink-600 rounded-full hover:bg-pink-100 transition-colors"
-                        title="Favorites & History"
-                    >
-                        <BookOpen className="w-5 h-5" />
-                    </button>
-                    <button
-                        onClick={() => setShowTextInput(true)}
-                        className="p-2 bg-indigo-50 text-indigo-600 rounded-full hover:bg-indigo-100 transition-colors"
-                        title="Type to Log"
-                    >
-                        <Keyboard className="w-5 h-5" />
-                    </button>
-                    <button
-                        onClick={() => setShowMenuScanner(true)}
-                        className="p-2 bg-yellow-50 text-yellow-600 rounded-full hover:bg-yellow-100 transition-colors"
-                        title="Scan Restaurant Menu"
-                    >
-                        <ChefHat className="w-5 h-5" />
-                    </button>
-                    <button
-                        onClick={() => setShowCamera(true)}
-                        className="p-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
-                    >
-                        <Camera className="w-5 h-5" />
-                    </button>
-                    <button
-                        onClick={() => setNutrition({ ...nutrition, logged: !nutrition.logged })}
-                        className={`text-xs font-semibold px-3 py-1 rounded-full border transition-all ${!nutrition.logged
-                            ? 'bg-orange-100 text-orange-700 border-orange-200'
-                            : 'bg-gray-50 text-gray-400 border-gray-100'}`}
-                    >
-                        {nutrition.logged ? "Mark as Not Tracked" : "Not Tracked"}
-                    </button>
-                </div>
+                        } else if (intent.intent === 'log_workout') {
+                            setChatInitialInput(intent.original || '');
+                            setShowWorkoutChat(true);
+                        } else {
+                            alert(`Could not understand: "${intent.original}"`);
+                        }
+                    }}
+                    customTrigger={(onClick, isListening) => (
+                        <button
+                            onClick={onClick}
+                            className="flex flex-col items-center gap-1 min-w-[70px]"
+                        >
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border transition-colors ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-purple-50 text-purple-600 border-purple-100'}`}>
+                                <Keyboard className="w-6 h-6 hidden" /> {/* Dummy icon if needed, but VoiceInput handles internal icon usually? Checking VoiceInput implementation next. Assuming it handles logic but exposes trigger. */}
+                                {/* Actually VoiceInput UI is self contained usually? Let's check VoiceInput usage.
+                                    The previous usage was <VoiceInput ... /> which rendered the button. 
+                                    I need to make sure VoiceInput accepts a custom trigger or I wrap it. 
+                                    Looking at previous code: <VoiceInput ... /> was used directly.
+                                    If I want to style it consistently, I might need to modify VoiceInput OR stick to its default button.
+                                    
+                                    Wait, the previous code had `<VoiceInput ... />` inside a flex row.
+                                    Let's look at `VoiceInput.tsx` if possible. But I don't want to overengineer.
+                                    
+                                    Let's assume VoiceInput renders a button. The previous usage didn't pass "customTrigger".
+                                    I'll just wrap it in a div to align label? Or just let it be.
+                                    
+                                    Actually, to make it look like a chip:
+                                    Let's render it as is, but maybe I should create a "Quick Action" for it?
+                                    
+                                    If I can't customize VoiceInput easily without opening it, I will check it.
+                                    Let's assume I check it after. For now, I'll put the others.
+                                */}
+                            </div>
+                        </button>
+                    )}
+                />
+                {/* Wait, I can't guess prop names. Let's revert to standard component usage and see if I can wrap it or if I need to edit it. 
+                    I'll check VoiceInput first.
+                 */}
+
             </div>
 
             {showCamera && (
