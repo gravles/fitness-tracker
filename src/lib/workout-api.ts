@@ -143,3 +143,12 @@ export async function getWorkoutDetails(workoutId: string) {
 
     return data;
 }
+
+export async function deleteWorkoutExercises(workoutId: string) {
+    const { error } = await supabase
+        .from('workout_exercises')
+        .delete()
+        .eq('workout_id', workoutId);
+
+    if (error) throw error;
+}

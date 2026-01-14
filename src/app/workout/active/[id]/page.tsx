@@ -46,22 +46,49 @@ export default function ActiveWorkoutPage() {
     // Initial Load
     useEffect(() => {
         async function init() {
-            if (templateId) {
-                // Load from template
-                const templates = await getTemplates();
-                const template = templates.find((t: WorkoutTemplate) => t.id === templateId);
-                if (template) {
-                    setTitle(template.name);
-                    setExercises(template.exercises?.map(e => ({
-                        name: e.exercise_name,
-                        sets: Array(e.target_sets).fill(0).map(() => ({ weight: '', reps: e.target_reps, completed: false }))
-                    })) || []);
+            setLoading(true);
+            try {
+                if (templateId) {
+                    // Load from template
+                    const templates = await getTemplates();
+                    const template = templates.find((t: WorkoutTemplate) => t.id === templateId);
+                    if (template) {
+                        setTitle(template.name);
+                        setExercises(template.exercises?.map(e => ({
+                            name: e.exercise_name,
+                            sets: Array(e.target_sets).fill(0).map(() => ({ weight: '', reps: e.target_reps, completed: false }))
+                        })) || []);
+                    }
+                } else if (params.id && params.id !== 'new') {
+                    // Load existing workout for EDITING
+                    const workout = await getWorkoutDetails(params.id as string);
+                    if (workout) {
+                        setTitle(workout.activity_type);
+                        setElapsedSeconds(workout.duration * 60);
+                        setIsPaused(true); // Default to paused when re-opening
+
+                        if (workout.exercises) {
+                            setExercises(workout.exercises.map((e: any) => ({
+                                id: e.id,
+                                name: e.exercise_name,
+                                sets: e.sets?.map((s: any) => ({
+                                    id: s.id,
+                                    weight: s.weight?.toString() || '',
+                                    reps: s.reps?.toString() || '',
+                                    completed: s.completed
+                                })) || []
+                            })));
+                        }
+                    }
                 }
+            } catch (e) {
+                console.error("Failed to load workout", e);
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         }
         init();
-    }, [templateId]);
+    }, [templateId, params.id]);
 
     const formatTime = (secs: number) => {
         const mins = Math.floor(secs / 60);
@@ -100,7 +127,10 @@ export default function ActiveWorkoutPage() {
 
         if (isPaused) setIsPaused(false); // Resume for a second just in case logic depends on it, but mostly just semantic
 
-        if (!confirm('Finish and log this workout?')) return;
+        const isUpdate = params.id && params.id !== 'new';
+        const actionLabel = isUpdate ? 'Update' : 'Finish and log';
+
+        if (!confirm(`${actionLabel} this workout?`)) return;
         setLoading(true);
 
         try {
@@ -129,15 +159,28 @@ export default function ActiveWorkoutPage() {
                 ).join('\n')}`
             };
 
-            // A. Save Header
-            const savedWorkout = await addWorkout(workoutData);
+            let workoutId = params.id as string;
 
-            if (savedWorkout && savedWorkout.id) {
+            if (isUpdate) {
+                // Update Header
+                const { updateWorkout } = await import('@/lib/api');
+                await updateWorkout(workoutId, workoutData);
+
+                // DELETE OLD STRUCTURE
+                const { deleteWorkoutExercises } = await import('@/lib/workout-api');
+                await deleteWorkoutExercises(workoutId);
+            } else {
+                // Create New
+                const savedWorkout = await addWorkout(workoutData);
+                if (savedWorkout) workoutId = savedWorkout.id!;
+            }
+
+            if (workoutId) {
                 // B. Save Structured Exercises & Sets
                 for (let i = 0; i < completedExercises.length; i++) {
                     const exData = completedExercises[i];
                     // Create Exercise
-                    const savedEx = await createWorkoutExercise(savedWorkout.id, exData.name, i);
+                    const savedEx = await createWorkoutExercise(workoutId, exData.name, i);
 
                     if (savedEx && savedEx.id) {
                         // Create Sets
@@ -256,13 +299,15 @@ export default function ActiveWorkoutPage() {
                     <div key={i}>
                         <div className="flex justify-between items-center mb-2">
                             <h3 className="font-bold text-lg">{ex.name}</h3>
-                            <button
-                                onClick={() => deleteExercise(i)}
-                                className="text-gray-400 p-2 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors"
-                                title="Delete Exercise"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => deleteExercise(i)}
+                                    className="text-gray-400 p-2 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors"
+                                    title="Delete Exercise"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
 
                         <div className="space-y-2">

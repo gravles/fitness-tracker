@@ -1,7 +1,7 @@
 'use client';
 
 import { Workout, addWorkout, deleteWorkout } from '@/lib/api';
-import { Loader2, Plus, Dumbbell, Clock, Trash2, Sparkles } from 'lucide-react';
+import { Loader2, Plus, Dumbbell, Clock, Trash2, Sparkles, Pencil } from 'lucide-react';
 import { useState } from 'react';
 
 import { useRouter } from 'next/navigation';
@@ -136,12 +136,21 @@ export function MovementSection({
                                             {workout.notes && <p className="text-xs text-gray-400 mt-1 italic line-clamp-1">{workout.notes}</p>}
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => handleDeleteWorkout(workout.id!)}
-                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            onClick={() => router.push(`/workout/active/${workout.id}`)}
+                                            className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                                            title="Edit in Tracker"
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteWorkout(workout.id!)}
+                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                             <div className="text-right text-sm text-gray-500 font-medium pt-2 border-t border-gray-100">

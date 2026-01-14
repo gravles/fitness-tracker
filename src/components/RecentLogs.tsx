@@ -2,8 +2,10 @@ import { DailyLog } from '@/lib/api';
 import { format, parse } from 'date-fns';
 import { Activity, Pencil, X } from 'lucide-react';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export function RecentLogs({ logs }: { logs: DailyLog[] }) {
+    const router = useRouter();
     const [editingLog, setEditingLog] = useState<DailyLog | null>(null);
     const [editForm, setEditForm] = useState<any>(null);
     const [loadingEdit, setLoadingEdit] = useState(false);
@@ -13,37 +15,35 @@ export function RecentLogs({ logs }: { logs: DailyLog[] }) {
     if (recent.length === 0) return null;
 
     const handleEditClick = async (log: DailyLog) => {
+        // SMART EDIT: If this log corresponds to a Workout (checked by date/type), 
+        // we ideally want to open the tracker. 
+        // But RecentLogs iterates `DailyLog`. We need to see if a workout exists for this `date`.
+        // We can do a quick check via API or just default to the modal if unsure.
+        // However, the user request is specifically to modify tracker workouts.
+
         setLoadingEdit(true);
         try {
-            // Try to find the specific workout for this day
             const { getWorkoutByDate } = await import('@/lib/api');
             const workout = await getWorkoutByDate(log.date);
 
             if (workout) {
-                setEditForm({
-                    type: 'workout',
-                    id: workout.id,
-                    date: log.date,
-                    activity_type: workout.activity_type,
-                    duration: workout.duration,
-                    notes: workout.notes || '',
-                    intensity: workout.intensity || 'Moderate'
-                });
-            } else {
-                // Fallback to daily log data if no specific workout row found
-                setEditForm({
-                    type: 'daily_log',
-                    date: log.date,
-                    activity_type: log.movement_type || 'Workout',
-                    duration: log.movement_duration || 0,
-                    notes: log.movement_notes || '',
-                    intensity: log.movement_intensity || 'Moderate'
-                });
+                // Redirect to tracker!
+                router.push(`/workout/active/${workout.id}`);
+                return;
             }
+
+            // Fallback: Use the Modal for manual logs
+            setEditForm({
+                type: 'daily_log',
+                date: log.date,
+                activity_type: log.movement_type || 'Workout',
+                duration: log.movement_duration || 0,
+                notes: log.movement_notes || '',
+                intensity: log.movement_intensity || 'Moderate'
+            });
             setEditingLog(log);
         } catch (e) {
             console.error(e);
-            alert('Failed to load workout details');
         } finally {
             setLoadingEdit(false);
         }
