@@ -55,9 +55,11 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     const [showCamera, setShowCamera] = useState(false);
     const [autoStartVoice, setAutoStartVoice] = useState(false);
 
-    // Autosave Ref
+    // Autosave & Concurrency Refs
     const autosaveTimeout = useRef<NodeJS.Timeout | null>(null);
     const isFirstLoad = useRef(true);
+    const isSavingRef = useRef(false);
+    const pendingSaveRef = useRef(false);
 
     const totalDuration = workouts.reduce((acc, w) => acc + w.duration, 0);
 
@@ -78,7 +80,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         if (autosaveTimeout.current) clearTimeout(autosaveTimeout.current);
 
         autosaveTimeout.current = setTimeout(() => {
-            handleSave(true); // true = autosave mode
+            triggerSave();
         }, 2000); // 2 second debounce
 
         return () => {
@@ -87,6 +89,30 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     }, [
         movementCompleted, workouts, nutrition, alcohol, subjective, habits, menstrualFlow, foodItems
     ]);
+
+    // Sequential Save Handler
+    async function triggerSave(manual = false) {
+        if (isSavingRef.current) {
+            pendingSaveRef.current = true;
+            return;
+        }
+
+        isSavingRef.current = true;
+        setSaving(true);
+
+        try {
+            await performSave(manual);
+        } finally {
+            isSavingRef.current = false;
+            setSaving(false);
+
+            // If another change happened while we were saving, save again immediately
+            if (pendingSaveRef.current) {
+                pendingSaveRef.current = false;
+                triggerSave(false); // recursive autosave
+            }
+        }
+    }
 
 
     async function fetchLog() {
@@ -213,8 +239,10 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         }));
     }
 
-    async function handleSave(isAutosave = false) {
-        setSaving(true);
+    async function performSave(isManualLog = false) {
+        const isAutosave = !isManualLog; // Semantic clarity
+        // Note: setSaving is handled by triggerSave wrapper
+        // setSaving(true); 
         const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
         const dateStr = offsetDate.toISOString().split('T')[0];
 
@@ -291,7 +319,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             console.error('Error saving log:', error);
             if (!isAutosave) alert('Failed to save log');
         } finally {
-            setSaving(false);
+            // setSaving(false); // Handled by triggerSave
         }
     }
 
@@ -355,7 +383,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             {/* Floating Action Button for Manual Save (optional as autosave exists, but good for UX) */}
             <div className="fixed bottom-24 right-6 md:right-1/2 md:translate-x-32 z-30">
                 <button
-                    onClick={() => handleSave(false)}
+                    onClick={() => triggerSave(true)}
                     disabled={saving}
                     className="bg-gray-900 text-white rounded-full p-4 shadow-xl shadow-gray-400 hover:scale-110 transition-transform active:scale-95 disabled:opacity-50"
                 >
