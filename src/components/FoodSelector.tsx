@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getFavoriteFoods, getRecentFoods, deleteFavoriteFood, FavoriteFood } from '@/lib/api';
 import { Search, History, Heart, Plus, Trash2, Loader2, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 interface FoodSelectorProps {
     onClose: () => void;
@@ -51,8 +52,17 @@ export function FoodSelector({ onClose, onSelect }: FoodSelectorProps) {
     const items = tab === 'favorites' ? favorites : recent;
     const filtered = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
 
-    return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
+
+    if (!mounted) return null;
+
+    const content = (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-in fade-in" style={{ position: 'fixed' }}>
             <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 overflow-hidden flex flex-col max-h-[80vh]">
 
                 {/* Header */}
@@ -84,6 +94,7 @@ export function FoodSelector({ onClose, onSelect }: FoodSelectorProps) {
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                             className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm font-medium"
+                            autoFocus
                         />
                     </div>
                 </div>
@@ -135,4 +146,6 @@ export function FoodSelector({ onClose, onSelect }: FoodSelectorProps) {
             </div>
         </div>
     );
+
+    return createPortal(content, document.body);
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Send, X, Dumbbell, Sparkles, Loader2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { WorkoutChatState } from '@/lib/ai';
 
 interface WorkoutChatModalProps {
@@ -107,9 +108,16 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
         }
     };
 
-    if (!isOpen) return null;
+    const [mounted, setMounted] = useState(false);
 
-    return (
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
+
+    if (!mounted || !isOpen) return null;
+
+    const content = (
         <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-14">
             <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
 
@@ -203,4 +211,6 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
             </div>
         </div>
     );
+
+    return createPortal(content, document.body);
 }

@@ -12,6 +12,7 @@ import { NutritionSection } from './daily-log/NutritionSection';
 import { AlcoholSection } from './daily-log/AlcoholSection';
 import { SubjectiveSection } from './daily-log/SubjectiveSection';
 import { HabitsSection } from './daily-log/HabitsSection';
+import { TextLogModal } from './TextLogModal';
 
 
 
@@ -28,7 +29,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     const [showWorkoutChat, setShowWorkoutChat] = useState(false);
     const [chatInitialInput, setChatInitialInput] = useState('');
     const [showTextInput, setShowTextInput] = useState(false);
-    const [textInputVal, setTextInputVal] = useState(''); // Note: Used in simple text input modal if we keep it, otherwise unused? Re-checking usage.
+
     // The original file had `setShowTextInput` triggered by a button. I probably need to keep that modal or logic.
     // I see `NutritionSection` triggers `setShowTextInput`.
     // So the modal for text input must be here.
@@ -404,23 +405,13 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             {/* Modals and Overlays */}
 
             {showMenuScanner && (
-                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <div className="p-4 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
-                            <h3 className="font-bold text-lg">Scan Menu</h3>
-                            <button onClick={() => setShowMenuScanner(false)} className="p-2 hover:bg-gray-100 rounded-full">
-                                <span className="text-xl">×</span>
-                            </button>
-                        </div>
-                        <MenuScanner
-                            onClose={() => setShowMenuScanner(false)}
-                            onLog={(item) => {
-                                addFoodItems([item]);
-                                setShowMenuScanner(false);
-                            }}
-                        />
-                    </div>
-                </div>
+                <MenuScanner
+                    onClose={() => setShowMenuScanner(false)}
+                    onLog={(item) => {
+                        addFoodItems([item]);
+                        setShowMenuScanner(false);
+                    }}
+                />
             )}
 
             <WorkoutChatModal
@@ -445,87 +436,38 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 />
             )}
 
-            {showTextInput && (
-                <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
-                    <div className="bg-white w-full max-w-lg rounded-2xl p-6 shadow-2xl animate-in slide-in-from-bottom-4">
-                        <h3 className="text-lg font-bold mb-4">Quick Log</h3>
-                        <textarea
-                            className="w-full p-4 bg-gray-50 rounded-xl border border-gray-100 focus:ring-2 focus:ring-blue-500 outline-none h-32 resize-none"
-                            placeholder="Type what you ate or did... (e.g. 'Chicken breast and rice' or '30 min run')"
-                            value={textInputVal}
-                            onChange={e => setTextInputVal(e.target.value)}
-                            autoFocus
-                        />
-                        <div className="flex gap-3 mt-4">
-                            <button
-                                onClick={() => setShowTextInput(false)}
-                                className="flex-1 py-3 text-gray-500 font-bold"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={async () => {
-                                    if (!textInputVal.trim()) return;
-                                    setLoading(true);
-                                    try {
-                                        const res = await fetch('/api/ai/process-intent', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ transcript: textInputVal })
-                                        });
-                                        const intent = await res.json();
+            <TextLogModal
+                isOpen={showTextInput}
+                onClose={() => setShowTextInput(false)}
+                onWorkoutRequest={(text) => {
+                    setChatInitialInput(text);
+                    setShowWorkoutChat(true);
+                }}
+                onProcessed={(intent) => {
+                    if (intent.intent === 'log_food') {
+                        if (intent.data?.items) {
+                            let alcoholAdded = 0;
+                            const newItems = intent.data.items.map((i: any) => {
+                                if (i.alcohol_units) alcoholAdded += i.alcohol_units;
+                                return i;
+                            });
 
-                                        if (intent.error) {
-                                            alert("Error: " + intent.error);
-                                            setLoading(false);
-                                            return;
-                                        }
-
-                                        if (intent.intent === 'log_food') {
-                                            if (intent.data?.items) {
-                                                let alcoholAdded = 0;
-                                                const newItems = intent.data.items.map((i: any) => {
-                                                    if (i.alcohol_units) alcoholAdded += i.alcohol_units;
-                                                    return i;
-                                                });
-
-                                                addFoodItems(newItems);
-                                                if (alcoholAdded > 0) {
-                                                    setAlcohol(prev => prev + alcoholAdded);
-                                                    alert(`Added: ${newItems.map((i: any) => i.name).join(', ')} (and +${alcoholAdded} standard drinks)`);
-                                                } else {
-                                                    alert(`Added: ${newItems.map((i: any) => i.name).join(', ')}`);
-                                                }
-                                            } else if (intent.data?.item) {
-                                                setSubjective(prev => ({ ...prev, note: (prev.note + ' ' + intent.data.item).trim() }));
-                                                alert(`Text added to notes (no specific items detected)`);
-                                            }
-                                        } else if (intent.intent === 'log_workout') {
-                                            setChatInitialInput(textInputVal);
-                                            setShowWorkoutChat(true);
-                                        } else {
-                                            alert(`Could not understand: "${textInputVal}"`);
-                                        }
-
-                                        setShowTextInput(false);
-                                        setTextInputVal('');
-
-                                    } catch (e: any) {
-                                        console.error(e);
-                                        alert('Failed to process text: ' + e.message);
-                                    } finally {
-                                        setLoading(false);
-                                    }
-                                }}
-                                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg disabled:opacity-50"
-                                disabled={loading}
-                            >
-                                {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Process'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                            addFoodItems(newItems);
+                            if (alcoholAdded > 0) {
+                                setAlcohol(prev => prev + alcoholAdded);
+                                alert(`Added: ${newItems.map((i: any) => i.name).join(', ')} (and +${alcoholAdded} standard drinks)`);
+                            } else {
+                                alert(`Added: ${newItems.map((i: any) => i.name).join(', ')}`);
+                            }
+                        } else if (intent.data?.item) {
+                            setSubjective(prev => ({ ...prev, note: (prev.note + ' ' + intent.data.item).trim() }));
+                            alert(`Text added to notes (no specific items detected)`);
+                        }
+                    } else {
+                        alert(`Could not understand. Please try again.`);
+                    }
+                }}
+            />
         </div>
     );
 }
