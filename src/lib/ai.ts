@@ -389,7 +389,10 @@ export async function chatWithCoach(history: any[], newMessage: string, context:
     }
 
     const systemPrompt = `
-You are an elite Fitness & Lifestyle Coach. You have full access to the user's recent 30-day logs and settings.
+You are an elite Fitness & Lifestyle Coach.
+Current Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
+
+You have full access to the user's recent 30-day logs and settings.
 Your capabilities:
 1. Analysis: "Why am I tired?" (Correlate sleep, alcohol, food).
 2. Planning: "Build me a workout." (Use their available equipment: ${JSON.stringify(context.userSettings?.available_equipment || [])}).

@@ -192,33 +192,42 @@ export function NutritionSection({
                             className="flex flex-col items-center gap-1 min-w-[70px]"
                         >
                             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border transition-colors ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-purple-50 text-purple-600 border-purple-100'}`}>
-                                <Keyboard className="w-6 h-6 hidden" /> {/* Dummy icon if needed, but VoiceInput handles internal icon usually? Checking VoiceInput implementation next. Assuming it handles logic but exposes trigger. */}
-                                {/* Actually VoiceInput UI is self contained usually? Let's check VoiceInput usage.
-                                    The previous usage was <VoiceInput ... /> which rendered the button. 
-                                    I need to make sure VoiceInput accepts a custom trigger or I wrap it. 
-                                    Looking at previous code: <VoiceInput ... /> was used directly.
-                                    If I want to style it consistently, I might need to modify VoiceInput OR stick to its default button.
-                                    
-                                    Wait, the previous code had `<VoiceInput ... />` inside a flex row.
-                                    Let's look at `VoiceInput.tsx` if possible. But I don't want to overengineer.
-                                    
-                                    Let's assume VoiceInput renders a button. The previous usage didn't pass "customTrigger".
-                                    I'll just wrap it in a div to align label? Or just let it be.
-                                    
-                                    Actually, to make it look like a chip:
-                                    Let's render it as is, but maybe I should create a "Quick Action" for it?
-                                    
-                                    If I can't customize VoiceInput easily without opening it, I will check it.
-                                    Let's assume I check it after. For now, I'll put the others.
-                                */}
+                                <span className="text-xl">🎙️</span>
                             </div>
+                            <span className="text-xs font-bold text-gray-600">{isListening ? 'Listening' : 'Voice'}</span>
                         </button>
                     )}
                 />
-                {/* Wait, I can't guess prop names. Let's revert to standard component usage and see if I can wrap it or if I need to edit it. 
-                    I'll check VoiceInput first.
-                 */}
 
+                <button
+                    onClick={() => setShowTextInput(true)}
+                    className="flex flex-col items-center gap-1 min-w-[70px]"
+                >
+                    <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm border border-indigo-100">
+                        <Keyboard className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-600">Type</span>
+                </button>
+
+                <button
+                    onClick={() => setShowMenuScanner(true)}
+                    className="flex flex-col items-center gap-1 min-w-[70px]"
+                >
+                    <div className="w-12 h-12 bg-yellow-50 text-yellow-600 rounded-2xl flex items-center justify-center shadow-sm border border-yellow-100">
+                        <ChefHat className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-600">Scan Menu</span>
+                </button>
+
+                <button
+                    onClick={() => setShowCamera(true)}
+                    className="flex flex-col items-center gap-1 min-w-[70px]"
+                >
+                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm border border-blue-100">
+                        <Camera className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-600">Camera</span>
+                </button>
             </div>
 
             {showCamera && (
