@@ -203,9 +203,10 @@ export default function ActiveWorkoutPage() {
                 date: workoutData.date,
                 movement_completed: true,
                 movement_duration: workoutData.duration,
-                calories: (await import('@/lib/api').then(m => m.getDailyLog(workoutData.date)))?.calories // Simple update? No, we might want to Add to daily cal.
-                // Actually `upsertDailyLog` overwrites. We should ideally fetch first if we want to add calories, 
-                // but for now let's just mark movement. The nutrition log handles calories mostly.
+                movement_type: workoutData.activity_type,
+                movement_intensity: workoutData.intensity,
+                movement_notes: workoutData.notes,
+                calories: (await import('@/lib/api').then(m => m.getDailyLog(workoutData.date)))?.calories // Preserve existing calories if possible, but nutrition log generally handles this
             });
 
             router.push('/');
