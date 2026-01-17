@@ -6,6 +6,8 @@ import { subDays, format } from 'date-fns';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, LabelList } from 'recharts';
 import { Loader2, TrendingUp, Scale } from 'lucide-react';
 import Link from 'next/link';
+import { ExerciseProgressChart } from '@/components/analytics/ExerciseProgressChart';
+import { PersonalRecordsList } from '@/components/analytics/PersonalRecordsList';
 
 export default function TrendsPage() {
     const [loading, setLoading] = useState(true);
@@ -15,6 +17,7 @@ export default function TrendsPage() {
     const [cycleData, setCycleData] = useState<any[]>([]);
     const [settings, setSettings] = useState<any>(null);
     const [goal, setGoal] = useState(150);
+    const [activeTab, setActiveTab] = useState<'overview' | 'gains'>('overview');
 
     useEffect(() => {
         fetchData();
@@ -65,15 +68,6 @@ export default function TrendsPage() {
 
             // Process Cycle Data (if enabled)
             if (userSettings?.enable_cycle_tracking !== false) {
-                // We need to fetch workouts to correlate, but getMonthlyLogs gives us basic movement_completed.
-                // For a deeper analysis (duration), we ideally need detailed workouts or legacy data.
-                // For now, let's use 'movement_duration' from logs (legacy) combined with a future fetchWorkouts if we had a bulk endpoint (which we don't yet).
-                // Actually, let's rely on daily_logs.movement_duration (legacy) AND we'll assume for MVP we only check the logs table data for now, 
-                // as the new 'workouts' table data isn't bulk fetchable efficiently without a new API method.
-                // LIMITATION: This chart currently only correlates LEGACY single-workout duration or boolean completion.
-                // TODO: Add getWorkoutsRange to API for full support.
-
-                // Group by Menstrual Flow
                 const cycleStats: Record<string, { count: number, totalDuration: number }> = {
                     'None': { count: 0, totalDuration: 0 },
                     'Light': { count: 0, totalDuration: 0 },
@@ -83,7 +77,6 @@ export default function TrendsPage() {
 
                 logs.forEach(log => {
                     const flow = log.menstrual_flow || 'None';
-                    // Fallback to 0 if duration is missing
                     const duration = log.movement_duration || 0;
 
                     if (cycleStats[flow]) {
@@ -95,7 +88,7 @@ export default function TrendsPage() {
                 const cData = Object.entries(cycleStats).map(([flow, stats]) => ({
                     flow,
                     avgDuration: stats.count > 0 ? Math.round(stats.totalDuration / stats.count) : 0
-                })).filter(d => d.flow !== 'None'); // Optional: hide 'None' if we only care about the period phases
+                })).filter(d => d.flow !== 'None');
 
                 setCycleData(cData);
             }
@@ -118,97 +111,126 @@ export default function TrendsPage() {
                 </Link>
             </div>
 
-            {/* Protein Chart */}
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-2 mb-6">
-                    <TrendingUp className="w-5 h-5 text-blue-500" />
-                    <h3 className="font-bold text-lg">Protein Intake (30 Days)</h3>
-                </div>
-                <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={proteinData}>
-                            <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={2} />
-                            <YAxis width={30} tick={{ fontSize: 10 }} />
-                            <Tooltip />
-                            <ReferenceLine y={goal} stroke="green" strokeDasharray="3 3" label={`Goal: ${goal}g`} />
-                            <Bar dataKey="protein" fill="#3b82f6" radius={[4, 4, 0, 0]}>
-                                <LabelList dataKey="protein" position="top" fontSize={10} fill="#666" />
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-            </section>
+            {/* Tab Switcher */}
+            <div className="flex bg-gray-100 p-1 rounded-xl w-full max-w-md mx-auto sm:mx-0">
+                <button
+                    onClick={() => setActiveTab('overview')}
+                    className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'overview' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Overview
+                </button>
+                <button
+                    onClick={() => setActiveTab('gains')}
+                    className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'gains' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Gains & PRs
+                </button>
+            </div>
 
-            {/* Alcohol Chart */}
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-2 mb-6">
-                    <span className="text-xl">🍺</span>
-                    <h3 className="font-bold text-lg">Alcohol Consumption</h3>
-                </div>
-                <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={alcoholData}>
-                            <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={2} />
-                            <YAxis width={30} tick={{ fontSize: 10 }} allowDecimals={false} />
-                            <Tooltip />
-                            <Bar dataKey="drinks" fill="#f59e0b" radius={[4, 4, 0, 0]}>
-                                <LabelList dataKey="drinks" position="top" fontSize={10} fill="#666" />
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-            </section>
+            {/* General Health (Overview) */}
+            {activeTab === 'overview' && (
+                <div className="space-y-6 animate-in fade-in duration-300">
+                    {/* Protein Chart */}
+                    <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                        <div className="flex items-center gap-2 mb-6">
+                            <TrendingUp className="w-5 h-5 text-blue-500" />
+                            <h3 className="font-bold text-lg">Protein Intake (30 Days)</h3>
+                        </div>
+                        <div className="h-64 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={proteinData}>
+                                    <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={2} />
+                                    <YAxis width={30} tick={{ fontSize: 10 }} />
+                                    <Tooltip />
+                                    <ReferenceLine y={goal} stroke="green" strokeDasharray="3 3" label={`Goal: ${goal}g`} />
+                                    <Bar dataKey="protein" fill="#3b82f6" radius={[4, 4, 0, 0]}>
+                                        <LabelList dataKey="protein" position="top" fontSize={10} fill="#666" />
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </section>
 
-            {/* Cycle Intelligence Chart */}
-            {(settings?.enable_cycle_tracking !== false && cycleData.length > 0) && (
-                <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                    <div className="flex items-center gap-2 mb-6">
-                        <span className="text-xl">🌸</span>
-                        <h3 className="font-bold text-lg">Cycle Phase vs Workout Duration</h3>
-                    </div>
-                    <div className="h-64 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={cycleData}>
-                                <XAxis dataKey="flow" tick={{ fontSize: 12 }} />
-                                <YAxis width={30} tick={{ fontSize: 10 }} label={{ value: 'Mins', angle: -90, position: 'insideLeft' }} />
-                                <Tooltip />
-                                <Bar dataKey="avgDuration" fill="#ec4899" radius={[4, 4, 0, 0]}>
-                                    <LabelList dataKey="avgDuration" position="top" fontSize={10} fill="#666" />
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                        <p className="text-xs text-center text-gray-500 mt-4 italic">
-                            Average workout duration (minutes) grouped by menstrual flow intensity.
-                        </p>
-                    </div>
-                </section>
+                    {/* Alcohol Chart */}
+                    <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                        <div className="flex items-center gap-2 mb-6">
+                            <span className="text-xl">🍺</span>
+                            <h3 className="font-bold text-lg">Alcohol Consumption</h3>
+                        </div>
+                        <div className="h-64 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={alcoholData}>
+                                    <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={2} />
+                                    <YAxis width={30} tick={{ fontSize: 10 }} allowDecimals={false} />
+                                    <Tooltip />
+                                    <Bar dataKey="drinks" fill="#f59e0b" radius={[4, 4, 0, 0]}>
+                                        <LabelList dataKey="drinks" position="top" fontSize={10} fill="#666" />
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </section>
+
+                    {/* Cycle Intelligence Chart */}
+                    {(settings?.enable_cycle_tracking !== false && cycleData.length > 0) && (
+                        <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                            <div className="flex items-center gap-2 mb-6">
+                                <span className="text-xl">🌸</span>
+                                <h3 className="font-bold text-lg">Cycle Phase vs Workout Duration</h3>
+                            </div>
+                            <div className="h-64 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={cycleData}>
+                                        <XAxis dataKey="flow" tick={{ fontSize: 12 }} />
+                                        <YAxis width={30} tick={{ fontSize: 10 }} label={{ value: 'Mins', angle: -90, position: 'insideLeft' }} />
+                                        <Tooltip />
+                                        <Bar dataKey="avgDuration" fill="#ec4899" radius={[4, 4, 0, 0]}>
+                                            <LabelList dataKey="avgDuration" position="top" fontSize={10} fill="#666" />
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                                <p className="text-xs text-center text-gray-500 mt-4 italic">
+                                    Average workout duration (minutes) grouped by menstrual flow intensity.
+                                </p>
+                            </div>
+                        </section>
+                    )}
+
+                    {/* Weight Chart */}
+                    <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                        <div className="flex items-center gap-2 mb-6">
+                            <Scale className="w-5 h-5 text-purple-500" />
+                            <h3 className="font-bold text-lg">Weight History</h3>
+                        </div>
+                        {weightData.length > 0 ? (
+                            <div className="h-64 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={weightData}>
+                                        <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                                        <YAxis domain={['dataMin - 5', 'dataMax + 5']} width={30} tick={{ fontSize: 10 }} />
+                                        <Tooltip />
+                                        <Line type="monotone" dataKey="weight" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }}>
+                                            <LabelList dataKey="weight" position="top" offset={10} fontSize={10} fill="#666" />
+                                        </Line>
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        ) : (
+                            <div className="h-32 flex items-center justify-center text-gray-400 text-sm italic">
+                                No weight data logged yet.
+                            </div>
+                        )}
+                    </section>
+                </div>
             )}
 
-            {/* Weight Chart */}
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-2 mb-6">
-                    <Scale className="w-5 h-5 text-purple-500" />
-                    <h3 className="font-bold text-lg">Weight History</h3>
+            {/* Strength Gains */}
+            {activeTab === 'gains' && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <ExerciseProgressChart />
+                    <PersonalRecordsList />
                 </div>
-                {weightData.length > 0 ? (
-                    <div className="h-64 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={weightData}>
-                                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                                <YAxis domain={['dataMin - 5', 'dataMax + 5']} width={30} tick={{ fontSize: 10 }} />
-                                <Tooltip />
-                                <Line type="monotone" dataKey="weight" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }}>
-                                    <LabelList dataKey="weight" position="top" offset={10} fontSize={10} fill="#666" />
-                                </Line>
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
-                ) : (
-                    <div className="h-32 flex items-center justify-center text-gray-400 text-sm italic">
-                        No weight data logged yet.
-                    </div>
-                )}
-            </section>
+            )}
         </main>
     );
 }
