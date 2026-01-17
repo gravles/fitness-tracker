@@ -118,7 +118,25 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
     // 3. Removed redundant Control Logic effect since lifecycle is handled above
 
     // 4. Processing & Feedback
+    const lastProcessedRef = useRef<{ text: string, time: number }>({ text: '', time: 0 });
+
     async function processCommand(text: string) {
+        // 1. Voice Stop Command
+        if (text.toLowerCase().includes('stop') || text.toLowerCase().includes('cancel')) {
+            setIsActive(false);
+            window.speechSynthesis.cancel();
+            setStatus('idle');
+            return;
+        }
+
+        // 2. Deduplication (Loop Prevention)
+        const now = Date.now();
+        // If same text within 2 seconds, ignore (feedback loop from speaker)
+        if (text === lastProcessedRef.current.text && (now - lastProcessedRef.current.time) < 2000) {
+            console.log("Ignoring duplicate:", text);
+            return;
+        }
+
         setStatus('processing');
 
         try {
@@ -131,21 +149,19 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
 
             if (data.intent === 'log_set' && data.data) {
                 const { reps, weight, weight_unit } = data.data;
+
+                // Update dedupe ref only on success to allow retries of failures
+                lastProcessedRef.current = { text: text, time: now };
+
                 onSetDetected(data.data);
 
                 const msg = `Logged ${reps} reps at ${weight} ${weight_unit || 'pounds'}`;
                 setLastAction(msg);
                 speak(msg);
             } else {
-                setStatus('idle'); // Will trigger restart via onend if recognition stops? 
-                // Wait, if recognition is continuous, it won't stop. 
-                // We just update status for UI.
-
-                // If the user stopped talking but recognition is 'continuous', it might not fire 'onend' immediately.
-                // But we want to go back to 'listening'.
-
-                // If recognition is still running (it should be), we just set status back.
-                setTimeout(() => setStatus('listening'), 500);
+                setStatus('idle');
+                // Resume listening state after brief delay
+                if (isActive) setTimeout(() => setStatus('listening'), 500);
             }
 
         } catch (error) {

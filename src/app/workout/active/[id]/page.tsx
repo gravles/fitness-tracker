@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { Loader2, Plus, Check, Clock, Save, MoreVertical, X, Play, Pause } from 'lucide-react';
+import { format } from 'date-fns';
 import { getTemplates, getWorkoutDetails, createWorkoutExercise, logSet, WorkoutTemplate } from '@/lib/workout-api';
 import { upsertDailyLog, addWorkout } from '@/lib/api';
 import { WorkoutSpotter } from '@/components/WorkoutSpotter';
@@ -147,8 +148,10 @@ export default function ActiveWorkoutPage() {
             // 3. Construct Log - Structured Data
             const summary = completedExercises.map(e => `${e.sets.filter(s => s.completed).length} x ${e.name}`).join(', ');
 
+            // ... inside the component ...
+
             const workoutData = {
-                date: new Date().toISOString().split('T')[0],
+                date: format(new Date(), 'yyyy-MM-dd'),
                 activity_type: title,
                 duration: Math.floor(elapsedSeconds / 60),
                 intensity: 'Moderate' as const,
