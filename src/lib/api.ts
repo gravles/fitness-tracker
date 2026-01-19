@@ -495,13 +495,13 @@ export async function deleteFavoriteFood(id: string) {
     if (error) throw error;
 }
 
-export async function getRecentFoods(limit = 50) {
+export async function getRecentFoods(limit = 1000) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
-    // Fetch last 30 days of logs
+    // Fetch last 90 days of logs
     const today = new Date();
-    const startDate = subDays(today, 30).toISOString().split('T')[0];
+    const startDate = subDays(today, 90).toISOString().split('T')[0];
 
     const { data, error } = await supabase
         .from('daily_logs')
