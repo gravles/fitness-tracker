@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { getTemplates, getWorkoutDetails, createWorkoutExercise, logSet, WorkoutTemplate } from '@/lib/workout-api';
 import { upsertDailyLog, addWorkout } from '@/lib/api';
 import { WorkoutSpotter } from '@/components/WorkoutSpotter';
+import { RestTimer } from '@/components/RestTimer';
 
 // Types for local state
 interface ActiveSet {
@@ -290,6 +291,7 @@ export default function ActiveWorkoutPage() {
                     >
                         {isPaused ? <Play className="w-5 h-5 fill-current" /> : <Pause className="w-5 h-5 fill-current" />}
                     </button>
+                    <RestTimer />
                     <WorkoutSpotter onSetDetected={handleSetDetected} />
                     <button onClick={finishWorkout} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm hover:bg-green-700">
                         Finish
