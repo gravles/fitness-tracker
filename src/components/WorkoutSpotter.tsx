@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Mic, MicOff, Volume2, StopCircle, Zap } from 'lucide-react';
 
 interface WorkoutSpotterProps {
@@ -16,6 +17,12 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
     const recognitionRef = useRef<any>(null);
     const wakeLockRef = useRef<any>(null);
     const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    // Ref pattern to access latest state in async callbacks
+    const isActiveRef = useRef(isActive);
+
+    useEffect(() => {
+        isActiveRef.current = isActive;
+    }, [isActive]);
 
     // 1. Wake Lock Management
     useEffect(() => {
@@ -71,14 +78,14 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
             };
 
             recognition.onend = () => {
-                // Check if we should still be active
-                if (isActive) {
+                // Check if we should still be active using the REF
+                if (isActiveRef.current) {
                     // Don't restart if we are speaking (we will manually restart after speech)
                     if (status === 'speaking') return;
 
                     retryTimeoutRef.current = setTimeout(() => {
-                        // Check ref to ensure we haven't been unmounted/stopped in the meantime
-                        if (recognitionRef.current && isActive) {
+                        // Double check ref to ensure we haven't been unmounted/stopped
+                        if (recognitionRef.current && isActiveRef.current) {
                             try {
                                 recognitionRef.current.start();
                             } catch (e) {
@@ -195,6 +202,13 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
         window.speechSynthesis.speak(utterance);
     }
 
+    // Portal requirement
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
+
     if (!isActive) {
         return (
             <button
@@ -207,8 +221,10 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
         );
     }
 
-    return (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 w-full max-w-sm px-4 animate-in slide-in-from-bottom">
+    if (!mounted) return null;
+
+    return createPortal(
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-3 w-full max-w-sm px-4 animate-in slide-in-from-bottom">
             <div className="bg-black/90 backdrop-blur text-white p-4 rounded-3xl shadow-2xl w-full flex items-center justify-between border border-white/10">
                 <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${status === 'listening' ? 'bg-red-500 animate-pulse' : 'bg-gray-700'}`}>
@@ -229,15 +245,19 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
                     </div>
                 </div>
 
-                <button
-                    onClick={() => {
-                        setIsActive(false);
-                        window.speechSynthesis.cancel();
-                    }}
-                    className="p-2 bg-gray-800 rounded-full hover:bg-gray-700 text-red-400"
-                >
-                    <StopCircle className="w-6 h-6" />
-                </button>
+                <div className="flex items-center gap-2">
+                    {/* Manual Stop Button */}
+                    <button
+                        onClick={() => {
+                            setIsActive(false);
+                            window.speechSynthesis.cancel();
+                        }}
+                        className="p-2 bg-gray-800 rounded-full hover:bg-gray-700 text-red-400 border border-white/10"
+                        title="Stop Spotter"
+                    >
+                        <StopCircle className="w-6 h-6" />
+                    </button>
+                </div>
             </div>
 
             {lastAction && (
@@ -245,6 +265,7 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
                     ✓ {lastAction}
                 </div>
             )}
-        </div>
+        </div>,
+        document.body
     );
 }
