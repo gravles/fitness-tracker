@@ -14,6 +14,7 @@ import { FeatureTutorial } from '@/components/FeatureTutorial';
 import { getSmartAdvice, CoachingTip } from '@/lib/smartCoach';
 import { LevelProgress } from '@/components/LevelProgress';
 import { XPHistoryModal } from '@/components/XPHistoryModal';
+import { ShareModal } from '@/components/ShareModal';
 import { getSettings } from '@/lib/api';
 import { DashboardSkeleton } from '@/components/Skeleton';
 
@@ -31,6 +32,7 @@ export default function Dashboard() {
   // Gamification State
   const [userLevel, setUserLevel] = useState({ level: 1, xp: 0 });
   const [showXPModal, setShowXPModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [showInsightModal, setShowInsightModal] = useState(false);
   const [showFeatureTutorial, setShowFeatureTutorial] = useState(false);
 
@@ -124,7 +126,27 @@ export default function Dashboard() {
             isOpen={showXPModal}
             onClose={() => setShowXPModal(false)}
             lifetimeXP={userLevel.xp}
+            currentLevel={userLevel.level}
             onSync={loadData}
+            onShare={() => {
+              setShowXPModal(false);
+              setShowShareModal(true);
+            }}
+          />
+
+          <ShareModal
+            isOpen={showShareModal}
+            onClose={() => setShowShareModal(false)}
+            type="level"
+            data={{
+              title: `Level ${userLevel.level} Achieved!`,
+              subtitle: `${userLevel.xp.toLocaleString()} XP earned`,
+              emoji: '🏆',
+              stats: [
+                { label: 'Total XP', value: userLevel.xp.toLocaleString() },
+                { label: 'Current Level', value: userLevel.level }
+              ]
+            }}
           />
 
           {/* Smart Coach Widget */}

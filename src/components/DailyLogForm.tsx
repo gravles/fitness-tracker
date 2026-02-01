@@ -13,6 +13,7 @@ import { AlcoholSection } from './daily-log/AlcoholSection';
 import { SubjectiveSection } from './daily-log/SubjectiveSection';
 import { HabitsSection } from './daily-log/HabitsSection';
 import { TextLogModal } from './TextLogModal';
+import { haptics } from '@/lib/haptics';
 
 
 
@@ -311,6 +312,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 setInitialXP(newDailyXP); // Update baseline for next save
 
                 if (!isAutosave) {
+                    haptics.success(); // Celebratory haptic on XP gain
                     if (xpDelta > 0) {
                         alert(`Saved! You earned +${xpDelta} XP! (Daily Total: ${newDailyXP}) ${result?.leveledUp ? 'LEVEL UP! 🎉' : ''}`);
                     } else {
@@ -318,11 +320,15 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     }
                 }
             } else {
-                if (!isAutosave) alert('Saved!');
+                if (!isAutosave) {
+                    haptics.tap(); // Simple confirmation haptic
+                    alert('Saved!');
+                }
             }
 
         } catch (error) {
             console.error('Error saving log:', error);
+            haptics.error(); // Error haptic
             if (!isAutosave) alert('Failed to save log');
         } finally {
             // setSaving(false); // Handled by triggerSave

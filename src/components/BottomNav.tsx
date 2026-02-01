@@ -2,19 +2,20 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PlusCircle, Calendar, TrendingUp, Bot } from 'lucide-react';
+import { Home, PlusCircle, Camera, Dumbbell, Calendar, Settings } from 'lucide-react';
 
 export function BottomNav() {
     const pathname = usePathname();
 
-    const isActive = (path: string) => pathname === path;
+    const isActive = (path: string) => pathname === path || pathname.startsWith(path + '/');
 
     const navItems = [
         { href: '/', icon: Home, label: 'Home' },
         { href: '/log', icon: PlusCircle, label: 'Log' },
-        { href: '/coach', icon: Bot, label: 'Coach' },
+        { href: '/progress', icon: Camera, label: 'Photos' },
+        { href: '/workout/templates', icon: Dumbbell, label: 'Workouts' },
         { href: '/calendar', icon: Calendar, label: 'History' },
-        { href: '/trends', icon: TrendingUp, label: 'Trends' },
+        { href: '/settings', icon: Settings, label: 'Settings' },
     ];
 
     return (
@@ -28,8 +29,8 @@ export function BottomNav() {
                     key={href}
                     href={href}
                     className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all tap-target focus-ring ${isActive(href)
-                            ? 'text-[var(--color-primary)] bg-[var(--color-primary)]/10'
-                            : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-muted)]'
+                        ? 'text-[var(--color-primary)] bg-[var(--color-primary)]/10'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-muted)]'
                         }`}
                     aria-current={isActive(href) ? 'page' : undefined}
                     aria-label={label}
