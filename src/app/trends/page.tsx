@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { getMonthlyLogs, getBodyMetricsHistory, getSettings } from '@/lib/api';
 import { subDays, format } from 'date-fns';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, LabelList } from 'recharts';
-import { Loader2, TrendingUp, Scale } from 'lucide-react';
+import { Loader2, TrendingUp, Scale, Camera, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { ExerciseProgressChart } from '@/components/analytics/ExerciseProgressChart';
 import { PersonalRecordsList } from '@/components/analytics/PersonalRecordsList';
@@ -106,9 +106,17 @@ export default function TrendsPage() {
         <main className="p-6 pt-12 pb-24 space-y-8">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold text-gray-900">Trends</h1>
-                <Link href="/metrics" className="bg-black text-white text-xs font-bold px-3 py-2 rounded-lg">
-                    Log Body Metrics
-                </Link>
+                <div className="flex gap-2">
+                    <Link href="/progress" className="p-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors" aria-label="Progress Photos">
+                        <Camera className="w-5 h-5" />
+                    </Link>
+                    <Link href="/calendar" className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors" aria-label="History">
+                        <Calendar className="w-5 h-5" />
+                    </Link>
+                    <Link href="/metrics" className="bg-black text-white text-xs font-bold px-3 py-2 rounded-lg">
+                        Log Body Metrics
+                    </Link>
+                </div>
             </div>
 
             {/* Tab Switcher */}
