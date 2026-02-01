@@ -2,44 +2,42 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PlusCircle, Calendar, Settings, TrendingUp, Bot } from 'lucide-react';
+import { Home, PlusCircle, Calendar, TrendingUp, Bot } from 'lucide-react';
 
 export function BottomNav() {
     const pathname = usePathname();
 
     const isActive = (path: string) => pathname === path;
 
+    const navItems = [
+        { href: '/', icon: Home, label: 'Home' },
+        { href: '/log', icon: PlusCircle, label: 'Log' },
+        { href: '/coach', icon: Bot, label: 'Coach' },
+        { href: '/calendar', icon: Calendar, label: 'History' },
+        { href: '/trends', icon: TrendingUp, label: 'Trends' },
+    ];
+
     return (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-gray-200 pb-safe pt-2 px-6 flex justify-between items-center z-50 max-w-2xl mx-auto shadow-lg shadow-gray-200">
-            <Link href="/" className={`flex flex-col items-center gap-1 p-2 ${isActive('/') ? 'text-blue-600' : 'text-gray-400'}`}>
-                <Home className="w-6 h-6" />
-                <span className="text-[10px] font-medium">Dashboard</span>
-            </Link>
-
-            <Link href="/log" className={`flex flex-col items-center gap-1 p-2 ${isActive('/log') ? 'text-blue-600' : 'text-gray-400'}`}>
-                <PlusCircle className="w-6 h-6" />
-                <span className="text-[10px] font-medium">Log</span>
-            </Link>
-
-            <Link href="/coach" className={`flex flex-col items-center gap-1 p-2 ${isActive('/coach') ? 'text-blue-600' : 'text-gray-400'}`}>
-                <Bot className="w-6 h-6" />
-                <span className="text-[10px] font-medium">Coach</span>
-            </Link>
-
-            <Link href="/calendar" className={`flex flex-col items-center gap-1 p-2 ${isActive('/calendar') ? 'text-blue-600' : 'text-gray-400'}`}>
-                <Calendar className="w-6 h-6" />
-                <span className="text-[10px] font-medium">History</span>
-            </Link>
-
-            <Link href="/trends" className={`flex flex-col items-center gap-1 p-2 ${isActive('/trends') ? 'text-blue-600' : 'text-gray-400'}`}>
-                <TrendingUp className="w-6 h-6" />
-                <span className="text-[10px] font-medium">Trends</span>
-            </Link>
-
-            <Link href="/settings" className={`flex flex-col items-center gap-1 p-2 ${isActive('/settings') ? 'text-blue-600' : 'text-gray-400'}`}>
-                <Settings className="w-6 h-6" />
-                <span className="text-[10px] font-medium">Settings</span>
-            </Link>
+        <nav
+            className="fixed bottom-0 left-0 right-0 bg-[var(--color-surface-elevated)]/90 backdrop-blur-lg border-t border-[var(--color-border)] pb-safe pt-2 px-4 flex justify-around items-center z-50 max-w-2xl mx-auto"
+            role="navigation"
+            aria-label="Main navigation"
+        >
+            {navItems.map(({ href, icon: Icon, label }) => (
+                <Link
+                    key={href}
+                    href={href}
+                    className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all tap-target focus-ring ${isActive(href)
+                            ? 'text-[var(--color-primary)] bg-[var(--color-primary)]/10'
+                            : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-muted)]'
+                        }`}
+                    aria-current={isActive(href) ? 'page' : undefined}
+                    aria-label={label}
+                >
+                    <Icon className="w-6 h-6" aria-hidden="true" />
+                    <span className="text-[10px] font-semibold tracking-wide">{label}</span>
+                </Link>
+            ))}
         </nav>
     );
 }
