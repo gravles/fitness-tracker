@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 
 export interface WorkoutTemplate {
     id: string;
-    user_id: string;
+    author_id: string;
     name: string;
     created_at: string;
     exercises?: TemplateExercise[];
@@ -42,45 +42,39 @@ export async function getTemplates() {
 
     const { data, error } = await supabase
         .from('workout_templates')
-        .select(`
-            *,
-            exercises:template_exercises(*)
-        `)
-        .eq('user_id', session.user.id)
+        .select('*')
+        .eq('author_id', session.user.id)
         .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data as WorkoutTemplate[];
+    return data || [];
 }
 
 export async function createTemplate(name: string, exercises: Omit<TemplateExercise, 'id' | 'template_id' | 'created_at'>[]) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
-    // 1. Create Header
-    const { data: template, error: tError } = await supabase
+    // Convert to JSONB format expected by new schema
+    const exercisesJson = exercises.map((e, idx) => ({
+        name: e.exercise_name,
+        sets: e.target_sets,
+        reps: e.target_reps,
+        order: idx
+    }));
+
+    const { data: template, error } = await supabase
         .from('workout_templates')
-        .insert({ user_id: session.user.id, name })
+        .insert({
+            author_id: session.user.id,
+            name,
+            exercises: exercisesJson,
+            is_public: false,
+            category: 'custom'
+        })
         .select()
         .single();
 
-    if (tError) throw tError;
-
-    // 2. Create Exercises
-    if (exercises.length > 0) {
-        const { error: eError } = await supabase
-            .from('template_exercises')
-            .insert(exercises.map((e, idx) => ({
-                template_id: template.id,
-                exercise_name: e.exercise_name,
-                order_index: idx,
-                target_sets: e.target_sets,
-                target_reps: e.target_reps
-            })));
-
-        if (eError) throw eError;
-    }
-
+    if (error) throw error;
     return template;
 }
 
@@ -151,4 +145,61 @@ export async function deleteWorkoutExercises(workoutId: string) {
         .eq('workout_id', workoutId);
 
     if (error) throw error;
+}
+
+// --- Template Management ---
+
+export async function deleteTemplate(templateId: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { error } = await supabase
+        .from('workout_templates')
+        .delete()
+        .eq('id', templateId)
+        .eq('author_id', session.user.id); // Only delete own templates
+
+    if (error) throw error;
+}
+
+export async function updateTemplate(
+    templateId: string,
+    updates: {
+        name?: string;
+        exercises?: { name: string; sets: number; reps: string }[];
+        category?: 'strength' | 'cardio' | 'hiit' | 'flexibility' | 'custom';
+        description?: string;
+    }
+) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const updateData: Record<string, unknown> = {};
+    if (updates.name) updateData.name = updates.name;
+    if (updates.exercises) updateData.exercises = updates.exercises;
+    if (updates.category) updateData.category = updates.category;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    updateData.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+        .from('workout_templates')
+        .update(updateData)
+        .eq('id', templateId)
+        .eq('author_id', session.user.id) // Only update own templates
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
+export async function getTemplateById(templateId: string) {
+    const { data, error } = await supabase
+        .from('workout_templates')
+        .select('*')
+        .eq('id', templateId)
+        .single();
+
+    if (error) throw error;
+    return data;
 }

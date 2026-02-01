@@ -64,11 +64,19 @@ export default function TemplatesPage() {
         <main className="min-h-screen bg-[var(--color-bg)] pb-24">
             {/* Header */}
             <header className="sticky top-0 z-40 bg-[var(--color-surface)]/80 backdrop-blur-lg border-b border-[var(--color-border)]">
-                <div className="max-w-md mx-auto px-4 py-4 flex items-center gap-4">
-                    <Link href="/workout/builder" className="p-2 -ml-2 rounded-full hover:bg-[var(--color-surface-elevated)]">
-                        <ChevronLeft className="w-5 h-5 text-[var(--color-text)]" />
+                <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-[var(--color-surface-elevated)]">
+                            <ChevronLeft className="w-5 h-5 text-[var(--color-text)]" />
+                        </Link>
+                        <h1 className="font-bold text-[var(--color-text)]">Workout Templates</h1>
+                    </div>
+                    <Link
+                        href="/workout/builder"
+                        className="text-sm font-bold px-3 py-2 bg-[var(--color-primary)] text-white rounded-lg"
+                    >
+                        My Templates
                     </Link>
-                    <h1 className="font-bold text-[var(--color-text)]">Workout Templates</h1>
                 </div>
             </header>
 

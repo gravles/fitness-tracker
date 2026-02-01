@@ -73,11 +73,11 @@ export default function ActiveWorkoutPage() {
                         const template = templates.find((t: WorkoutTemplate) => t.id === templateId);
                         if (template) {
                             setTitle(template.name);
-                            setExercises(template.exercises?.map(e => ({
-                                name: e.exercise_name,
-                                sets: Array(e.target_sets).fill(0).map(() => ({
+                            setExercises(template.exercises?.map((e: any) => ({
+                                name: e.name || e.exercise_name,
+                                sets: Array(e.sets || e.target_sets || 3).fill(0).map(() => ({
                                     weight: '',
-                                    reps: e.target_reps,
+                                    reps: e.reps || e.target_reps || '10',
                                     completed: false
                                 }))
                             })) || []);
