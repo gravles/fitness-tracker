@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { Loader2, Plus, Check, Clock, Save, MoreVertical, X, Play, Pause } from 'lucide-react';
 import { format } from 'date-fns';
 import { getTemplates, getWorkoutDetails, createWorkoutExercise, logSet, WorkoutTemplate } from '@/lib/workout-api';
+import { useTemplate as useTemplateAction, WorkoutTemplate as FeaturesTemplate } from '@/lib/features';
 import { upsertDailyLog, addWorkout } from '@/lib/api';
 import { WorkoutSpotter } from '@/components/WorkoutSpotter';
 import { RestTimer } from '@/components/RestTimer';
@@ -51,15 +52,36 @@ export default function ActiveWorkoutPage() {
             setLoading(true);
             try {
                 if (templateId) {
-                    // Load from template
-                    const templates = await getTemplates();
-                    const template = templates.find((t: WorkoutTemplate) => t.id === templateId);
-                    if (template) {
-                        setTitle(template.name);
-                        setExercises(template.exercises?.map(e => ({
-                            name: e.exercise_name,
-                            sets: Array(e.target_sets).fill(0).map(() => ({ weight: '', reps: e.target_reps, completed: false }))
-                        })) || []);
+                    // Load from public/user template via features lib
+                    try {
+                        const template = await useTemplateAction(templateId);
+                        if (template) {
+                            setTitle(template.name);
+                            // Features templates have exercises as: { name, sets, reps }
+                            setExercises(template.exercises?.map(e => ({
+                                name: e.name,
+                                sets: Array(e.sets).fill(0).map(() => ({
+                                    weight: '',
+                                    reps: e.reps,
+                                    completed: false
+                                }))
+                            })) || []);
+                        }
+                    } catch {
+                        // Fallback: try user's workout-api templates
+                        const templates = await getTemplates();
+                        const template = templates.find((t: WorkoutTemplate) => t.id === templateId);
+                        if (template) {
+                            setTitle(template.name);
+                            setExercises(template.exercises?.map(e => ({
+                                name: e.exercise_name,
+                                sets: Array(e.target_sets).fill(0).map(() => ({
+                                    weight: '',
+                                    reps: e.target_reps,
+                                    completed: false
+                                }))
+                            })) || []);
+                        }
                     }
                 } else if (params.id && params.id !== 'new') {
                     // Load existing workout for EDITING

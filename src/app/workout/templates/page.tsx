@@ -53,8 +53,8 @@ export default function TemplatesPage() {
         haptics.success();
         try {
             await useTemplate(template.id);
-            // Navigate to workout builder with template data
-            router.push(`/workout/builder?template=${template.id}`);
+            // Navigate to active workout tracker with template data
+            router.push(`/workout/active/new?template=${template.id}`);
         } catch (error) {
             console.error('Failed to use template', error);
         }
@@ -83,8 +83,8 @@ export default function TemplatesPage() {
                                 setCategory(cat.value);
                             }}
                             className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${category === cat.value
-                                    ? 'bg-[var(--color-primary)] text-white'
-                                    : 'bg-[var(--color-surface-elevated)] text-[var(--color-text)]'
+                                ? 'bg-[var(--color-primary)] text-white'
+                                : 'bg-[var(--color-surface-elevated)] text-[var(--color-text)]'
                                 }`}
                         >
                             {cat.icon} {cat.label}
@@ -247,8 +247,8 @@ function TemplateCard({
     return (
         <div
             className={`p-4 rounded-2xl border transition-all ${featured
-                    ? 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-yellow-200 dark:border-yellow-700'
-                    : 'bg-[var(--color-surface-elevated)] border-[var(--color-border)]'
+                ? 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-yellow-200 dark:border-yellow-700'
+                : 'bg-[var(--color-surface-elevated)] border-[var(--color-border)]'
                 }`}
         >
             <div className="flex justify-between items-start mb-2">
