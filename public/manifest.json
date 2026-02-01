@@ -61,5 +61,59 @@
                 }
             ]
         }
+    ],
+    "widgets": [
+        {
+            "name": "Daily Progress",
+            "description": "Today's fitness tracking progress",
+            "tag": "daily",
+            "ms_ac_template": "/widget-templates/daily.json",
+            "data": "/api/widget?type=daily",
+            "type": "application/json",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ],
+            "backgrounds": [
+                {
+                    "src": "/widget-bg-gradient.png",
+                    "sizes": "512x512"
+                }
+            ],
+            "screenshots": [],
+            "short_name": "Progress"
+        },
+        {
+            "name": "Streak Counter",
+            "description": "Your current workout streak",
+            "tag": "streak",
+            "ms_ac_template": "/widget-templates/streak.json",
+            "data": "/api/widget?type=streak",
+            "type": "application/json",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ],
+            "short_name": "Streak"
+        },
+        {
+            "name": "XP Level",
+            "description": "Your XP and level progress",
+            "tag": "xp",
+            "ms_ac_template": "/widget-templates/xp.json",
+            "data": "/api/widget?type=xp",
+            "type": "application/json",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ],
+            "short_name": "XP"
+        }
     ]
 }
