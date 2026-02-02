@@ -128,6 +128,8 @@ export default function CalendarPage() {
                         const dateStr = format(day, 'yyyy-MM-dd');
                         const log = logs[dateStr];
                         const isCurrent = isToday(day);
+                        const isPast = day < new Date() && !isCurrent;
+                        const isMissed = isPast && !log; // No log record at all
 
                         // Indicators
                         const moved = log?.movement_completed;
@@ -140,11 +142,16 @@ export default function CalendarPage() {
                                 className="group relative"
                             >
                                 <div className={`aspect-square flex flex-col items-center justify-start pt-1 rounded-xl transition-all
-                                    ${isCurrent ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-105 z-10' : 'hover:bg-gray-50 text-gray-700'}
+                                    ${isCurrent ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-105 z-10' : ''}
+                                    ${isMissed ? 'bg-gray-100 text-gray-400' : ''}
+                                    ${!isCurrent && !isMissed ? 'hover:bg-gray-50 text-gray-700' : ''}
                                 `}>
-                                    <span className={`text-sm font-bold ${isCurrent ? 'text-white' : ''}`}>{format(day, 'd')}</span>
+                                    <span className={`text-sm font-bold ${isCurrent ? 'text-white' : ''} ${isMissed ? 'text-gray-400' : ''}`}>{format(day, 'd')}</span>
 
                                     <div className="flex gap-1 mt-1">
+                                        {isMissed && (
+                                            <span className="text-[10px] text-gray-400">✕</span>
+                                        )}
                                         {moved && (
                                             <div className={`w-1.5 h-1.5 rounded-full ${isCurrent ? 'bg-white' : 'bg-green-500'}`} />
                                         )}
@@ -166,12 +173,15 @@ export default function CalendarPage() {
             </div>
 
             {/* Legend */}
-            <div className="flex justify-center gap-6 text-xs font-medium text-gray-500">
+            <div className="flex flex-wrap justify-center gap-4 text-xs font-medium text-gray-500">
                 <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-green-500" /> Movement
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-orange-400" /> Nutrition
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-gray-100 text-gray-400 flex items-center justify-center text-[10px]">✕</div> Missed
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-lg bg-blue-600 border border-blue-600 text-white flex items-center justify-center text-[10px]">Today</div> Current
