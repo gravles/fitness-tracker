@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { format, addDays, startOfWeek, eachDayOfInterval, isToday } from 'date-fns';
 import {
     ChevronLeft, ChevronRight, Plus, Calendar, Clock, Dumbbell, Play, X, Trash2,
-    Loader2, LayoutGrid, Edit2, Sparkles, Star, Filter, MoreVertical, Copy, Check
+    Loader2, LayoutGrid, Edit2, Sparkles, Star, MoreVertical, Copy, Check, Eye, Zap, Bot
 } from 'lucide-react';
 import { getScheduledWorkouts, deleteScheduledWorkout, skipScheduledWorkout, ScheduledWorkout } from '@/lib/schedule-api';
 import { getTemplates, createTemplate, deleteTemplate, updateTemplate, WorkoutTemplate } from '@/lib/workout-api';
@@ -24,10 +24,29 @@ const CATEGORIES: { value: WorkoutCategoryFilter; label: string; icon: string }[
     { value: 'flexibility', label: 'Flexibility', icon: '🧘' },
 ];
 
+// Common exercises for autocomplete
+const COMMON_EXERCISES = [
+    'Bench Press', 'Incline Bench Press', 'Dumbbell Press', 'Push-ups',
+    'Squat', 'Deadlift', 'Leg Press', 'Lunges', 'Romanian Deadlift',
+    'Pull-ups', 'Lat Pulldown', 'Rows', 'Bent Over Row', 'Cable Row',
+    'Shoulder Press', 'Lateral Raise', 'Front Raise', 'Face Pulls',
+    'Bicep Curl', 'Hammer Curl', 'Tricep Extension', 'Tricep Pushdown',
+    'Plank', 'Crunches', 'Mountain Climbers', 'Russian Twists',
+    'Burpees', 'Box Jumps', 'Kettlebell Swings', 'Battle Ropes',
+    'Running', 'Cycling', 'Rowing', 'Jump Rope', 'Stair Climber',
+    'Hip Thrusts', 'Calf Raises', 'Leg Curl', 'Leg Extension',
+];
+
 interface ExerciseItem {
     name: string;
     sets: number;
     reps: string;
+}
+
+interface AIRecommendation {
+    title: string;
+    exercises: { name: string; sets: number; reps: string }[];
+    reason: string;
 }
 
 export default function WorkoutHubPage() {
@@ -56,6 +75,19 @@ export default function WorkoutHubPage() {
     const [menuOpen, setMenuOpen] = useState<string | null>(null);
     const [copiedId, setCopiedId] = useState<string | null>(null);
 
+    // Template preview modal state
+    const [previewTemplate, setPreviewTemplate] = useState<WorkoutTemplate | PublicTemplate | null>(null);
+
+    // Exercise autocomplete state
+    const [showAutocomplete, setShowAutocomplete] = useState(false);
+    const [autocompleteResults, setAutocompleteResults] = useState<string[]>([]);
+    const autocompleteRef = useRef<HTMLDivElement>(null);
+
+    // AI recommendations state
+    const [aiRecommendations, setAiRecommendations] = useState<AIRecommendation[]>([]);
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiError, setAiError] = useState<string | null>(null);
+
     // Loading state
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -68,6 +100,30 @@ export default function WorkoutHubPage() {
     useEffect(() => {
         loadData();
     }, [currentWeekStart, categoryFilter, activeTab]);
+
+    // Close autocomplete when clicking outside
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (autocompleteRef.current && !autocompleteRef.current.contains(event.target as Node)) {
+                setShowAutocomplete(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Update autocomplete results when input changes
+    useEffect(() => {
+        if (exerciseInput.trim().length > 0) {
+            const filtered = COMMON_EXERCISES.filter(ex =>
+                ex.toLowerCase().includes(exerciseInput.toLowerCase())
+            ).slice(0, 6);
+            setAutocompleteResults(filtered);
+            setShowAutocomplete(filtered.length > 0);
+        } else {
+            setShowAutocomplete(false);
+        }
+    }, [exerciseInput]);
 
     async function loadData() {
         setLoading(true);
@@ -88,6 +144,22 @@ export default function WorkoutHubPage() {
             console.error('Error loading data:', error);
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function loadAIRecommendations() {
+        setAiLoading(true);
+        setAiError(null);
+        try {
+            const res = await fetch('/api/ai/recommend-workout', { method: 'POST' });
+            if (!res.ok) throw new Error('Failed to get recommendations');
+            const data = await res.json();
+            setAiRecommendations(data.recommendations || []);
+        } catch (error) {
+            console.error('Error loading AI recommendations:', error);
+            setAiError('Unable to load recommendations');
+        } finally {
+            setAiLoading(false);
         }
     }
 
@@ -154,6 +226,25 @@ export default function WorkoutHubPage() {
         setMenuOpen(null);
     }
 
+    async function handleDuplicateTemplate(template: WorkoutTemplate) {
+        haptics.tap();
+        try {
+            const exercises = (template.exercises || []).map((e: any) => ({
+                exercise_name: e.name || e.exercise_name || '',
+                target_sets: e.sets || e.target_sets || 3,
+                target_reps: e.reps || e.target_reps || '10',
+                order_index: 0
+            }));
+            await createTemplate(`${template.name} (Copy)`, exercises);
+            loadData();
+            setMenuOpen(null);
+            haptics.success();
+        } catch (error) {
+            console.error('Error duplicating template:', error);
+            haptics.error();
+        }
+    }
+
     async function handleSaveTemplate() {
         if (!formTitle.trim()) return;
         haptics.tap();
@@ -200,10 +291,12 @@ export default function WorkoutHubPage() {
         }
     }
 
-    function addExercise() {
-        if (!exerciseInput.trim()) return;
-        setFormExercises([...formExercises, { name: exerciseInput, sets: 3, reps: '10' }]);
+    function addExercise(name?: string) {
+        const exerciseName = name || exerciseInput.trim();
+        if (!exerciseName) return;
+        setFormExercises([...formExercises, { name: exerciseName, sets: 3, reps: '10' }]);
         setExerciseInput('');
+        setShowAutocomplete(false);
     }
 
     function removeExercise(index: number) {
@@ -225,6 +318,26 @@ export default function WorkoutHubPage() {
             haptics.success();
         } catch (error) {
             console.error('Error copying template:', error);
+            haptics.error();
+        }
+    }
+
+    async function handleSaveAIRecommendation(rec: AIRecommendation) {
+        haptics.tap();
+        try {
+            const exercises = rec.exercises.map(e => ({
+                exercise_name: e.name,
+                target_sets: e.sets,
+                target_reps: e.reps,
+                order_index: 0
+            }));
+            await createTemplate(rec.title, exercises);
+            haptics.success();
+            // Switch to templates tab to show the new template
+            setActiveTab('templates');
+            loadData();
+        } catch (error) {
+            console.error('Error saving AI recommendation:', error);
             haptics.error();
         }
     }
@@ -352,8 +465,8 @@ export default function WorkoutHubPage() {
                                                 <div
                                                     key={workout.id}
                                                     className={`flex items-center justify-between p-3 rounded-xl ${workout.status === 'completed' ? 'bg-green-50 border border-green-200'
-                                                            : workout.status === 'skipped' ? 'bg-gray-50 border border-gray-200 opacity-60'
-                                                                : 'bg-gray-50 border border-gray-200'
+                                                        : workout.status === 'skipped' ? 'bg-gray-50 border border-gray-200 opacity-60'
+                                                            : 'bg-gray-50 border border-gray-200'
                                                         }`}
                                                 >
                                                     <div className="flex items-center gap-3">
@@ -457,6 +570,13 @@ export default function WorkoutHubPage() {
                                         </div>
                                         <div className="flex items-center gap-2 flex-shrink-0">
                                             <button
+                                                onClick={() => setPreviewTemplate(template)}
+                                                className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                                                title="Preview"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </button>
+                                            <button
                                                 onClick={() => { haptics.success(); router.push(`/workout/active/new?template=${template.id}`); }}
                                                 className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
                                                 title="Start workout"
@@ -477,6 +597,12 @@ export default function WorkoutHubPage() {
                                                             className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                                                         >
                                                             <Edit2 className="w-4 h-4" /> Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDuplicateTemplate(template)}
+                                                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                                                        >
+                                                            <Copy className="w-4 h-4" /> Duplicate
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteTemplate(template.id)}
@@ -533,6 +659,71 @@ export default function WorkoutHubPage() {
             {/* ==================== DISCOVER TAB ==================== */}
             {activeTab === 'discover' && (
                 <div className="space-y-4">
+                    {/* AI Recommendations Section */}
+                    <div className="bg-gradient-to-br from-violet-50 via-purple-50 to-fuchsia-50 rounded-2xl border border-purple-200 p-4">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <div className="p-2 bg-purple-100 rounded-lg">
+                                    <Bot className="w-5 h-5 text-purple-600" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-gray-900">AI Recommendations</h3>
+                                    <p className="text-xs text-gray-500">Personalized workouts based on your history</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={loadAIRecommendations}
+                                disabled={aiLoading}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                            >
+                                {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                                {aiRecommendations.length > 0 ? 'Refresh' : 'Generate'}
+                            </button>
+                        </div>
+
+                        {aiError && (
+                            <div className="text-sm text-red-600 bg-red-50 p-2 rounded-lg mb-3">{aiError}</div>
+                        )}
+
+                        {aiRecommendations.length > 0 && (
+                            <div className="space-y-2">
+                                {aiRecommendations.map((rec, idx) => (
+                                    <div key={idx} className="bg-white rounded-xl p-3 border border-purple-100">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h4 className="font-bold text-gray-900">{rec.title}</h4>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handleSaveAIRecommendation(rec)}
+                                                    className="p-1.5 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200"
+                                                    title="Save to My Templates"
+                                                >
+                                                    <Copy className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <p className="text-xs text-purple-600 mb-2">{rec.reason}</p>
+                                        <div className="flex flex-wrap gap-1">
+                                            {rec.exercises.slice(0, 4).map((ex, i) => (
+                                                <span key={i} className="px-2 py-0.5 bg-purple-50 text-purple-700 text-xs rounded">
+                                                    {ex.name}
+                                                </span>
+                                            ))}
+                                            {rec.exercises.length > 4 && (
+                                                <span className="text-xs text-purple-400">+{rec.exercises.length - 4}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {!aiLoading && aiRecommendations.length === 0 && !aiError && (
+                            <p className="text-sm text-gray-500 text-center py-4">
+                                Tap &quot;Generate&quot; to get personalized workout suggestions
+                            </p>
+                        )}
+                    </div>
+
                     {/* Category Filter */}
                     <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 scrollbar-hide">
                         {CATEGORIES.map(cat => (
@@ -540,8 +731,8 @@ export default function WorkoutHubPage() {
                                 key={cat.value}
                                 onClick={() => { haptics.tap(); setCategoryFilter(cat.value); }}
                                 className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${categoryFilter === cat.value
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                     }`}
                             >
                                 {cat.icon} {cat.label}
@@ -577,8 +768,8 @@ export default function WorkoutHubPage() {
                                                 <div className="flex items-center gap-2 text-sm text-gray-500">
                                                     {template.difficulty && (
                                                         <span className={`px-2 py-0.5 rounded-full text-xs ${template.difficulty === 'beginner' ? 'bg-green-100 text-green-700'
-                                                                : template.difficulty === 'intermediate' ? 'bg-yellow-100 text-yellow-700'
-                                                                    : 'bg-red-100 text-red-700'
+                                                            : template.difficulty === 'intermediate' ? 'bg-yellow-100 text-yellow-700'
+                                                                : 'bg-red-100 text-red-700'
                                                             }`}>
                                                             {template.difficulty}
                                                         </span>
@@ -594,6 +785,13 @@ export default function WorkoutHubPage() {
                                         </div>
                                         <div className="flex items-center gap-2 flex-shrink-0">
                                             <button
+                                                onClick={() => setPreviewTemplate(template)}
+                                                className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                                                title="Preview"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </button>
+                                            <button
                                                 onClick={() => { haptics.success(); router.push(`/workout/active/new?template=${template.id}`); }}
                                                 className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
                                                 title="Start workout"
@@ -603,8 +801,8 @@ export default function WorkoutHubPage() {
                                             <button
                                                 onClick={() => handleCopyTemplate(template)}
                                                 className={`p-2 rounded-lg transition-colors ${copiedId === template.id
-                                                        ? 'bg-green-100 text-green-600'
-                                                        : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                                                    ? 'bg-green-100 text-green-600'
+                                                    : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
                                                     }`}
                                                 title="Save to My Templates"
                                             >
@@ -649,6 +847,66 @@ export default function WorkoutHubPage() {
                 />
             )}
 
+            {/* ==================== TEMPLATE PREVIEW MODAL ==================== */}
+            {previewTemplate && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setPreviewTemplate(null)}>
+                    <div className="bg-white w-full max-w-md rounded-2xl max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900">{previewTemplate.name}</h2>
+                                <p className="text-sm text-gray-500">
+                                    {Array.isArray(previewTemplate.exercises) ? `${previewTemplate.exercises.length} exercises` : 'Custom workout'}
+                                </p>
+                            </div>
+                            <button onClick={() => setPreviewTemplate(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+                                <X className="w-5 h-5 text-gray-500" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4">
+                            {Array.isArray(previewTemplate.exercises) && previewTemplate.exercises.length > 0 ? (
+                                <div className="space-y-3">
+                                    {previewTemplate.exercises.map((ex: any, idx: number) => (
+                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center font-bold text-sm">
+                                                    {idx + 1}
+                                                </div>
+                                                <span className="font-medium text-gray-900">{ex.name || ex.exercise_name}</span>
+                                            </div>
+                                            <span className="text-sm text-gray-500">
+                                                {ex.sets || ex.target_sets} × {ex.reps || ex.target_reps}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-center text-gray-500 py-8">No exercises defined</p>
+                            )}
+                        </div>
+
+                        <div className="p-4 border-t border-gray-100 flex gap-3">
+                            <button
+                                onClick={() => setPreviewTemplate(null)}
+                                className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200"
+                            >
+                                Close
+                            </button>
+                            <button
+                                onClick={() => {
+                                    haptics.success();
+                                    router.push(`/workout/active/new?template=${previewTemplate.id}`);
+                                }}
+                                className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 flex items-center justify-center gap-2"
+                            >
+                                <Play className="w-5 h-5" />
+                                Start Workout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* ==================== TEMPLATE EDITOR MODAL ==================== */}
             {showEditorModal && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setShowEditorModal(false)}>
@@ -670,19 +928,36 @@ export default function WorkoutHubPage() {
                                 />
                             </div>
 
-                            {/* Add Exercise */}
-                            <div>
+                            {/* Add Exercise with Autocomplete */}
+                            <div ref={autocompleteRef}>
                                 <label className="block text-sm font-bold text-gray-700 mb-1">Exercises</label>
-                                <div className="flex gap-2">
-                                    <input
-                                        className="flex-1 p-3 bg-gray-50 rounded-xl border border-gray-200"
-                                        placeholder="Add exercise name"
-                                        value={exerciseInput}
-                                        onChange={e => setExerciseInput(e.target.value)}
-                                        onKeyDown={e => e.key === 'Enter' && addExercise()}
-                                    />
+                                <div className="flex gap-2 relative">
+                                    <div className="flex-1 relative">
+                                        <input
+                                            className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200"
+                                            placeholder="Type exercise name..."
+                                            value={exerciseInput}
+                                            onChange={e => setExerciseInput(e.target.value)}
+                                            onKeyDown={e => e.key === 'Enter' && addExercise()}
+                                            onFocus={() => exerciseInput && setShowAutocomplete(true)}
+                                        />
+                                        {showAutocomplete && autocompleteResults.length > 0 && (
+                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 overflow-hidden">
+                                                {autocompleteResults.map((ex, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => addExercise(ex)}
+                                                        className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 flex items-center gap-2"
+                                                    >
+                                                        <Dumbbell className="w-4 h-4 text-gray-400" />
+                                                        {ex}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                     <button
-                                        onClick={addExercise}
+                                        onClick={() => addExercise()}
                                         className="px-4 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"
                                     >
                                         <Plus className="w-5 h-5" />
