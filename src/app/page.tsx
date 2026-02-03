@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowRight, Flame, Trophy, Mic, Camera, Settings } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { getStreak, getMonthlyLogs, getBodyMetricsHistory } from '@/lib/api';
+import { checkReminders } from '@/lib/notifications';
 import { SmartCoach } from '@/components/SmartCoach';
 import { WeeklySummary } from '@/components/WeeklySummary';
 import { RecentLogs } from '@/components/RecentLogs';
@@ -85,6 +86,9 @@ export default function Dashboard() {
         avgProtein: proteinLogs.length > 0 ? Math.round(totalProtein / proteinLogs.length) : 0,
         totalAlcohol: totalAlcohol
       });
+
+      // Check if any reminders should be sent
+      checkReminders();
 
     } catch (error) {
       console.error(error);

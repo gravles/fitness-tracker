@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { getSettings, updateSettings, getUserBadges, UserBadge } from '@/lib/api';
-import { Loader2, Save, Target, Plus, Trophy, Sparkles, Rocket, Bell } from 'lucide-react';
+import { Loader2, Save, Target, Plus, Trophy, Sparkles, Rocket } from 'lucide-react';
 import { TrophyCase } from '@/components/TrophyCase';
 import { StravaConnect } from '@/components/StravaConnect';
 import { ChangelogModal } from '@/components/ChangelogModal';
-import { getPermissionStatus, subscribeToPush, unsubscribeFromPush, isPushSupported } from '@/lib/notifications';
+import { NotificationSettings } from '@/components/NotificationSettings';
 import { haptics } from '@/lib/haptics';
 
 function PWADiagnostic() {
@@ -81,8 +81,6 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showChangelog, setShowChangelog] = useState(false);
-    const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-    const [notificationsSupported, setNotificationsSupported] = useState(false);
     const [targets, setTargets] = useState({
         weight: '',
         protein: '',
@@ -116,13 +114,6 @@ export default function SettingsPage() {
                     equipment: data.available_equipment || []
                 });
             }
-
-            // Check notification status
-            if (isPushSupported()) {
-                setNotificationsSupported(true);
-                const status = getPermissionStatus();
-                setNotificationsEnabled(status === 'granted');
-            }
         } catch (error) {
             console.error(error);
         } finally {
@@ -130,20 +121,7 @@ export default function SettingsPage() {
         }
     }
 
-    async function handleToggleNotifications() {
-        haptics.tap();
-        try {
-            if (notificationsEnabled) {
-                await unsubscribeFromPush();
-                setNotificationsEnabled(false);
-            } else {
-                const sub = await subscribeToPush();
-                setNotificationsEnabled(!!sub);
-            }
-        } catch (error) {
-            console.error('Notification toggle failed', error);
-        }
-    }
+
 
     async function handleSave() {
         setSaving(true);
@@ -222,24 +200,8 @@ export default function SettingsPage() {
                     <h2 className="font-bold text-lg">Customization</h2>
                 </div>
 
-                {/* Push Notifications Toggle */}
-                {notificationsSupported && (
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Bell className="w-5 h-5 text-purple-600" />
-                            <div>
-                                <h3 className="font-medium text-gray-900">Push Notifications</h3>
-                                <p className="text-sm text-gray-500">Get reminders to log and streak alerts</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={handleToggleNotifications}
-                            className={`w-12 h-6 rounded-full transition-colors relative ${notificationsEnabled ? 'bg-purple-600' : 'bg-gray-200'}`}
-                        >
-                            <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${notificationsEnabled ? 'translate-x-6' : ''}`} />
-                        </button>
-                    </div>
-                )}
+                {/* Daily Reminders */}
+                <NotificationSettings />
 
                 {/* Cycle Tracking Toggle */}
                 <div className="flex items-center justify-between">

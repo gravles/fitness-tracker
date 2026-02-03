@@ -106,34 +106,88 @@ export async function sendLocalNotification(
 
 /**
  * Schedule a daily reminder notification
+ * @deprecated Use localStorage 'scheduled_reminders' instead
  */
 export function scheduleReminder(time: { hour: number; minute: number }): void {
     // Store reminder preference
     localStorage.setItem('notification_reminder', JSON.stringify(time));
-
-    // In a real app, you'd schedule this on the backend
-    // For now, we'll check on app open
     console.log(`Reminder scheduled for ${time.hour}:${time.minute.toString().padStart(2, '0')}`);
 }
 
+interface ScheduledReminder {
+    id: string;
+    time: string; // HH:MM format
+    title: string;
+    body: string;
+    tag: string;
+}
+
 /**
- * Check if reminder should be sent (call this on app open)
+ * Check if any reminders should be sent (call this on app open)
+ * Supports multiple reminder types with individual schedules
+ */
+export async function checkReminders(): Promise<void> {
+    const remindersJson = localStorage.getItem('scheduled_reminders');
+    if (!remindersJson) return;
+
+    const reminders: ScheduledReminder[] = JSON.parse(remindersJson);
+    const today = new Date().toDateString();
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+
+    for (const reminder of reminders) {
+        const lastNotifiedKey = `last_${reminder.id}_date`;
+        const lastNotified = localStorage.getItem(lastNotifiedKey);
+
+        // Skip if already notified today for this reminder
+        if (lastNotified === today) continue;
+
+        // Parse scheduled time
+        const [hours, minutes] = reminder.time.split(':').map(Number);
+        const scheduledTime = hours * 60 + minutes;
+
+        // Check if it's past the scheduled time
+        if (currentTime >= scheduledTime) {
+            // For log reminder, check if user has logged today
+            if (reminder.id === 'log-reminder') {
+                const loggedToday = localStorage.getItem('logged_today') === today;
+                if (loggedToday) continue; // Already logged, skip
+            }
+
+            // For move reminder, could check if movement completed
+            // For now, always send if not sent today
+
+            await sendLocalNotification(reminder.title, {
+                body: reminder.body,
+                tag: reminder.tag,
+                data: { url: '/log' },
+            });
+
+            localStorage.setItem(lastNotifiedKey, today);
+        }
+    }
+}
+
+/**
+ * Legacy check (for backward compatibility)
  */
 export async function checkReminder(): Promise<void> {
+    // First try new format
+    await checkReminders();
+
+    // Fall back to old format
     const reminderStr = localStorage.getItem('notification_reminder');
     if (!reminderStr) return;
 
     const lastNotified = localStorage.getItem('last_reminder_date');
     const today = new Date().toDateString();
 
-    if (lastNotified === today) return; // Already notified today
+    if (lastNotified === today) return;
 
     const reminder = JSON.parse(reminderStr);
     const now = new Date();
 
     if (now.getHours() >= reminder.hour) {
-        // It's past reminder time - check if they've logged today
-        // This would normally check the backend
         const hasLoggedToday = localStorage.getItem('logged_today') === today;
 
         if (!hasLoggedToday) {
