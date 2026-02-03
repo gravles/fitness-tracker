@@ -1,7 +1,7 @@
 'use client';
 
-import { Workout, addWorkout, deleteWorkout } from '@/lib/api';
-import { Loader2, Plus, Dumbbell, Clock, Trash2, Sparkles, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
+import { Workout, addWorkout, deleteWorkout, updateWorkout } from '@/lib/api';
+import { Loader2, Plus, Dumbbell, Clock, Trash2, Sparkles, Pencil, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { useRouter } from 'next/navigation';
@@ -34,6 +34,8 @@ export function MovementSection({
     const [newWorkout, setNewWorkout] = useState<{ activity_type: string, duration: number, intensity: 'Moderate' | 'Light' | 'Hard' }>({ activity_type: '', duration: 30, intensity: 'Moderate' });
     const [localAdding, setLocalAdding] = useState(false);
     const [showAddForm, setShowAddForm] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editForm, setEditForm] = useState<{ activity_type: string, duration: number, intensity: 'Moderate' | 'Light' | 'Hard' }>({ activity_type: '', duration: 30, intensity: 'Moderate' });
 
     const workoutPresets = [
         { emoji: '🏃', label: 'Run', activity: 'Running', duration: 30 },
@@ -98,6 +100,35 @@ export function MovementSection({
         }
     }
 
+    function handleEditWorkout(workout: Workout) {
+        setEditingId(workout.id!);
+        setEditForm({
+            activity_type: workout.activity_type,
+            duration: workout.duration,
+            intensity: workout.intensity as 'Light' | 'Moderate' | 'Hard'
+        });
+    }
+
+    async function handleSaveEdit() {
+        if (!editingId) return;
+        try {
+            await updateWorkout(editingId, {
+                activity_type: editForm.activity_type,
+                duration: editForm.duration,
+                intensity: editForm.intensity
+            });
+            setWorkouts(workouts.map(w =>
+                w.id === editingId
+                    ? { ...w, activity_type: editForm.activity_type, duration: editForm.duration, intensity: editForm.intensity }
+                    : w
+            ));
+            setEditingId(null);
+        } catch (error) {
+            console.error('Error updating workout', error);
+            alert('Failed to update workout');
+        }
+    }
+
     return (
         <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
@@ -131,55 +162,108 @@ export function MovementSection({
                     {workouts.length > 0 && (
                         <div className="space-y-3">
                             {workouts.map(workout => (
-                                <div key={workout.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center border border-gray-100 shadow-sm">
-                                            <Dumbbell className="w-5 h-5 text-blue-500" />
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <h4 className="font-bold text-gray-900">{workout.activity_type}</h4>
-                                                {workout.source === 'strava' && (
-                                                    <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-bold">Strava</span>
-                                                )}
+                                <div key={workout.id} className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                    {editingId === workout.id ? (
+                                        /* Inline Edit Form */
+                                        <div className="space-y-3">
+                                            <input
+                                                type="text"
+                                                value={editForm.activity_type}
+                                                onChange={e => setEditForm({ ...editForm, activity_type: e.target.value })}
+                                                className="w-full p-2 bg-white rounded-lg border border-gray-200 font-medium"
+                                                placeholder="Activity type"
+                                            />
+                                            <div className="flex gap-3">
+                                                <div className="flex-1">
+                                                    <label className="text-xs font-bold text-gray-500 uppercase">Duration (min)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={editForm.duration}
+                                                        onChange={e => setEditForm({ ...editForm, duration: parseInt(e.target.value) || 0 })}
+                                                        className="w-full p-2 bg-white rounded-lg border border-gray-200"
+                                                    />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <label className="text-xs font-bold text-gray-500 uppercase">Intensity</label>
+                                                    <select
+                                                        value={editForm.intensity}
+                                                        onChange={e => setEditForm({ ...editForm, intensity: e.target.value as any })}
+                                                        className="w-full p-2 bg-white rounded-lg border border-gray-200"
+                                                    >
+                                                        <option>Light</option>
+                                                        <option>Moderate</option>
+                                                        <option>Hard</option>
+                                                    </select>
+                                                </div>
                                             </div>
-                                            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
-                                                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {workout.duration} min</span>
-                                                {workout.distance && (
-                                                    <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full">
-                                                        📏 {(workout.distance / 1000).toFixed(2)} km
-                                                    </span>
-                                                )}
-                                                {workout.calories && (
-                                                    <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full">
-                                                        🔥 {workout.calories} kcal
-                                                    </span>
-                                                )}
-                                                {workout.average_heartrate && (
-                                                    <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full">
-                                                        ❤️ {Math.round(workout.average_heartrate)} bpm
-                                                    </span>
-                                                )}
-                                                <span className="px-2 py-0.5 bg-gray-200 rounded-full text-gray-700 font-medium">{workout.intensity}</span>
+                                            <div className="flex gap-2 justify-end">
+                                                <button
+                                                    onClick={() => setEditingId(null)}
+                                                    className="px-3 py-1.5 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1"
+                                                >
+                                                    <X className="w-4 h-4" /> Cancel
+                                                </button>
+                                                <button
+                                                    onClick={handleSaveEdit}
+                                                    className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1"
+                                                >
+                                                    <Check className="w-4 h-4" /> Save
+                                                </button>
                                             </div>
-                                            {workout.notes && <p className="text-xs text-gray-400 mt-1 italic line-clamp-1">{workout.notes}</p>}
                                         </div>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                        <button
-                                            onClick={() => router.push(`/workout/active/${workout.id}`)}
-                                            className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                                            title="Edit in Tracker"
-                                        >
-                                            <Pencil className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeleteWorkout(workout.id!)}
-                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
+                                    ) : (
+                                        /* Normal Display */
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center border border-gray-100 shadow-sm">
+                                                    <Dumbbell className="w-5 h-5 text-blue-500" />
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="font-bold text-gray-900">{workout.activity_type}</h4>
+                                                        {workout.source === 'strava' && (
+                                                            <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-bold">Strava</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
+                                                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {workout.duration} min</span>
+                                                        {workout.distance && (
+                                                            <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                                📏 {(workout.distance / 1000).toFixed(2)} km
+                                                            </span>
+                                                        )}
+                                                        {workout.calories && (
+                                                            <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                                🔥 {workout.calories} kcal
+                                                            </span>
+                                                        )}
+                                                        {workout.average_heartrate && (
+                                                            <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                                ❤️ {Math.round(workout.average_heartrate)} bpm
+                                                            </span>
+                                                        )}
+                                                        <span className="px-2 py-0.5 bg-gray-200 rounded-full text-gray-700 font-medium">{workout.intensity}</span>
+                                                    </div>
+                                                    {workout.notes && <p className="text-xs text-gray-400 mt-1 italic line-clamp-1">{workout.notes}</p>}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={() => handleEditWorkout(workout)}
+                                                    className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    title="Edit"
+                                                >
+                                                    <Pencil className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteWorkout(workout.id!)}
+                                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                             <div className="text-right text-sm text-gray-500 font-medium pt-2 border-t border-gray-100">

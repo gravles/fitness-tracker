@@ -385,17 +385,6 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 </div>
             )}
 
-            {/* Floating Save Button */}
-            <div className="fixed bottom-24 right-6 md:right-1/2 md:translate-x-32 z-30">
-                <button
-                    onClick={() => triggerSave(true)}
-                    disabled={saving}
-                    className="bg-gray-900 text-white rounded-full p-4 shadow-xl shadow-gray-400 hover:scale-110 transition-transform active:scale-95 disabled:opacity-50"
-                >
-                    {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Check className="w-6 h-6" />}
-                </button>
-            </div>
-
             {/* ==================== MODALS ==================== */}
 
             {showMenuScanner && (

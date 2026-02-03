@@ -533,7 +533,19 @@ export function NutritionSection({
                     </div>
                 </div>
 
-
+                {/* Log Complete Toggle */}
+                <div className="mt-6 p-4 bg-green-50 rounded-xl border border-green-100 flex items-center justify-between">
+                    <div>
+                        <h4 className="font-bold text-green-900 text-sm">Nutrition Log Complete?</h4>
+                        <p className="text-xs text-green-700">Mark when you've logged all food for today.</p>
+                    </div>
+                    <button
+                        onClick={() => setNutrition({ ...nutrition, logged: !nutrition.logged })}
+                        className={`relative w-12 h-6 rounded-full transition-colors ${nutrition.logged ? 'bg-green-600' : 'bg-gray-300'}`}
+                    >
+                        <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm ${nutrition.logged ? 'translate-x-6' : ''}`} />
+                    </button>
+                </div>
             </section>
         </>
     );
