@@ -2,7 +2,14 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Daily Logging Flow', () => {
     test.beforeEach(async ({ page }) => {
-        // Create a test user session or mock auth
+        // Inject fake session to bypass AuthWrapper
+        await page.addInitScript(() => {
+            window.localStorage.setItem('E2E_TEST_SESSION', JSON.stringify({
+                user: { id: 'test-user-123', email: 'test@example.com' },
+                access_token: 'fake-jwt-token'
+            }));
+        });
+
         // Navigate to the app
         await page.goto('/');
     });
@@ -43,9 +50,12 @@ test.describe('Daily Logging Flow', () => {
     test('movement section can be toggled', async ({ page }) => {
         await page.goto('/log');
 
+        // Click Activity Tab
+        await page.getByRole('button', { name: /activity/i }).click();
+
         // Look for movement completed toggle/checkbox
-        const movementToggle = page.getByLabel(/movement/i).or(
-            page.locator('[id*="movement"]')
+        const movementToggle = page.getByRole('button', { name: /yes/i }).or(
+            page.locator('button:has-text("Yes")')
         );
 
         if (await movementToggle.count() > 0) {
@@ -56,14 +66,13 @@ test.describe('Daily Logging Flow', () => {
     test('nutrition data can be entered', async ({ page }) => {
         await page.goto('/log');
 
-        // Look for calorie input
-        const calorieInput = page.getByLabel(/calories/i).or(
-            page.locator('input[name*="calorie"]')
-        );
+        // Nutrition tab is default, looking for "Type" button
+        const typeButton = page.getByRole('button', { name: /type/i });
 
-        if (await calorieInput.count() > 0) {
-            await calorieInput.first().fill('1800');
-            await expect(calorieInput.first()).toHaveValue('1800');
+        if (await typeButton.count() > 0) {
+            await typeButton.click();
+            // Assuming this opens a modal or input
+            await expect(page.locator('input[placeholder*="food"]')).toBeVisible();
         }
     });
 });
@@ -85,8 +94,9 @@ test.describe('Workout Tracking Flow', () => {
     test('workout page displays correctly', async ({ page }) => {
         await page.goto('/workout');
 
-        // Should have some workout-related content
-        await expect(page.locator('body')).toContainText(/workout|exercise|training/i);
+        // Should have some workout-related content like "Start New Workout"
+        await expect(page.locator('body')).toContainText(/start new workout/i);
+        await expect(page.locator('body')).toContainText(/ai coach/i);
     });
 });
 

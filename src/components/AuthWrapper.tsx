@@ -11,6 +11,14 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // Check for E2E Test Mode
+        const e2eSession = typeof window !== 'undefined' ? localStorage.getItem('E2E_TEST_SESSION') : null;
+        if (e2eSession) {
+            setSession(JSON.parse(e2eSession));
+            setLoading(false);
+            return;
+        }
+
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
             setLoading(false);

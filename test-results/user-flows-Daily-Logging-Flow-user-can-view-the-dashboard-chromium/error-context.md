@@ -1,0 +1,124 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - main [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - heading "Dashboard" [level=1] [ref=e6]
+        - paragraph [ref=e7]: Tuesday, February 3
+      - link "Settings" [ref=e8] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e9]
+    - button "Level 1 XP progress. Click to view history." [ref=e12] [cursor=pointer]:
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]: "1"
+          - generic [ref=e16]:
+            - heading "Level 1" [level=4] [ref=e17]
+            - paragraph [ref=e18]: 0 Lifetime XP
+        - generic [ref=e19]: 100 XP to next
+      - generic [ref=e20]:
+        - progressbar
+    - button "View AI Weekly Analysis" [ref=e22]:
+      - generic [ref=e23]: 📊
+      - text: View AI Weekly Analysis
+    - generic [ref=e24]:
+      - generic [ref=e25]:
+        - generic [ref=e26]:
+          - img [ref=e27]
+          - generic [ref=e29]: Current Streak
+        - generic [ref=e30]: 0 Days
+        - paragraph [ref=e31]: Keep the fire burning! 🔥
+      - img [ref=e33]
+    - region "Weekly Summary" [ref=e35]:
+      - heading "Weekly Summary" [level=3] [ref=e36]
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - img [ref=e39]
+          - generic [ref=e43]: "--"
+          - generic [ref=e44]: Avg Lbs
+        - generic [ref=e45]:
+          - img [ref=e46]
+          - generic [ref=e52]: "0"
+          - generic [ref=e53]: Mins
+        - generic [ref=e54]:
+          - img [ref=e55]
+          - generic [ref=e58]: "0"
+          - generic [ref=e59]: g Prot
+        - generic [ref=e60]:
+          - generic [ref=e61]: 🍺
+          - generic [ref=e62]: "0"
+          - generic [ref=e63]: Drinks
+    - generic [ref=e65] [cursor=pointer]:
+      - generic [ref=e66]:
+        - img [ref=e68]
+        - generic [ref=e70]:
+          - paragraph [ref=e71]: Schedule Your Workouts
+          - paragraph [ref=e72]: Plan ahead and stay consistent
+      - img [ref=e73]
+    - region "Quick Add" [ref=e75]:
+      - heading "Quick Add" [level=3] [ref=e76]
+      - generic [ref=e77]:
+        - link "Log with voice" [ref=e78] [cursor=pointer]:
+          - /url: /log?action=voice
+          - img [ref=e81]
+          - generic [ref=e84]: Voice Log
+        - link "Snap a photo of your meal" [ref=e85] [cursor=pointer]:
+          - /url: /log?action=camera
+          - img [ref=e88]
+          - generic [ref=e91]: Snap Meal
+    - link "Log Today Full daily log & details" [ref=e92] [cursor=pointer]:
+      - /url: /log
+      - generic [ref=e93]:
+        - generic [ref=e94]:
+          - heading "Log Today" [level=3] [ref=e95]
+          - paragraph [ref=e96]: Full daily log & details
+        - img [ref=e98]
+    - generic [ref=e101]:
+      - generic [ref=e102]:
+        - button [ref=e103]:
+          - img [ref=e104]
+        - img [ref=e108]
+        - heading "Welcome to AI Fitness! 🚀" [level=2] [ref=e111]
+      - generic [ref=e112]:
+        - paragraph [ref=e113]: Your personal tracker just got a major brain upgrade. Let's take a quick tour of the new AI superpowers.
+        - button "Next" [ref=e123]:
+          - text: Next
+          - img [ref=e124]
+  - generic [ref=e130] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=e131]:
+      - img [ref=e132]
+    - generic [ref=e135]:
+      - button "Open issues overlay" [ref=e136]:
+        - generic [ref=e137]:
+          - generic [ref=e138]: "1"
+          - generic [ref=e139]: "2"
+        - generic [ref=e140]:
+          - text: Issue
+          - generic [ref=e141]: s
+      - button "Collapse issues badge" [ref=e142]:
+        - img [ref=e143]
+  - alert [ref=e145]
+  - navigation "Main navigation" [ref=e146]:
+    - link "Home" [ref=e147] [cursor=pointer]:
+      - /url: /
+      - img [ref=e148]
+      - generic [ref=e151]: Home
+    - link "Log" [ref=e152] [cursor=pointer]:
+      - /url: /log
+      - img [ref=e153]
+      - generic [ref=e155]: Log
+    - link "Workout" [ref=e156] [cursor=pointer]:
+      - /url: /schedule
+      - img [ref=e157]
+      - generic [ref=e163]: Workout
+    - link "Coach" [ref=e164] [cursor=pointer]:
+      - /url: /coach
+      - img [ref=e165]
+      - generic [ref=e168]: Coach
+    - link "Trends" [ref=e169] [cursor=pointer]:
+      - /url: /trends
+      - img [ref=e170]
+      - generic [ref=e173]: Trends
+```
