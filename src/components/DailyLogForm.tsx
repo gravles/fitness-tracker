@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getDailyLog, upsertDailyLog, getWorkouts, Workout, getFavoriteFoods, FavoriteFood, addWorkout } from '@/lib/api';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Utensils, Activity, Heart, Check } from 'lucide-react';
 import { MenuScanner } from './MenuScanner';
 import { WorkoutChatModal } from './WorkoutChatModal';
 import { FoodSelector } from './FoodSelector';
@@ -15,7 +15,7 @@ import { HabitsSection } from './daily-log/HabitsSection';
 import { TextLogModal } from './TextLogModal';
 import { haptics } from '@/lib/haptics';
 
-
+type LogTab = 'nutrition' | 'activity' | 'wellness';
 
 interface DailyLogFormProps {
     date: Date;
@@ -24,17 +24,15 @@ interface DailyLogFormProps {
 export function DailyLogForm({ date }: DailyLogFormProps) {
     const searchParams = useSearchParams();
 
+    // Tab state
+    const [activeTab, setActiveTab] = useState<LogTab>('nutrition');
+
     const [loading, setLoading] = useState(true);
     const [foodItems, setFoodItems] = useState<any[]>([]);
     const [showMenuScanner, setShowMenuScanner] = useState(false);
     const [showWorkoutChat, setShowWorkoutChat] = useState(false);
     const [chatInitialInput, setChatInitialInput] = useState('');
     const [showTextInput, setShowTextInput] = useState(false);
-
-    // The original file had `setShowTextInput` triggered by a button. I probably need to keep that modal or logic.
-    // I see `NutritionSection` triggers `setShowTextInput`.
-    // So the modal for text input must be here.
-
     const [showFoodSelector, setShowFoodSelector] = useState(false);
 
     // State Variables
@@ -88,7 +86,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
 
         autosaveTimeout.current = setTimeout(() => {
             triggerSave();
-        }, 2000); // 2 second debounce
+        }, 2000);
 
         return () => {
             if (autosaveTimeout.current) clearTimeout(autosaveTimeout.current);
@@ -105,105 +103,71 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         }
 
         isSavingRef.current = true;
-        setSaving(true);
+        await performSave(manual);
+        isSavingRef.current = false;
 
-        try {
-            await performSave(manual);
-        } finally {
-            isSavingRef.current = false;
-            setSaving(false);
-
-            // If another change happened while we were saving, save again immediately
-            if (pendingSaveRef.current) {
-                pendingSaveRef.current = false;
-                triggerSave(false); // recursive autosave
-            }
+        if (pendingSaveRef.current) {
+            pendingSaveRef.current = false;
+            triggerSave();
         }
     }
 
-
     async function fetchLog() {
         setLoading(true);
-        // Ensure local date string YYYY-MM-DD
-        const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
-        const dateStr = offsetDate.toISOString().split('T')[0];
-
+        isFirstLoad.current = true;
         try {
-            // Fetch everything we need: Log, Workouts, AND Settings (for targets)
-            const [logData, workoutData, favoritesData, settingsData] = await Promise.all([
+            const dateStr = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            const [log, workoutData, favData] = await Promise.all([
                 getDailyLog(dateStr),
                 getWorkouts(dateStr),
-                getFavoriteFoods(),
-                import('@/lib/api').then(m => m.getSettings())
+                getFavoriteFoods()
             ]);
 
-            // Update Settings State
-            if (settingsData) {
-                setSettings({
-                    cycle: settingsData.enable_cycle_tracking ?? true,
-                    habits: settingsData.custom_habits && settingsData.custom_habits.length > 0 ? settingsData.custom_habits : ['Meditation', 'Cold Plunge', 'Reading', 'Stretching', 'No Sugar']
-                });
-                setTargetsState({
-                    protein: settingsData.target_protein || 0,
-                    calories: settingsData.target_calories || 0
-                });
-            }
+            setWorkouts(workoutData || []);
+            setFavorites(favData || []);
 
-            if (logData) {
-                setMovementCompleted(logData.movement_completed);
+            if (log) {
+                setMovementCompleted(log.movement_completed ?? null);
                 setNutrition({
-                    protein: logData.protein_grams || 0,
-                    carbs: logData.carbs_grams || 0,
-                    fat: logData.fat_grams || 0,
-                    calories: logData.calories || 0,
-                    windowStart: logData.eating_window_start || '',
-                    windowEnd: logData.eating_window_end || '',
-                    logged: logData.nutrition_logged ?? false
+                    protein: log.protein_grams ?? 0,
+                    carbs: log.carbs_grams ?? 0,
+                    fat: log.fat_grams ?? 0,
+                    calories: log.calories ?? 0,
+                    windowStart: log.eating_window_start ?? '',
+                    windowEnd: log.eating_window_end ?? '',
+                    logged: log.nutrition_logged ?? true,
                 });
-                setFoodItems(logData.food_items || []);
-                setAlcohol(logData.alcohol_drinks || 0);
+                setFoodItems(log.food_items || []);
+                setAlcohol(log.alcohol_drinks ?? 0);
                 setSubjective({
-                    sleep: logData.sleep_quality || 3,
-                    energy: logData.energy_level || 3,
-                    motivation: logData.motivation_level || 3,
-                    stress: logData.stress_level || 3,
-                    note: logData.daily_note || ''
+                    sleep: log.sleep_quality ?? 3,
+                    energy: log.energy_level ?? 3,
+                    motivation: log.motivation_level ?? 3,
+                    stress: log.stress_level ?? 3,
+                    note: log.notes ?? '',
                 });
-                setHabits(logData.habits || []);
-                setMenstrualFlow(logData.menstrual_flow || null);
-
-                // Calculate Initial XP from existing data
-                const { calculateXP } = await import('@/lib/gamification');
-                const t = settingsData ? { daily_protein: settingsData.target_protein || 0, daily_calories: settingsData.target_calories || 0 } : undefined;
-                const baseline = calculateXP(logData, t);
-                setInitialXP(baseline);
-
+                setHabits(log.habits_completed || []);
+                setMenstrualFlow(log.menstrual_flow || null);
+                setInitialXP(log.xp_earned || 0);
+                setSettings(prev => ({ ...prev, habits: log.available_habits || [] }));
             } else {
-                // Reset form defaults if no log exists
+                // Reset to defaults
                 setMovementCompleted(null);
-                setNutrition({
-                    protein: 0, carbs: 0, fat: 0, calories: 0,
-                    windowStart: '', windowEnd: '', logged: false
-                });
+                setNutrition({ protein: 0, carbs: 0, fat: 0, calories: 0, windowStart: '', windowEnd: '', logged: true });
                 setFoodItems([]);
                 setAlcohol(0);
-                setSubjective({
-                    sleep: 3, energy: 3, motivation: 3, stress: 3, note: ''
-                });
+                setSubjective({ sleep: 3, energy: 3, motivation: 3, stress: 3, note: '' });
                 setHabits([]);
-                setMenstrualFlow(null);
                 setMenstrualFlow(null);
                 setInitialXP(0);
             }
-            setWorkouts(workoutData || []);
-            setFavorites(favoritesData || []);
-
-        } catch (error) {
-            console.error('Error fetching log:', error);
+        } catch (e) {
+            console.error('Error fetching log:', e);
         } finally {
             setLoading(false);
-            // Allow autosave after initial load
-            setTimeout(() => { isFirstLoad.current = false; }, 1000);
+            setTimeout(() => {
+                isFirstLoad.current = false;
+            }, 100);
         }
     }
 
@@ -213,125 +177,75 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
 
     // Food Item Management
     function addFoodItems(items: any[]) {
-        // Init quantity to 1 if not present
-        const newItems = items.map(i => ({ ...i, quantity: i.quantity || 1 }));
-        setFoodItems(prev => {
-            const updatedList = [...prev, ...newItems];
-            updateNutritionTotals(updatedList);
-            return updatedList;
-        });
+        const newItems = [...foodItems, ...items];
+        setFoodItems(newItems);
+        updateNutritionTotals(newItems);
+        haptics.success();
     }
 
-    // Helper needed for addFoodItems above
     function updateNutritionTotals(items: any[]) {
-        let p = 0, c = 0, carbs = 0, fat = 0;
-
-        items.forEach(item => {
-            const rawQ = item.quantity !== undefined ? item.quantity : 1;
-            const q = parseFloat(String(rawQ));
-            const multiplier = isNaN(q) ? 0 : q;
-
-            p += (item.protein || 0) * multiplier;
-            c += (item.calories || 0) * multiplier;
-            carbs += (item.carbs || 0) * multiplier;
-            fat += (item.fat || 0) * multiplier;
-        });
+        const totals = items.reduce(
+            (acc, item) => ({
+                calories: acc.calories + (item.calories || 0),
+                protein: acc.protein + (item.protein || 0),
+                carbs: acc.carbs + (item.carbs || 0),
+                fat: acc.fat + (item.fat || 0),
+            }),
+            { calories: 0, protein: 0, carbs: 0, fat: 0 }
+        );
 
         setNutrition(prev => ({
             ...prev,
-            protein: Math.round(p),
-            calories: Math.round(c),
-            carbs: Math.round(carbs),
-            fat: Math.round(fat)
+            calories: totals.calories,
+            protein: totals.protein,
+            carbs: totals.carbs,
+            fat: totals.fat,
         }));
     }
 
     async function performSave(isManualLog = false) {
-        const isAutosave = !isManualLog; // Semantic clarity
-        // Note: setSaving is handled by triggerSave wrapper
-        // setSaving(true); 
-        const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
-        const dateStr = offsetDate.toISOString().split('T')[0];
+        setSaving(true);
 
         try {
-            // --- GAMIFICATION LOGIC START ---
-            const { calculateXP } = await import('@/lib/gamification');
-
-            // 1. Reconstruct New State
-            const currentLogState: any = {
-                movement_completed: movementCompleted === false ? false : (movementCompleted === true || workouts.length > 0),
-                movement_duration: totalDuration,
-                protein_grams: nutrition.protein,
-                calories: nutrition.calories,
-                habits: habits,
-                date: dateStr
-            };
-
-            // 2. Refresh Targets (ensure we use latest keys)
-            const activeTargets = targetsState ? { daily_protein: targetsState.protein, daily_calories: targetsState.calories } : undefined;
-            const newDailyXP = calculateXP(currentLogState, activeTargets);
-
-            // 3. Calculate Delta
-            const xpDelta = newDailyXP - initialXP;
-
-            // --- END GAMIFICATION PRE-CALC ---
+            const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+            const dateStr = offsetDate.toISOString().split('T')[0];
 
             const logData = {
                 date: dateStr,
-                movement_completed: currentLogState.movement_completed,
+                movement_completed: movementCompleted ?? undefined,
                 movement_duration: totalDuration,
-
+                movement_intensity: workouts.length > 0 ? workouts[0].intensity : undefined,
+                calories: nutrition.calories,
                 protein_grams: nutrition.protein,
                 carbs_grams: nutrition.carbs,
                 fat_grams: nutrition.fat,
-                calories: nutrition.calories,
                 eating_window_start: nutrition.windowStart || null,
                 eating_window_end: nutrition.windowEnd || null,
                 nutrition_logged: nutrition.logged,
-
                 food_items: foodItems,
-
                 alcohol_drinks: alcohol,
-
                 sleep_quality: subjective.sleep,
                 energy_level: subjective.energy,
                 motivation_level: subjective.motivation,
                 stress_level: subjective.stress,
-                daily_note: subjective.note,
-
-                habits: habits,
-                menstrual_flow: menstrualFlow
+                notes: subjective.note,
+                habits_completed: habits,
+                menstrual_flow: menstrualFlow,
             };
 
             await upsertDailyLog(logData);
 
-            // Apply XP update if any
-            if (xpDelta !== 0) {
-                const { updateUserXP } = await import('@/lib/api');
-                const result = await updateUserXP(xpDelta);
-                setInitialXP(newDailyXP); // Update baseline for next save
-
-                if (!isAutosave) {
-                    haptics.success(); // Celebratory haptic on XP gain
-                    if (xpDelta > 0) {
-                        alert(`Saved! You earned +${xpDelta} XP! (Daily Total: ${newDailyXP}) ${result?.leveledUp ? 'LEVEL UP! 🎉' : ''}`);
-                    } else {
-                        alert(`Saved! Updated daily stats.`);
-                    }
-                }
-            } else {
-                if (!isAutosave) {
-                    haptics.tap(); // Simple confirmation haptic
-                    alert('Saved!');
-                }
+            if (isManualLog) {
+                haptics.success();
             }
-
-        } catch (error) {
-            console.error('Error saving log:', error);
-            haptics.error(); // Error haptic
-            if (!isAutosave) alert('Failed to save log');
+        } catch (e) {
+            console.error('Error saving log:', e);
+            if (isManualLog) {
+                alert('Failed to save. Please try again.');
+                haptics.error();
+            }
         } finally {
-            // setSaving(false); // Handled by triggerSave
+            setSaving(false);
         }
     }
 
@@ -343,74 +257,140 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         );
     }
 
-    // Offset date for children who need it
     const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
     const dateStr = offsetDate.toISOString().split('T')[0];
 
+    // Tab summary helpers
+    const nutritionSummary = nutrition.calories > 0
+        ? `${nutrition.calories} cal • ${nutrition.protein}g protein`
+        : 'Not logged';
+
+    const activitySummary = workouts.length > 0
+        ? `${workouts.length} workout${workouts.length > 1 ? 's' : ''} • ${totalDuration}m`
+        : movementCompleted === true ? 'Active' : movementCompleted === false ? 'Rest day' : 'Not logged';
+
+    const wellnessSummary = `Sleep ${subjective.sleep}/5 • Energy ${subjective.energy}/5`;
+
     return (
-        <div className="space-y-6 pb-32">
+        <div className="space-y-4 pb-32">
+            {/* Tab Navigation */}
+            <div className="flex bg-gray-100 rounded-xl p-1">
+                <button
+                    onClick={() => { haptics.tap(); setActiveTab('nutrition'); }}
+                    className={`flex-1 flex flex-col items-center py-2.5 rounded-lg font-medium transition-all ${activeTab === 'nutrition' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                >
+                    <div className="flex items-center gap-1.5">
+                        <Utensils className="w-4 h-4" />
+                        <span className="text-sm font-bold">Nutrition</span>
+                    </div>
+                    <span className={`text-[10px] mt-0.5 ${activeTab === 'nutrition' ? 'text-gray-500' : 'text-gray-400'}`}>
+                        {nutrition.calories > 0 ? `${nutrition.calories} cal` : '—'}
+                    </span>
+                </button>
+                <button
+                    onClick={() => { haptics.tap(); setActiveTab('activity'); }}
+                    className={`flex-1 flex flex-col items-center py-2.5 rounded-lg font-medium transition-all ${activeTab === 'activity' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                >
+                    <div className="flex items-center gap-1.5">
+                        <Activity className="w-4 h-4" />
+                        <span className="text-sm font-bold">Activity</span>
+                    </div>
+                    <span className={`text-[10px] mt-0.5 ${activeTab === 'activity' ? 'text-gray-500' : 'text-gray-400'}`}>
+                        {workouts.length > 0 ? `${workouts.length} workout` : '—'}
+                    </span>
+                </button>
+                <button
+                    onClick={() => { haptics.tap(); setActiveTab('wellness'); }}
+                    className={`flex-1 flex flex-col items-center py-2.5 rounded-lg font-medium transition-all ${activeTab === 'wellness' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                >
+                    <div className="flex items-center gap-1.5">
+                        <Heart className="w-4 h-4" />
+                        <span className="text-sm font-bold">Wellness</span>
+                    </div>
+                    <span className={`text-[10px] mt-0.5 ${activeTab === 'wellness' ? 'text-gray-500' : 'text-gray-400'}`}>
+                        {habits.length > 0 ? `${habits.length} habits` : '—'}
+                    </span>
+                </button>
+            </div>
 
-            <MovementSection
-                movementCompleted={movementCompleted}
-                setMovementCompleted={setMovementCompleted}
-                workouts={workouts}
-                setWorkouts={setWorkouts}
-                dateStr={dateStr}
-                onOpenAiCoach={() => setShowWorkoutChat(true)}
-                onAddWorkoutStart={() => setAddingWorkout(true)} // Note: MovementSection has local adding state, this might be redundant or unused, but keeps consistency
-                addingWorkout={addingWorkout}
-                onDeleteWorkoutStart={() => { }}
-            />
+            {/* ==================== NUTRITION TAB ==================== */}
+            {activeTab === 'nutrition' && (
+                <div className="space-y-6">
+                    <NutritionSection
+                        nutrition={nutrition}
+                        setNutrition={setNutrition}
+                        foodItems={foodItems}
+                        setFoodItems={setFoodItems}
+                        setAlcohol={setAlcohol}
+                        setSubjective={setSubjective}
+                        setChatInitialInput={setChatInitialInput}
+                        setShowWorkoutChat={setShowWorkoutChat}
+                        onAddFoodItems={addFoodItems}
+                        autoStartVoice={autoStartVoice}
+                        showCamera={showCamera}
+                        setShowCamera={setShowCamera}
+                        setShowMenuScanner={setShowMenuScanner}
+                        setShowFoodSelector={setShowFoodSelector}
+                        setShowTextInput={setShowTextInput}
+                        favorites={favorites}
+                        setFavorites={setFavorites}
+                    />
+                </div>
+            )}
 
-            <NutritionSection
-                nutrition={nutrition}
-                setNutrition={setNutrition}
-                foodItems={foodItems}
-                setFoodItems={setFoodItems}
-                setAlcohol={setAlcohol}
-                setSubjective={setSubjective}
-                setChatInitialInput={setChatInitialInput}
-                setShowWorkoutChat={setShowWorkoutChat}
-                onAddFoodItems={addFoodItems}
-                autoStartVoice={autoStartVoice}
-                showCamera={showCamera}
-                setShowCamera={setShowCamera}
-                setShowMenuScanner={setShowMenuScanner}
-                setShowFoodSelector={setShowFoodSelector}
-                setShowTextInput={setShowTextInput}
-                favorites={favorites}
-                setFavorites={setFavorites}
-            />
+            {/* ==================== ACTIVITY TAB ==================== */}
+            {activeTab === 'activity' && (
+                <div className="space-y-6">
+                    <MovementSection
+                        movementCompleted={movementCompleted}
+                        setMovementCompleted={setMovementCompleted}
+                        workouts={workouts}
+                        setWorkouts={setWorkouts}
+                        dateStr={dateStr}
+                        onOpenAiCoach={() => setShowWorkoutChat(true)}
+                        onAddWorkoutStart={() => setAddingWorkout(true)}
+                        addingWorkout={addingWorkout}
+                        onDeleteWorkoutStart={() => { }}
+                    />
 
-            <AlcoholSection
-                alcohol={alcohol}
-                setAlcohol={setAlcohol}
-            />
+                    <AlcoholSection
+                        alcohol={alcohol}
+                        setAlcohol={setAlcohol}
+                    />
+                </div>
+            )}
 
-            <SubjectiveSection
-                subjective={subjective}
-                setSubjective={setSubjective}
-            />
+            {/* ==================== WELLNESS TAB ==================== */}
+            {activeTab === 'wellness' && (
+                <div className="space-y-6">
+                    <SubjectiveSection
+                        subjective={subjective}
+                        setSubjective={setSubjective}
+                    />
 
-            <HabitsSection
-                habits={habits}
-                setHabits={setHabits}
-                availableHabits={settings.habits}
-            />
+                    <HabitsSection
+                        habits={habits}
+                        setHabits={setHabits}
+                        availableHabits={settings.habits}
+                    />
+                </div>
+            )}
 
-            {/* Floating Action Button for Manual Save (optional as autosave exists, but good for UX) */}
+            {/* Floating Save Button */}
             <div className="fixed bottom-24 right-6 md:right-1/2 md:translate-x-32 z-30">
                 <button
                     onClick={() => triggerSave(true)}
                     disabled={saving}
                     className="bg-gray-900 text-white rounded-full p-4 shadow-xl shadow-gray-400 hover:scale-110 transition-transform active:scale-95 disabled:opacity-50"
                 >
-                    {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <span className="font-bold text-sm">SAVE</span>}
+                    {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Check className="w-6 h-6" />}
                 </button>
             </div>
 
-
-            {/* Modals and Overlays */}
+            {/* ==================== MODALS ==================== */}
 
             {showMenuScanner && (
                 <MenuScanner
@@ -431,7 +411,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                         setWorkouts([...workouts, added]);
                         alert('Workout added!');
                         setShowWorkoutChat(false);
-                        setChatInitialInput(''); // Clear for next time
+                        setChatInitialInput('');
                     } catch (e) {
                         console.error("Failed to add workout", e);
                         alert("Failed to save workout. Please try again.");

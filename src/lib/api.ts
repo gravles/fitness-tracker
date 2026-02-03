@@ -5,7 +5,7 @@ export interface DailyLog {
     id?: string;
     user_id?: string;
     date: string; // YYYY-MM-DD
-    movement_completed: boolean;
+    movement_completed?: boolean;
     movement_type?: string | null; // Deprecated in favor of workouts table
     movement_duration?: number | null; // Deprecated
     movement_intensity?: string | null; // Deprecated
@@ -24,12 +24,17 @@ export interface DailyLog {
     motivation_level?: number | null;
     stress_level?: number | null;
     daily_note?: string | null;
+    notes?: string | null;  // Alias for subjective note 
     habits?: string[] | null;
+    habits_completed?: string[] | null;
+    available_habits?: string[] | null;
+    xp_earned?: number | null;
     food_items?: any[] | null; // { name, calories, protein, carbs, fat }
     menstrual_flow?: string | null;
     created_at?: string;
     updated_at?: string;
 }
+
 
 export interface Workout {
     id?: string;
