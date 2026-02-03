@@ -1,6 +1,6 @@
 'use client';
 
-import { Brain, Moon, Zap, Activity } from 'lucide-react';
+import { Brain, Moon, Zap, Activity, AlertCircle } from 'lucide-react';
 
 interface SubjectiveSectionProps {
     subjective: {
@@ -16,11 +16,35 @@ interface SubjectiveSectionProps {
 export function SubjectiveSection({ subjective, setSubjective }: SubjectiveSectionProps) {
 
     const metrics = [
-        { label: 'Sleep Quality', icon: <Moon className="w-4 h-4" />, key: 'sleep' },
-        { label: 'Energy', icon: <Zap className="w-4 h-4" />, key: 'energy' },
-        { label: 'Motivation', icon: <Activity className="w-4 h-4" />, key: 'motivation' },
-        { label: 'Stress', icon: <Activity className="w-4 h-4" />, key: 'stress' },
+        {
+            label: 'Sleep Quality',
+            icon: <Moon className="w-4 h-4" />,
+            key: 'sleep',
+            emojis: ['😴', '😐', '🙂', '😊', '🌟']
+        },
+        {
+            label: 'Energy',
+            icon: <Zap className="w-4 h-4" />,
+            key: 'energy',
+            emojis: ['🔋', '😑', '🙂', '😃', '⚡']
+        },
+        {
+            label: 'Motivation',
+            icon: <Activity className="w-4 h-4" />,
+            key: 'motivation',
+            emojis: ['😩', '😕', '🙂', '💪', '🔥']
+        },
+        {
+            label: 'Stress',
+            icon: <AlertCircle className="w-4 h-4" />,
+            key: 'stress',
+            emojis: ['😌', '🙂', '😐', '😟', '😤']
+        },
     ];
+
+    function getEmoji(metric: typeof metrics[0], value: number) {
+        return metric.emojis[value - 1] || '😐';
+    }
 
     return (
         <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
@@ -29,27 +53,39 @@ export function SubjectiveSection({ subjective, setSubjective }: SubjectiveSecti
             </h3>
 
             <div className="space-y-6">
-                {metrics.map((metric) => (
-                    <div key={metric.key}>
-                        <div className="flex justify-between mb-2">
-                            <label className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                                {metric.icon} {metric.label}
-                            </label>
-                            <span className="font-bold text-gray-900">{(subjective as any)[metric.key]}/5</span>
+                {metrics.map((metric) => {
+                    const value = (subjective as any)[metric.key];
+                    return (
+                        <div key={metric.key}>
+                            <div className="flex justify-between mb-2">
+                                <label className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                                    {metric.icon} {metric.label}
+                                </label>
+                                <span className="font-bold text-gray-900 flex items-center gap-1">
+                                    <span className="text-lg">{getEmoji(metric, value)}</span>
+                                    {value}/5
+                                </span>
+                            </div>
+                            <input
+                                type="range"
+                                min="1" max="5" step="1"
+                                value={value}
+                                onChange={(e) => setSubjective({ ...subjective, [metric.key]: parseInt(e.target.value) })}
+                                className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                            />
+                            <div className="flex justify-between text-sm mt-1 px-1">
+                                {metric.emojis.map((emoji, idx) => (
+                                    <span
+                                        key={idx}
+                                        className={`transition-all ${value === idx + 1 ? 'scale-125' : 'opacity-50'}`}
+                                    >
+                                        {emoji}
+                                    </span>
+                                ))}
+                            </div>
                         </div>
-                        <input
-                            type="range"
-                            min="1" max="5" step="1"
-                            value={(subjective as any)[metric.key]}
-                            onChange={(e) => setSubjective({ ...subjective, [metric.key]: parseInt(e.target.value) })}
-                            className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                        />
-                        <div className="flex justify-between text-xs text-gray-400 mt-1 px-1">
-                            <span>Low</span>
-                            <span>High</span>
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
 
                 <div>
                     <label className="text-sm font-medium text-gray-500 mb-2 block">Daily Notes</label>

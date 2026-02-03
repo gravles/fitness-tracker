@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getDailyLog, upsertDailyLog, getWorkouts, Workout, getFavoriteFoods, FavoriteFood, addWorkout } from '@/lib/api';
+import { getDailyLog, upsertDailyLog, getWorkouts, Workout, getFavoriteFoods, FavoriteFood, addWorkout, getSettings } from '@/lib/api';
 import { Loader2, Utensils, Activity, Heart, Check } from 'lucide-react';
 import { MenuScanner } from './MenuScanner';
 import { WorkoutChatModal } from './WorkoutChatModal';
@@ -117,14 +117,20 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         isFirstLoad.current = true;
         try {
             const dateStr = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-            const [log, workoutData, favData] = await Promise.all([
+            const [log, workoutData, favData, userSettings] = await Promise.all([
                 getDailyLog(dateStr),
                 getWorkouts(dateStr),
-                getFavoriteFoods()
+                getFavoriteFoods(),
+                getSettings()
             ]);
 
             setWorkouts(workoutData || []);
             setFavorites(favData || []);
+
+            // Set available habits from user settings
+            if (userSettings?.custom_habits) {
+                setSettings(prev => ({ ...prev, habits: userSettings.custom_habits || [] }));
+            }
 
             if (log) {
                 setMovementCompleted(log.movement_completed ?? null);
@@ -149,7 +155,6 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 setHabits(log.habits_completed || []);
                 setMenstrualFlow(log.menstrual_flow || null);
                 setInitialXP(log.xp_earned || 0);
-                setSettings(prev => ({ ...prev, habits: log.available_habits || [] }));
             } else {
                 // Reset to defaults
                 setMovementCompleted(null);
@@ -337,6 +342,12 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                         setShowTextInput={setShowTextInput}
                         favorites={favorites}
                         setFavorites={setFavorites}
+                        targets={targetsState}
+                    />
+
+                    <AlcoholSection
+                        alcohol={alcohol}
+                        setAlcohol={setAlcohol}
                     />
                 </div>
             )}
@@ -354,11 +365,6 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                         onAddWorkoutStart={() => setAddingWorkout(true)}
                         addingWorkout={addingWorkout}
                         onDeleteWorkoutStart={() => { }}
-                    />
-
-                    <AlcoholSection
-                        alcohol={alcohol}
-                        setAlcohol={setAlcohol}
                     />
                 </div>
             )}

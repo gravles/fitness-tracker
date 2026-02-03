@@ -32,6 +32,7 @@ interface NutritionSectionProps {
     setShowTextInput: (val: boolean) => void;
     favorites: FavoriteFood[];
     setFavorites: (val: any) => void;
+    targets?: { protein: number; calories: number };
 }
 
 export function NutritionSection({
@@ -51,7 +52,8 @@ export function NutritionSection({
     setShowFoodSelector,
     setShowTextInput,
     favorites,
-    setFavorites
+    setFavorites,
+    targets
 }: NutritionSectionProps) {
     const [loadingAI, setLoadingAI] = useState(false);
 
@@ -338,9 +340,9 @@ export function NutritionSection({
                         className="flex flex-col items-center gap-1 min-w-[70px]"
                     >
                         <div className="w-12 h-12 bg-pink-50 text-pink-600 rounded-2xl flex items-center justify-center shadow-sm border border-pink-100">
-                            <BookOpen className="w-6 h-6" />
+                            <Heart className="w-6 h-6" />
                         </div>
-                        <span className="text-xs font-bold text-gray-600">History</span>
+                        <span className="text-xs font-bold text-gray-600">Favorites</span>
                     </button>
                 </div>
 
@@ -452,16 +454,54 @@ export function NutritionSection({
                         </div>
                     )}
 
-                    {/* Read-Only Stats Grid */}
+                    {/* Read-Only Stats Grid with Progress Rings */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100 flex flex-col items-center">
+                        {/* Protein with Progress */}
+                        <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100 flex flex-col items-center relative">
+                            {targets?.protein && targets.protein > 0 && (
+                                <div className="absolute top-2 right-2">
+                                    <svg className="w-8 h-8 -rotate-90">
+                                        <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="none" className="text-blue-100" />
+                                        <circle
+                                            cx="16" cy="16" r="12"
+                                            stroke="currentColor" strokeWidth="3" fill="none"
+                                            className="text-blue-500"
+                                            strokeDasharray={`${Math.min(100, (nutrition.protein / targets.protein) * 100) * 0.754} 100`}
+                                            strokeLinecap="round"
+                                        />
+                                    </svg>
+                                </div>
+                            )}
                             <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Protein</span>
                             <span className="text-xl font-black text-blue-700">{nutrition.protein}<span className="text-sm font-medium ml-0.5">g</span></span>
+                            {targets?.protein && targets.protein > 0 && (
+                                <span className="text-[10px] text-blue-500 font-medium">/ {targets.protein}g</span>
+                            )}
                         </div>
-                        <div className="bg-orange-50 p-3 rounded-2xl border border-orange-100 flex flex-col items-center">
+
+                        {/* Calories with Progress */}
+                        <div className="bg-orange-50 p-3 rounded-2xl border border-orange-100 flex flex-col items-center relative">
+                            {targets?.calories && targets.calories > 0 && (
+                                <div className="absolute top-2 right-2">
+                                    <svg className="w-8 h-8 -rotate-90">
+                                        <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="none" className="text-orange-100" />
+                                        <circle
+                                            cx="16" cy="16" r="12"
+                                            stroke="currentColor" strokeWidth="3" fill="none"
+                                            className="text-orange-500"
+                                            strokeDasharray={`${Math.min(100, (nutrition.calories / targets.calories) * 100) * 0.754} 100`}
+                                            strokeLinecap="round"
+                                        />
+                                    </svg>
+                                </div>
+                            )}
                             <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">Calories</span>
                             <span className="text-xl font-black text-orange-700">{nutrition.calories}</span>
+                            {targets?.calories && targets.calories > 0 && (
+                                <span className="text-[10px] text-orange-500 font-medium">/ {targets.calories}</span>
+                            )}
                         </div>
+
                         <div className="bg-yellow-50 p-3 rounded-2xl border border-yellow-100 flex flex-col items-center">
                             <span className="text-xs font-bold text-yellow-500 uppercase tracking-wider">Carbs</span>
                             <span className="text-xl font-black text-yellow-700">{nutrition.carbs}<span className="text-sm font-medium ml-0.5">g</span></span>
@@ -493,19 +533,7 @@ export function NutritionSection({
                     </div>
                 </div>
 
-                {/* Completion Toggle */}
-                <div className="mt-6 p-4 bg-green-50 rounded-xl border border-green-100 flex items-center justify-between">
-                    <div>
-                        <h4 className="font-bold text-green-900 text-sm">Log Complete?</h4>
-                        <p className="text-xs text-green-700">Mark this day as fully tracked.</p>
-                    </div>
-                    <button
-                        onClick={() => setNutrition({ ...nutrition, logged: !nutrition.logged })}
-                        className={`relative w-12 h-6 rounded-full transition-colors ${nutrition.logged ? 'bg-green-600' : 'bg-green-200'}`}
-                    >
-                        <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${nutrition.logged ? 'translate-x-6' : ''}`} />
-                    </button>
-                </div>
+
             </section>
         </>
     );
