@@ -281,3 +281,52 @@ INSERT INTO workout_templates (name, description, category, difficulty, exercise
     true,
     true
 );
+
+-- =====================================================
+-- SCHEDULED WORKOUTS TABLE
+-- =====================================================
+DROP TABLE IF EXISTS scheduled_workouts CASCADE;
+CREATE TABLE scheduled_workouts (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    template_id UUID REFERENCES workout_templates(id) ON DELETE SET NULL,
+    scheduled_date DATE NOT NULL,
+    scheduled_time TIME NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    notes TEXT,
+    status VARCHAR(20) DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed', 'skipped', 'rescheduled')),
+    completed_workout_id UUID REFERENCES workouts(id) ON DELETE SET NULL,
+    reminder_sent BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for efficient queries
+CREATE INDEX idx_scheduled_workouts_user_date 
+ON scheduled_workouts(user_id, scheduled_date);
+
+CREATE INDEX idx_scheduled_workouts_status 
+ON scheduled_workouts(user_id, status, scheduled_date);
+
+-- RLS Policies
+ALTER TABLE scheduled_workouts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own scheduled workouts" ON scheduled_workouts;
+CREATE POLICY "Users can view their own scheduled workouts"
+ON scheduled_workouts FOR SELECT
+USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own scheduled workouts" ON scheduled_workouts;
+CREATE POLICY "Users can insert their own scheduled workouts"
+ON scheduled_workouts FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own scheduled workouts" ON scheduled_workouts;
+CREATE POLICY "Users can update their own scheduled workouts"
+ON scheduled_workouts FOR UPDATE
+USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete their own scheduled workouts" ON scheduled_workouts;
+CREATE POLICY "Users can delete their own scheduled workouts"
+ON scheduled_workouts FOR DELETE
+USING (auth.uid() = user_id);

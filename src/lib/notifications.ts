@@ -212,6 +212,47 @@ export async function sendStreakWarning(streakDays: number): Promise<void> {
     });
 }
 
+/**
+ * Check for scheduled workout notifications
+ * Sends notification if workout is scheduled within ±15 minutes of current time
+ */
+export async function checkScheduledWorkouts(): Promise<void> {
+    // Dynamic import to avoid circular dependency
+    const { getTodaysScheduledWorkouts, updateScheduledWorkout } = await import('./schedule-api');
+
+    try {
+        const workouts = await getTodaysScheduledWorkouts();
+        if (!workouts || workouts.length === 0) return;
+
+        const now = new Date();
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+        for (const workout of workouts) {
+            // Skip if already reminded
+            if (workout.reminder_sent) continue;
+
+            // Parse scheduled time
+            const [hours, minutes] = workout.scheduled_time.split(':').map(Number);
+            const scheduledMinutes = hours * 60 + minutes;
+
+            // Check if within 15 minutes before the scheduled time
+            const diff = scheduledMinutes - currentMinutes;
+            if (diff >= -15 && diff <= 15) {
+                await sendLocalNotification(`🏋️ Time for: ${workout.title}`, {
+                    body: `Your scheduled workout is ${diff <= 0 ? 'now' : `in ${diff} minutes`}!`,
+                    tag: `workout-${workout.id}`,
+                    data: { url: '/schedule' },
+                });
+
+                // Mark reminder as sent
+                await updateScheduledWorkout(workout.id, { reminderSent: true });
+            }
+        }
+    } catch (error) {
+        console.error('Error checking scheduled workouts:', error);
+    }
+}
+
 // Helper functions
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {

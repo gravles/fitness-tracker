@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowRight, Flame, Trophy, Mic, Camera, Settings } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { getStreak, getMonthlyLogs, getBodyMetricsHistory } from '@/lib/api';
-import { checkReminders } from '@/lib/notifications';
+import { checkReminders, checkScheduledWorkouts } from '@/lib/notifications';
 import { SmartCoach } from '@/components/SmartCoach';
 import { WeeklySummary } from '@/components/WeeklySummary';
 import { RecentLogs } from '@/components/RecentLogs';
@@ -18,6 +18,7 @@ import { XPHistoryModal } from '@/components/XPHistoryModal';
 import { ShareModal } from '@/components/ShareModal';
 import { getSettings } from '@/lib/api';
 import { DashboardSkeleton } from '@/components/Skeleton';
+import { UpcomingWorkouts } from '@/components/UpcomingWorkouts';
 
 export default function Dashboard() {
   const today = new Date();
@@ -89,6 +90,7 @@ export default function Dashboard() {
 
       // Check if any reminders should be sent
       checkReminders();
+      checkScheduledWorkouts();
 
     } catch (error) {
       console.error(error);
@@ -185,6 +187,9 @@ export default function Dashboard() {
 
           {/* Weekly Summary */}
           <WeeklySummary stats={weeklyStats} />
+
+          {/* Upcoming Workouts */}
+          <UpcomingWorkouts />
 
           {/* Quick Actions - Enhanced */}
           <section aria-labelledby="quick-add-heading">

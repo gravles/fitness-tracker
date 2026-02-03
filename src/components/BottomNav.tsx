@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PlusCircle, Bot, Dumbbell, TrendingUp } from 'lucide-react';
+import { Home, PlusCircle, Bot, Calendar, TrendingUp } from 'lucide-react';
 
 export function BottomNav() {
     const pathname = usePathname();
@@ -12,8 +12,8 @@ export function BottomNav() {
     const navItems = [
         { href: '/', icon: Home, label: 'Home' },
         { href: '/log', icon: PlusCircle, label: 'Log' },
+        { href: '/schedule', icon: Calendar, label: 'Schedule' },
         { href: '/coach', icon: Bot, label: 'Coach' },
-        { href: '/workout/templates', icon: Dumbbell, label: 'Workouts' },
         { href: '/trends', icon: TrendingUp, label: 'Trends' },
     ];
 
