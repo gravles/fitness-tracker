@@ -403,8 +403,8 @@ export function NutritionSection({
                     {/* Food Items List */}
                     {foodItems.length > 0 && (
                         <div className="space-y-2 mb-4">
-                            {foodItems.map((item, idx) => (
-                                <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm">
+                            {foodItems.map((item, index) => (
+                                <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm">
                                     <div className="flex-1">
                                         <span className="font-bold text-gray-800 block">{item.name}</span>
                                         {item.portion_estimate && <span className="text-xs text-gray-400 block mb-0.5">Unit: {item.portion_estimate}</span>}
@@ -421,17 +421,24 @@ export function NutritionSection({
                                                 min="0"
                                                 step="0.1"
                                                 value={item.quantity !== undefined ? item.quantity : 1}
-                                                onChange={(e) => updateFoodItemQuantity(idx, e.target.value)}
+                                                onChange={(e) => updateFoodItemQuantity(index, e.target.value)}
                                                 className="w-16 p-1 text-center bg-white border border-gray-200 rounded text-sm font-bold"
                                             />
                                         </div>
-                                        <button
-                                            onClick={() => startEdit(item, idx)}
-                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                            title="Edit Item"
-                                        >
-                                            <Pencil className="w-4 h-4" />
-                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => startEdit(item, index)}
+                                                className="p-2 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-50 transition-all tap-target"
+                                            >
+                                                <Pencil className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => removeFoodItem(index)}
+                                                className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-all tap-target"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                         <button
                                             onClick={() => toggleFavorite(item)}
                                             className={`p-2 transition-colors ${isFavorite(item.name)
@@ -442,12 +449,7 @@ export function NutritionSection({
                                         >
                                             <Heart className={`w-4 h-4 ${isFavorite(item.name) ? 'fill-current' : ''}`} />
                                         </button>
-                                        <button
-                                            onClick={() => removeFoodItem(idx)}
-                                            className="text-gray-400 hover:text-red-500 p-2"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+
                                     </div>
                                 </div>
                             ))}
@@ -546,7 +548,7 @@ export function NutritionSection({
                         <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm ${nutrition.logged ? 'translate-x-6' : ''}`} />
                     </button>
                 </div>
-            </section>
+            </section >
         </>
     );
 }

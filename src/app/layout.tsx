@@ -32,6 +32,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover", // Essential for full-screen web apps
 };
 
 import { SWRegister } from "@/components/SWRegister";

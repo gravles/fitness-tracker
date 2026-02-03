@@ -277,7 +277,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     const wellnessSummary = `Sleep ${subjective.sleep}/5 • Energy ${subjective.energy}/5`;
 
     return (
-        <div className="space-y-4 pb-32">
+        <div className="space-y-4 pb-32 pb-safe">
             {/* Tab Navigation */}
             <div className="flex bg-gray-100 rounded-xl p-1">
                 <button
