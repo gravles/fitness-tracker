@@ -120,19 +120,39 @@ export async function upsertDailyLog(log: Partial<DailyLog>) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
-    const { data, error } = await supabase
-        .from('daily_logs')
-        .upsert({
-            ...log,
-            user_id: session.user.id,
-            updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id,date' })
-        .select()
-        .single();
+    try {
+        const { data, error } = await supabase
+            .from('daily_logs')
+            .upsert({
+                ...log,
+                user_id: session.user.id,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id,date' })
+            .select()
+            .single();
 
-    if (error) throw error;
-    return data as DailyLog;
+        if (error) throw error;
+        return data as DailyLog;
+    } catch (error: any) {
+        // Simple offline check: if fetch failed or specifically network error
+        if (typeof window !== 'undefined' && (!navigator.onLine || error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError'))) {
+            console.log('Offline: Queuing daily log update');
+            const { MutationQueue } = await import('./queue');
+
+            // Queue it
+            MutationQueue.enqueue('LOG_DAILY', { ...log, user_id: session.user.id });
+
+            // Return optimistic data
+            return {
+                ...log,
+                user_id: session.user.id,
+                updated_at: new Date().toISOString()
+            } as DailyLog;
+        }
+        throw error;
+    }
 }
+
 
 export async function getMonthlyLogs(startDate: string, endDate: string) {
     const { data: { session } } = await supabase.auth.getSession();
@@ -263,18 +283,33 @@ export async function updateSettings(settings: Partial<UserSettings>) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
-    const { data, error } = await supabase
-        .from('user_settings')
-        .upsert({
-            ...settings,
-            user_id: session.user.id,
-            updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
+    try {
+        const { data, error } = await supabase
+            .from('user_settings')
+            .upsert({
+                ...settings,
+                user_id: session.user.id,
+                updated_at: new Date().toISOString()
+            })
+            .select()
+            .single();
 
-    if (error) throw error;
-    return data as UserSettings;
+        if (error) throw error;
+        return data as UserSettings;
+    } catch (error: any) {
+        if (typeof window !== 'undefined' && (!navigator.onLine || error.message?.includes('Failed to fetch'))) {
+            console.log('Offline: Queuing settings update');
+            const { MutationQueue } = await import('./queue');
+
+            MutationQueue.enqueue('UPDATE_SETTINGS', { ...settings, user_id: session.user.id });
+
+            return {
+                ...settings,
+                user_id: session.user.id,
+            } as UserSettings;
+        }
+        throw error;
+    }
 }
 
 // Workout API
@@ -313,17 +348,35 @@ export async function addWorkout(workout: Omit<Workout, 'id' | 'user_id' | 'crea
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
-    const { data, error } = await supabase
-        .from('workouts')
-        .insert({
-            ...workout,
-            user_id: session.user.id
-        })
-        .select()
-        .single();
+    try {
+        const { data, error } = await supabase
+            .from('workouts')
+            .insert({
+                ...workout,
+                user_id: session.user.id
+            })
+            .select()
+            .single();
 
-    if (error) throw error;
-    return data as Workout;
+        if (error) throw error;
+        return data as Workout;
+    } catch (error: any) {
+        if (typeof window !== 'undefined' && (!navigator.onLine || error.message?.includes('Failed to fetch'))) {
+            console.log('Offline: Queuing workout addition');
+            const { MutationQueue } = await import('./queue');
+
+            MutationQueue.enqueue('ADD_WORKOUT', { ...workout, user_id: session.user.id });
+
+            // Optimistic return
+            return {
+                ...workout,
+                id: `temp-${Date.now()}`,
+                user_id: session.user.id,
+                created_at: new Date().toISOString()
+            } as Workout;
+        }
+        throw error;
+    }
 }
 
 export async function deleteWorkout(id: string) {

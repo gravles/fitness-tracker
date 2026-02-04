@@ -1,4 +1,5 @@
 import { defaultCache } from "@serwist/next/worker";
+import { NetworkFirst, StaleWhileRevalidate } from "@serwist/strategies";
 import type { PrecacheEntry } from "@serwist/precaching";
 import { installSerwist } from "@serwist/sw";
 
@@ -11,7 +12,38 @@ installSerwist({
     skipWaiting: true,
     clientsClaim: true,
     navigationPreload: true,
-    runtimeCaching: defaultCache,
+    runtimeCaching: [
+        {
+            urlPattern: ({ url }: { url: URL }) => url.pathname.startsWith("/rest/v1/"),
+            handler: new NetworkFirst({
+                cacheName: "supabase-api-cache",
+                plugins: [{
+                    cacheWillUpdate: async ({ response }) => {
+                        if (response && response.status === 200) {
+                            return response;
+                        }
+                        return null;
+                    },
+                    cachedResponseWillBeUsed: async ({ cachedResponse }) => {
+                        return cachedResponse;
+                    }
+                }],
+                networkTimeoutSeconds: 5,
+            }),
+        } as any,
+        {
+            urlPattern: ({ url }: { url: URL }) => url.hostname.includes("googleusercontent.com") || url.hostname.includes("supabase.co"),
+            handler: new StaleWhileRevalidate({
+                cacheName: "external-assets",
+                plugins: [{
+                    cacheWillUpdate: async ({ response }) => {
+                        return response && response.status === 200 ? response : null;
+                    }
+                }]
+            }),
+        } as any,
+        ...defaultCache,
+    ],
 });
 
 // Push notification handler
