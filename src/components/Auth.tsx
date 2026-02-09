@@ -61,10 +61,10 @@ export function Auth() {
                                 autoComplete="one-time-code"
                                 required
                                 value={otp}
-                                onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
                                 className="w-full p-4 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all outline-none text-center text-3xl font-mono tracking-[0.5em] placeholder:tracking-normal"
                                 placeholder="000000"
-                                maxLength={6}
+                                maxLength={8}
                                 autoFocus
                             />
                         </div>
