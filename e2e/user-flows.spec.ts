@@ -1,150 +1,157 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
+
+/**
+ * Injects fake session and skips onboarding for E2E tests.
+ * Must be called before navigating to any page.
+ */
+async function setupAuth(page: Page): Promise<void> {
+    await page.addInitScript(() => {
+        window.localStorage.setItem('E2E_TEST_SESSION', JSON.stringify({
+            user: { id: 'test-user-123', email: 'test@example.com' },
+            access_token: 'fake-jwt-token'
+        }));
+        window.localStorage.setItem('has_seen_tutorial_v1', 'true');
+    });
+}
 
 test.describe('Daily Logging Flow', () => {
     test.beforeEach(async ({ page }) => {
-        // Inject fake session to bypass AuthWrapper
-        await page.addInitScript(() => {
-            window.localStorage.setItem('E2E_TEST_SESSION', JSON.stringify({
-                user: { id: 'test-user-123', email: 'test@example.com' },
-                access_token: 'fake-jwt-token'
-            }));
-        });
-
-        // Navigate to the app
-        await page.goto('/');
+        await setupAuth(page);
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
     });
 
     test('user can view the dashboard', async ({ page }) => {
-        // Wait for the page to load
-        await expect(page).toHaveTitle(/Fitness/i);
-
-        // Check for key dashboard elements
-        await expect(page.locator('h1, h2').first()).toBeVisible();
+        await expect(page).toHaveTitle(/Life Logger/i);
+        await expect(page.locator('h1:has-text("Dashboard")')).toBeVisible({ timeout: 15000 });
     });
 
     test('user can navigate to log page', async ({ page }) => {
-        // Click on log/add button
-        const logButton = page.getByRole('link', { name: /log/i }).or(
-            page.locator('[href*="/log"]')
-        );
+        const logLink = page.locator('nav[aria-label="Main navigation"] a[aria-label="Log"]');
+        await expect(logLink).toBeVisible({ timeout: 10000 });
+        await logLink.click();
 
-        if (await logButton.count() > 0) {
-            await logButton.first().click();
-            await expect(page).toHaveURL(/log/);
-        }
+        // Verify navigation by checking for log page content
+        await expect(page.locator('text=TODAY')).toBeVisible({ timeout: 15000 });
     });
 
     test('date navigator changes displayed date', async ({ page }) => {
-        // Test date navigation functionality
-        const prevButton = page.getByRole('button', { name: /previous|prev|←/i });
-        const nextButton = page.getByRole('button', { name: /next|→/i });
+        await page.goto('/log', { waitUntil: 'domcontentloaded' });
 
-        if (await prevButton.count() > 0) {
-            await prevButton.click();
-            // Verify date changed
-            await page.waitForTimeout(500);
-            await nextButton.click();
+        // Wait for log page to load with date navigator
+        await expect(page.locator('text=TODAY').first()).toBeVisible({ timeout: 10000 });
+
+        // Find the prev/next navigation buttons (chevrons in the date header)
+        const navButtons = page.locator('button').filter({ has: page.locator('svg') });
+        const buttonCount = await navButtons.count();
+
+        // Click first nav button (prev) and then second (next)
+        if (buttonCount >= 2) {
+            await navButtons.first().click();
+            await navButtons.nth(1).click();
         }
     });
 
     test('movement section can be toggled', async ({ page }) => {
-        await page.goto('/log');
+        await page.goto('/log', { waitUntil: 'domcontentloaded' });
 
-        // Click Activity Tab
-        await page.getByRole('button', { name: /activity/i }).click();
+        const activityTab = page.getByRole('button', { name: /Activity/i }).first();
+        await expect(activityTab).toBeVisible({ timeout: 15000 });
+        await activityTab.click();
 
-        // Look for movement completed toggle/checkbox
-        const movementToggle = page.getByRole('button', { name: /yes/i }).or(
-            page.locator('button:has-text("Yes")')
-        );
+        const movementSection = page.locator('h3:has-text("Movement")');
+        await expect(movementSection).toBeVisible({ timeout: 10000 });
 
-        if (await movementToggle.count() > 0) {
-            await movementToggle.first().click();
-        }
+        const movementToggle = page.locator('button:has-text("Yes, I moved!")');
+        await expect(movementToggle).toBeVisible();
+        await movementToggle.click();
+
+        // Verify button state changed (becomes active with blue background)
+        await expect(movementToggle).toHaveClass(/bg-blue-600/);
     });
 
     test('nutrition data can be entered', async ({ page }) => {
-        await page.goto('/log');
+        await page.goto('/log', { waitUntil: 'domcontentloaded' });
 
-        // Nutrition tab is default, looking for "Type" button
-        const typeButton = page.getByRole('button', { name: /type/i });
+        const nutritionHeader = page.locator('h3:has-text("Nutrition")');
+        await expect(nutritionHeader).toBeVisible({ timeout: 15000 });
 
-        if (await typeButton.count() > 0) {
-            await typeButton.click();
-            // Assuming this opens a modal or input
-            await expect(page.locator('input[placeholder*="food"]')).toBeVisible();
-        }
+        const typeButton = page.locator('button:has-text("Type")').first();
+        await expect(typeButton).toBeVisible();
+        await typeButton.click();
+
+        // Verify modal opened
+        const textInput = page.locator('textarea[placeholder*="Type what you ate"]');
+        await expect(textInput).toBeVisible({ timeout: 5000 });
     });
 });
 
 test.describe('Workout Tracking Flow', () => {
-    test('user can navigate to workout page', async ({ page }) => {
-        await page.goto('/');
-
-        const workoutLink = page.getByRole('link', { name: /workout/i }).or(
-            page.locator('[href*="/workout"]')
-        );
-
-        if (await workoutLink.count() > 0) {
-            await workoutLink.first().click();
-            await expect(page).toHaveURL(/workout/);
-        }
+    test.beforeEach(async ({ page }) => {
+        await setupAuth(page);
     });
 
-    test('workout page displays correctly', async ({ page }) => {
-        await page.goto('/workout');
+    test('user can navigate to workout schedule page', async ({ page }) => {
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-        // Should have some workout-related content like "Start New Workout"
-        await expect(page.locator('body')).toContainText(/start new workout/i);
-        await expect(page.locator('body')).toContainText(/ai coach/i);
+        const workoutLink = page.locator('nav[aria-label="Main navigation"] a[aria-label="Workout"]');
+        await expect(workoutLink).toBeVisible({ timeout: 10000 });
+        await workoutLink.click();
+
+        await expect(page).toHaveURL(/schedule/, { timeout: 15000 });
+    });
+
+    test('workout schedule page displays correctly', async ({ page }) => {
+        await page.goto('/schedule', { waitUntil: 'domcontentloaded' });
+
+        await expect(page.locator('body')).toContainText(/workout/i, { timeout: 15000 });
     });
 });
 
 test.describe('Settings Management', () => {
+    test.beforeEach(async ({ page }) => {
+        await setupAuth(page);
+    });
+
     test('user can navigate to settings', async ({ page }) => {
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-        const settingsLink = page.getByRole('link', { name: /settings/i }).or(
-            page.locator('[href*="/settings"]')
-        );
+        const settingsLink = page.locator('a[aria-label="Settings"]');
+        await expect(settingsLink).toBeVisible({ timeout: 10000 });
+        await settingsLink.click();
 
-        if (await settingsLink.count() > 0) {
-            await settingsLink.first().click();
-            await expect(page).toHaveURL(/settings/);
-        }
+        await expect(page).toHaveURL(/settings/, { timeout: 15000 });
     });
 
     test('settings page has target inputs', async ({ page }) => {
-        await page.goto('/settings');
+        await page.goto('/settings', { waitUntil: 'domcontentloaded' });
 
-        // Check for target inputs
-        const proteinInput = page.getByLabel(/protein/i).or(
-            page.locator('input[name*="protein"]')
-        );
-
-        if (await proteinInput.count() > 0) {
-            await expect(proteinInput.first()).toBeVisible();
-        }
+        // Settings page should have "My Targets" section with protein input
+        await expect(page.locator('text=My Targets')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('text=Daily Protein')).toBeVisible();
     });
 });
 
 test.describe('Responsive Design', () => {
+    test.beforeEach(async ({ page }) => {
+        await setupAuth(page);
+    });
+
     test('mobile viewport displays correctly', async ({ page }) => {
         await page.setViewportSize({ width: 375, height: 667 });
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-        // Check that content is visible and not overflowing
         await expect(page.locator('body')).toBeVisible();
 
         // Bottom navigation should be visible on mobile
-        const bottomNav = page.locator('nav').last();
-        await expect(bottomNav).toBeVisible();
+        const bottomNav = page.locator('nav[aria-label="Main navigation"]');
+        await expect(bottomNav).toBeVisible({ timeout: 10000 });
     });
 
     test('desktop viewport displays correctly', async ({ page }) => {
         await page.setViewportSize({ width: 1920, height: 1080 });
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
 
         await expect(page.locator('body')).toBeVisible();
+        await expect(page.locator('h1:has-text("Dashboard")')).toBeVisible({ timeout: 15000 });
     });
 });
