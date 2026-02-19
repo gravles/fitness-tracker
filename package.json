@@ -42,9 +42,11 @@
     "@vitejs/plugin-react": "^5.1.2",
     "@vitest/coverage-v8": "^4.0.18",
     "babel-plugin-react-compiler": "1.0.0",
+    "es-abstract": "^1.24.1",
     "eslint": "^9",
     "eslint-config-next": "16.0.10",
     "jsdom": "^27.4.0",
+    "object.fromentries": "^2.0.8",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.0.18"

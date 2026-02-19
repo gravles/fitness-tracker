@@ -1,0 +1,196 @@
+'use client';
+
+import { useMemo } from 'react';
+import { MUSCLE_GROUPS, MuscleGroup, calculateMuscleVolume } from '@/lib/muscleMapping';
+
+interface MuscleHeatmapProps {
+    workouts: any[];
+}
+
+export function MuscleHeatmap({ workouts }: MuscleHeatmapProps) {
+    const volume = useMemo(() => calculateMuscleVolume(workouts), [workouts]);
+
+    // Max volume for scaling intensity
+    const maxVol = Math.max(...Object.values(volume), 1);
+
+    const getIntensityColor = (muscle: MuscleGroup) => {
+        const val = volume[muscle] || 0;
+        if (val === 0) return '#e5e7eb'; // Gray-200
+
+        const intensity = val / maxVol;
+        // Interpolate from Yellow (Low) -> Orange -> Red (High)
+        // Simple distinct steps for clarity
+        if (intensity < 0.3) return '#fde047'; // Yellow-300
+        if (intensity < 0.6) return '#fb923c'; // Orange-400
+        return '#ef4444'; // Red-500
+    };
+
+    return (
+        <div className="flex flex-col md:flex-row gap-8 items-center justify-center p-4">
+            {/* Front View */}
+            <div className="relative h-96 w-48">
+                <h4 className="text-center font-bold text-gray-500 mb-2">Front</h4>
+                <svg viewBox="0 0 200 400" className="w-full h-full drop-shadow-sm">
+
+                    {/* Head (Generic) */}
+                    <circle cx="100" cy="30" r="20" fill="#d1d5db" />
+
+                    {/* Shoulders (Delts) */}
+                    <path
+                        d="M60 60 Q50 70 45 90 L55 95 Q65 75 70 65 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.SHOULDERS)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+                    <path
+                        d="M140 60 Q150 70 155 90 L145 95 Q135 75 130 65 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.SHOULDERS)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+
+                    {/* Chest (Pecs) */}
+                    <path
+                        d="M70 65 Q100 80 130 65 L130 95 Q100 110 70 95 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.CHEST)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+
+                    {/* Abs (Core) */}
+                    <path
+                        d="M75 100 L125 100 L120 150 L80 150 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.ABS)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+
+                    {/* Biceps */}
+                    <path
+                        d="M55 95 L40 130 L50 135 L65 100 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.BICEPS)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+                    <path
+                        d="M145 95 L160 130 L150 135 L135 100 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.BICEPS)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+
+                    {/* Forearms */}
+                    <path
+                        d="M40 130 L30 170 L40 175 L50 135 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.FOREARMS)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+                    <path
+                        d="M160 130 L170 170 L160 175 L150 135 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.FOREARMS)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+
+                    {/* Quads */}
+                    <path
+                        d="M70 160 L130 160 L120 240 L80 240 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.QUADS)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+                    {/* Separate slightly for visual leg separation if desired, or keep blocky for heatmap style */}
+                    <line x1="100" y1="160" x2="100" y2="240" stroke="white" strokeWidth="2" />
+
+                    {/* Calves (Front Shin area mostly, but represents lower leg) */}
+                    <path
+                        d="M80 250 L120 250 L115 320 L85 320 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.CALVES)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+                    <line x1="100" y1="250" x2="100" y2="320" stroke="white" strokeWidth="2" />
+
+                </svg>
+            </div>
+
+            {/* Back View */}
+            <div className="relative h-96 w-48">
+                <h4 className="text-center font-bold text-gray-500 mb-2">Back</h4>
+                <svg viewBox="0 0 200 400" className="w-full h-full drop-shadow-sm">
+                    {/* Head */}
+                    <circle cx="100" cy="30" r="20" fill="#d1d5db" />
+
+                    {/* Traps/Back */}
+                    <path
+                        d="M60 60 L140 60 L130 110 L70 110 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.BACK)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+
+                    {/* Shoulders (Rear Delt) */}
+                    <path
+                        d="M50 65 L60 60 L70 80 L55 90 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.SHOULDERS)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+                    <path
+                        d="M150 65 L140 60 L130 80 L145 90 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.SHOULDERS)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+
+                    {/* Triceps */}
+                    <path
+                        d="M55 90 L40 130 L50 135 L65 95 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.TRICEPS)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+                    <path
+                        d="M145 90 L160 130 L150 135 L135 95 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.TRICEPS)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+
+                    {/* Glutes */}
+                    <path
+                        d="M70 150 L130 150 L135 180 L65 180 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.GLUTES)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+
+                    {/* Hamstrings */}
+                    <path
+                        d="M70 185 L130 185 L125 250 L75 250 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.HAMSTRINGS)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+                    <line x1="100" y1="185" x2="100" y2="250" stroke="white" strokeWidth="2" />
+
+                    {/* Calves (Back) */}
+                    <path
+                        d="M75 255 L125 255 L120 310 L80 310 Z"
+                        fill={getIntensityColor(MUSCLE_GROUPS.CALVES)}
+                        className="transition-colors duration-500 ease-in-out"
+                    />
+                    <line x1="100" y1="255" x2="100" y2="330" stroke="white" strokeWidth="2" />
+
+                </svg>
+            </div>
+
+            {/* Legend */}
+            <div className="absolute bottom-0 right-0 p-4 md:static md:p-0">
+                <div className="bg-white/90 p-3 rounded-lg border border-gray-100 shadow-sm text-xs space-y-2">
+                    <div className="font-bold mb-1">Activity Level</div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-gray-200"></div>
+                        <span>None</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-yellow-300"></div>
+                        <span>Low</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-orange-400"></div>
+                        <span>Medium</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                        <span>High</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}

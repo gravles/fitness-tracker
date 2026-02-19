@@ -8,6 +8,12 @@ import { Loader2, TrendingUp, Scale, Camera, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { ExerciseProgressChart } from '@/components/analytics/ExerciseProgressChart';
 import { PersonalRecordsList } from '@/components/analytics/PersonalRecordsList';
+import { MuscleHeatmap } from '@/components/analytics/MuscleHeatmap';
+import { getWorkoutsRange } from '@/lib/api';
+import { getWorkoutDetails as getFullWorkout } from '@/lib/workout-api';
+
+// We'll need to fetch full workouts for accurate exercise data.
+
 
 export default function TrendsPage() {
     const [loading, setLoading] = useState(true);
@@ -17,7 +23,8 @@ export default function TrendsPage() {
     const [cycleData, setCycleData] = useState<any[]>([]);
     const [settings, setSettings] = useState<any>(null);
     const [goal, setGoal] = useState(150);
-    const [activeTab, setActiveTab] = useState<'overview' | 'gains'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'gains' | 'heatmap'>('overview');
+    const [workouts, setWorkouts] = useState<any[]>([]);
 
     useEffect(() => {
         fetchData();
@@ -31,11 +38,35 @@ export default function TrendsPage() {
         const endStr = format(end, 'yyyy-MM-dd');
 
         try {
-            const [logs, metrics, userSettings] = await Promise.all([
+            const [logs, metrics, userSettings, recentWorkouts] = await Promise.all([
                 getMonthlyLogs(startStr, endStr),
                 getBodyMetricsHistory(startStr, endStr),
-                getSettings()
+                getSettings(),
+                getWorkoutsRange(startStr, endStr)
             ]);
+
+            // Enrich workouts with details if they have IDs, to get exercises
+            // This might be expensive, so maybe limit or optimize later.
+            // For now, let's just try to map from what we have. 
+            // If getWorkoutsRange doesn't return exercises, we might need a better query.
+            // Checking api.ts... "select('*')" from workouts. 
+            // The "exercises" are in a separate table/relation typically.
+            // Let's assume we need to fetch details for them to be useful for the heatmap.
+
+            const detailedWorkouts = await Promise.all(
+                recentWorkouts.map(async (w: any) => {
+                    if (w.id) {
+                        try {
+                            return await getFullWorkout(w.id);
+                        } catch (e) {
+                            return w;
+                        }
+                    }
+                    return w;
+                })
+            );
+
+            setWorkouts(detailedWorkouts);
 
             setSettings(userSettings);
 
@@ -131,7 +162,13 @@ export default function TrendsPage() {
                     onClick={() => setActiveTab('gains')}
                     className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'gains' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700'}`}
                 >
-                    Gains & PRs
+                    Gains
+                </button>
+                <button
+                    onClick={() => setActiveTab('heatmap')}
+                    className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'heatmap' ? 'bg-white shadow-sm text-orange-500' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Body Map
                 </button>
             </div>
 
@@ -237,6 +274,22 @@ export default function TrendsPage() {
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                     <ExerciseProgressChart />
                     <PersonalRecordsList />
+                </div>
+            )}
+
+            {/* Muscle Heatmap */}
+            {activeTab === 'heatmap' && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                        <div className="flex items-center gap-2 mb-6">
+                            <span className="text-xl">🔥</span>
+                            <h3 className="font-bold text-lg">Workout Heatmap (30 Days)</h3>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-4">
+                            Visualizing muscle groups targeting based on your recent activity history.
+                        </p>
+                        <MuscleHeatmap workouts={workouts} />
+                    </section>
                 </div>
             )}
         </main>
