@@ -32,7 +32,7 @@ installSerwist({
             }),
         } as any,
         {
-            urlPattern: ({ url }: { url: URL }) => url.hostname.includes("googleusercontent.com") || url.hostname.includes("supabase.co"),
+            urlPattern: ({ url }: { url: URL }) => (url.hostname.includes("googleusercontent.com") || url.hostname.includes("supabase.co")) && !url.pathname.startsWith("/auth/v1/"),
             handler: new StaleWhileRevalidate({
                 cacheName: "external-assets",
                 plugins: [{
