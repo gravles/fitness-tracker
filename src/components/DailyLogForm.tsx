@@ -190,21 +190,27 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
 
     function updateNutritionTotals(items: any[]) {
         const totals = items.reduce(
-            (acc, item) => ({
-                calories: acc.calories + (item.calories || 0),
-                protein: acc.protein + (item.protein || 0),
-                carbs: acc.carbs + (item.carbs || 0),
-                fat: acc.fat + (item.fat || 0),
-            }),
+            (acc, item) => {
+                const rawQ = item.quantity !== undefined ? item.quantity : 1;
+                const q = parseFloat(String(rawQ));
+                const multiplier = isNaN(q) ? 0 : q;
+
+                return {
+                    calories: acc.calories + (parseFloat(String(item.calories)) || 0) * multiplier,
+                    protein: acc.protein + (parseFloat(String(item.protein)) || 0) * multiplier,
+                    carbs: acc.carbs + (parseFloat(String(item.carbs)) || 0) * multiplier,
+                    fat: acc.fat + (parseFloat(String(item.fat)) || 0) * multiplier,
+                };
+            },
             { calories: 0, protein: 0, carbs: 0, fat: 0 }
         );
 
         setNutrition(prev => ({
             ...prev,
-            calories: totals.calories,
-            protein: totals.protein,
-            carbs: totals.carbs,
-            fat: totals.fat,
+            calories: Math.round(totals.calories),
+            protein: Math.round(totals.protein),
+            carbs: Math.round(totals.carbs),
+            fat: Math.round(totals.fat),
         }));
     }
 
