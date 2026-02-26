@@ -79,6 +79,13 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     }, [searchParams]);
 
     // Autosave Logic
+    const stateRef = useRef<any>(null);
+    useEffect(() => {
+        stateRef.current = {
+            date, movementCompleted, totalDuration, workouts, nutrition, alcohol, subjective, habits, menstrualFlow, foodItems
+        };
+    });
+
     useEffect(() => {
         if (loading || isFirstLoad.current) return;
 
@@ -86,7 +93,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
 
         autosaveTimeout.current = setTimeout(() => {
             triggerSave();
-        }, 2000);
+            autosaveTimeout.current = null;
+        }, 1000);
 
         return () => {
             if (autosaveTimeout.current) clearTimeout(autosaveTimeout.current);
@@ -94,6 +102,40 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     }, [
         movementCompleted, workouts, nutrition, alcohol, subjective, habits, menstrualFlow, foodItems
     ]);
+
+    // Unmount Flush
+    useEffect(() => {
+        return () => {
+            if (autosaveTimeout.current && stateRef.current && !isFirstLoad.current) {
+                const s = stateRef.current;
+                const offsetDate = new Date(s.date.getTime() - (s.date.getTimezoneOffset() * 60000));
+                const dateStr = offsetDate.toISOString().split('T')[0];
+
+                upsertDailyLog({
+                    date: dateStr,
+                    movement_completed: s.movementCompleted ?? undefined,
+                    movement_duration: s.totalDuration,
+                    movement_intensity: s.workouts.length > 0 ? s.workouts[0].intensity : undefined,
+                    calories: s.nutrition.calories,
+                    protein_grams: s.nutrition.protein,
+                    carbs_grams: s.nutrition.carbs,
+                    fat_grams: s.nutrition.fat,
+                    eating_window_start: s.nutrition.windowStart || null,
+                    eating_window_end: s.nutrition.windowEnd || null,
+                    nutrition_logged: s.nutrition.logged,
+                    food_items: s.foodItems,
+                    alcohol_drinks: s.alcohol,
+                    sleep_quality: s.subjective.sleep,
+                    energy_level: s.subjective.energy,
+                    motivation_level: s.subjective.motivation,
+                    stress_level: s.subjective.stress,
+                    notes: s.subjective.note,
+                    habits_completed: s.habits,
+                    menstrual_flow: s.menstrualFlow,
+                }).catch(console.error);
+            }
+        };
+    }, []);
 
     // Sequential Save Handler
     async function triggerSave(manual = false) {
@@ -218,30 +260,33 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         setSaving(true);
 
         try {
-            const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+            const s = stateRef.current;
+            if (!s) return;
+
+            const offsetDate = new Date(s.date.getTime() - (s.date.getTimezoneOffset() * 60000));
             const dateStr = offsetDate.toISOString().split('T')[0];
 
             const logData = {
                 date: dateStr,
-                movement_completed: movementCompleted ?? undefined,
-                movement_duration: totalDuration,
-                movement_intensity: workouts.length > 0 ? workouts[0].intensity : undefined,
-                calories: nutrition.calories,
-                protein_grams: nutrition.protein,
-                carbs_grams: nutrition.carbs,
-                fat_grams: nutrition.fat,
-                eating_window_start: nutrition.windowStart || null,
-                eating_window_end: nutrition.windowEnd || null,
-                nutrition_logged: nutrition.logged,
-                food_items: foodItems,
-                alcohol_drinks: alcohol,
-                sleep_quality: subjective.sleep,
-                energy_level: subjective.energy,
-                motivation_level: subjective.motivation,
-                stress_level: subjective.stress,
-                notes: subjective.note,
-                habits_completed: habits,
-                menstrual_flow: menstrualFlow,
+                movement_completed: s.movementCompleted ?? undefined,
+                movement_duration: s.totalDuration,
+                movement_intensity: s.workouts.length > 0 ? s.workouts[0].intensity : undefined,
+                calories: s.nutrition.calories,
+                protein_grams: s.nutrition.protein,
+                carbs_grams: s.nutrition.carbs,
+                fat_grams: s.nutrition.fat,
+                eating_window_start: s.nutrition.windowStart || null,
+                eating_window_end: s.nutrition.windowEnd || null,
+                nutrition_logged: s.nutrition.logged,
+                food_items: s.foodItems,
+                alcohol_drinks: s.alcohol,
+                sleep_quality: s.subjective.sleep,
+                energy_level: s.subjective.energy,
+                motivation_level: s.subjective.motivation,
+                stress_level: s.subjective.stress,
+                notes: s.subjective.note,
+                habits_completed: s.habits,
+                menstrual_flow: s.menstrualFlow,
             };
 
             await upsertDailyLog(logData);
