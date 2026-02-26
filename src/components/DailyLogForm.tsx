@@ -100,7 +100,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             if (autosaveTimeout.current) clearTimeout(autosaveTimeout.current);
         };
     }, [
-        movementCompleted, workouts, nutrition, alcohol, subjective, habits, menstrualFlow, foodItems
+        movementCompleted, workouts, nutrition, alcohol, subjective, habits, menstrualFlow, foodItems, foodItems.length
     ]);
 
     // Unmount Flush
@@ -129,8 +129,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     energy_level: s.subjective.energy,
                     motivation_level: s.subjective.motivation,
                     stress_level: s.subjective.stress,
-                    notes: s.subjective.note,
-                    habits_completed: s.habits,
+                    daily_note: s.subjective.note,
+                    habits: s.habits,
                     menstrual_flow: s.menstrualFlow,
                 }).catch(console.error);
             }
@@ -192,9 +192,9 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     energy: log.energy_level ?? 3,
                     motivation: log.motivation_level ?? 3,
                     stress: log.stress_level ?? 3,
-                    note: log.notes ?? '',
+                    note: log.daily_note ?? log.notes ?? '',
                 });
-                setHabits(log.habits_completed || []);
+                setHabits(log.habits || []);
                 setMenstrualFlow(log.menstrual_flow || null);
                 setInitialXP(log.xp_earned || 0);
             } else {
@@ -224,9 +224,11 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
 
     // Food Item Management
     function addFoodItems(items: any[]) {
-        const newItems = [...foodItems, ...items];
-        setFoodItems(newItems);
-        updateNutritionTotals(newItems);
+        setFoodItems(prev => {
+            const newItems = [...prev, ...items];
+            updateNutritionTotals(newItems);
+            return newItems;
+        });
         haptics.success();
     }
 
@@ -257,11 +259,14 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     }
 
     async function performSave(isManualLog = false) {
+        console.log('[DEBUG] performSave starting...', { isManualLog });
         setSaving(true);
 
         try {
             const s = stateRef.current;
-            if (!s) return;
+            if (!s) {
+                return;
+            }
 
             const offsetDate = new Date(s.date.getTime() - (s.date.getTimezoneOffset() * 60000));
             const dateStr = offsetDate.toISOString().split('T')[0];
@@ -284,8 +289,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 energy_level: s.subjective.energy,
                 motivation_level: s.subjective.motivation,
                 stress_level: s.subjective.stress,
-                notes: s.subjective.note,
-                habits_completed: s.habits,
+                daily_note: s.subjective.note,
+                habits: s.habits,
                 menstrual_flow: s.menstrualFlow,
             };
 
@@ -295,7 +300,6 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 haptics.success();
             }
         } catch (e) {
-            console.error('Error saving log:', e);
             if (isManualLog) {
                 alert('Failed to save. Please try again.');
                 haptics.error();
@@ -328,186 +332,188 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     const wellnessSummary = `Sleep ${subjective.sleep}/5 • Energy ${subjective.energy}/5`;
 
     return (
-        <div className="space-y-4 pb-32 pb-safe">
-            {/* Tab Navigation */}
-            <div className="flex bg-gray-100 rounded-xl p-1">
-                <button
-                    onClick={() => { haptics.tap(); setActiveTab('nutrition'); }}
-                    className={`flex-1 flex flex-col items-center py-2.5 rounded-lg font-medium transition-all ${activeTab === 'nutrition' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                >
-                    <div className="flex items-center gap-1.5">
-                        <Utensils className="w-4 h-4" />
-                        <span className="text-sm font-bold">Nutrition</span>
-                    </div>
-                    <span className={`text-[10px] mt-0.5 ${activeTab === 'nutrition' ? 'text-gray-500' : 'text-gray-400'}`}>
-                        {nutrition.calories > 0 ? `${nutrition.calories} cal` : '—'}
-                    </span>
-                </button>
-                <button
-                    onClick={() => { haptics.tap(); setActiveTab('activity'); }}
-                    className={`flex-1 flex flex-col items-center py-2.5 rounded-lg font-medium transition-all ${activeTab === 'activity' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                >
-                    <div className="flex items-center gap-1.5">
-                        <Activity className="w-4 h-4" />
-                        <span className="text-sm font-bold">Activity</span>
-                    </div>
-                    <span className={`text-[10px] mt-0.5 ${activeTab === 'activity' ? 'text-gray-500' : 'text-gray-400'}`}>
-                        {workouts.length > 0 ? `${workouts.length} workout` : '—'}
-                    </span>
-                </button>
-                <button
-                    onClick={() => { haptics.tap(); setActiveTab('wellness'); }}
-                    className={`flex-1 flex flex-col items-center py-2.5 rounded-lg font-medium transition-all ${activeTab === 'wellness' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                >
-                    <div className="flex items-center gap-1.5">
-                        <Heart className="w-4 h-4" />
-                        <span className="text-sm font-bold">Wellness</span>
-                    </div>
-                    <span className={`text-[10px] mt-0.5 ${activeTab === 'wellness' ? 'text-gray-500' : 'text-gray-400'}`}>
-                        {habits.length > 0 ? `${habits.length} habits` : '—'}
-                    </span>
-                </button>
-            </div>
-
-            {/* ==================== NUTRITION TAB ==================== */}
-            {activeTab === 'nutrition' && (
-                <div className="space-y-6">
-                    <NutritionSection
-                        nutrition={nutrition}
-                        setNutrition={setNutrition}
-                        foodItems={foodItems}
-                        setFoodItems={setFoodItems}
-                        setAlcohol={setAlcohol}
-                        setSubjective={setSubjective}
-                        setChatInitialInput={setChatInitialInput}
-                        setShowWorkoutChat={setShowWorkoutChat}
-                        onAddFoodItems={addFoodItems}
-                        autoStartVoice={autoStartVoice}
-                        showCamera={showCamera}
-                        setShowCamera={setShowCamera}
-                        setShowMenuScanner={setShowMenuScanner}
-                        setShowFoodSelector={setShowFoodSelector}
-                        setShowTextInput={setShowTextInput}
-                        favorites={favorites}
-                        setFavorites={setFavorites}
-                        targets={targetsState}
-                    />
-
-                    <AlcoholSection
-                        alcohol={alcohol}
-                        setAlcohol={setAlcohol}
-                    />
+        <>
+            <div className="space-y-4 pb-32 pb-safe">
+                {/* Tab Navigation */}
+                <div className="flex bg-gray-100 rounded-xl p-1">
+                    <button
+                        onClick={() => { haptics.tap(); setActiveTab('nutrition'); }}
+                        className={`flex-1 flex flex-col items-center py-2.5 rounded-lg font-medium transition-all ${activeTab === 'nutrition' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                    >
+                        <div className="flex items-center gap-1.5">
+                            <Utensils className="w-4 h-4" />
+                            <span className="text-sm font-bold">Nutrition</span>
+                        </div>
+                        <span className={`text-[10px] mt-0.5 ${activeTab === 'nutrition' ? 'text-gray-500' : 'text-gray-400'}`}>
+                            {nutrition.calories > 0 ? `${nutrition.calories} cal` : '—'}
+                        </span>
+                    </button>
+                    <button
+                        onClick={() => { haptics.tap(); setActiveTab('activity'); }}
+                        className={`flex-1 flex flex-col items-center py-2.5 rounded-lg font-medium transition-all ${activeTab === 'activity' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                    >
+                        <div className="flex items-center gap-1.5">
+                            <Activity className="w-4 h-4" />
+                            <span className="text-sm font-bold">Activity</span>
+                        </div>
+                        <span className={`text-[10px] mt-0.5 ${activeTab === 'activity' ? 'text-gray-500' : 'text-gray-400'}`}>
+                            {workouts.length > 0 ? `${workouts.length} workout` : '—'}
+                        </span>
+                    </button>
+                    <button
+                        onClick={() => { haptics.tap(); setActiveTab('wellness'); }}
+                        className={`flex-1 flex flex-col items-center py-2.5 rounded-lg font-medium transition-all ${activeTab === 'wellness' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                    >
+                        <div className="flex items-center gap-1.5">
+                            <Heart className="w-4 h-4" />
+                            <span className="text-sm font-bold">Wellness</span>
+                        </div>
+                        <span className={`text-[10px] mt-0.5 ${activeTab === 'wellness' ? 'text-gray-500' : 'text-gray-400'}`}>
+                            {habits.length > 0 ? `${habits.length} habits` : '—'}
+                        </span>
+                    </button>
                 </div>
-            )}
 
-            {/* ==================== ACTIVITY TAB ==================== */}
-            {activeTab === 'activity' && (
-                <div className="space-y-6">
-                    <MovementSection
-                        movementCompleted={movementCompleted}
-                        setMovementCompleted={setMovementCompleted}
-                        workouts={workouts}
-                        setWorkouts={setWorkouts}
-                        dateStr={dateStr}
-                        onOpenAiCoach={() => setShowWorkoutChat(true)}
-                        onAddWorkoutStart={() => setAddingWorkout(true)}
-                        addingWorkout={addingWorkout}
-                        onDeleteWorkoutStart={() => { }}
+                {/* ==================== NUTRITION TAB ==================== */}
+                {activeTab === 'nutrition' && (
+                    <div className="space-y-6">
+                        <NutritionSection
+                            nutrition={nutrition}
+                            setNutrition={setNutrition}
+                            foodItems={foodItems}
+                            setFoodItems={setFoodItems}
+                            setAlcohol={setAlcohol}
+                            setSubjective={setSubjective}
+                            setChatInitialInput={setChatInitialInput}
+                            setShowWorkoutChat={setShowWorkoutChat}
+                            onAddFoodItems={addFoodItems}
+                            autoStartVoice={autoStartVoice}
+                            showCamera={showCamera}
+                            setShowCamera={setShowCamera}
+                            setShowMenuScanner={setShowMenuScanner}
+                            setShowFoodSelector={setShowFoodSelector}
+                            setShowTextInput={setShowTextInput}
+                            favorites={favorites}
+                            setFavorites={setFavorites}
+                            targets={targetsState}
+                        />
+
+                        <AlcoholSection
+                            alcohol={alcohol}
+                            setAlcohol={setAlcohol}
+                        />
+                    </div>
+                )}
+
+                {/* ==================== ACTIVITY TAB ==================== */}
+                {activeTab === 'activity' && (
+                    <div className="space-y-6">
+                        <MovementSection
+                            movementCompleted={movementCompleted}
+                            setMovementCompleted={setMovementCompleted}
+                            workouts={workouts}
+                            setWorkouts={setWorkouts}
+                            dateStr={dateStr}
+                            onOpenAiCoach={() => setShowWorkoutChat(true)}
+                            onAddWorkoutStart={() => setAddingWorkout(true)}
+                            addingWorkout={addingWorkout}
+                            onDeleteWorkoutStart={() => { }}
+                        />
+                    </div>
+                )}
+
+                {/* ==================== WELLNESS TAB ==================== */}
+                {activeTab === 'wellness' && (
+                    <div className="space-y-6">
+                        <SubjectiveSection
+                            subjective={subjective}
+                            setSubjective={setSubjective}
+                        />
+
+                        <HabitsSection
+                            habits={habits}
+                            setHabits={setHabits}
+                            availableHabits={settings.habits}
+                        />
+                    </div>
+                )}
+
+                {/* ==================== MODALS ==================== */}
+
+                {showMenuScanner && (
+                    <MenuScanner
+                        onClose={() => setShowMenuScanner(false)}
+                        onLog={(item) => {
+                            addFoodItems([item]);
+                            setShowMenuScanner(false);
+                        }}
                     />
-                </div>
-            )}
+                )}
 
-            {/* ==================== WELLNESS TAB ==================== */}
-            {activeTab === 'wellness' && (
-                <div className="space-y-6">
-                    <SubjectiveSection
-                        subjective={subjective}
-                        setSubjective={setSubjective}
-                    />
-
-                    <HabitsSection
-                        habits={habits}
-                        setHabits={setHabits}
-                        availableHabits={settings.habits}
-                    />
-                </div>
-            )}
-
-            {/* ==================== MODALS ==================== */}
-
-            {showMenuScanner && (
-                <MenuScanner
-                    onClose={() => setShowMenuScanner(false)}
-                    onLog={(item) => {
-                        addFoodItems([item]);
-                        setShowMenuScanner(false);
-                    }}
-                />
-            )}
-
-            <WorkoutChatModal
-                isOpen={showWorkoutChat}
-                onClose={() => setShowWorkoutChat(false)}
-                onSave={async (w) => {
-                    try {
-                        const added = await addWorkout({ ...w, date: dateStr });
-                        setWorkouts([...workouts, added]);
-                        alert('Workout added!');
-                        setShowWorkoutChat(false);
-                        setChatInitialInput('');
-                    } catch (e) {
-                        console.error("Failed to add workout", e);
-                        alert("Failed to save workout. Please try again.");
-                    }
-                }}
-                initialData={chatInitialInput}
-            />
-
-            {showFoodSelector && (
-                <FoodSelector
-                    onClose={() => setShowFoodSelector(false)}
-                    onSelect={(item) => {
-                        addFoodItems([item]);
-                        setShowFoodSelector(false);
-                    }}
-                />
-            )}
-
-            <TextLogModal
-                isOpen={showTextInput}
-                onClose={() => setShowTextInput(false)}
-                onWorkoutRequest={(text) => {
-                    setChatInitialInput(text);
-                    setShowWorkoutChat(true);
-                }}
-                onProcessed={(intent) => {
-                    if (intent.intent === 'log_food') {
-                        if (intent.data?.items) {
-                            let alcoholAdded = 0;
-                            const newItems = intent.data.items.map((i: any) => {
-                                if (i.alcohol_units) alcoholAdded += i.alcohol_units;
-                                return i;
-                            });
-
-                            addFoodItems(newItems);
-                            if (alcoholAdded > 0) {
-                                setAlcohol(prev => prev + alcoholAdded);
-                                alert(`Added: ${newItems.map((i: any) => i.name).join(', ')} (and +${alcoholAdded} standard drinks)`);
-                            } else {
-                                alert(`Added: ${newItems.map((i: any) => i.name).join(', ')}`);
-                            }
-                        } else if (intent.data?.item) {
-                            setSubjective(prev => ({ ...prev, note: (prev.note + ' ' + intent.data.item).trim() }));
-                            alert(`Text added to notes (no specific items detected)`);
+                <WorkoutChatModal
+                    isOpen={showWorkoutChat}
+                    onClose={() => setShowWorkoutChat(false)}
+                    onSave={async (w) => {
+                        try {
+                            const added = await addWorkout({ ...w, date: dateStr });
+                            setWorkouts([...workouts, added]);
+                            alert('Workout added!');
+                            setShowWorkoutChat(false);
+                            setChatInitialInput('');
+                        } catch (e) {
+                            console.error("Failed to add workout", e);
+                            alert("Failed to save workout. Please try again.");
                         }
-                    } else {
-                        alert(`Could not understand. Please try again.`);
-                    }
-                }}
-            />
-        </div>
+                    }}
+                    initialData={chatInitialInput}
+                />
+
+                {showFoodSelector && (
+                    <FoodSelector
+                        onClose={() => setShowFoodSelector(false)}
+                        onSelect={(item) => {
+                            addFoodItems([item]);
+                            setShowFoodSelector(false);
+                        }}
+                    />
+                )}
+
+                <TextLogModal
+                    isOpen={showTextInput}
+                    onClose={() => setShowTextInput(false)}
+                    onWorkoutRequest={(text) => {
+                        setChatInitialInput(text);
+                        setShowWorkoutChat(true);
+                    }}
+                    onProcessed={(intent) => {
+                        if (intent.intent === 'log_food') {
+                            if (intent.data?.items) {
+                                let alcoholAdded = 0;
+                                const newItems = intent.data.items.map((i: any) => {
+                                    if (i.alcohol_units) alcoholAdded += i.alcohol_units;
+                                    return i;
+                                });
+
+                                addFoodItems(newItems);
+                                if (alcoholAdded > 0) {
+                                    setAlcohol(prev => prev + alcoholAdded);
+                                    alert(`Added: ${newItems.map((i: any) => i.name).join(', ')} (and +${alcoholAdded} standard drinks)`);
+                                } else {
+                                    alert(`Added: ${newItems.map((i: any) => i.name).join(', ')}`);
+                                }
+                            } else if (intent.data?.item) {
+                                setSubjective(prev => ({ ...prev, note: (prev.note + ' ' + intent.data.item).trim() }));
+                                alert(`Text added to notes (no specific items detected)`);
+                            }
+                        } else {
+                            alert(`Could not understand. Please try again.`);
+                        }
+                    }}
+                />
+            </div>
+        </>
     );
 }
