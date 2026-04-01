@@ -131,9 +131,13 @@ export async function upsertDailyLog(log: Partial<DailyLog>) {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('\n\n\n[SUPABASE UPSERT ERROR]', error, '\n\n\n');
+            throw error;
+        }
         return data as DailyLog;
     } catch (error: any) {
+        console.error('\n\n\n[SUPABASE CATCH BLOCK ERROR]', error, '\n\n\n');
         // Simple offline check: if fetch failed or specifically network error
         if (typeof window !== 'undefined' && (!navigator.onLine || error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError'))) {
             console.log('Offline: Queuing daily log update');

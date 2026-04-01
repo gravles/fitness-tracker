@@ -460,7 +460,7 @@ export function NutritionSection({
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {/* Protein with Progress */}
                         <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100 flex flex-col items-center relative">
-                            {targets?.protein && targets.protein > 0 && (
+                            {targets?.protein && targets.protein > 0 ? (
                                 <div className="absolute top-2 right-2">
                                     <svg className="w-8 h-8 -rotate-90">
                                         <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="none" className="text-blue-100" />
@@ -473,17 +473,17 @@ export function NutritionSection({
                                         />
                                     </svg>
                                 </div>
-                            )}
+                            ) : null}
                             <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Protein</span>
                             <span className="text-xl font-black text-blue-700">{nutrition.protein}<span className="text-sm font-medium ml-0.5">g</span></span>
-                            {targets?.protein && targets.protein > 0 && (
+                            {targets?.protein && targets.protein > 0 ? (
                                 <span className="text-[10px] text-blue-500 font-medium">/ {targets.protein}g</span>
-                            )}
+                            ) : null}
                         </div>
 
                         {/* Calories with Progress */}
                         <div className="bg-orange-50 p-3 rounded-2xl border border-orange-100 flex flex-col items-center relative">
-                            {targets?.calories && targets.calories > 0 && (
+                            {targets?.calories && targets.calories > 0 ? (
                                 <div className="absolute top-2 right-2">
                                     <svg className="w-8 h-8 -rotate-90">
                                         <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="none" className="text-orange-100" />
@@ -496,12 +496,12 @@ export function NutritionSection({
                                         />
                                     </svg>
                                 </div>
-                            )}
+                            ) : null}
                             <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">Calories</span>
                             <span className="text-xl font-black text-orange-700">{nutrition.calories}</span>
-                            {targets?.calories && targets.calories > 0 && (
+                            {targets?.calories && targets.calories > 0 ? (
                                 <span className="text-[10px] text-orange-500 font-medium">/ {targets.calories}</span>
-                            )}
+                            ) : null}
                         </div>
 
                         <div className="bg-yellow-50 p-3 rounded-2xl border border-yellow-100 flex flex-col items-center">
