@@ -42,17 +42,15 @@ export function LevelProgress({ level, xp, onClick }: LevelProgressProps) {
                 </div>
             </div>
 
-            <div className="h-3 w-full bg-[var(--color-bg-muted)] rounded-full overflow-hidden">
+            <div className="h-2 w-full bg-[var(--color-bg-muted)] rounded-full overflow-hidden">
                 <div
-                    className="h-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] rounded-full transition-all duration-500 ease-out relative"
+                    className="h-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] rounded-full transition-all duration-500 ease-out"
                     style={{ width: `${percent}%` }}
                     role="progressbar"
                     aria-valuenow={progressXP}
                     aria-valuemin={0}
                     aria-valuemax={100}
-                >
-                    <div className="absolute top-0 left-0 w-full h-full bg-white/20 animate-pulse" aria-hidden="true" />
-                </div>
+                />
             </div>
         </div>
     );

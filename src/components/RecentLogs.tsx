@@ -92,26 +92,26 @@ export function RecentLogs({ logs }: { logs: DailyLog[] }) {
 
     return (
         <div className="space-y-3">
-            <h3 className="font-bold text-gray-900 px-1">Recent Activity</h3>
+            <h3 className="font-bold text-[var(--color-text)] px-1">Recent Activity</h3>
             <div className="space-y-2">
                 {recent.map(log => (
-                    <div key={log.date} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between group">
+                    <div key={log.date} className="bg-[var(--color-surface-elevated)] p-4 rounded-xl border border-[var(--color-border-light)] shadow-sm flex items-center justify-between group">
                         <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-full ${log.movement_completed ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                            <div className={`p-2 rounded-full ${log.movement_completed ? 'bg-green-500/10 text-green-500' : 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]'}`}>
                                 <Activity className="w-4 h-4" />
                             </div>
                             <div>
-                                <p className="font-bold text-sm text-gray-800">{format(parse(log.date, 'yyyy-MM-dd', new Date()), 'EEEE')}</p>
-                                <p className="text-xs text-gray-500">{log.movement_completed ? log.movement_type || 'Workout' : 'Rest Day'}</p>
+                                <p className="font-bold text-sm text-[var(--color-text)]">{format(parse(log.date, 'yyyy-MM-dd', new Date()), 'EEEE')}</p>
+                                <p className="text-xs text-[var(--color-text-muted)]">{log.movement_completed ? log.movement_type || 'Workout' : 'Rest Day'}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
                             {log.movement_duration && (
-                                <span className="text-sm font-bold text-gray-900">{log.movement_duration}m</span>
+                                <span className="text-sm font-bold text-[var(--color-text)]">{log.movement_duration}m</span>
                             )}
                             <button
                                 onClick={() => handleEditClick(log)}
-                                className="p-2 text-gray-300 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                             >
                                 <Pencil className="w-4 h-4" />
                             </button>
@@ -122,38 +122,40 @@ export function RecentLogs({ logs }: { logs: DailyLog[] }) {
 
             {/* Edit Modal */}
             {editingLog && editForm && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 animate-in zoom-in-95">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-lg">Edit Workout</h3>
-                            <button onClick={() => setEditingLog(null)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-[var(--color-surface-elevated)] rounded-2xl w-full max-w-md shadow-2xl p-6">
+                        <div className="flex justify-between items-center mb-5">
+                            <h3 className="font-bold text-lg text-[var(--color-text)]">Edit Workout</h3>
+                            <button onClick={() => setEditingLog(null)} className="p-2 hover:bg-[var(--color-bg-muted)] rounded-full text-[var(--color-text-muted)] transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
                         </div>
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Activity</label>
+                                <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide mb-1.5">Activity</label>
                                 <input
                                     value={editForm.activity_type}
                                     onChange={e => setEditForm({ ...editForm, activity_type: e.target.value })}
-                                    className="w-full p-3 bg-gray-50 rounded-xl font-bold text-gray-900 border border-gray-100"
+                                    className="w-full p-3 bg-[var(--color-bg-subtle)] rounded-xl font-medium text-[var(--color-text)] border border-[var(--color-border-light)] focus:border-[var(--color-primary)] focus:outline-none transition-colors"
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Duration (min)</label>
+                                    <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide mb-1.5">Duration (min)</label>
                                     <input
                                         type="number"
                                         value={editForm.duration}
                                         onChange={e => setEditForm({ ...editForm, duration: e.target.value })}
-                                        className="w-full p-3 bg-gray-50 rounded-xl font-bold text-gray-900 border border-gray-100"
+                                        className="w-full p-3 bg-[var(--color-bg-subtle)] rounded-xl font-medium text-[var(--color-text)] border border-[var(--color-border-light)] focus:border-[var(--color-primary)] focus:outline-none transition-colors"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Intensity</label>
+                                    <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide mb-1.5">Intensity</label>
                                     <select
                                         value={editForm.intensity}
                                         onChange={e => setEditForm({ ...editForm, intensity: e.target.value })}
-                                        className="w-full p-3 bg-gray-50 rounded-xl font-bold text-gray-900 border border-gray-100"
+                                        className="w-full p-3 bg-[var(--color-bg-subtle)] rounded-xl font-medium text-[var(--color-text)] border border-[var(--color-border-light)] focus:border-[var(--color-primary)] focus:outline-none transition-colors"
                                     >
                                         <option>Light</option>
                                         <option>Moderate</option>
@@ -162,19 +164,19 @@ export function RecentLogs({ logs }: { logs: DailyLog[] }) {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Notes / Details</label>
+                                <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide mb-1.5">Notes / Details</label>
                                 <textarea
                                     rows={4}
                                     value={editForm.notes}
                                     onChange={e => setEditForm({ ...editForm, notes: e.target.value })}
-                                    className="w-full p-3 bg-gray-50 rounded-xl text-sm border border-gray-100"
+                                    className="w-full p-3 bg-[var(--color-bg-subtle)] rounded-xl text-sm text-[var(--color-text)] border border-[var(--color-border-light)] focus:border-[var(--color-primary)] focus:outline-none transition-colors"
                                 />
                             </div>
 
                             <button
                                 onClick={handleSave}
                                 disabled={loadingEdit}
-                                className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-all disabled:opacity-50"
+                                className="w-full py-3.5 bg-[var(--color-primary)] text-white rounded-xl font-bold shadow-lg shadow-[var(--color-primary)]/20 active:scale-[0.98] transition-all disabled:opacity-50"
                             >
                                 {loadingEdit ? 'Saving...' : 'Save Changes'}
                             </button>

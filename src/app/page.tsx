@@ -193,19 +193,26 @@ export default function Dashboard() {
           </div>
 
           {/* Streak Card */}
-          <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl p-6 text-white shadow-xl shadow-orange-500/20 relative overflow-hidden">
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 mb-2">
-                <Flame className="w-5 h-5 animate-pulse" aria-hidden="true" />
-                <span className="font-semibold opacity-90 tracking-wide uppercase text-xs">Current Streak</span>
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+            <div className="relative z-10 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-1.5 bg-orange-500/20 rounded-lg">
+                    <Flame className="w-4 h-4 text-orange-400" aria-hidden="true" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Current Streak</span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-6xl font-black tracking-tight text-orange-400">{streak}</span>
+                  <span className="text-xl font-semibold text-slate-400">days</span>
+                </div>
+                <p className="text-sm text-slate-500 mt-2">
+                  {streak === 0 ? 'Start your streak today' : streak < 7 ? 'Building momentum' : streak < 30 ? 'On a roll — keep it up' : 'Unstoppable'}
+                </p>
               </div>
-              <div className="text-5xl font-black tracking-tight">
-                {streak} <span className="text-2xl font-medium opacity-80">Days</span>
+              <div className="opacity-5" aria-hidden="true">
+                <Flame className="w-28 h-28 text-orange-400" />
               </div>
-              <p className="text-sm opacity-80 mt-2 font-medium">Keep the fire burning! 🔥</p>
-            </div>
-            <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12" aria-hidden="true">
-              <Flame className="w-32 h-32" />
             </div>
           </div>
 
@@ -249,13 +256,13 @@ export default function Dashboard() {
 
           {/* Log Today CTA */}
           <Link href="/log" className="block group focus-ring rounded-2xl">
-            <div className="glass-card glow-card p-6 rounded-2xl flex items-center justify-between group-active:scale-[0.98] transition-all duration-200">
+            <div className="bg-[var(--color-primary)] p-5 rounded-2xl flex items-center justify-between shadow-lg shadow-[var(--color-primary)]/25 group-active:scale-[0.98] group-hover:shadow-[var(--color-primary)]/40 transition-all duration-200">
               <div>
-                <h3 className="font-bold text-xl text-[var(--color-text)] mb-1">Log Today</h3>
-                <p className="text-sm text-[var(--color-text-secondary)] font-medium">Full daily log & details</p>
+                <h3 className="font-bold text-lg text-white mb-0.5">Log Today</h3>
+                <p className="text-sm text-white/70 font-medium">Full daily log & details</p>
               </div>
-              <div className="w-12 h-12 bg-[var(--color-text)] text-[var(--color-bg)] rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform" aria-hidden="true">
-                <ArrowRight className="w-6 h-6" />
+              <div className="w-10 h-10 bg-white/15 text-white rounded-full flex items-center justify-center group-hover:bg-white/25 transition-colors" aria-hidden="true">
+                <ArrowRight className="w-5 h-5" />
               </div>
             </div>
           </Link>
