@@ -41,7 +41,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     const [movementCompleted, setMovementCompleted] = useState<boolean | null>(null);
     const [nutrition, setNutrition] = useState({
         protein: 0, carbs: 0, fat: 0, calories: 0,
-        windowStart: '', windowEnd: '', logged: true
+        windowStart: '', windowEnd: '', logged: false
     });
     const [alcohol, setAlcohol] = useState(0);
     const [subjective, setSubjective] = useState({
@@ -183,7 +183,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     calories: log.calories ?? 0,
                     windowStart: log.eating_window_start ?? '',
                     windowEnd: log.eating_window_end ?? '',
-                    logged: log.nutrition_logged ?? true,
+                    logged: log.nutrition_logged ?? false,
                 });
                 setFoodItems(log.food_items || []);
                 setAlcohol(log.alcohol_drinks ?? 0);

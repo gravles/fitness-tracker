@@ -241,19 +241,11 @@ export function NutritionSection({
                 </div>
             )}
 
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden">
+            <section className="bg-[var(--color-surface-elevated)] p-6 rounded-2xl border border-[var(--color-border-light)] shadow-sm relative overflow-hidden">
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-bold flex items-center gap-2">
+                    <h3 className="text-lg font-bold flex items-center gap-2 text-[var(--color-text)]">
                         <span className="text-xl">🥗</span> Nutrition
                     </h3>
-                    <button
-                        onClick={() => setNutrition({ ...nutrition, logged: !nutrition.logged })}
-                        className={`text-xs font-semibold px-3 py-1 rounded-full border transition-all ${!nutrition.logged
-                            ? 'bg-orange-100 text-orange-700 border-orange-200'
-                            : 'bg-gray-50 text-gray-400 border-gray-100'}`}
-                    >
-                        {nutrition.logged ? "Mark as Not Tracked" : "Not Tracked"}
-                    </button>
                 </div>
 
                 {/* Quick Actions Row */}
@@ -536,14 +528,23 @@ export function NutritionSection({
                 </div>
 
                 {/* Log Complete Toggle */}
-                <div className="mt-6 p-4 bg-green-50 rounded-xl border border-green-100 flex items-center justify-between">
+                <div className={`mt-6 p-4 rounded-xl border flex items-center justify-between transition-colors ${
+                    nutrition.logged
+                        ? 'bg-green-500/10 border-green-500/20'
+                        : 'bg-[var(--color-bg-subtle)] border-[var(--color-border-light)]'
+                }`}>
                     <div>
-                        <h4 className="font-bold text-green-900 text-sm">Nutrition Log Complete?</h4>
-                        <p className="text-xs text-green-700">Mark when you've logged all food for today.</p>
+                        <h4 className={`font-bold text-sm ${nutrition.logged ? 'text-green-700 dark:text-green-400' : 'text-[var(--color-text)]'}`}>
+                            All food logged for today?
+                        </h4>
+                        <p className={`text-xs mt-0.5 ${nutrition.logged ? 'text-green-600 dark:text-green-500' : 'text-[var(--color-text-muted)]'}`}>
+                            {nutrition.logged ? 'Day marked complete — counts toward your streak.' : 'Toggle on when you\'ve finished logging.'}
+                        </p>
                     </div>
                     <button
                         onClick={() => setNutrition({ ...nutrition, logged: !nutrition.logged })}
-                        className={`relative w-12 h-6 rounded-full transition-colors ${nutrition.logged ? 'bg-green-600' : 'bg-gray-300'}`}
+                        aria-label={nutrition.logged ? 'Mark nutrition as incomplete' : 'Mark nutrition as complete'}
+                        className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${nutrition.logged ? 'bg-green-500' : 'bg-[var(--color-bg-muted)]'}`}
                     >
                         <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm ${nutrition.logged ? 'translate-x-6' : ''}`} />
                     </button>
