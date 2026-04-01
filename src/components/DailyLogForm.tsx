@@ -335,43 +335,40 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
         <>
             <div className="space-y-4 pb-32 pb-safe">
                 {/* Tab Navigation */}
-                <div className="flex bg-gray-100 rounded-xl p-1">
+                <div className="flex bg-[var(--color-bg-muted)] rounded-xl p-1">
                     <button
                         onClick={() => { haptics.tap(); setActiveTab('nutrition'); }}
-                        className={`flex-1 flex flex-col items-center py-2.5 rounded-lg font-medium transition-all ${activeTab === 'nutrition' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                            }`}
+                        className={`flex-1 flex flex-col items-center py-2.5 rounded-lg font-medium transition-all ${activeTab === 'nutrition' ? 'bg-[var(--color-surface-elevated)] text-[var(--color-text)] shadow-sm' : 'text-[var(--color-text-muted)]'}`}
                     >
                         <div className="flex items-center gap-1.5">
                             <Utensils className="w-4 h-4" />
                             <span className="text-sm font-bold">Nutrition</span>
                         </div>
-                        <span className={`text-[10px] mt-0.5 ${activeTab === 'nutrition' ? 'text-gray-500' : 'text-gray-400'}`}>
+                        <span className="text-[10px] mt-0.5 text-[var(--color-text-muted)] max-[320px]:hidden">
                             {nutrition.calories > 0 ? `${nutrition.calories} cal` : '—'}
                         </span>
                     </button>
                     <button
                         onClick={() => { haptics.tap(); setActiveTab('activity'); }}
-                        className={`flex-1 flex flex-col items-center py-2.5 rounded-lg font-medium transition-all ${activeTab === 'activity' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                            }`}
+                        className={`flex-1 flex flex-col items-center py-2.5 rounded-lg font-medium transition-all ${activeTab === 'activity' ? 'bg-[var(--color-surface-elevated)] text-[var(--color-text)] shadow-sm' : 'text-[var(--color-text-muted)]'}`}
                     >
                         <div className="flex items-center gap-1.5">
                             <Activity className="w-4 h-4" />
                             <span className="text-sm font-bold">Activity</span>
                         </div>
-                        <span className={`text-[10px] mt-0.5 ${activeTab === 'activity' ? 'text-gray-500' : 'text-gray-400'}`}>
+                        <span className="text-[10px] mt-0.5 text-[var(--color-text-muted)] max-[320px]:hidden">
                             {workouts.length > 0 ? `${workouts.length} workout` : '—'}
                         </span>
                     </button>
                     <button
                         onClick={() => { haptics.tap(); setActiveTab('wellness'); }}
-                        className={`flex-1 flex flex-col items-center py-2.5 rounded-lg font-medium transition-all ${activeTab === 'wellness' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                            }`}
+                        className={`flex-1 flex flex-col items-center py-2.5 rounded-lg font-medium transition-all ${activeTab === 'wellness' ? 'bg-[var(--color-surface-elevated)] text-[var(--color-text)] shadow-sm' : 'text-[var(--color-text-muted)]'}`}
                     >
                         <div className="flex items-center gap-1.5">
                             <Heart className="w-4 h-4" />
                             <span className="text-sm font-bold">Wellness</span>
                         </div>
-                        <span className={`text-[10px] mt-0.5 ${activeTab === 'wellness' ? 'text-gray-500' : 'text-gray-400'}`}>
+                        <span className="text-[10px] mt-0.5 text-[var(--color-text-muted)] max-[320px]:hidden">
                             {habits.length > 0 ? `${habits.length} habits` : '—'}
                         </span>
                     </button>

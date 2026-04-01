@@ -248,8 +248,8 @@ export function NutritionSection({
                     </h3>
                 </div>
 
-                {/* Quick Actions Row */}
-                <div className="flex gap-3 overflow-x-auto pb-4 -mx-6 px-6 scrollbar-hide">
+                {/* Quick Actions Grid - all buttons always visible, no horizontal scroll */}
+                <div className="grid grid-cols-5 gap-2">
                     <VoiceInput
                         autoStart={autoStartVoice}
                         onIntentDetected={(intent) => {
@@ -287,54 +287,56 @@ export function NutritionSection({
                         customTrigger={(onClick, isListening) => (
                             <button
                                 onClick={onClick}
-                                className="flex flex-col items-center gap-1 min-w-[70px]"
+                                className="flex flex-col items-center gap-1 w-full"
                             >
-                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border transition-colors ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-purple-50 text-purple-600 border-purple-100'}`}>
-                                    <span className="text-xl">🎙️</span>
+                                <div className={`w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border transition-colors ${isListening ? 'bg-red-500 text-white animate-pulse border-red-400' : 'bg-purple-50 text-purple-600 border-purple-100'}`}>
+                                    <span className="text-lg">🎙️</span>
                                 </div>
-                                <span className="text-xs font-bold text-gray-600">{isListening ? 'Listening' : 'Voice'}</span>
+                                <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">
+                                    {isListening ? 'Active' : 'Voice'}
+                                </span>
                             </button>
                         )}
                     />
 
                     <button
                         onClick={() => setShowCamera(true)}
-                        className="flex flex-col items-center gap-1 min-w-[70px]"
+                        className="flex flex-col items-center gap-1 w-full"
                     >
-                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm border border-blue-100">
-                            <Camera className="w-6 h-6" />
+                        <div className="w-full aspect-square max-w-[52px] mx-auto bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm border border-blue-100">
+                            <Camera className="w-5 h-5" />
                         </div>
-                        <span className="text-xs font-bold text-gray-600">Camera</span>
+                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">Camera</span>
                     </button>
 
                     <button
                         onClick={() => setShowTextInput(true)}
-                        className="flex flex-col items-center gap-1 min-w-[70px]"
+                        className="flex flex-col items-center gap-1 w-full"
                     >
-                        <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm border border-indigo-100">
-                            <Keyboard className="w-6 h-6" />
+                        <div className="w-full aspect-square max-w-[52px] mx-auto bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm border border-indigo-100">
+                            <Keyboard className="w-5 h-5" />
                         </div>
-                        <span className="text-xs font-bold text-gray-600">Type</span>
+                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">Type</span>
                     </button>
 
                     <button
                         onClick={() => setShowMenuScanner(true)}
-                        className="flex flex-col items-center gap-1 min-w-[70px]"
+                        className="flex flex-col items-center gap-1 w-full"
                     >
-                        <div className="w-12 h-12 bg-yellow-50 text-yellow-600 rounded-2xl flex items-center justify-center shadow-sm border border-yellow-100">
-                            <ChefHat className="w-6 h-6" />
+                        <div className="w-full aspect-square max-w-[52px] mx-auto bg-yellow-50 text-yellow-600 rounded-2xl flex items-center justify-center shadow-sm border border-yellow-100">
+                            <ChefHat className="w-5 h-5" />
                         </div>
-                        <span className="text-xs font-bold text-gray-600">Scan Menu</span>
+                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">Scanner</span>
                     </button>
 
                     <button
                         onClick={() => setShowFoodSelector(true)}
-                        className="flex flex-col items-center gap-1 min-w-[70px]"
+                        className="flex flex-col items-center gap-1 w-full"
                     >
-                        <div className="w-12 h-12 bg-pink-50 text-pink-600 rounded-2xl flex items-center justify-center shadow-sm border border-pink-100">
-                            <Heart className="w-6 h-6" />
+                        <div className="w-full aspect-square max-w-[52px] mx-auto bg-pink-50 text-pink-600 rounded-2xl flex items-center justify-center shadow-sm border border-pink-100">
+                            <Heart className="w-5 h-5" />
                         </div>
-                        <span className="text-xs font-bold text-gray-600">Favorites</span>
+                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">Favorites</span>
                     </button>
                 </div>
 
