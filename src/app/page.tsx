@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowRight, Flame, Trophy, Mic, Camera, Settings } from 'lucide-react';
 import { format, subDays } from 'date-fns';
-import { getStreak, getMonthlyLogs, getBodyMetricsHistory } from '@/lib/api';
+import { getStreak, getMonthlyLogs, getBodyMetricsHistory, DailyLog, UserSettings } from '@/lib/api';
 import { checkReminders, checkScheduledWorkouts } from '@/lib/notifications';
 import { SmartCoach } from '@/components/SmartCoach';
 import { WeeklySummary } from '@/components/WeeklySummary';
@@ -19,6 +19,7 @@ import { ShareModal } from '@/components/ShareModal';
 import { getSettings } from '@/lib/api';
 import { DashboardSkeleton } from '@/components/Skeleton';
 import { UpcomingWorkouts } from '@/components/UpcomingWorkouts';
+import { DailyGoalTracker } from '@/components/DailyGoalTracker';
 
 export default function Dashboard() {
   const today = new Date();
@@ -30,6 +31,8 @@ export default function Dashboard() {
   const [logs, setLogs] = useState<any[]>([]);
   const [advice, setAdvice] = useState<CoachingTip | null>(null);
   const [weeklyStats, setWeeklyStats] = useState({ avgWeight: 0, totalMovement: 0, avgProtein: 0, totalAlcohol: 0 });
+  const [todayLog, setTodayLog] = useState<DailyLog | null>(null);
+  const [settings, setSettings] = useState<UserSettings | null>(null);
 
   // Gamification State
   const [userLevel, setUserLevel] = useState({ level: 1, xp: 0 });
@@ -65,6 +68,10 @@ export default function Dashboard() {
       setStreak(streakVal);
       setLogs(recentLogs);
       setAdvice(getSmartAdvice(recentLogs, streakVal, settings || undefined));
+      setSettings(settings);
+
+      const todayStr = format(today, 'yyyy-MM-dd');
+      setTodayLog(recentLogs.find((l: DailyLog) => l.date === todayStr) ?? null);
 
       if (settings) {
         setUserLevel({
@@ -154,6 +161,9 @@ export default function Dashboard() {
               ]
             }}
           />
+
+          {/* Daily Goal Tracker */}
+          <DailyGoalTracker todayLog={todayLog} settings={settings} />
 
           {/* Smart Coach Widget */}
           <div className="space-y-3">
