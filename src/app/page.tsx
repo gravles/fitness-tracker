@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowRight, Flame, Trophy, Mic, Camera, Settings } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { getStreak, getMonthlyLogs, getBodyMetricsHistory, DailyLog, UserSettings } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { checkReminders, checkScheduledWorkouts } from '@/lib/notifications';
 import { SmartCoach } from '@/components/SmartCoach';
 import { WeeklySummary } from '@/components/WeeklySummary';
@@ -33,6 +34,7 @@ export default function Dashboard() {
   const [weeklyStats, setWeeklyStats] = useState({ avgWeight: 0, totalMovement: 0, avgProtein: 0, totalAlcohol: 0 });
   const [todayLog, setTodayLog] = useState<DailyLog | null>(null);
   const [settings, setSettings] = useState<UserSettings | null>(null);
+  const [greeting, setGreeting] = useState('');
 
   // Gamification State
   const [userLevel, setUserLevel] = useState({ level: 1, xp: 0 });
@@ -58,12 +60,24 @@ export default function Dashboard() {
       const start = format(subDays(today, 7), 'yyyy-MM-dd');
       const end = format(today, 'yyyy-MM-dd');
 
-      const [streakVal, recentLogs, recentMetrics, settings] = await Promise.all([
+      const [streakVal, recentLogs, recentMetrics, settings, { data: { session } }] = await Promise.all([
         getStreak(),
         getMonthlyLogs(start, end),
         getBodyMetricsHistory(start, end),
-        getSettings()
+        getSettings(),
+        supabase.auth.getSession()
       ]);
+
+      const hour = today.getHours();
+      const timeOfDay = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+      const rawName = session?.user?.user_metadata?.full_name
+        || session?.user?.user_metadata?.name
+        || session?.user?.email?.split('@')[0]
+        || '';
+      const firstName = rawName.split(/[\s._-]/)[0];
+      const formattedName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+      setGreeting(`${timeOfDay}${formattedName ? `, ${formattedName}` : ''}`);
+
 
       setStreak(streakVal);
       setLogs(recentLogs);
@@ -111,8 +125,8 @@ export default function Dashboard() {
       {/* Header */}
       <header className="flex justify-between items-center mb-2">
         <div>
-          <h1 className="text-3xl font-bold text-[var(--color-text)]">Dashboard</h1>
-          <p className="text-[var(--color-text-muted)]">{format(today, 'EEEE, MMMM d')}</p>
+          <p className="text-sm font-medium text-[var(--color-text-muted)] mb-0.5">{format(today, 'EEEE, MMMM d')}</p>
+          <h1 className="text-2xl font-bold text-[var(--color-text)]">{greeting}</h1>
         </div>
         <Link
           href="/settings"

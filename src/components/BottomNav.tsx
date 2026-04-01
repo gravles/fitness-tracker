@@ -23,21 +23,36 @@ export function BottomNav() {
             role="navigation"
             aria-label="Main navigation"
         >
-            {navItems.map(({ href, icon: Icon, label }) => (
-                <Link
-                    key={href}
-                    href={href}
-                    className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all tap-target focus-ring ${isActive(href)
-                        ? 'text-[var(--color-primary)] bg-[var(--color-primary)]/10'
-                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-muted)]'
-                        }`}
-                    aria-current={isActive(href) ? 'page' : undefined}
-                    aria-label={label}
-                >
-                    <Icon className="w-6 h-6" aria-hidden="true" />
-                    <span className="text-[10px] font-semibold tracking-wide">{label}</span>
-                </Link>
-            ))}
+            {navItems.map(({ href, icon: Icon, label }) => {
+                const active = isActive(href);
+                return (
+                    <Link
+                        key={href}
+                        href={href}
+                        className="flex flex-col items-center gap-1 py-1 px-3 tap-target focus-ring"
+                        aria-current={active ? 'page' : undefined}
+                        aria-label={label}
+                    >
+                        <div className={`p-2 rounded-2xl transition-all duration-200 ${
+                            active
+                                ? 'bg-[var(--color-primary)]/15 scale-110'
+                                : 'hover:bg-[var(--color-bg-muted)]'
+                        }`}>
+                            <Icon
+                                className={`w-5 h-5 transition-colors duration-200 ${
+                                    active ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-muted)]'
+                                }`}
+                                aria-hidden="true"
+                            />
+                        </div>
+                        <span className={`text-[10px] font-semibold tracking-wide transition-colors duration-200 ${
+                            active ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-muted)]'
+                        }`}>
+                            {label}
+                        </span>
+                    </Link>
+                );
+            })}
         </nav>
     );
 }
