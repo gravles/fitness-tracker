@@ -130,26 +130,26 @@ export function MovementSection({
     }
 
     return (
-        <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+        <section className="bg-[var(--color-surface-elevated)] p-6 rounded-2xl border border-[var(--color-border-light)] shadow-sm">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-[var(--color-text)]">
                 <span className="text-xl">🔥</span> Movement
             </h3>
 
             {/* Did you move? Toggle */}
-            <div className="flex gap-4 mb-6">
+            <div className="flex gap-3 mb-6">
                 <button
                     onClick={() => setMovementCompleted(true)}
-                    className={`flex-1 py-4 rounded-xl font-bold transition-all border-2 ${movementCompleted === true
-                        ? 'bg-blue-600 border-blue-600 text-white shadow-lg scale-[1.02]'
-                        : 'bg-white border-gray-100 text-gray-400 hover:border-blue-200'}`}
+                    className={`flex-1 py-3.5 rounded-xl font-bold transition-all border-2 ${movementCompleted === true
+                        ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary)]/20 scale-[1.02]'
+                        : 'bg-transparent border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-primary)]/40 hover:text-[var(--color-text)]'}`}
                 >
                     Yes, I moved!
                 </button>
                 <button
                     onClick={() => setMovementCompleted(false)}
-                    className={`flex-1 py-4 rounded-xl font-bold transition-all border-2 ${movementCompleted === false
-                        ? 'bg-gray-800 border-gray-800 text-white shadow-lg scale-[1.02]'
-                        : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                    className={`flex-1 py-3.5 rounded-xl font-bold transition-all border-2 ${movementCompleted === false
+                        ? 'bg-[var(--color-text)] border-[var(--color-text)] text-[var(--color-bg)] shadow-lg scale-[1.02]'
+                        : 'bg-transparent border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-border)] hover:text-[var(--color-text)]'}`}
                 >
                     Rest Day
                 </button>
@@ -162,7 +162,7 @@ export function MovementSection({
                     {workouts.length > 0 && (
                         <div className="space-y-3">
                             {workouts.map(workout => (
-                                <div key={workout.id} className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                <div key={workout.id} className="p-4 bg-[var(--color-bg-subtle)] rounded-xl border border-[var(--color-border-light)]">
                                     {editingId === workout.id ? (
                                         /* Inline Edit Form */
                                         <div className="space-y-3">
@@ -170,25 +170,25 @@ export function MovementSection({
                                                 type="text"
                                                 value={editForm.activity_type}
                                                 onChange={e => setEditForm({ ...editForm, activity_type: e.target.value })}
-                                                className="w-full p-2 bg-white rounded-lg border border-gray-200 font-medium"
+                                                className="w-full p-2 bg-[var(--color-surface-elevated)] text-[var(--color-text)] rounded-lg border border-[var(--color-border)] font-medium focus:outline-none focus:border-[var(--color-primary)]"
                                                 placeholder="Activity type"
                                             />
                                             <div className="flex gap-3">
                                                 <div className="flex-1">
-                                                    <label className="text-xs font-bold text-gray-500 uppercase">Duration (min)</label>
+                                                    <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">Duration (min)</label>
                                                     <input
                                                         type="number"
                                                         value={editForm.duration}
                                                         onChange={e => setEditForm({ ...editForm, duration: parseInt(e.target.value) || 0 })}
-                                                        className="w-full p-2 bg-white rounded-lg border border-gray-200"
+                                                        className="w-full p-2 bg-[var(--color-surface-elevated)] text-[var(--color-text)] rounded-lg border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-primary)]"
                                                     />
                                                 </div>
                                                 <div className="flex-1">
-                                                    <label className="text-xs font-bold text-gray-500 uppercase">Intensity</label>
+                                                    <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">Intensity</label>
                                                     <select
                                                         value={editForm.intensity}
                                                         onChange={e => setEditForm({ ...editForm, intensity: e.target.value as any })}
-                                                        className="w-full p-2 bg-white rounded-lg border border-gray-200"
+                                                        className="w-full p-2 bg-[var(--color-surface-elevated)] text-[var(--color-text)] rounded-lg border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-primary)]"
                                                     >
                                                         <option>Light</option>
                                                         <option>Moderate</option>
@@ -199,13 +199,13 @@ export function MovementSection({
                                             <div className="flex gap-2 justify-end">
                                                 <button
                                                     onClick={() => setEditingId(null)}
-                                                    className="px-3 py-1.5 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1"
+                                                    className="px-3 py-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)] rounded-lg transition-colors flex items-center gap-1"
                                                 >
                                                     <X className="w-4 h-4" /> Cancel
                                                 </button>
                                                 <button
                                                     onClick={handleSaveEdit}
-                                                    className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1"
+                                                    className="px-3 py-1.5 bg-[var(--color-primary)] text-white rounded-lg transition-colors flex items-center gap-1"
                                                 >
                                                     <Check className="w-4 h-4" /> Save
                                                 </button>
@@ -215,49 +215,49 @@ export function MovementSection({
                                         /* Normal Display */
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center border border-gray-100 shadow-sm">
-                                                    <Dumbbell className="w-5 h-5 text-blue-500" />
+                                                <div className="w-10 h-10 bg-[var(--color-primary)]/10 rounded-full flex items-center justify-center">
+                                                    <Dumbbell className="w-5 h-5 text-[var(--color-primary)]" />
                                                 </div>
                                                 <div>
                                                     <div className="flex items-center gap-2">
-                                                        <h4 className="font-bold text-gray-900">{workout.activity_type}</h4>
+                                                        <h4 className="font-bold text-[var(--color-text)]">{workout.activity_type}</h4>
                                                         {workout.source === 'strava' && (
-                                                            <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-bold">Strava</span>
+                                                            <span className="text-[10px] bg-orange-500/10 text-orange-500 px-1.5 py-0.5 rounded-full font-bold">Strava</span>
                                                         )}
                                                     </div>
-                                                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
+                                                    <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-muted)] mt-1">
                                                         <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {workout.duration} min</span>
                                                         {workout.distance && (
-                                                            <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                            <span className="flex items-center gap-1 bg-[var(--color-bg-muted)] px-2 py-0.5 rounded-full">
                                                                 📏 {(workout.distance / 1000).toFixed(2)} km
                                                             </span>
                                                         )}
                                                         {workout.calories && (
-                                                            <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                            <span className="flex items-center gap-1 bg-[var(--color-bg-muted)] px-2 py-0.5 rounded-full">
                                                                 🔥 {workout.calories} kcal
                                                             </span>
                                                         )}
                                                         {workout.average_heartrate && (
-                                                            <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                            <span className="flex items-center gap-1 bg-[var(--color-bg-muted)] px-2 py-0.5 rounded-full">
                                                                 ❤️ {Math.round(workout.average_heartrate)} bpm
                                                             </span>
                                                         )}
-                                                        <span className="px-2 py-0.5 bg-gray-200 rounded-full text-gray-700 font-medium">{workout.intensity}</span>
+                                                        <span className="px-2 py-0.5 bg-[var(--color-bg-muted)] rounded-full font-medium">{workout.intensity}</span>
                                                     </div>
-                                                    {workout.notes && <p className="text-xs text-gray-400 mt-1 italic line-clamp-1">{workout.notes}</p>}
+                                                    {workout.notes && <p className="text-xs text-[var(--color-text-muted)] mt-1 italic line-clamp-1">{workout.notes}</p>}
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <button
                                                     onClick={() => handleEditWorkout(workout)}
-                                                    className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-lg transition-colors"
                                                     title="Edit"
                                                 >
                                                     <Pencil className="w-4 h-4" />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteWorkout(workout.id!)}
-                                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    className="p-2 text-[var(--color-text-muted)] hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
@@ -266,25 +266,25 @@ export function MovementSection({
                                     )}
                                 </div>
                             ))}
-                            <div className="text-right text-sm text-gray-500 font-medium pt-2 border-t border-gray-100">
-                                Total Duration: <span className="text-blue-600 font-bold">{totalDuration} min</span>
+                            <div className="text-right text-sm text-[var(--color-text-muted)] font-medium pt-2 border-t border-[var(--color-border-light)]">
+                                Total: <span className="text-[var(--color-primary)] font-bold">{totalDuration} min</span>
                             </div>
                         </div>
                     )}
 
                     {/* Quick Add Presets */}
                     <div className="space-y-3">
-                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Quick Add</h4>
+                        <h4 className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Quick Add</h4>
                         <div className="grid grid-cols-2 xs:grid-cols-3 gap-2">
                             {workoutPresets.map((preset) => (
                                 <div key={preset.label} className="contents">
                                     <button
                                         onClick={() => quickAddWorkout(preset)}
-                                        className="flex flex-col items-center justify-center p-3 bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 rounded-xl transition-all tap-target active:scale-95"
+                                        className="flex flex-col items-center justify-center p-3 bg-[var(--color-bg-subtle)] hover:bg-[var(--color-primary)]/5 border border-[var(--color-border-light)] hover:border-[var(--color-primary)]/30 rounded-xl transition-all tap-target active:scale-95"
                                     >
                                         <span className="text-2xl mb-1">{preset.emoji}</span>
-                                        <span className="text-xs font-bold text-gray-700">{preset.label}</span>
-                                        <span className="text-[10px] text-gray-400">{preset.duration}m</span>
+                                        <span className="text-xs font-bold text-[var(--color-text)]">{preset.label}</span>
+                                        <span className="text-[10px] text-[var(--color-text-muted)]">{preset.duration}m</span>
                                     </button>
                                 </div>
                             ))}
@@ -295,7 +295,7 @@ export function MovementSection({
                     <div className="flex gap-2">
                         <button
                             onClick={() => setShowAddForm(!showAddForm)}
-                            className="flex-1 flex items-center justify-center gap-2 p-3 text-sm font-bold text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors tap-target"
+                            className="flex-1 flex items-center justify-center gap-2 p-3 text-sm font-bold text-[var(--color-primary)] bg-[var(--color-primary)]/10 rounded-xl hover:bg-[var(--color-primary)]/15 transition-colors tap-target"
                         >
                             {showAddForm ? (
                                 <>Close Form <ChevronUp className="w-4 h-4" /></>
@@ -312,33 +312,33 @@ export function MovementSection({
                     </div>
 
                     {showAddForm && (
-                        <div className="bg-blue-50/50 rounded-xl border border-blue-100 overflow-hidden p-5 space-y-4 animate-in slide-in-from-top-2">
+                        <div className="bg-[var(--color-bg-subtle)] rounded-xl border border-[var(--color-border-light)] overflow-hidden p-5 space-y-4 animate-in slide-in-from-top-2">
                             <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Activity</label>
+                                <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">Activity</label>
                                 <input
                                     type="text"
                                     placeholder="e.g. Cycling, Lifting, Yoga"
                                     value={newWorkout.activity_type}
                                     onChange={e => setNewWorkout({ ...newWorkout, activity_type: e.target.value })}
-                                    className="w-full mt-1 p-3 bg-white rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                                    className="w-full mt-1 p-3 bg-[var(--color-surface-elevated)] text-[var(--color-text)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent outline-none transition-all"
                                 />
                             </div>
                             <div className="flex gap-4">
                                 <div className="flex-1">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Mins</label>
+                                    <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">Mins</label>
                                     <input
                                         type="number"
                                         value={newWorkout.duration}
                                         onChange={e => setNewWorkout({ ...newWorkout, duration: parseInt(e.target.value) || 0 })}
-                                        className="w-full mt-1 p-3 bg-white rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                                        className="w-full mt-1 p-3 bg-[var(--color-surface-elevated)] text-[var(--color-text)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
                                     />
                                 </div>
                                 <div className="flex-1">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Intensity</label>
+                                    <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">Intensity</label>
                                     <select
                                         value={newWorkout.intensity}
                                         onChange={e => setNewWorkout({ ...newWorkout, intensity: e.target.value as any })}
-                                        className="w-full mt-1 p-3 bg-white rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                                        className="w-full mt-1 p-3 bg-[var(--color-surface-elevated)] text-[var(--color-text)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
                                     >
                                         <option>Light</option>
                                         <option>Moderate</option>
@@ -349,16 +349,16 @@ export function MovementSection({
                             <button
                                 onClick={handleAddWorkout}
                                 disabled={!newWorkout.activity_type || localAdding}
-                                className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none tap-target"
+                                className="w-full py-3 bg-[var(--color-primary)] text-white rounded-xl font-bold shadow-lg shadow-[var(--color-primary)]/20 active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none tap-target"
                             >
                                 {localAdding ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Add Workout'}
                             </button>
                         </div>
                     )}
-                    <div className="pt-4 border-t border-gray-100">
+                    <div className="pt-4 border-t border-[var(--color-border-light)]">
                         <button
                             onClick={() => router.push('/workout')}
-                            className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-black transition-colors"
+                            className="w-full py-4 bg-[var(--color-text)] text-[var(--color-bg)] rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
                         >
                             <span>🏋️‍♀️</span>
                             Open Workout Hub

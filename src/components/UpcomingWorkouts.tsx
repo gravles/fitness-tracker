@@ -45,11 +45,11 @@ export function UpcomingWorkouts() {
 
     if (loading) {
         return (
-            <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm animate-pulse">
-                <div className="h-6 bg-gray-200 rounded w-40 mb-3" />
+            <div className="bg-[var(--color-surface-elevated)] p-4 rounded-2xl border border-[var(--color-border-light)] shadow-sm animate-pulse">
+                <div className="h-5 bg-[var(--color-bg-muted)] rounded w-40 mb-3" />
                 <div className="space-y-2">
-                    <div className="h-16 bg-gray-100 rounded-xl" />
-                    <div className="h-16 bg-gray-100 rounded-xl" />
+                    <div className="h-16 bg-[var(--color-bg-subtle)] rounded-xl" />
+                    <div className="h-16 bg-[var(--color-bg-subtle)] rounded-xl" />
                 </div>
             </div>
         );
@@ -59,49 +59,49 @@ export function UpcomingWorkouts() {
         return (
             <div
                 onClick={() => { haptics.tap(); router.push('/schedule'); }}
-                className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-2xl border border-blue-100 cursor-pointer hover:shadow-md transition-shadow"
+                className="bg-[var(--color-surface-elevated)] p-4 rounded-2xl border border-[var(--color-border-light)] shadow-sm cursor-pointer hover:border-[var(--color-primary)]/30 hover:shadow-md transition-all"
             >
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 rounded-xl">
-                            <Calendar className="w-5 h-5 text-blue-600" />
+                        <div className="p-2 bg-[var(--color-primary)]/10 rounded-xl">
+                            <Calendar className="w-5 h-5 text-[var(--color-primary)]" />
                         </div>
                         <div>
-                            <p className="font-bold text-gray-900">Schedule Your Workouts</p>
-                            <p className="text-sm text-gray-500">Plan ahead and stay consistent</p>
+                            <p className="font-bold text-[var(--color-text)]">Schedule Your Workouts</p>
+                            <p className="text-sm text-[var(--color-text-muted)]">Plan ahead and stay consistent</p>
                         </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                    <ChevronRight className="w-5 h-5 text-[var(--color-text-muted)]" />
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                <h3 className="font-bold text-gray-900">Upcoming Workouts</h3>
+        <div className="bg-[var(--color-surface-elevated)] rounded-2xl border border-[var(--color-border-light)] shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-light)]">
+                <h3 className="font-bold text-[var(--color-text)]">Upcoming Workouts</h3>
                 <button
                     onClick={() => { haptics.tap(); router.push('/schedule'); }}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                    className="text-sm font-semibold text-[var(--color-primary)] hover:opacity-80 transition-opacity"
                 >
                     View All
                 </button>
             </div>
 
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-[var(--color-border-light)]">
                 {workouts.map(workout => (
                     <div
                         key={workout.id}
-                        className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                        className="flex items-center justify-between p-4 hover:bg-[var(--color-bg-subtle)] transition-colors"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-green-100 rounded-lg">
-                                <Dumbbell className="w-4 h-4 text-green-600" />
+                            <div className="p-2 bg-green-500/10 rounded-lg">
+                                <Dumbbell className="w-4 h-4 text-green-500" />
                             </div>
                             <div>
-                                <div className="font-medium text-gray-900">{workout.title}</div>
-                                <div className="text-xs text-gray-500 flex items-center gap-2">
+                                <div className="font-medium text-[var(--color-text)]">{workout.title}</div>
+                                <div className="text-xs text-[var(--color-text-muted)] flex items-center gap-2">
                                     <span>{formatDate(workout.scheduled_date)}</span>
                                     <span>•</span>
                                     <Clock className="w-3 h-3" />
@@ -113,7 +113,7 @@ export function UpcomingWorkouts() {
                         {isToday(new Date(workout.scheduled_date + 'T00:00:00')) && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleStartWorkout(workout); }}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white text-sm font-medium rounded-lg hover:bg-green-600 transition-colors"
+                                className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white text-sm font-semibold rounded-lg hover:bg-green-600 transition-colors"
                             >
                                 <Play className="w-3 h-3" />
                                 Start
