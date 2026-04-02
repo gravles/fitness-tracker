@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
-import { Loader2, Plus, Check, Clock, Save, MoreVertical, X, Play, Pause, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Check, Clock, Save, MoreVertical, X, Play, Pause, Trash2, History } from 'lucide-react';
 import { format } from 'date-fns';
-import { getTemplates, getWorkoutDetails, createWorkoutExercise, logSet, WorkoutTemplate } from '@/lib/workout-api';
+import { getTemplates, getWorkoutDetails, createWorkoutExercise, logSet, getLastSetsForExercise, WorkoutTemplate } from '@/lib/workout-api';
 import { useTemplate as useTemplateAction, WorkoutTemplate as FeaturesTemplate } from '@/lib/features';
 import { upsertDailyLog, addWorkout, deleteWorkout } from '@/lib/api';
 import { WorkoutSpotter } from '@/components/WorkoutSpotter';
 import { RestTimer } from '@/components/RestTimer';
+import { ExercisePicker } from '@/components/ExercisePicker';
+import { ExerciseHistoryModal } from '@/components/ExerciseHistoryModal';
 
 const DRAFT_KEY = 'workout_active_draft';
 
@@ -37,6 +39,10 @@ export default function ActiveWorkoutPage() {
     const [isPaused, setIsPaused] = useState(false);
     const [title, setTitle] = useState('New Workout');
     const [exercises, setExercises] = useState<ActiveExercise[]>([]);
+    const [showExercisePicker, setShowExercisePicker] = useState(false);
+    const [historyExercise, setHistoryExercise] = useState<string | null>(null);
+    // Map of exercise name → { date, sets } from last session
+    const [lastSets, setLastSets] = useState<Record<string, { date: string; sets: any[] } | null>>({});
 
     // Timer
     useEffect(() => {
@@ -47,6 +53,18 @@ export default function ActiveWorkoutPage() {
         }, 1000);
         return () => clearInterval(interval);
     }, [isPaused]);
+
+    // Fetch previous sets for any exercise not yet in lastSets
+    useEffect(() => {
+        if (loading) return;
+        for (const ex of exercises) {
+            if (ex.name && !(ex.name in lastSets)) {
+                getLastSetsForExercise(ex.name)
+                    .then(data => setLastSets(prev => ({ ...prev, [ex.name]: data })))
+                    .catch(() => setLastSets(prev => ({ ...prev, [ex.name]: null })));
+            }
+        }
+    }, [exercises, loading]);
 
     // Auto-save draft to localStorage whenever workout state changes
     useEffect(() => {
@@ -381,86 +399,125 @@ export default function ActiveWorkoutPage() {
 
             {/* List */}
             <div className={`flex-1 overflow-y-auto p-4 space-y-6 pb-32 transition-opacity ${isPaused ? 'opacity-50 grayscale-[50%]' : ''}`}>
-                {exercises.map((ex, i) => (
-                    <div key={i}>
-                        <div className="flex justify-between items-center mb-2">
-                            <h3 className="font-bold text-lg">{ex.name}</h3>
-                            <div className="flex items-center gap-2">
+                {exercises.map((ex, i) => {
+                    const prev = lastSets[ex.name];
+                    return (
+                        <div key={i}>
+                            {/* Exercise header */}
+                            <div className="flex justify-between items-center mb-1">
+                                <h3 className="font-bold text-lg">{ex.name}</h3>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => setHistoryExercise(ex.name)}
+                                        className="text-gray-400 p-2 hover:bg-blue-50 hover:text-blue-500 rounded-full transition-colors"
+                                        title="Exercise History"
+                                    >
+                                        <History className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => deleteExercise(i)}
+                                        className="text-gray-400 p-2 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors"
+                                        title="Delete Exercise"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Previous session summary */}
+                            {prev && prev.sets.length > 0 && (
+                                <div className="mb-2 px-2 py-1.5 bg-blue-50 rounded-lg">
+                                    <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wide mb-0.5">Last session</p>
+                                    <p className="text-xs text-blue-700 font-medium">
+                                        {prev.sets.map((s: any) => `${s.weight}×${s.reps}`).join(' | ')}
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="space-y-2">
+                                <div className="grid grid-cols-10 gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider text-center mb-1 px-1">
+                                    <div className="col-span-1">Set</div>
+                                    <div className="col-span-3">Lbs</div>
+                                    <div className="col-span-3">Reps</div>
+                                    <div className="col-span-3">Done</div>
+                                </div>
+
+                                {ex.sets.map((set, si) => {
+                                    const prevSet = prev?.sets[si];
+                                    return (
+                                        <div key={si} className={`grid grid-cols-10 gap-2 items-center p-1 rounded-lg transition-colors ${set.completed ? 'bg-green-50' : 'bg-gray-50'}`}>
+                                            <div className="col-span-1 text-center font-bold text-gray-500">{si + 1}</div>
+                                            <div className="col-span-3">
+                                                <input
+                                                    type="tel"
+                                                    placeholder={prevSet ? String(prevSet.weight) : '0'}
+                                                    value={set.weight}
+                                                    onChange={e => updateSet(i, si, 'weight', e.target.value)}
+                                                    className="w-full text-center p-2 rounded-md border border-gray-200 bg-white"
+                                                />
+                                            </div>
+                                            <div className="col-span-3">
+                                                <input
+                                                    type="tel"
+                                                    placeholder={prevSet ? String(prevSet.reps) : '0'}
+                                                    value={set.reps}
+                                                    onChange={e => updateSet(i, si, 'reps', e.target.value)}
+                                                    className="w-full text-center p-2 rounded-md border border-gray-200 bg-white"
+                                                />
+                                            </div>
+                                            <div className="col-span-3 flex justify-center">
+                                                <button
+                                                    onClick={() => toggleSet(i, si)}
+                                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${set.completed ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-gray-200 text-gray-400'
+                                                        }`}
+                                                >
+                                                    <Check className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                                 <button
-                                    onClick={() => deleteExercise(i)}
-                                    className="text-gray-400 p-2 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors"
-                                    title="Delete Exercise"
+                                    onClick={() => {
+                                        const copy = [...exercises];
+                                        const lastSet = copy[i].sets[copy[i].sets.length - 1];
+                                        copy[i].sets.push({ weight: lastSet?.weight || '', reps: lastSet?.reps || '', completed: false });
+                                        setExercises(copy);
+                                    }}
+                                    className="w-full py-2 bg-gray-100 text-gray-500 rounded-lg text-xs font-bold hover:bg-gray-200 flex items-center justify-center gap-1"
                                 >
-                                    <X className="w-4 h-4" />
+                                    <Plus className="w-3 h-3" /> Add Set
                                 </button>
                             </div>
                         </div>
-
-                        <div className="space-y-2">
-                            <div className="grid grid-cols-10 gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider text-center mb-1 px-1">
-                                <div className="col-span-1">Set</div>
-                                <div className="col-span-3">Lbs</div>
-                                <div className="col-span-3">Reps</div>
-                                <div className="col-span-3">Done</div>
-                            </div>
-
-                            {ex.sets.map((set, si) => (
-                                <div key={si} className={`grid grid-cols-10 gap-2 items-center p-1 rounded-lg transition-colors ${set.completed ? 'bg-green-50' : 'bg-gray-50'}`}>
-                                    <div className="col-span-1 text-center font-bold text-gray-500">{si + 1}</div>
-                                    <div className="col-span-3">
-                                        <input
-                                            type="tel"
-                                            placeholder="0"
-                                            value={set.weight}
-                                            onChange={e => updateSet(i, si, 'weight', e.target.value)}
-                                            className="w-full text-center p-2 rounded-md border border-gray-200 bg-white"
-                                        />
-                                    </div>
-                                    <div className="col-span-3">
-                                        <input
-                                            type="tel"
-                                            placeholder="0"
-                                            value={set.reps}
-                                            onChange={e => updateSet(i, si, 'reps', e.target.value)}
-                                            className="w-full text-center p-2 rounded-md border border-gray-200 bg-white"
-                                        />
-                                    </div>
-                                    <div className="col-span-3 flex justify-center">
-                                        <button
-                                            onClick={() => toggleSet(i, si)}
-                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${set.completed ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-gray-200 text-gray-400'
-                                                }`}
-                                        >
-                                            <Check className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                            <button
-                                onClick={() => {
-                                    const copy = [...exercises];
-                                    const lastSet = copy[i].sets[copy[i].sets.length - 1];
-                                    copy[i].sets.push({ weight: lastSet?.weight || '', reps: lastSet?.reps || '', completed: false });
-                                    setExercises(copy);
-                                }}
-                                className="w-full py-2 bg-gray-100 text-gray-500 rounded-lg text-xs font-bold hover:bg-gray-200 flex items-center justify-center gap-1"
-                            >
-                                <Plus className="w-3 h-3" /> Add Set
-                            </button>
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
 
                 <button
-                    onClick={() => {
-                        const name = prompt('Exercise Name:');
-                        if (name) setExercises([...exercises, { name, sets: [{ weight: '', reps: '', completed: false }] }]);
-                    }}
+                    onClick={() => setShowExercisePicker(true)}
                     className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 font-bold hover:border-blue-400 hover:text-blue-500 transition-colors flex items-center justify-center gap-2"
                 >
                     <Plus className="w-5 h-5" /> Add Exercise
                 </button>
             </div>
+
+            {/* Exercise picker modal */}
+            {showExercisePicker && (
+                <ExercisePicker
+                    onSelect={name => {
+                        setExercises([...exercises, { name, sets: [{ weight: '', reps: '', completed: false }] }]);
+                    }}
+                    onClose={() => setShowExercisePicker(false)}
+                />
+            )}
+
+            {/* Exercise history modal */}
+            {historyExercise && (
+                <ExerciseHistoryModal
+                    exerciseName={historyExercise}
+                    onClose={() => setHistoryExercise(null)}
+                />
+            )}
         </main>
     );
 }

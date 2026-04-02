@@ -2,7 +2,8 @@
 
 import { VoiceInput } from '../VoiceInput';
 import { FoodCamera } from '../FoodCamera';
-import { Keyboard, ChefHat, Camera, X, Brain, Heart, Trash2, BookOpen, Pencil } from 'lucide-react';
+import { BarcodeScanner } from '../BarcodeScanner';
+import { Keyboard, ChefHat, Camera, X, Brain, Heart, Trash2, BookOpen, Pencil, Barcode } from 'lucide-react';
 import { useState } from 'react';
 import { addFavoriteFood, deleteFavoriteFood, getFavoriteFoods, FavoriteFood } from '@/lib/api';
 
@@ -56,6 +57,7 @@ export function NutritionSection({
     targets
 }: NutritionSectionProps) {
     const [loadingAI, setLoadingAI] = useState(false);
+    const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
 
     function updateFoodItemQuantity(index: number, newQuantity: string | number) {
         const updated = [...foodItems];
@@ -248,8 +250,8 @@ export function NutritionSection({
                     </h3>
                 </div>
 
-                {/* Quick Actions Grid - all buttons always visible, no horizontal scroll */}
-                <div className="grid grid-cols-5 gap-2">
+                {/* Quick Actions Grid - 2 rows of 3 */}
+                <div className="grid grid-cols-3 gap-2">
                     <VoiceInput
                         autoStart={autoStartVoice}
                         onIntentDetected={(intent) => {
@@ -338,6 +340,16 @@ export function NutritionSection({
                         </div>
                         <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">Favorites</span>
                     </button>
+
+                    <button
+                        onClick={() => setShowBarcodeScanner(true)}
+                        className="flex flex-col items-center gap-1 w-full"
+                    >
+                        <div className="w-full aspect-square max-w-[52px] mx-auto bg-green-50 text-green-600 rounded-2xl flex items-center justify-center shadow-sm border border-green-100">
+                            <Barcode className="w-5 h-5" />
+                        </div>
+                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">Barcode</span>
+                    </button>
                 </div>
 
                 {showCamera && (
@@ -390,6 +402,15 @@ export function NutritionSection({
                         <Brain className="w-8 h-8 animate-pulse mb-2" />
                         <p className="text-sm font-bold animate-pulse">Analyzing Food...</p>
                     </div>
+                )}
+
+                {showBarcodeScanner && (
+                    <BarcodeScanner
+                        onResult={food => {
+                            onAddFoodItems([{ ...food, quantity: 1 }]);
+                        }}
+                        onClose={() => setShowBarcodeScanner(false)}
+                    />
                 )}
 
                 <div className="space-y-4 animate-in fade-in">

@@ -138,6 +138,93 @@ export async function getWorkoutDetails(workoutId: string) {
     return data;
 }
 
+export async function getLastSetsForExercise(exerciseName: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+
+    // Scan last 30 workouts for the most recent occurrence of this exercise
+    const { data, error } = await supabase
+        .from('workouts')
+        .select(`id, date, exercises:workout_exercises(exercise_name, sets:workout_sets(set_number, weight, reps, completed))`)
+        .eq('user_id', session.user.id)
+        .order('date', { ascending: false })
+        .limit(30);
+
+    if (error || !data) return null;
+
+    for (const workout of data) {
+        const match = workout.exercises?.find(
+            (e: any) => e.exercise_name.toLowerCase() === exerciseName.toLowerCase()
+        );
+        if (match?.sets?.length) {
+            const completed = match.sets
+                .filter((s: any) => s.completed)
+                .sort((a: any, b: any) => a.set_number - b.set_number);
+            if (completed.length) return { date: workout.date, sets: completed };
+        }
+    }
+    return null;
+}
+
+export async function getRecentExerciseNames(limit = 40): Promise<string[]> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
+
+    const { data, error } = await supabase
+        .from('workouts')
+        .select('exercises:workout_exercises(exercise_name)')
+        .eq('user_id', session.user.id)
+        .order('date', { ascending: false })
+        .limit(20);
+
+    if (error || !data) return [];
+
+    const seen = new Set<string>();
+    const names: string[] = [];
+    for (const w of data) {
+        for (const ex of (w.exercises as any[]) || []) {
+            const key = ex.exercise_name.toLowerCase();
+            if (!seen.has(key)) {
+                seen.add(key);
+                names.push(ex.exercise_name);
+            }
+        }
+        if (names.length >= limit) break;
+    }
+    return names;
+}
+
+export async function getExerciseHistory(exerciseName: string, limit = 10) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
+
+    const { data, error } = await supabase
+        .from('workouts')
+        .select(`date, exercises:workout_exercises(exercise_name, sets:workout_sets(set_number, weight, reps, completed))`)
+        .eq('user_id', session.user.id)
+        .order('date', { ascending: false })
+        .limit(50);
+
+    if (error || !data) return [];
+
+    const history: { date: string; sets: any[] }[] = [];
+    for (const workout of data) {
+        const match = workout.exercises?.find(
+            (e: any) => e.exercise_name.toLowerCase() === exerciseName.toLowerCase()
+        );
+        if (match?.sets?.length) {
+            const completedSets = match.sets
+                .filter((s: any) => s.completed && s.weight && s.reps)
+                .sort((a: any, b: any) => a.set_number - b.set_number);
+            if (completedSets.length) {
+                history.push({ date: workout.date, sets: completedSets });
+                if (history.length >= limit) break;
+            }
+        }
+    }
+    return history;
+}
+
 export async function deleteWorkoutExercises(workoutId: string) {
     const { error } = await supabase
         .from('workout_exercises')
