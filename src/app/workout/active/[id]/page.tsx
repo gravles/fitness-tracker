@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
-import { Loader2, Plus, Check, Clock, Save, MoreVertical, X, Play, Pause } from 'lucide-react';
+import { Loader2, Plus, Check, Clock, Save, MoreVertical, X, Play, Pause, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { getTemplates, getWorkoutDetails, createWorkoutExercise, logSet, WorkoutTemplate } from '@/lib/workout-api';
 import { useTemplate as useTemplateAction, WorkoutTemplate as FeaturesTemplate } from '@/lib/features';
-import { upsertDailyLog, addWorkout } from '@/lib/api';
+import { upsertDailyLog, addWorkout, deleteWorkout } from '@/lib/api';
 import { WorkoutSpotter } from '@/components/WorkoutSpotter';
 import { RestTimer } from '@/components/RestTimer';
+
+const DRAFT_KEY = 'workout_active_draft';
 
 // Types for local state
 interface ActiveSet {
@@ -46,11 +48,43 @@ export default function ActiveWorkoutPage() {
         return () => clearInterval(interval);
     }, [isPaused]);
 
+    // Auto-save draft to localStorage whenever workout state changes
+    useEffect(() => {
+        if (loading) return;
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({
+            workoutId: params.id,
+            title,
+            exercises,
+            elapsedSeconds,
+            savedAt: Date.now()
+        }));
+    }, [exercises, title, elapsedSeconds, loading]);
+
     // Initial Load
     useEffect(() => {
         async function init() {
             setLoading(true);
             try {
+                // Restore draft if available and no fresh template is being loaded
+                if (!templateId) {
+                    try {
+                        const raw = localStorage.getItem(DRAFT_KEY);
+                        if (raw) {
+                            const draft = JSON.parse(raw);
+                            const isRecent = Date.now() - draft.savedAt < 24 * 60 * 60 * 1000;
+                            if (isRecent && draft.workoutId === params.id) {
+                                setTitle(draft.title);
+                                setExercises(draft.exercises);
+                                setElapsedSeconds(draft.elapsedSeconds);
+                                setLoading(false);
+                                return;
+                            }
+                        }
+                    } catch {
+                        // ignore malformed draft
+                    }
+                }
+
                 if (templateId) {
                     // Load from public/user template via features lib
                     try {
@@ -235,11 +269,26 @@ export default function ActiveWorkoutPage() {
                 calories: (await import('@/lib/api').then(m => m.getDailyLog(workoutData.date)))?.calories // Preserve existing calories if possible, but nutrition log generally handles this
             });
 
+            localStorage.removeItem(DRAFT_KEY);
             router.push('/');
 
         } catch (e) {
             console.error(e);
             alert('Error saving workout');
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteWorkout = async () => {
+        if (!confirm('Delete this workout? This cannot be undone.')) return;
+        setLoading(true);
+        try {
+            await deleteWorkout(params.id as string);
+            localStorage.removeItem(DRAFT_KEY);
+            router.push('/');
+        } catch (e) {
+            console.error(e);
+            alert('Error deleting workout');
             setLoading(false);
         }
     };
@@ -315,6 +364,15 @@ export default function ActiveWorkoutPage() {
                     </button>
                     <RestTimer />
                     <WorkoutSpotter onSetDetected={handleSetDetected} />
+                    {params.id && params.id !== 'new' && (
+                        <button
+                            onClick={handleDeleteWorkout}
+                            className="p-2 rounded-full bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 transition-colors"
+                            title="Delete Workout"
+                        >
+                            <Trash2 className="w-5 h-5" />
+                        </button>
+                    )}
                     <button onClick={finishWorkout} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm hover:bg-green-700">
                         Finish
                     </button>
