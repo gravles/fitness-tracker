@@ -169,10 +169,14 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             setWorkouts(workoutData || []);
             setFavorites(favData || []);
 
-            // Set available habits from user settings
+            // Set available habits and nutrition targets from user settings
             if (userSettings?.custom_habits) {
                 setSettings(prev => ({ ...prev, habits: userSettings.custom_habits || [] }));
             }
+            setTargetsState({
+                protein: userSettings?.target_protein ?? 0,
+                calories: userSettings?.target_calories ?? 0,
+            });
 
             if (log) {
                 setMovementCompleted(log.movement_completed ?? null);
