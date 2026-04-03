@@ -94,9 +94,9 @@ export function BarcodeScanner({ onResult, onClose }: Props) {
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end" onClick={onClose}>
+        <div className="fixed inset-0 z-[200] flex items-end pb-16" onClick={onClose}>
             <div
-                className="w-full bg-white rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 max-h-[90vh] flex flex-col"
+                className="w-full bg-white rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 max-h-[75vh] flex flex-col"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Handle */}

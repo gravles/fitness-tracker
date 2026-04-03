@@ -36,6 +36,55 @@ interface NutritionSectionProps {
     targets?: { protein: number; calories: number };
 }
 
+interface MacroRingProps {
+    value: number;
+    target: number;
+    label: string;
+    color: string;
+    trackColor: string;
+    unit: string;
+}
+
+function MacroRing({ value, target, label, color, trackColor, unit }: MacroRingProps) {
+    const r = 36;
+    const circ = 2 * Math.PI * r;
+    const pct = target > 0 ? Math.min(1, value / target) : 0;
+    const offset = circ * (1 - pct);
+    const over = target > 0 && value > target;
+    const remaining = target > 0 ? Math.max(0, target - value) : 0;
+
+    return (
+        <div className="flex flex-col items-center gap-1">
+            <div className="relative w-24 h-24">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 88 88">
+                    <circle cx="44" cy="44" r={r} strokeWidth="8" fill="none" stroke={trackColor} />
+                    <circle
+                        cx="44" cy="44" r={r}
+                        strokeWidth="8" fill="none"
+                        stroke={over ? '#f97316' : color}
+                        strokeDasharray={circ}
+                        strokeDashoffset={target > 0 ? offset : circ}
+                        strokeLinecap="round"
+                        style={{ transition: 'stroke-dashoffset 0.5s ease' }}
+                    />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center leading-tight">
+                    <span className={`text-lg font-black ${over ? 'text-orange-500' : 'text-gray-900'}`}>{value}</span>
+                    <span className="text-[10px] text-gray-400 font-medium">{unit}</span>
+                </div>
+            </div>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">{label}</p>
+            {target > 0 ? (
+                <p className={`text-[11px] font-semibold ${over ? 'text-orange-500' : 'text-gray-400'}`}>
+                    {over ? `${value - target} over` : `${remaining} left`}
+                </p>
+            ) : (
+                <p className="text-[11px] text-gray-300">no target set</p>
+            )}
+        </div>
+    );
+}
+
 export function NutritionSection({
     nutrition,
     setNutrition,
@@ -404,20 +453,45 @@ export function NutritionSection({
                     </div>
                 )}
 
-                {showBarcodeScanner && (
-                    <BarcodeScanner
-                        onResult={food => {
-                            onAddFoodItems([{ ...food, quantity: 1 }]);
-                        }}
-                        onClose={() => setShowBarcodeScanner(false)}
-                    />
-                )}
-
                 <div className="space-y-4 animate-in fade-in">
+
+                    {/* Macro summary — always at top */}
+                    <div className="pt-2 pb-1">
+                        {/* Calorie + Protein rings */}
+                        <div className="flex justify-around mb-3">
+                            <MacroRing
+                                value={nutrition.calories}
+                                target={targets?.calories || 0}
+                                label="Calories"
+                                color="#f97316"
+                                trackColor="#fed7aa"
+                                unit="kcal"
+                            />
+                            <MacroRing
+                                value={nutrition.protein}
+                                target={targets?.protein || 0}
+                                label="Protein"
+                                color="#3b82f6"
+                                trackColor="#bfdbfe"
+                                unit="g"
+                            />
+                        </div>
+                        {/* Carbs + Fat chips */}
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="bg-yellow-50 rounded-xl p-2.5 text-center border border-yellow-100">
+                                <p className="text-lg font-black text-yellow-700">{nutrition.carbs}<span className="text-xs font-medium ml-0.5">g</span></p>
+                                <p className="text-[10px] font-bold text-yellow-500 uppercase tracking-wide">Carbs</p>
+                            </div>
+                            <div className="bg-purple-50 rounded-xl p-2.5 text-center border border-purple-100">
+                                <p className="text-lg font-black text-purple-700">{nutrition.fat}<span className="text-xs font-medium ml-0.5">g</span></p>
+                                <p className="text-[10px] font-bold text-purple-500 uppercase tracking-wide">Fat</p>
+                            </div>
+                        </div>
+                    </div>
 
                     {/* Food Items List */}
                     {foodItems.length > 0 && (
-                        <div className="space-y-2 mb-4">
+                        <div className="space-y-2">
                             {foodItems.map((item, index) => (
                                 <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm">
                                     <div className="flex-1">
@@ -464,70 +538,11 @@ export function NutritionSection({
                                         >
                                             <Heart className={`w-4 h-4 ${isFavorite(item.name) ? 'fill-current' : ''}`} />
                                         </button>
-
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
-
-                    {/* Read-Only Stats Grid with Progress Rings */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {/* Protein with Progress */}
-                        <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100 flex flex-col items-center relative">
-                            {targets?.protein && targets.protein > 0 ? (
-                                <div className="absolute top-2 right-2">
-                                    <svg className="w-8 h-8 -rotate-90">
-                                        <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="none" className="text-blue-100" />
-                                        <circle
-                                            cx="16" cy="16" r="12"
-                                            stroke="currentColor" strokeWidth="3" fill="none"
-                                            className="text-blue-500"
-                                            strokeDasharray={`${Math.min(100, (nutrition.protein / targets.protein) * 100) * 0.754} 100`}
-                                            strokeLinecap="round"
-                                        />
-                                    </svg>
-                                </div>
-                            ) : null}
-                            <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Protein</span>
-                            <span className="text-xl font-black text-blue-700">{nutrition.protein}<span className="text-sm font-medium ml-0.5">g</span></span>
-                            {targets?.protein && targets.protein > 0 ? (
-                                <span className="text-[10px] text-blue-500 font-medium">/ {targets.protein}g</span>
-                            ) : null}
-                        </div>
-
-                        {/* Calories with Progress */}
-                        <div className="bg-orange-50 p-3 rounded-2xl border border-orange-100 flex flex-col items-center relative">
-                            {targets?.calories && targets.calories > 0 ? (
-                                <div className="absolute top-2 right-2">
-                                    <svg className="w-8 h-8 -rotate-90">
-                                        <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="none" className="text-orange-100" />
-                                        <circle
-                                            cx="16" cy="16" r="12"
-                                            stroke="currentColor" strokeWidth="3" fill="none"
-                                            className="text-orange-500"
-                                            strokeDasharray={`${Math.min(100, (nutrition.calories / targets.calories) * 100) * 0.754} 100`}
-                                            strokeLinecap="round"
-                                        />
-                                    </svg>
-                                </div>
-                            ) : null}
-                            <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">Calories</span>
-                            <span className="text-xl font-black text-orange-700">{nutrition.calories}</span>
-                            {targets?.calories && targets.calories > 0 ? (
-                                <span className="text-[10px] text-orange-500 font-medium">/ {targets.calories}</span>
-                            ) : null}
-                        </div>
-
-                        <div className="bg-yellow-50 p-3 rounded-2xl border border-yellow-100 flex flex-col items-center">
-                            <span className="text-xs font-bold text-yellow-500 uppercase tracking-wider">Carbs</span>
-                            <span className="text-xl font-black text-yellow-700">{nutrition.carbs}<span className="text-sm font-medium ml-0.5">g</span></span>
-                        </div>
-                        <div className="bg-purple-50 p-3 rounded-2xl border border-purple-100 flex flex-col items-center">
-                            <span className="text-xs font-bold text-purple-400 uppercase tracking-wider">Fat</span>
-                            <span className="text-xl font-black text-purple-700">{nutrition.fat}<span className="text-sm font-medium ml-0.5">g</span></span>
-                        </div>
-                    </div>
 
                     {/* Eating Window */}
                     <div>
@@ -573,6 +588,16 @@ export function NutritionSection({
                     </button>
                 </div>
             </section >
+
+            {/* Barcode scanner rendered outside section to avoid z-index trapping */}
+            {showBarcodeScanner && (
+                <BarcodeScanner
+                    onResult={food => {
+                        onAddFoodItems([{ ...food, quantity: 1 }]);
+                    }}
+                    onClose={() => setShowBarcodeScanner(false)}
+                />
+            )}
         </>
     );
 }
