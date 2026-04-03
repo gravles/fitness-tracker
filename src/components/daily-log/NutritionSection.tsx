@@ -453,6 +453,18 @@ export function NutritionSection({
                     </div>
                 )}
 
+                {showBarcodeScanner && (
+                    <div className="mt-4">
+                        <BarcodeScanner
+                            onResult={food => {
+                                onAddFoodItems([{ ...food, quantity: 1 }]);
+                                setShowBarcodeScanner(false);
+                            }}
+                            onClose={() => setShowBarcodeScanner(false)}
+                        />
+                    </div>
+                )}
+
                 <div className="space-y-4 animate-in fade-in">
 
                     {/* Macro summary — always at top */}
@@ -588,16 +600,6 @@ export function NutritionSection({
                     </button>
                 </div>
             </section >
-
-            {/* Barcode scanner rendered outside section to avoid z-index trapping */}
-            {showBarcodeScanner && (
-                <BarcodeScanner
-                    onResult={food => {
-                        onAddFoodItems([{ ...food, quantity: 1 }]);
-                    }}
-                    onClose={() => setShowBarcodeScanner(false)}
-                />
-            )}
         </>
     );
 }
