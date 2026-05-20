@@ -1,15 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -21,18 +23,21 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Life Logger",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#ffffff",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafaf8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0d1b2a" },
+  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  viewportFit: "cover", // Essential for full-screen web apps
+  viewportFit: "cover",
 };
 
 import { SWRegister } from "@/components/SWRegister";
@@ -47,14 +52,23 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 text-gray-900`}
-      >
+      <body className={`${inter.variable} ${playfair.variable} antialiased`}>
         <SWRegister />
         <AuthWrapper>
           <SyncManager />
-          <Toaster position="bottom-center" />
-          <div className="max-w-2xl mx-auto min-h-screen bg-white/50 backdrop-blur-sm pb-24 relative shadow-2xl shadow-gray-200 border-x border-white/50">
+          <Toaster
+            position="bottom-center"
+            toastOptions={{
+              style: {
+                background: "var(--color-surface-elevated)",
+                border: "1px solid var(--color-border)",
+                color: "var(--color-text)",
+                fontFamily: "var(--font-sans)",
+                boxShadow: "var(--shadow-lg)",
+              },
+            }}
+          />
+          <div className="max-w-2xl mx-auto min-h-dvh pb-24 relative border-x border-[var(--color-border-light)] shadow-2xl bg-[var(--color-bg)]">
             {children}
           </div>
         </AuthWrapper>

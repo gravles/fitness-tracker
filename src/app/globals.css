@@ -1,70 +1,82 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-playfair);
+  --font-mono: ui-monospace, 'Cascadia Code', 'Courier New', monospace;
 }
 
 /* =====================================================
    DESIGN TOKENS
    ===================================================== */
 :root {
-  /* Primary Colors */
-  --color-primary: #3b82f6;
-  --color-primary-light: #60a5fa;
-  --color-primary-dark: #2563eb;
+  /* Brand palette — from nathandavie.com */
+  --color-navy:       #0d1b2a;
+  --color-gold:       #c9a84c;
+  --color-gold-light: #dfc070;
+  --color-gold-muted: rgba(201, 168, 76, 0.12);
 
-  /* Accent Colors */
-  --color-accent: #8b5cf6;
-  --color-accent-light: #a78bfa;
+  /* Primary */
+  --color-primary:      #1d5fa8;
+  --color-primary-light:#2d72c4;
+  --color-primary-dark: #164d8a;
 
-  /* Semantic Colors */
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
+  /* Accent = gold */
+  --color-accent:       #c9a84c;
+  --color-accent-light: #dfc070;
 
-  /* Surface Colors */
-  --color-bg: #ffffff;
-  --color-bg-subtle: #f8fafc;
-  --color-bg-muted: #f1f5f9;
-  --color-surface: rgba(255, 255, 255, 0.7);
+  /* Semantic */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger:  #dc2626;
+
+  /* Light mode surfaces */
+  --color-bg:               #fafaf8;
+  --color-bg-subtle:        #f3f2ee;
+  --color-bg-muted:         #e8e6df;
+  --color-surface:          rgba(255, 255, 255, 0.85);
   --color-surface-elevated: #ffffff;
 
-  /* Text Colors */
-  --color-text: #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-muted: #94a3b8;
+  /* Light mode text */
+  --color-text:           #0d1b2a;
+  --color-text-secondary: #2d4a63;
+  --color-text-muted:     #7a96b0;
 
-  /* Border Colors */
-  --color-border: #e2e8f0;
-  --color-border-light: #f1f5f9;
+  /* Light mode borders */
+  --color-border:       #d5dae2;
+  --color-border-light: #eceff4;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  /* Shadows — navy-tinted for depth */
+  --shadow-sm: 0 1px 3px 0 rgb(13 27 42 / 0.08);
+  --shadow-md: 0 4px 12px -2px rgb(13 27 42 / 0.10), 0 2px 4px -1px rgb(13 27 42 / 0.06);
+  --shadow-lg: 0 10px 25px -4px rgb(13 27 42 / 0.13), 0 4px 8px -2px rgb(13 27 42 / 0.07);
+  --shadow-gold: 0 0 24px -6px rgba(201, 168, 76, 0.45);
   --shadow-glow: 0 0 20px -5px;
 }
 
-/* Dark Mode Tokens */
+/* Dark Mode — deep navy, not slate */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-primary: #60a5fa;
-    --color-primary-light: #93c5fd;
-    --color-primary-dark: #3b82f6;
+    --color-primary:       #4a8fd4;
+    --color-primary-light: #6aaae0;
+    --color-primary-dark:  #2d72c4;
 
-    --color-bg: #0f172a;
-    --color-bg-subtle: #1e293b;
-    --color-bg-muted: #334155;
-    --color-surface: rgba(30, 41, 59, 0.8);
-    --color-surface-elevated: #1e293b;
+    --color-bg:               #0d1b2a;
+    --color-bg-subtle:        #112030;
+    --color-bg-muted:         #1a2d40;
+    --color-surface:          rgba(17, 32, 48, 0.92);
+    --color-surface-elevated: #162438;
 
-    --color-text: #f1f5f9;
-    --color-text-secondary: #cbd5e1;
-    --color-text-muted: #64748b;
+    --color-text:           #e2eaf2;
+    --color-text-secondary: #9db4ca;
+    --color-text-muted:     #4d6a82;
 
-    --color-border: #334155;
-    --color-border-light: #475569;
+    --color-border:       #1e3347;
+    --color-border-light: #172b3c;
+
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.3);
+    --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.35), 0 2px 4px -1px rgb(0 0 0 / 0.2);
+    --shadow-lg: 0 10px 25px -4px rgb(0 0 0 / 0.45), 0 4px 8px -2px rgb(0 0 0 / 0.25);
   }
 }
 
@@ -72,7 +84,7 @@
    BASE STYLES
    ===================================================== */
 body {
-  background: linear-gradient(to bottom, var(--color-bg-subtle), var(--color-bg));
+  background-color: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -82,15 +94,22 @@ body {
 
 @media (prefers-color-scheme: dark) {
   body {
-    background: linear-gradient(to bottom, #0a0f1a, var(--color-bg));
+    background: linear-gradient(180deg, #0a1628 0%, #0d1b2a 60%);
+    min-height: 100dvh;
   }
+}
+
+/* Serif headings for premium feel */
+h1, h2, h3 {
+  font-family: var(--font-display), Georgia, serif;
+  letter-spacing: -0.02em;
 }
 
 /* =====================================================
    UTILITIES
    ===================================================== */
 
-/* Glass Card - Works in both light and dark mode */
+/* Glass Card */
 .glass-card {
   background: var(--color-surface);
   backdrop-filter: blur(12px);
@@ -104,17 +123,16 @@ body {
   box-shadow: var(--shadow-md);
 }
 
-/* Focus Ring - Accessible visible focus states */
+/* Focus Ring — gold tint */
 .focus-ring {
   outline: none;
   transition: box-shadow 0.15s ease;
 }
 
 .focus-ring:focus-visible {
-  box-shadow: 0 0 0 3px var(--color-primary-light);
+  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.4);
 }
 
-/* Add focus-visible to all interactive elements */
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
@@ -122,32 +140,11 @@ select:focus-visible,
 textarea:focus-visible,
 [tabindex]:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.35);
   border-radius: 4px;
 }
 
-/* Skeleton Loading Animation */
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-.skeleton {
-  background: linear-gradient(90deg,
-      var(--color-bg-muted) 25%,
-      var(--color-bg-subtle) 50%,
-      var(--color-bg-muted) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
-  border-radius: 8px;
-}
-
-/* Gradient Text Utility */
+/* Gradient Text — blue to gold */
 .gradient-text {
   background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
   -webkit-background-clip: text;
@@ -155,13 +152,20 @@ textarea:focus-visible,
   background-clip: text;
 }
 
-/* Card with glow effect on hover */
-.glow-card {
+/* Gold accent text */
+.gold-text {
+  color: var(--color-gold);
+}
+
+/* Card with gradient border on hover — glow-card kept for backward compat */
+.glow-card,
+.gold-card {
   position: relative;
   transition: all 0.3s ease;
 }
 
-.glow-card::before {
+.glow-card::before,
+.gold-card::before {
   content: '';
   position: absolute;
   inset: -1px;
@@ -175,8 +179,32 @@ textarea:focus-visible,
   transition: opacity 0.3s ease;
 }
 
-.glow-card:hover::before {
+.glow-card:hover::before,
+.gold-card:hover::before {
   opacity: 1;
+}
+
+/* Gold rule — decorative horizontal divider */
+.gold-rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
+  opacity: 0.4;
+}
+
+/* Skeleton Loading */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg,
+    var(--color-bg-muted) 25%,
+    var(--color-bg-subtle) 50%,
+    var(--color-bg-muted) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
 }
 
 /* =====================================================
@@ -186,21 +214,16 @@ input,
 select,
 textarea {
   font-size: 16px !important;
-  /* Prevents iOS zoom on focus */
 }
 
-/* Safe area padding for notched devices */
 .pb-safe {
   padding-bottom: max(env(safe-area-inset-bottom), 24px);
-  /* Increased min padding for better touch target clearance */
 }
 
-/* Smooth tap feedback */
 .tap-target {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   min-height: 44px;
-  /* Accessibility minimum */
   min-width: 44px;
   display: flex;
   align-items: center;
@@ -211,29 +234,21 @@ textarea {
   transform: scale(0.97);
 }
 
-/* Foldable & Dual Screen Optimizations */
 @media (max-width: 320px) {
-
-  /* Very narrow "cover" screens */
   .grid-cols-2 {
     grid-template-columns: 1fr !important;
   }
 }
 
 @media (min-width: 768px) and (max-width: 1024px) {
-
-  /* Unfolded state (Tablet-like) */
   .container {
     padding-left: 2rem;
     padding-right: 2rem;
   }
 }
 
-/* Hinge avoidance for dual-screen devices (Microsoft Surface Duo, etc) */
 @media (horizontal-viewport-segments: 2) {
   body {
     flex-direction: row;
   }
-
-  /* Add specific logic if we detect a hinge, ensuring content isn't split */
 }
