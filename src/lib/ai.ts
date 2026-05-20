@@ -1,8 +1,17 @@
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
+const anthropic = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
 });
+
+function extractBase64(base64Image: string): { data: string; media_type: "image/jpeg" | "image/png" | "image/gif" | "image/webp" } {
+    if (base64Image.startsWith('data:')) {
+        const [header, data] = base64Image.split(',');
+        const mediaType = (header.match(/data:([^;]+)/)?.[1] ?? 'image/jpeg') as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+        return { data, media_type: mediaType };
+    }
+    return { data: base64Image, media_type: 'image/jpeg' };
+}
 
 export interface FoodAnalysis {
     name: string;
@@ -15,8 +24,7 @@ export interface FoodAnalysis {
 }
 
 export async function analyzeFoodImage(base64Image: string): Promise<FoodAnalysis> {
-    if (!process.env.OPENAI_API_KEY) {
-        // Mock response for testing without key
+    if (!process.env.ANTHROPIC_API_KEY) {
         return new Promise(resolve => setTimeout(() => resolve({
             name: "Mock Salad (No API Key)",
             calories: 350,
@@ -27,58 +35,52 @@ export async function analyzeFoodImage(base64Image: string): Promise<FoodAnalysi
         }), 2000));
     }
 
-    const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+    const { data, media_type } = extractBase64(base64Image);
+
+    const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 300,
+        system: `You are a nutritionist AI. Analyze the food image and estimate the nutritional content.
+
+Rules for Portion Estimation:
+- If showing a PREPARED MEAL (e.g., plate of food), estimate for the ENTIRE visible amount. Set portion_estimate to "1 plate" or "1 bowl".
+- If showing a PACKAGED ITEM (e.g., box of cookies, whole cake), estimate for the FULL container/unit if possible, or a clear standard serving, so the user can scale down (e.g., portion_estimate: "1 box" or "1 cake").
+
+Rules for Alcohol:
+- If the item is an alcoholic drink, estimate the number of STANDARD DRINKS (e.g., 1 beer = 1, 1 glass wine = 1, 1 shot = 1, 1 martini = 1.5). Return as "alcohol_units".
+
+Return ONLY a valid JSON object with this exact structure, no markdown:
+{
+  "name": "Short descriptive name of the food",
+  "portion_estimate": "e.g., '1 slice', '1 bowl', '1 box'",
+  "calories": number,
+  "protein": number,
+  "carbs": number,
+  "fat": number,
+  "alcohol_units": number,
+  "confidence": number
+}`,
         messages: [
-            {
-                role: "system",
-                content: `You are a nutritionist AI. Analyze the food image and estimate the nutritional content.
-        
-        Rules for Portion Estimation:
-        - If showing a PREPARED MEAL (e.g., plate of food), estimate for the ENTIRE visible amount. Set portion_estimate to "1 plate" or "1 bowl".
-        - If showing a PACKAGED ITEM (e.g., box of cookies, whole cake), estimate for the FULL container/unit if possible, or a clear standard serving, so the user can scale down (e.g., portion_estimate: "1 box" or "1 cake").
-        
-        Rules for Alcohol:
-        - If the item is an alcoholic drink, estimate the number of STANDARD DRINKS (e.g., 1 beer = 1, 1 glass wine = 1, 1 shot = 1, 1 martini = 1.5). Return as "alcohol_units".
-        
-        Return ONLY a JSON object with the following structure:
-        {
-          "name": "Short descriptive name of the food",
-          "portion_estimate": "e.g., '1 slice', '1 bowl', '1 box'",
-          "calories": number (estimated calories per portion),
-          "protein": number (grams),
-          "carbs": number (grams),
-          "fat": number (grams),
-          "alcohol_units": number (OPTIONAL, only for alcohol),
-          "confidence": number (0-1, how sure are you)
-        }`
-            },
             {
                 role: "user",
                 content: [
-                    { type: "text", text: "Analyze this meal." },
                     {
-                        type: "image_url",
-                        image_url: {
-                            "url": base64Image,
-                        },
+                        type: "image",
+                        source: { type: "base64", media_type, data },
                     },
+                    { type: "text", text: "Analyze this meal." },
                 ],
             },
         ],
-        response_format: { type: "json_object" },
-        max_tokens: 300,
     });
 
-    const content = response.choices[0].message.content;
+    const content = (response.content[0] as Anthropic.TextBlock).text;
     if (!content) throw new Error("No analysis received");
-
     return JSON.parse(content) as FoodAnalysis;
 }
 
 export async function processVoiceIntent(transcript: string) {
-    if (!process.env.OPENAI_API_KEY) {
-        // Simple mock parser
+    if (!process.env.ANTHROPIC_API_KEY) {
         const lower = transcript.toLowerCase();
         if (lower.includes('log') || lower.includes('eat') || lower.includes('ate') || lower.includes('drank') || lower.includes('drink')) {
             return {
@@ -92,30 +94,26 @@ export async function processVoiceIntent(transcript: string) {
         return { intent: 'unknown', original: transcript };
     }
 
-    const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-            {
-                role: "system",
-                content: `You are a fitness logger assistant. Extract the intent and data. Return valid JSON.
-                
-                Rules:
-                - If the user describes food/drink, intent="log_food". Return data={"items": [{ "name": "name", "calories": number, "protein": number, "carbs": number, "fat": number, "alcohol_units": number }]}. 
-                  - ESTIMATE macros. 
-                  - ESTIMATE "alcohol_units" for alcoholic drinks (1 beer/wine/shot = 1 unit).
-                - If the user describes exercise, intent="log_workout". Return data={"activity": "name", "duration": number_minutes, "intensity": "Light"|"Moderate"|"Hard"}.
-                - If the user describes a SET (reps/weight), intent="log_set". Return data={"exercise": "name" (optional if implied), "reps": number, "weight": number, "weight_unit": "lbs"|"kg" (default lbs)}.
-                - If unknown, intent="unknown".
+    const response = await anthropic.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 300,
+        system: `You are a fitness logger assistant. Extract the intent and data from the user's message. Return ONLY valid JSON, no markdown.
 
-                Output Example:
-                { "intent": "log_set", "data": { "reps": 12, "weight": 135, "weight_unit": "lbs" } }`
-            },
-            { role: "user", content: transcript }
+Rules:
+- If the user describes food/drink, intent="log_food". Return data={"items": [{ "name": "name", "calories": number, "protein": number, "carbs": number, "fat": number, "alcohol_units": number }]}.
+  - ESTIMATE macros.
+  - ESTIMATE "alcohol_units" for alcoholic drinks (1 beer/wine/shot = 1 unit).
+- If the user describes exercise, intent="log_workout". Return data={"activity": "name", "duration": number_minutes, "intensity": "Light"|"Moderate"|"Hard"}.
+- If the user describes a SET (reps/weight), intent="log_set". Return data={"exercise": "name" (optional if implied), "reps": number, "weight": number, "weight_unit": "lbs"|"kg" (default lbs)}.
+- If unknown, intent="unknown".
+
+Example: { "intent": "log_set", "data": { "reps": 12, "weight": 135, "weight_unit": "lbs" } }`,
+        messages: [
+            { role: "user", content: transcript },
         ],
-        response_format: { type: "json_object" }
     });
 
-    const content = response.choices[0].message.content;
+    const content = (response.content[0] as Anthropic.TextBlock).text;
     let result;
     try {
         result = content ? JSON.parse(content) : { intent: 'unknown' };
@@ -124,9 +122,9 @@ export async function processVoiceIntent(transcript: string) {
         result = { intent: 'unknown', error: 'Failed to parse intent' };
     }
 
-    // Always attach the original text so we have a fallback
     return { ...result, original: transcript };
 }
+
 export interface MenuRecommendation {
     name: string;
     description: string;
@@ -138,7 +136,7 @@ export interface MenuRecommendation {
 }
 
 export async function scanMenu(base64Image: string): Promise<MenuRecommendation[]> {
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.ANTHROPIC_API_KEY) {
         return new Promise(resolve => setTimeout(() => resolve([
             {
                 name: "Grilled Chicken Salad (Mock)",
@@ -170,45 +168,45 @@ export async function scanMenu(base64Image: string): Promise<MenuRecommendation[
         ]), 2000));
     }
 
-    const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+    const { data, media_type } = extractBase64(base64Image);
+
+    const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        system: `You are a nutritionist assistant. Analyze the restaurant menu image.
+Identify the TOP 3 healthiest, high-protein options. AVOID deep fried items or heavy cream sauces if possible.
+
+For each option, ESTIMATE the nutritional content for a standard serving size.
+
+Return ONLY a valid JSON object with this exact structure, no markdown:
+{
+    "recommendations": [
+        {
+            "name": "Exact item name from menu",
+            "description": "Brief description",
+            "reason": "Why is this a good choice?",
+            "calories": number,
+            "protein": number,
+            "carbs": number,
+            "fat": number
+        }
+    ]
+}`,
         messages: [
-            {
-                role: "system",
-                content: `You are a nutritionist assistant. Analyze the restaurant menu image.
-                Identify the TOP 3 healthiest, high-protein options. AVOID deep fried items or heavy cream sauces if possible.
-                
-                For each option, ESTIMATE the nutritional content for a standard serving size.
-                
-                Return ONLY a JSON object with this structure:
-                {
-                    "recommendations": [
-                        {
-                            "name": "Exact item name from menu",
-                            "description": "Brief description",
-                            "reason": "Why is this a good choice? (e.g. High protein, balanced)",
-                            "calories": number,
-                            "protein": number,
-                            "carbs": number,
-                            "fat": number
-                        }
-                    ]
-                }`
-            },
             {
                 role: "user",
                 content: [
+                    {
+                        type: "image",
+                        source: { type: "base64", media_type, data },
+                    },
                     { type: "text", text: "Find the best high-protein meals." },
-                    { type: "image_url", image_url: { "url": base64Image } }
-                ]
-            }
+                ],
+            },
         ],
-        response_format: { type: "json_object" },
-        max_tokens: 1000
     });
 
-
-    const content = response.choices[0].message.content;
+    const content = (response.content[0] as Anthropic.TextBlock).text;
     try {
         const parsed = content ? JSON.parse(content) : { recommendations: [] };
         return parsed.recommendations || [];
@@ -237,8 +235,7 @@ export interface WorkoutChatState {
 }
 
 export async function chatWithTrainer(state: WorkoutChatState, newUserInput: string): Promise<WorkoutChatState> {
-    if (!process.env.OPENAI_API_KEY) {
-        // Mock response for testing
+    if (!process.env.ANTHROPIC_API_KEY) {
         return {
             history: [...state.history, { role: 'user', content: newUserInput }, { role: 'assistant', content: "[DEV] I'm in mock mode because no API key is set. I'll just log a generic run." }],
             status: 'completed',
@@ -248,6 +245,7 @@ export async function chatWithTrainer(state: WorkoutChatState, newUserInput: str
         };
     }
 
+<<<<<<< HEAD
     const messages = [
         {
             role: "system",
@@ -286,15 +284,42 @@ export async function chatWithTrainer(state: WorkoutChatState, newUserInput: str
         ...state.history.map(m => ({ role: m.role as any, content: m.content })),
         { role: "user", content: newUserInput }
     ];
+=======
+    const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 300,
+        system: `You are an energetic, encouraging AI Fitness Coach.
+Your goal is to help the user log a workout by extracting: Activity Type, Duration (minutes), and Intensity (Light/Moderate/Hard).
+>>>>>>> 9ff9e31 (feat: Migrate AI integration from OpenAI to Anthropic SDK)
 
-    const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: messages as any,
-        response_format: { type: "json_object" },
-        max_tokens: 300
+1. Conversational Style: Be concise, friendly, and encouraging. Ask ONE question at a time if information is missing.
+2. Estimation: Once you have the core details, ESTIMATE the calories burned and primary muscle groups worked based on the activity and average user stats.
+3. Final Output: When you have all 3 core fields (activity, duration, intensity), set status to "completed" and output the final JSON.
+
+Current known data: ${JSON.stringify(state.workoutData || {})}
+
+Return ONLY valid JSON, no markdown:
+{
+    "reply": "Your conversational response to the user",
+    "status": "continue" | "completed",
+    "missing_fields": ["duration", "intensity"],
+    "workout_data": {
+        "activity_type": string,
+        "duration": number,
+        "intensity": "Light"|"Moderate"|"Hard",
+        "calories": number,
+        "muscles": string[]
+    }
+}`,
+        messages: [
+            ...state.history
+                .filter(m => m.role !== 'system')
+                .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+            { role: "user", content: newUserInput },
+        ],
     });
 
-    const content = response.choices[0].message.content;
+    const content = (response.content[0] as Anthropic.TextBlock).text;
     const result = content ? JSON.parse(content) : { reply: "Error", status: "continue" };
 
     return {
@@ -317,8 +342,7 @@ export interface WeeklyInsight {
 }
 
 export async function generateWeeklyInsights(logs: any[]): Promise<WeeklyInsight> {
-    if (!process.env.OPENAI_API_KEY) {
-        // Mock response
+    if (!process.env.ANTHROPIC_API_KEY) {
         return new Promise(resolve => setTimeout(() => resolve({
             summary: "You had a solid week of consistency! Your protein intake is improving.",
             wins: ["Logged 5 days in a row", "Hit protein goal 3x"],
@@ -329,48 +353,35 @@ export async function generateWeeklyInsights(logs: any[]): Promise<WeeklyInsight
         }), 2000));
     }
 
-    const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+    const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 600,
+        system: `You are an expert fitness coach and data analyst. Analyze the user's last 7 days of logs.
+
+Data items per day: date, movement_duration (mins), intensity, calories, protein_grams, etc., alcohol_drinks, sleep_quality (1-5), energy_level (1-5), subjective notes.
+
+Your analysis MUST include:
+1. Summary: 1-2 sentences overview.
+2. Wins: 2-3 bullet points of what went well.
+3. Improvements: 2-3 areas to work on.
+4. Alcohol Analysis: Comment on alcohol consumption patterns and its potential impact on reported sleep/energy. Be direct but non-judgmental.
+5. Tips: One actionable tip for nutrition and one for workouts.
+
+Return ONLY valid JSON, no markdown:
+{
+    "summary": "...",
+    "wins": ["...", "..."],
+    "improvements": ["...", "..."],
+    "alcohol_analysis": "...",
+    "nutrition_tip": "...",
+    "workout_tip": "..."
+}`,
         messages: [
-            {
-                role: "system",
-                content: `You are an expert fitness coach and data analyst. Analyze the user's last 7 days of logs.
-                
-                Data items per day: 
-                - date
-                - movement_duration (mins)
-                - intensity
-                - calories, protein_grams, etc.
-                - alcohol_drinks
-                - sleep_quality (1-5), energy_level (1-5)
-                - subjective notes
-
-                Your analysis MUST include:
-                1. Summary: 1-2 sentences overview.
-                2. Wins: 2-3 bullet points of what went well.
-                3. Improvements: 2-3 areas to work on.
-                4. Alcohol Analysis: SPECIFICALLY comment on alcohol consumption patterns and its potential impact on their reported sleep/energy. Be direct but non-judgmental.
-                5. Tips: One actionable tip for nutrition and one for workouts.
-
-                Return JSON ONLY:
-                {
-                    "summary": "...",
-                    "wins": ["...", "..."],
-                    "improvements": ["...", "..."],
-                    "alcohol_analysis": "...",
-                    "nutrition_tip": "...",
-                    "workout_tip": "..."
-                }`
-            },
-            {
-                role: "user",
-                content: JSON.stringify(logs)
-            }
+            { role: "user", content: JSON.stringify(logs) },
         ],
-        response_format: { type: "json_object" }
     });
 
-    const content = response.choices[0].message.content;
+    const content = (response.content[0] as Anthropic.TextBlock).text;
     return content ? JSON.parse(content) : {
         summary: "Could not generate analysis.",
         wins: [],

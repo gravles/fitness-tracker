@@ -16,6 +16,7 @@
     "e2e:report": "playwright show-report"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.97.1",
     "@serwist/next": "^9.5.0",
     "@serwist/precaching": "^9.5.0",
     "@serwist/strategies": "^9.5.3",
@@ -24,7 +25,6 @@
     "date-fns": "^4.1.0",
     "lucide-react": "^0.561.0",
     "next": "16.0.10",
-    "openai": "^6.15.0",
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "recharts": "^3.5.1",
