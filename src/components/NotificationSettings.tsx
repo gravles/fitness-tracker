@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bell, BellOff, Clock, Loader2, Check, X } from 'lucide-react';
+import { Bell, BellOff, Clock, Loader2, Check } from 'lucide-react';
 import {
     isPushSupported,
     getPermissionStatus,
@@ -12,7 +12,7 @@ import { haptics } from '@/lib/haptics';
 
 interface ReminderSettings {
     enabled: boolean;
-    logReminderTime: string; // HH:MM format
+    logReminderTime: string;
     moveReminderTime: string;
     logReminderEnabled: boolean;
     moveReminderEnabled: boolean;
@@ -33,13 +33,10 @@ export function NotificationSettings() {
     const [saved, setSaved] = useState(false);
 
     useEffect(() => {
-        // Load saved settings
         const savedSettings = localStorage.getItem('reminder_settings');
         if (savedSettings) {
             setSettings(JSON.parse(savedSettings));
         }
-
-        // Check permission status
         setPermissionStatus(getPermissionStatus());
     }, []);
 
@@ -49,21 +46,17 @@ export function NotificationSettings() {
 
         try {
             if (settings.enabled) {
-                // Disable notifications
                 await unsubscribeFromPush();
                 const newSettings = { ...settings, enabled: false };
                 setSettings(newSettings);
                 saveSettings(newSettings);
             } else {
-                // Enable notifications
                 const subscription = await subscribeToPush();
                 if (subscription) {
                     const newSettings = { ...settings, enabled: true };
                     setSettings(newSettings);
                     saveSettings(newSettings);
                     setPermissionStatus('granted');
-
-                    // Schedule initial reminders
                     scheduleReminders(newSettings);
                 } else {
                     setPermissionStatus(getPermissionStatus());
@@ -80,10 +73,7 @@ export function NotificationSettings() {
         const newSettings = { ...settings, [field]: value };
         setSettings(newSettings);
         saveSettings(newSettings);
-
-        if (settings.enabled) {
-            scheduleReminders(newSettings);
-        }
+        if (settings.enabled) scheduleReminders(newSettings);
     }
 
     function handleReminderToggle(field: 'logReminderEnabled' | 'moveReminderEnabled') {
@@ -91,10 +81,7 @@ export function NotificationSettings() {
         const newSettings = { ...settings, [field]: !settings[field] };
         setSettings(newSettings);
         saveSettings(newSettings);
-
-        if (settings.enabled) {
-            scheduleReminders(newSettings);
-        }
+        if (settings.enabled) scheduleReminders(newSettings);
     }
 
     function saveSettings(newSettings: ReminderSettings) {
@@ -104,9 +91,7 @@ export function NotificationSettings() {
     }
 
     function scheduleReminders(reminderSettings: ReminderSettings) {
-        // Store reminder data for service worker to use
         const reminders = [];
-
         if (reminderSettings.logReminderEnabled) {
             reminders.push({
                 id: 'log-reminder',
@@ -116,7 +101,6 @@ export function NotificationSettings() {
                 tag: 'daily-log-reminder',
             });
         }
-
         if (reminderSettings.moveReminderEnabled) {
             reminders.push({
                 id: 'move-reminder',
@@ -126,26 +110,20 @@ export function NotificationSettings() {
                 tag: 'daily-move-reminder',
             });
         }
-
         localStorage.setItem('scheduled_reminders', JSON.stringify(reminders));
-
-        // Register with service worker for background checking
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-            navigator.serviceWorker.controller.postMessage({
-                type: 'SCHEDULE_REMINDERS',
-                reminders,
-            });
+            navigator.serviceWorker.controller.postMessage({ type: 'SCHEDULE_REMINDERS', reminders });
         }
     }
 
     if (!isPushSupported()) {
         return (
-            <div className="p-4 bg-yellow-50 rounded-2xl border border-yellow-200">
+            <div className="p-4 rounded-2xl border" style={{ background: 'rgba(234,179,8,0.05)', borderColor: 'rgba(234,179,8,0.3)' }}>
                 <div className="flex items-center gap-3">
-                    <BellOff className="w-5 h-5 text-yellow-600" />
+                    <BellOff className="w-5 h-5 text-yellow-500" />
                     <div>
-                        <p className="font-medium text-yellow-800">Notifications Not Supported</p>
-                        <p className="text-sm text-yellow-700">Your browser doesn't support push notifications.</p>
+                        <p className="font-medium text-[var(--color-text)]">Notifications Not Supported</p>
+                        <p className="text-sm text-[var(--color-text-muted)]">Your browser doesn't support push notifications.</p>
                     </div>
                 </div>
             </div>
@@ -154,12 +132,12 @@ export function NotificationSettings() {
 
     if (permissionStatus === 'denied') {
         return (
-            <div className="p-4 bg-red-50 rounded-2xl border border-red-200">
+            <div className="p-4 rounded-2xl border" style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.2)' }}>
                 <div className="flex items-center gap-3">
-                    <BellOff className="w-5 h-5 text-red-600" />
+                    <BellOff className="w-5 h-5 text-red-500" />
                     <div>
-                        <p className="font-medium text-red-800">Notifications Blocked</p>
-                        <p className="text-sm text-red-700">Please enable notifications in your browser settings.</p>
+                        <p className="font-medium text-[var(--color-text)]">Notifications Blocked</p>
+                        <p className="text-sm text-[var(--color-text-muted)]">Please enable notifications in your browser settings.</p>
                     </div>
                 </div>
             </div>
@@ -169,107 +147,108 @@ export function NotificationSettings() {
     return (
         <div className="space-y-4">
             {/* Main Toggle */}
-            <div className="p-4 bg-white rounded-2xl border border-gray-200 shadow-sm">
+            <div className="p-4 bg-[var(--color-surface-elevated)] rounded-2xl border border-[var(--color-border-light)] shadow-sm">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-xl ${settings.enabled ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                            <Bell className={`w-5 h-5 ${settings.enabled ? 'text-blue-600' : 'text-gray-400'}`} />
+                        <div className="p-2 rounded-xl" style={settings.enabled
+                            ? { background: 'var(--color-primary)', }
+                            : { background: 'var(--color-bg-subtle)' }
+                        }>
+                            <Bell className="w-5 h-5" style={{ color: settings.enabled ? 'white' : 'var(--color-text-muted)' }} />
                         </div>
                         <div>
-                            <p className="font-bold text-gray-900">Daily Reminders</p>
-                            <p className="text-sm text-gray-500">Get reminded to log and move</p>
+                            <p className="font-bold text-[var(--color-text)]">Daily Reminders</p>
+                            <p className="text-sm text-[var(--color-text-muted)]">Get reminded to log and move</p>
                         </div>
                     </div>
 
                     <button
                         onClick={handleToggleNotifications}
                         disabled={loading}
-                        className={`relative w-14 h-8 rounded-full transition-colors ${settings.enabled ? 'bg-blue-600' : 'bg-gray-300'
-                            }`}
+                        className="relative w-14 h-8 rounded-full transition-colors"
+                        style={{ background: settings.enabled ? 'var(--color-primary)' : 'var(--color-bg-muted)' }}
                     >
                         {loading ? (
                             <Loader2 className="w-4 h-4 animate-spin absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white" />
                         ) : (
-                            <div className={`absolute w-6 h-6 bg-white rounded-full shadow-md transition-transform top-1 ${settings.enabled ? 'translate-x-7' : 'translate-x-1'
-                                }`} />
+                            <div className={`absolute w-6 h-6 bg-white rounded-full shadow-md transition-transform top-1 ${settings.enabled ? 'translate-x-7' : 'translate-x-1'}`} />
                         )}
                     </button>
                 </div>
 
                 {saved && (
-                    <div className="mt-2 flex items-center gap-1 text-green-600 text-sm">
+                    <div className="mt-2 flex items-center gap-1 text-sm" style={{ color: 'var(--color-success)' }}>
                         <Check className="w-4 h-4" /> Settings saved
                     </div>
                 )}
             </div>
 
-            {/* Reminder Settings (only show when enabled) */}
+            {/* Reminder Settings */}
             {settings.enabled && (
                 <div className="space-y-3">
                     {/* Log Reminder */}
-                    <div className="p-4 bg-white rounded-2xl border border-gray-200">
+                    <div className="p-4 bg-[var(--color-surface-elevated)] rounded-2xl border border-[var(--color-border-light)]">
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                                 <span className="text-lg">📝</span>
-                                <span className="font-medium text-gray-900">Log Reminder</span>
+                                <span className="font-medium text-[var(--color-text)]">Log Reminder</span>
                             </div>
                             <button
                                 onClick={() => handleReminderToggle('logReminderEnabled')}
-                                className={`w-10 h-6 rounded-full transition-colors ${settings.logReminderEnabled ? 'bg-blue-600' : 'bg-gray-300'
-                                    }`}
+                                className="w-10 h-6 rounded-full transition-colors"
+                                style={{ background: settings.logReminderEnabled ? 'var(--color-primary)' : 'var(--color-bg-muted)' }}
                             >
-                                <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.logReminderEnabled ? 'translate-x-5' : 'translate-x-1'
-                                    }`} />
+                                <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.logReminderEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
                             </button>
                         </div>
-
                         {settings.logReminderEnabled && (
                             <div className="flex items-center gap-2">
-                                <Clock className="w-4 h-4 text-gray-400" />
+                                <Clock className="w-4 h-4 text-[var(--color-text-muted)]" />
                                 <input
                                     type="time"
                                     value={settings.logReminderTime}
                                     onChange={(e) => handleTimeChange('logReminderTime', e.target.value)}
-                                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="px-3 py-2 border border-[var(--color-border)] rounded-xl text-sm focus:outline-none bg-[var(--color-bg-subtle)] text-[var(--color-text)]"
+                                    onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; }}
+                                    onBlur={e => { e.target.style.borderColor = ''; }}
                                 />
-                                <span className="text-sm text-gray-500">Remind me to log</span>
+                                <span className="text-sm text-[var(--color-text-muted)]">Remind me to log</span>
                             </div>
                         )}
                     </div>
 
                     {/* Move Reminder */}
-                    <div className="p-4 bg-white rounded-2xl border border-gray-200">
+                    <div className="p-4 bg-[var(--color-surface-elevated)] rounded-2xl border border-[var(--color-border-light)]">
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                                 <span className="text-lg">💪</span>
-                                <span className="font-medium text-gray-900">Move Reminder</span>
+                                <span className="font-medium text-[var(--color-text)]">Move Reminder</span>
                             </div>
                             <button
                                 onClick={() => handleReminderToggle('moveReminderEnabled')}
-                                className={`w-10 h-6 rounded-full transition-colors ${settings.moveReminderEnabled ? 'bg-blue-600' : 'bg-gray-300'
-                                    }`}
+                                className="w-10 h-6 rounded-full transition-colors"
+                                style={{ background: settings.moveReminderEnabled ? 'var(--color-primary)' : 'var(--color-bg-muted)' }}
                             >
-                                <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.moveReminderEnabled ? 'translate-x-5' : 'translate-x-1'
-                                    }`} />
+                                <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.moveReminderEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
                             </button>
                         </div>
-
                         {settings.moveReminderEnabled && (
                             <div className="flex items-center gap-2">
-                                <Clock className="w-4 h-4 text-gray-400" />
+                                <Clock className="w-4 h-4 text-[var(--color-text-muted)]" />
                                 <input
                                     type="time"
                                     value={settings.moveReminderTime}
                                     onChange={(e) => handleTimeChange('moveReminderTime', e.target.value)}
-                                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="px-3 py-2 border border-[var(--color-border)] rounded-xl text-sm focus:outline-none bg-[var(--color-bg-subtle)] text-[var(--color-text)]"
+                                    onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; }}
+                                    onBlur={e => { e.target.style.borderColor = ''; }}
                                 />
-                                <span className="text-sm text-gray-500">Remind me to move</span>
+                                <span className="text-sm text-[var(--color-text-muted)]">Remind me to move</span>
                             </div>
                         )}
                     </div>
 
-                    {/* Info */}
-                    <p className="text-xs text-gray-400 text-center px-4">
+                    <p className="text-xs text-[var(--color-text-muted)] text-center px-4">
                         Reminders check when you open the app. For reliable scheduled notifications,
                         deploy the app and set up backend cron jobs.
                     </p>

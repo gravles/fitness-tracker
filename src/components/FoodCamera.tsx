@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Camera, Loader2, X } from 'lucide-react';
+import { Camera } from 'lucide-react';
 
 interface FoodCameraProps {
     onCapture: (imageSrc: string) => void;
@@ -13,10 +13,8 @@ export function FoodCamera({ onCapture, onClose, autoStart = false }: FoodCamera
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [preview, setPreview] = useState<string | null>(null);
 
-    // Auto-open camera if requested
     useEffect(() => {
         if (autoStart) {
-            // Small timeout to ensure DOM is ready
             setTimeout(() => {
                 fileInputRef.current?.click();
             }, 100);
@@ -30,7 +28,6 @@ export function FoodCamera({ onCapture, onClose, autoStart = false }: FoodCamera
             reader.onloadend = () => {
                 const result = reader.result as string;
                 setPreview(result);
-                // Automatically confirm for now, or add a "Use this photo" button
                 onCapture(result);
             };
             reader.readAsDataURL(file);
@@ -42,7 +39,13 @@ export function FoodCamera({ onCapture, onClose, autoStart = false }: FoodCamera
     };
 
     return (
-        <div className="flex flex-col items-center gap-4 p-4 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer" onClick={triggerFileSelect}>
+        <div
+            className="flex flex-col items-center gap-4 p-4 border-2 border-dashed rounded-xl cursor-pointer transition-colors"
+            style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg-subtle)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-muted)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-subtle)'; }}
+            onClick={triggerFileSelect}
+        >
             <input
                 type="file"
                 accept="image/*"
@@ -51,8 +54,8 @@ export function FoodCamera({ onCapture, onClose, autoStart = false }: FoodCamera
                 ref={fileInputRef}
                 onChange={handleFileChange}
             />
-            <div className="mt-2 text-center text-gray-500">
-                <Camera className="w-8 h-8 mx-auto mb-2 text-blue-500" />
+            <div className="mt-2 text-center text-[var(--color-text-muted)]">
+                <Camera className="w-8 h-8 mx-auto mb-2" style={{ color: 'var(--color-primary)' }} />
                 <p className="text-sm font-medium">Tap to Snap Data</p>
                 <p className="text-xs">Take a photo of your meal</p>
             </div>

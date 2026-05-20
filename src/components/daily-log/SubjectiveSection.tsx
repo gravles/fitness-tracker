@@ -49,7 +49,7 @@ export function SubjectiveSection({ subjective, setSubjective }: SubjectiveSecti
     return (
         <section className="bg-[var(--color-surface-elevated)] p-6 rounded-2xl border border-[var(--color-border-light)] shadow-sm">
             <h3 className="text-lg font-bold mb-5 flex items-center gap-2 text-[var(--color-text)]">
-                <Brain className="w-5 h-5 text-purple-500" /> How did you feel?
+                <Brain className="w-5 h-5" style={{ color: 'var(--color-primary)' }} /> How did you feel?
             </h3>
 
             <div className="space-y-6">
@@ -71,7 +71,8 @@ export function SubjectiveSection({ subjective, setSubjective }: SubjectiveSecti
                                 min="1" max="5" step="1"
                                 value={value}
                                 onChange={(e) => setSubjective({ ...subjective, [metric.key]: parseInt(e.target.value) })}
-                                className="w-full h-2 bg-[var(--color-bg-muted)] rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                className="w-full h-2 bg-[var(--color-bg-muted)] rounded-lg appearance-none cursor-pointer"
+                                style={{ accentColor: 'var(--color-primary)' }}
                             />
                             <div className="flex justify-between text-sm mt-2 px-1">
                                 {metric.emojis.map((emoji, idx) => (
@@ -93,7 +94,9 @@ export function SubjectiveSection({ subjective, setSubjective }: SubjectiveSecti
                         value={subjective.note}
                         onChange={(e) => setSubjective({ ...subjective, note: e.target.value })}
                         placeholder="What went well? What didn't?"
-                        className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] rounded-xl border border-[var(--color-border-light)] focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none h-24 resize-none placeholder:text-[var(--color-text-muted)]"
+                        className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] rounded-xl border border-[var(--color-border-light)] outline-none h-24 resize-none placeholder:text-[var(--color-text-muted)]"
+                        onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; }}
+                        onBlur={e => { e.target.style.borderColor = ''; }}
                     />
                 </div>
             </div>

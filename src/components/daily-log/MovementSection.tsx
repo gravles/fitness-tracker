@@ -305,7 +305,8 @@ export function MovementSection({
                         </button>
                         <button
                             onClick={(e) => { e.stopPropagation(); onOpenAiCoach(); }}
-                            className="px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold shadow-md active:scale-95 transition-all flex items-center gap-2 tap-target"
+                            className="px-4 text-white rounded-xl font-bold shadow-md active:scale-95 transition-all flex items-center gap-2 tap-target"
+                            style={{ background: 'var(--color-navy)' }}
                         >
                             <Sparkles className="w-4 h-4" /> AI Coach
                         </button>

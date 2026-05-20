@@ -51,7 +51,6 @@ export function VoiceInput({ onIntentDetected, autoStart = false, customTrigger 
         }
     }, [autoStart, recognition, isListening, isProcessing]);
 
-
     const toggleListening = () => {
         if (!recognition) {
             alert("Voice input not supported in this browser.");
@@ -95,15 +94,15 @@ export function VoiceInput({ onIntentDetected, autoStart = false, customTrigger 
             <button
                 onClick={toggleListening}
                 disabled={isProcessing}
-                className={`p-4 rounded-full transition-all ${isListening ? 'bg-red-500 animate-pulse text-white' : 'bg-blue-600 text-white'
-                    } ${isProcessing ? 'opacity-50' : ''} shadow-lg`}
+                className={`p-4 rounded-full transition-all shadow-lg ${isListening ? 'bg-red-500 animate-pulse text-white' : ''} ${isProcessing ? 'opacity-50' : ''}`}
+                style={!isListening ? { background: 'var(--color-primary)', color: 'white' } : undefined}
             >
                 {isProcessing ? <Loader2 className="w-6 h-6 animate-spin" /> : isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
             </button>
-            <p className="mt-2 text-xs text-gray-500 font-medium">
+            <p className="mt-2 text-xs text-[var(--color-text-muted)] font-medium">
                 {isProcessing ? 'Thinking...' : isListening ? 'Listening...' : 'Tap to Speak'}
             </p>
-            {transcript && <p className="text-xs text-gray-400 mt-1 italic">"{transcript}"</p>}
+            {transcript && <p className="text-xs text-[var(--color-text-muted)] mt-1 italic opacity-70">"{transcript}"</p>}
         </div>
     );
 }

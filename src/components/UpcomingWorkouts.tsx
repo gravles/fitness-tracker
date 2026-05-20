@@ -96,8 +96,8 @@ export function UpcomingWorkouts() {
                         className="flex items-center justify-between p-4 hover:bg-[var(--color-bg-subtle)] transition-colors"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-green-500/10 rounded-lg">
-                                <Dumbbell className="w-4 h-4 text-green-500" />
+                            <div className="p-2 rounded-lg" style={{ background: 'rgba(29,95,168,0.1)' }}>
+                                <Dumbbell className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
                             </div>
                             <div>
                                 <div className="font-medium text-[var(--color-text)]">{workout.title}</div>
@@ -113,7 +113,8 @@ export function UpcomingWorkouts() {
                         {isToday(new Date(workout.scheduled_date + 'T00:00:00')) && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleStartWorkout(workout); }}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white text-sm font-semibold rounded-lg hover:bg-green-600 transition-colors"
+                                className="flex items-center gap-1 px-3 py-1.5 text-white text-sm font-semibold rounded-lg transition-colors"
+                                style={{ background: 'var(--color-primary)' }}
                             >
                                 <Play className="w-3 h-3" />
                                 Start

@@ -50,7 +50,6 @@ export function BarcodeScanner({ onResult, onClose }: Props) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const inputRef     = useRef<HTMLInputElement>(null);
 
-    // Auto-focus the barcode input when the scanner opens
     useEffect(() => {
         setTimeout(() => inputRef.current?.focus(), 50);
     }, []);
@@ -99,14 +98,14 @@ export function BarcodeScanner({ onResult, onClose }: Props) {
     }
 
     return (
-        <div className="rounded-2xl border border-green-200 bg-green-50 overflow-hidden animate-in slide-in-from-top-2">
+        <div className="rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-bg-subtle)] overflow-hidden animate-in slide-in-from-top-2">
             {/* Header bar */}
-            <div className="flex items-center justify-between px-4 py-3 bg-green-600">
-                <div className="flex items-center gap-2 text-white">
+            <div className="flex items-center justify-between px-4 py-3 text-white" style={{ background: 'var(--color-navy)' }}>
+                <div className="flex items-center gap-2">
                     <Barcode className="w-5 h-5" />
                     <span className="font-bold text-sm">Barcode Scanner</span>
                 </div>
-                <button onClick={onClose} className="p-1 rounded-full hover:bg-green-500 text-white transition-colors">
+                <button onClick={onClose} className="p-1 rounded-full hover:bg-white/10 text-white transition-colors">
                     <X className="w-4 h-4" />
                 </button>
             </div>
@@ -115,7 +114,10 @@ export function BarcodeScanner({ onResult, onClose }: Props) {
                 {/* Camera button */}
                 <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-green-300 rounded-xl text-green-700 bg-white hover:bg-green-50 transition-colors font-semibold text-sm"
+                    className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed rounded-xl font-semibold text-sm transition-colors bg-[var(--color-surface-elevated)]"
+                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.background = 'rgba(29,95,168,0.05)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.background = ''; }}
                 >
                     <Camera className="w-4 h-4" />
                     Take Photo of Barcode
@@ -143,12 +145,15 @@ export function BarcodeScanner({ onResult, onClose }: Props) {
                         value={barcode}
                         onChange={e => setBarcode(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') handleLookup(barcode); }}
-                        className="flex-1 px-3 py-2.5 bg-white rounded-xl border border-green-200 text-sm outline-none focus:ring-2 focus:ring-green-400"
+                        className="flex-1 px-3 py-2.5 bg-[var(--color-surface-elevated)] rounded-xl border border-[var(--color-border)] text-sm outline-none text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]"
+                        onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; }}
+                        onBlur={e => { e.target.style.borderColor = ''; }}
                     />
                     <button
                         onClick={() => handleLookup(barcode)}
                         disabled={!barcode.trim() || loading}
-                        className="px-4 py-2.5 bg-green-600 text-white rounded-xl font-bold disabled:opacity-40 hover:bg-green-700 transition-colors"
+                        className="px-4 py-2.5 text-white rounded-xl font-bold disabled:opacity-40 transition-colors"
+                        style={{ background: 'var(--color-primary)' }}
                     >
                         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                     </button>
@@ -161,10 +166,10 @@ export function BarcodeScanner({ onResult, onClose }: Props) {
 
                 {/* Result */}
                 {result && (
-                    <div className="bg-white rounded-xl border border-green-100 p-3 space-y-3">
+                    <div className="bg-[var(--color-surface-elevated)] rounded-xl border border-[var(--color-border-light)] p-3 space-y-3">
                         <div>
-                            <p className="font-bold text-gray-900 text-sm">{result.name}</p>
-                            <p className="text-xs text-gray-400">per {result.portion_estimate}</p>
+                            <p className="font-bold text-[var(--color-text)] text-sm">{result.name}</p>
+                            <p className="text-xs text-[var(--color-text-muted)]">per {result.portion_estimate}</p>
                         </div>
                         <div className="grid grid-cols-4 gap-1.5 text-center">
                             {[
@@ -173,15 +178,16 @@ export function BarcodeScanner({ onResult, onClose }: Props) {
                                 { label: 'Carbs',  value: `${result.carbs}g`,   color: 'text-yellow-600' },
                                 { label: 'Fat',    value: `${result.fat}g`,     color: 'text-purple-600' },
                             ].map(({ label, value, color }) => (
-                                <div key={label} className="bg-gray-50 rounded-lg py-1.5">
+                                <div key={label} className="bg-[var(--color-bg-subtle)] rounded-lg py-1.5">
                                     <p className={`font-bold text-sm ${color}`}>{value}</p>
-                                    <p className="text-[10px] text-gray-400">{label}</p>
+                                    <p className="text-[10px] text-[var(--color-text-muted)]">{label}</p>
                                 </div>
                             ))}
                         </div>
                         <button
                             onClick={() => { onResult(result); onClose(); }}
-                            className="w-full py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2 text-sm"
+                            className="w-full py-2.5 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 text-sm"
+                            style={{ background: 'var(--color-primary)' }}
                         >
                             <CheckCircle2 className="w-4 h-4" /> Add to Log
                         </button>

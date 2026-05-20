@@ -17,14 +17,12 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
     const recognitionRef = useRef<any>(null);
     const wakeLockRef = useRef<any>(null);
     const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    // Ref pattern to access latest state in async callbacks
     const isActiveRef = useRef(isActive);
 
     useEffect(() => {
         isActiveRef.current = isActive;
     }, [isActive]);
 
-    // 1. Wake Lock Management
     useEffect(() => {
         if (isActive) {
             requestWakeLock();
@@ -39,7 +37,6 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
             if ('wakeLock' in navigator) {
                 // @ts-ignore
                 wakeLockRef.current = await navigator.wakeLock.request('screen');
-                console.log('Wake Lock active');
             }
         } catch (err) {
             console.error('Wake Lock failed', err);
@@ -53,7 +50,6 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
         }
     }
 
-    // 2. Speech Recognition Setup
     useEffect(() => {
         if (!isActive) return;
 
@@ -66,9 +62,7 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
             recognition.interimResults = false;
             recognition.lang = 'en-US';
 
-            recognition.onstart = () => {
-                setStatus('listening');
-            };
+            recognition.onstart = () => { setStatus('listening'); };
 
             recognition.onresult = (event: any) => {
                 const current = event.resultIndex;
@@ -78,19 +72,11 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
             };
 
             recognition.onend = () => {
-                // Check if we should still be active using the REF
                 if (isActiveRef.current) {
-                    // Don't restart if we are speaking (we will manually restart after speech)
                     if (status === 'speaking') return;
-
                     retryTimeoutRef.current = setTimeout(() => {
-                        // Double check ref to ensure we haven't been unmounted/stopped
                         if (recognitionRef.current && isActiveRef.current) {
-                            try {
-                                recognitionRef.current.start();
-                            } catch (e) {
-                                console.warn("Restart failed", e);
-                            }
+                            try { recognitionRef.current.start(); } catch (e) { console.warn("Restart failed", e); }
                         }
                     }, 100);
                 } else {
@@ -107,11 +93,7 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
             };
 
             recognitionRef.current = recognition;
-            try {
-                recognition.start();
-            } catch (e) {
-                console.error("Start error", e);
-            }
+            try { recognition.start(); } catch (e) { console.error("Start error", e); }
         }
 
         return () => {
@@ -120,15 +102,11 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
             if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
             setStatus('idle');
         };
-    }, [isActive]); // CRITICAL: Only depend on isActive
+    }, [isActive]);
 
-    // 3. Removed redundant Control Logic effect since lifecycle is handled above
-
-    // 4. Processing & Feedback
     const lastProcessedRef = useRef<{ text: string, time: number }>({ text: '', time: 0 });
 
     async function processCommand(text: string) {
-        // 1. Voice Stop Command
         if (text.toLowerCase().includes('stop') || text.toLowerCase().includes('cancel')) {
             setIsActive(false);
             window.speechSynthesis.cancel();
@@ -136,11 +114,8 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
             return;
         }
 
-        // 2. Deduplication (Loop Prevention)
         const now = Date.now();
-        // If same text within 2 seconds, ignore (feedback loop from speaker)
         if (text === lastProcessedRef.current.text && (now - lastProcessedRef.current.time) < 2000) {
-            console.log("Ignoring duplicate:", text);
             return;
         }
 
@@ -156,18 +131,13 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
 
             if (data.intent === 'log_set' && data.data) {
                 const { reps, weight, weight_unit } = data.data;
-
-                // Update dedupe ref only on success to allow retries of failures
                 lastProcessedRef.current = { text: text, time: now };
-
                 onSetDetected(data.data);
-
                 const msg = `Logged ${reps} reps at ${weight} ${weight_unit || 'pounds'}`;
                 setLastAction(msg);
                 speak(msg);
             } else {
                 setStatus('idle');
-                // Resume listening state after brief delay
                 if (isActive) setTimeout(() => setStatus('listening'), 500);
             }
 
@@ -178,9 +148,7 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
     }
 
     function speak(text: string) {
-        // Stop listening while speaking to avoid feedback loop
         if (recognitionRef.current) {
-            // We set status FIRST so onend knows to ignore the stop
             setStatus('speaking');
             recognitionRef.current.stop();
         }
@@ -188,21 +156,16 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.rate = 1.1;
         utterance.onend = () => {
-            // Resume listening after speaking
             if (isActive && recognitionRef.current) {
                 setStatus('listening');
-                try {
-                    recognitionRef.current.start();
-                } catch (e) { console.warn("Restart after speak failed", e); }
+                try { recognitionRef.current.start(); } catch (e) { console.warn("Restart after speak failed", e); }
             } else if (isActive) {
-                // Should trigger re-init if ref is gone but active? No, ref is stable.
                 setStatus('idle');
             }
         };
         window.speechSynthesis.speak(utterance);
     }
 
-    // Portal requirement
     const [mounted, setMounted] = useState(false);
     useEffect(() => {
         setMounted(true);
@@ -213,7 +176,8 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
         return (
             <button
                 onClick={() => setIsActive(true)}
-                className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-full font-bold shadow-lg hover:scale-105 transition-transform"
+                className="flex items-center gap-2 text-white px-4 py-2 rounded-full font-bold shadow-lg hover:scale-105 transition-transform"
+                style={{ background: 'var(--color-navy)' }}
             >
                 <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                 Start Spotter
@@ -237,7 +201,7 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
                         <p className="font-bold text-sm">
                             {status === 'listening' ? 'Listening...' :
                                 status === 'processing' ? 'Thinking...' :
-                                    status === 'speaking' ? 'Speaking...' : ' paused'}
+                                    status === 'speaking' ? 'Speaking...' : 'Paused'}
                         </p>
                         <p className="text-xs text-gray-400 line-clamp-1 h-4">
                             {transcript || "Say '12 reps 150 lbs'"}
@@ -246,12 +210,8 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* Manual Stop Button */}
                     <button
-                        onClick={() => {
-                            setIsActive(false);
-                            window.speechSynthesis.cancel();
-                        }}
+                        onClick={() => { setIsActive(false); window.speechSynthesis.cancel(); }}
                         className="p-2 bg-gray-800 rounded-full hover:bg-gray-700 text-red-400 border border-white/10"
                         title="Stop Spotter"
                     >
@@ -261,7 +221,10 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
             </div>
 
             {lastAction && (
-                <div className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full shadow-sm animate-in fade-in">
+                <div
+                    className="text-xs font-bold px-3 py-1 rounded-full shadow-sm animate-in fade-in"
+                    style={{ color: 'var(--color-success)', background: 'rgba(34,197,94,0.08)' }}
+                >
                     ✓ {lastAction}
                 </div>
             )}

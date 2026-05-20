@@ -21,7 +21,6 @@ export function ExerciseHistoryModal({ exerciseName, onClose }: Props) {
             .finally(() => setLoading(false));
     }, [exerciseName]);
 
-    // Best set per session (highest weight × reps)
     function bestSet(sets: any[]) {
         return sets.reduce((best, s) =>
             (s.weight * s.reps > best.weight * best.reps ? s : best), sets[0]);
@@ -30,25 +29,25 @@ export function ExerciseHistoryModal({ exerciseName, onClose }: Props) {
     return (
         <div className="fixed inset-0 z-50 flex items-end" onClick={onClose}>
             <div
-                className="w-full bg-white rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 max-h-[85vh] flex flex-col"
+                className="w-full bg-[var(--color-surface-elevated)] rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 max-h-[85vh] flex flex-col"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Handle */}
                 <div className="flex justify-center pt-3 pb-1">
-                    <div className="w-10 h-1 bg-gray-200 rounded-full" />
+                    <div className="w-10 h-1 bg-[var(--color-border)] rounded-full" />
                 </div>
 
                 {/* Header */}
-                <div className="px-5 pt-2 pb-4 border-b border-gray-100 flex items-center justify-between">
+                <div className="px-5 pt-2 pb-4 border-b border-[var(--color-border-light)] flex items-center justify-between">
                     <div>
                         <div className="flex items-center gap-2">
-                            <TrendingUp className="w-5 h-5 text-blue-500" />
-                            <h3 className="font-bold text-lg text-gray-900">{exerciseName}</h3>
+                            <TrendingUp className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
+                            <h3 className="font-bold text-lg text-[var(--color-text)]">{exerciseName}</h3>
                         </div>
-                        <p className="text-xs text-gray-400 mt-0.5">Past 10 sessions</p>
+                        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Past 10 sessions</p>
                     </div>
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
-                        <X className="w-5 h-5 text-gray-500" />
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-[var(--color-bg-subtle)] transition-colors">
+                        <X className="w-5 h-5 text-[var(--color-text-muted)]" />
                     </button>
                 </div>
 
@@ -56,12 +55,12 @@ export function ExerciseHistoryModal({ exerciseName, onClose }: Props) {
                 <div className="overflow-y-auto flex-1 p-4 space-y-3">
                     {loading && (
                         <div className="flex justify-center py-12">
-                            <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                            <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--color-text-muted)' }} />
                         </div>
                     )}
 
                     {!loading && history.length === 0 && (
-                        <div className="text-center py-12 text-gray-400">
+                        <div className="text-center py-12 text-[var(--color-text-muted)]">
                             <TrendingUp className="w-10 h-10 mx-auto mb-3 opacity-30" />
                             <p className="font-medium">No history yet</p>
                             <p className="text-sm">Complete a set to start tracking progress</p>
@@ -72,20 +71,20 @@ export function ExerciseHistoryModal({ exerciseName, onClose }: Props) {
                         const best = bestSet(session.sets);
                         const dateStr = format(parseISO(session.date), 'MMM d, yyyy');
                         return (
-                            <div key={i} className="bg-gray-50 rounded-2xl p-4">
+                            <div key={i} className="bg-[var(--color-bg-subtle)] rounded-2xl p-4">
                                 <div className="flex justify-between items-start mb-3">
-                                    <span className="text-sm font-bold text-gray-700">{dateStr}</span>
-                                    <span className="text-xs bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">
+                                    <span className="text-sm font-bold text-[var(--color-text)]">{dateStr}</span>
+                                    <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(29,95,168,0.1)', color: 'var(--color-primary)' }}>
                                         Best: {best.weight}lbs × {best.reps}
                                     </span>
                                 </div>
                                 <div className="space-y-1.5">
                                     {session.sets.map((s, si) => (
                                         <div key={si} className="flex items-center gap-3 text-sm">
-                                            <span className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold text-gray-600 shrink-0">
+                                            <span className="w-6 h-6 bg-[var(--color-border)] rounded-full flex items-center justify-center text-xs font-bold text-[var(--color-text-muted)] shrink-0">
                                                 {s.set_number}
                                             </span>
-                                            <span className="text-gray-800 font-medium">
+                                            <span className="text-[var(--color-text)] font-medium">
                                                 {s.weight} lbs × {s.reps} reps
                                             </span>
                                         </div>

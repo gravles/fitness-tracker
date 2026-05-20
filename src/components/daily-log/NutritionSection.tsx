@@ -200,44 +200,50 @@ export function NutritionSection({
             {/* Edit Modal Overlay */}
             {editingIndex !== null && editForm && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl p-6 animate-in zoom-in-95">
+                    <div className="bg-[var(--color-surface-elevated)] rounded-3xl w-full max-w-sm shadow-2xl p-6 animate-in zoom-in-95">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-bold text-gray-900">Edit Food Item</h3>
-                            <button onClick={() => setEditingIndex(null)} className="p-2 hover:bg-gray-100 rounded-full">
-                                <X className="w-5 h-5 text-gray-500" />
+                            <h3 className="text-lg font-bold text-[var(--color-text)]">Edit Food Item</h3>
+                            <button onClick={() => setEditingIndex(null)} className="p-2 hover:bg-[var(--color-bg-subtle)] rounded-full">
+                                <X className="w-5 h-5 text-[var(--color-text-muted)]" />
                             </button>
                         </div>
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Name</label>
+                                <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase mb-1">Name</label>
                                 <input
                                     type="text"
                                     value={editForm.name}
                                     onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                                    className="w-full p-3 bg-gray-50 rounded-xl border border-gray-100 font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                                    className="w-full p-3 bg-[var(--color-bg-subtle)] rounded-xl border border-[var(--color-border-light)] font-bold text-[var(--color-text)] outline-none"
+                                    onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; }}
+                                    onBlur={e => { e.target.style.borderColor = ''; }}
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Portion Unit</label>
+                                    <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase mb-1">Portion Unit</label>
                                     <input
                                         type="text"
                                         value={editForm.portion_estimate || ''}
                                         onChange={e => setEditForm({ ...editForm, portion_estimate: e.target.value })}
                                         placeholder="e.g. 1 slice"
-                                        className="w-full p-3 bg-gray-50 rounded-xl border border-gray-100 text-sm"
+                                        className="w-full p-3 bg-[var(--color-bg-subtle)] rounded-xl border border-[var(--color-border-light)] text-sm text-[var(--color-text)] outline-none"
+                                        onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; }}
+                                        onBlur={e => { e.target.style.borderColor = ''; }}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Quantity</label>
+                                    <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase mb-1">Quantity</label>
                                     <input
                                         type="number"
                                         step="0.1"
                                         value={editForm.quantity}
                                         onChange={e => setEditForm({ ...editForm, quantity: parseFloat(e.target.value) || 0 })}
-                                        className="w-full p-3 bg-gray-50 rounded-xl border border-gray-100 text-sm font-bold"
+                                        className="w-full p-3 bg-[var(--color-bg-subtle)] rounded-xl border border-[var(--color-border-light)] text-sm font-bold text-[var(--color-text)] outline-none"
+                                        onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; }}
+                                        onBlur={e => { e.target.style.borderColor = ''; }}
                                     />
                                 </div>
                             </div>
@@ -283,7 +289,8 @@ export function NutritionSection({
 
                             <button
                                 onClick={saveEdit}
-                                className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-lg mt-2"
+                                className="w-full py-4 text-white rounded-xl font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-lg mt-2"
+                                style={{ background: 'var(--color-navy)' }}
                             >
                                 Save Changes
                             </button>
@@ -340,7 +347,10 @@ export function NutritionSection({
                                 onClick={onClick}
                                 className="flex flex-col items-center gap-1 w-full"
                             >
-                                <div className={`w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border transition-colors ${isListening ? 'bg-red-500 text-white animate-pulse border-red-400' : 'bg-purple-50 text-purple-600 border-purple-100'}`}>
+                                <div
+                                    className={`w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border transition-colors ${isListening ? 'bg-red-500 text-white animate-pulse border-red-400' : ''}`}
+                                    style={!isListening ? { background: 'rgba(29,95,168,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(29,95,168,0.2)' } : undefined}
+                                >
                                     <span className="text-lg">🎙️</span>
                                 </div>
                                 <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">
@@ -354,7 +364,7 @@ export function NutritionSection({
                         onClick={() => setShowCamera(true)}
                         className="flex flex-col items-center gap-1 w-full"
                     >
-                        <div className="w-full aspect-square max-w-[52px] mx-auto bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm border border-blue-100">
+                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'rgba(29,95,168,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(29,95,168,0.2)' }}>
                             <Camera className="w-5 h-5" />
                         </div>
                         <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">Camera</span>
@@ -364,7 +374,7 @@ export function NutritionSection({
                         onClick={() => setShowTextInput(true)}
                         className="flex flex-col items-center gap-1 w-full"
                     >
-                        <div className="w-full aspect-square max-w-[52px] mx-auto bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm border border-indigo-100">
+                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'rgba(29,95,168,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(29,95,168,0.2)' }}>
                             <Keyboard className="w-5 h-5" />
                         </div>
                         <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">Type</span>
@@ -374,7 +384,7 @@ export function NutritionSection({
                         onClick={() => setShowMenuScanner(true)}
                         className="flex flex-col items-center gap-1 w-full"
                     >
-                        <div className="w-full aspect-square max-w-[52px] mx-auto bg-yellow-50 text-yellow-600 rounded-2xl flex items-center justify-center shadow-sm border border-yellow-100">
+                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'var(--color-gold-muted)', color: 'var(--color-gold)', borderColor: 'rgba(201,168,76,0.3)' }}>
                             <ChefHat className="w-5 h-5" />
                         </div>
                         <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">Scanner</span>
@@ -394,7 +404,7 @@ export function NutritionSection({
                         onClick={() => setShowBarcodeScanner(true)}
                         className="flex flex-col items-center gap-1 w-full"
                     >
-                        <div className="w-full aspect-square max-w-[52px] mx-auto bg-green-50 text-green-600 rounded-2xl flex items-center justify-center shadow-sm border border-green-100">
+                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'rgba(29,95,168,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(29,95,168,0.2)' }}>
                             <Barcode className="w-5 h-5" />
                         </div>
                         <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">Barcode</span>
@@ -404,8 +414,8 @@ export function NutritionSection({
                 {showCamera && (
                     <div className="mb-6 animate-in slide-in-from-top-4">
                         <div className="flex justify-between items-center mb-2">
-                            <h4 className="text-sm font-bold text-gray-600">Scan Meal</h4>
-                            <button onClick={() => setShowCamera(false)}><X className="w-4 h-4 text-gray-400" /></button>
+                            <h4 className="text-sm font-bold text-[var(--color-text-muted)]">Scan Meal</h4>
+                            <button onClick={() => setShowCamera(false)}><X className="w-4 h-4 text-[var(--color-text-muted)]" /></button>
                         </div>
                         <FoodCamera
                             onClose={() => setShowCamera(false)}
@@ -447,7 +457,7 @@ export function NutritionSection({
                 )}
 
                 {loadingAI && (
-                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-blue-600">
+                    <div className="absolute inset-0 bg-[var(--color-surface-elevated)]/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center" style={{ color: 'var(--color-primary)' }}>
                         <Brain className="w-8 h-8 animate-pulse mb-2" />
                         <p className="text-sm font-bold animate-pulse">Analyzing Food...</p>
                     </div>
@@ -505,37 +515,40 @@ export function NutritionSection({
                     {foodItems.length > 0 && (
                         <div className="space-y-2">
                             {foodItems.map((item, index) => (
-                                <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm">
+                                <div key={index} className="flex justify-between items-center p-3 bg-[var(--color-bg-subtle)] rounded-lg border border-[var(--color-border-light)] text-sm">
                                     <div className="flex-1">
-                                        <span className="font-bold text-gray-800 block">{item.name}</span>
-                                        {item.portion_estimate && <span className="text-xs text-gray-400 block mb-0.5">Unit: {item.portion_estimate}</span>}
-                                        <span className="text-xs text-gray-500">
+                                        <span className="font-bold text-[var(--color-text)] block">{item.name}</span>
+                                        {item.portion_estimate && <span className="text-xs text-[var(--color-text-muted)] block mb-0.5">Unit: {item.portion_estimate}</span>}
+                                        <span className="text-xs text-[var(--color-text-muted)]">
                                             {Math.round(item.calories * (item.quantity || 1))} kcal • {Math.round(item.protein * (item.quantity || 1))}g P • {Math.round(item.carbs * (item.quantity || 1))}g C
                                         </span>
                                     </div>
 
                                     <div className="flex items-center gap-3">
                                         <div className="flex flex-col items-center">
-                                            <label className="text-[10px] uppercase font-bold text-gray-400">Qty</label>
+                                            <label className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">Qty</label>
                                             <input
                                                 type="number"
                                                 min="0"
                                                 step="0.1"
                                                 value={item.quantity !== undefined ? item.quantity : 1}
                                                 onChange={(e) => updateFoodItemQuantity(index, e.target.value)}
-                                                className="w-16 p-1 text-center bg-white border border-gray-200 rounded text-sm font-bold"
+                                                className="w-16 p-1 text-center bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded text-sm font-bold text-[var(--color-text)]"
                                             />
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <button
                                                 onClick={() => startEdit(item, index)}
-                                                className="p-2 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-50 transition-all tap-target"
+                                                className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] rounded-lg transition-all tap-target"
+                                                style={{}}
+                                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(29,95,168,0.08)'; }}
+                                                onMouseLeave={e => { e.currentTarget.style.background = ''; }}
                                             >
                                                 <Pencil className="w-4 h-4" />
                                             </button>
                                             <button
                                                 onClick={() => removeFoodItem(index)}
-                                                className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-all tap-target"
+                                                className="p-2 text-[var(--color-text-muted)] hover:text-red-500 rounded-lg hover:bg-red-50 transition-all tap-target"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
@@ -558,20 +571,24 @@ export function NutritionSection({
 
                     {/* Eating Window */}
                     <div>
-                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Eating Window</label>
+                        <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Eating Window</label>
                         <div className="flex items-center gap-2">
                             <input
                                 type="time"
                                 value={nutrition.windowStart}
                                 onChange={e => setNutrition({ ...nutrition, windowStart: e.target.value })}
-                                className="flex-1 p-2 bg-gray-50 rounded-xl text-sm border border-gray-100 font-medium"
+                                className="flex-1 p-2 bg-[var(--color-bg-subtle)] rounded-xl text-sm border border-[var(--color-border-light)] font-medium text-[var(--color-text)]"
+                                onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; }}
+                                onBlur={e => { e.target.style.borderColor = ''; }}
                             />
-                            <span className="text-gray-300 font-bold">-</span>
+                            <span className="text-[var(--color-border)] font-bold">-</span>
                             <input
                                 type="time"
                                 value={nutrition.windowEnd}
                                 onChange={e => setNutrition({ ...nutrition, windowEnd: e.target.value })}
-                                className="flex-1 p-2 bg-gray-50 rounded-xl text-sm border border-gray-100 font-medium"
+                                className="flex-1 p-2 bg-[var(--color-bg-subtle)] rounded-xl text-sm border border-[var(--color-border-light)] font-medium text-[var(--color-text)]"
+                                onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; }}
+                                onBlur={e => { e.target.style.borderColor = ''; }}
                             />
                         </div>
                     </div>

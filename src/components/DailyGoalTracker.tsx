@@ -58,8 +58,8 @@ function GoalBar({ label, current, target, unit, color }: GoalBarProps) {
       </div>
       <div className="h-2 bg-[var(--color-surface)] rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-500 ${over ? 'bg-orange-400' : color}`}
-          style={{ width: `${pct}%` }}
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: over ? '#f97316' : color }}
         />
       </div>
     </div>
@@ -134,7 +134,7 @@ export function DailyGoalTracker({ todayLog, settings }: Props) {
                 current={protein}
                 target={targetProtein}
                 unit="g"
-                color="bg-blue-500"
+                color="var(--color-primary)"
               />
             )}
             {targetCalories > 0 && (
@@ -143,7 +143,7 @@ export function DailyGoalTracker({ todayLog, settings }: Props) {
                 current={calories}
                 target={targetCalories}
                 unit=" kcal"
-                color="bg-green-500"
+                color="var(--color-success)"
               />
             )}
           </div>

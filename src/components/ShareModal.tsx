@@ -102,7 +102,7 @@ export function ShareModal({ isOpen, onClose, type, data }: ShareModalProps) {
 
                     {/* Preview Card */}
                     <div className="p-4">
-                        <div className="p-6 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-2xl text-white text-center shadow-lg">
+                        <div className="p-6 rounded-2xl text-white text-center shadow-lg" style={{ background: 'var(--color-navy)' }}>
                             <div className="text-4xl mb-2">{data.emoji || '🎉'}</div>
                             <h4 className="text-xl font-bold mb-1">{data.title}</h4>
                             {data.subtitle && (

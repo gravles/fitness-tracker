@@ -40,7 +40,6 @@ export function XPHistoryModal({ isOpen, onClose, lifetimeXP, currentLevel, onSy
             const start = format(subDays(today, 30), 'yyyy-MM-dd');
             const end = format(today, 'yyyy-MM-dd');
 
-            // Fetch logs and settings to calculate XP correctly
             const [logs, settings] = await Promise.all([
                 getMonthlyLogs(start, end),
                 getSettings()
@@ -60,12 +59,8 @@ export function XPHistoryModal({ isOpen, onClose, lifetimeXP, currentLevel, onSy
                 if (targets.daily_calories && (log.calories || 0) > 0) details.push('Tracked Cals');
                 if (log.habits && log.habits.length > 0) details.push(`${log.habits.length} Habits`);
 
-                return {
-                    date: log.date,
-                    xp,
-                    details
-                };
-            }).filter(h => h.xp > 0).reverse(); // Only show days with XP, newest first
+                return { date: log.date, xp, details };
+            }).filter(h => h.xp > 0).reverse();
 
             setHistory(xpHistory);
             setTotalRecentXP(xpHistory.reduce((acc, curr) => acc + curr.xp, 0));
@@ -99,27 +94,30 @@ export function XPHistoryModal({ isOpen, onClose, lifetimeXP, currentLevel, onSy
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
-                <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <div className="bg-[var(--color-surface-elevated)] rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+                <div className="p-4 border-b border-[var(--color-border-light)] flex justify-between items-center bg-[var(--color-bg-subtle)]">
                     <div className="flex items-center gap-2">
-                        <Trophy className="w-5 h-5 text-yellow-500" />
-                        <h3 className="font-bold text-gray-900">XP History <span className="text-xs font-normal text-gray-500">(Last 30 Days)</span></h3>
+                        <Trophy className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
+                        <h3 className="font-bold text-[var(--color-text)]">
+                            XP History <span className="text-xs font-normal text-[var(--color-text-muted)]">(Last 30 Days)</span>
+                        </h3>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                        <X className="w-5 h-5 text-gray-500" />
+                    <button onClick={onClose} className="p-2 hover:bg-[var(--color-bg-muted)] rounded-full transition-colors">
+                        <X className="w-5 h-5 text-[var(--color-text-muted)]" />
                     </button>
                 </div>
 
-                <div className="p-4 bg-blue-50 border-b border-blue-100 flex justify-between items-center">
+                <div className="p-4 border-b border-[var(--color-border-light)] flex justify-between items-center" style={{ background: 'var(--color-gold-muted)' }}>
                     <div>
-                        <p className="text-xs font-bold text-blue-600 uppercase tracking-wide">Recent Gains</p>
-                        <p className="text-2xl font-black text-blue-900">+{totalRecentXP} XP</p>
+                        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--color-gold)' }}>Recent Gains</p>
+                        <p className="text-2xl font-black" style={{ color: 'var(--color-text)' }}>+{totalRecentXP} XP</p>
                     </div>
                     <div className="flex gap-2">
                         {onShare && (
                             <button
                                 onClick={onShare}
-                                className="text-xs bg-purple-600 text-white px-3 py-2 rounded-lg font-bold shadow-md hover:bg-purple-700 transition-colors flex items-center gap-1"
+                                className="text-xs text-white px-3 py-2 rounded-lg font-bold shadow-md flex items-center gap-1"
+                                style={{ background: 'var(--color-navy)' }}
                             >
                                 <Share2 className="w-3 h-3" /> Share
                             </button>
@@ -128,7 +126,8 @@ export function XPHistoryModal({ isOpen, onClose, lifetimeXP, currentLevel, onSy
                             <button
                                 onClick={handleSync}
                                 disabled={syncing}
-                                className="text-xs bg-blue-600 text-white px-3 py-2 rounded-lg font-bold shadow-md hover:bg-blue-700 transition-colors flex items-center gap-1"
+                                className="text-xs text-white px-3 py-2 rounded-lg font-bold shadow-md flex items-center gap-1"
+                                style={{ background: 'var(--color-primary)' }}
                             >
                                 {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Sync XP'}
                             </button>
@@ -139,24 +138,24 @@ export function XPHistoryModal({ isOpen, onClose, lifetimeXP, currentLevel, onSy
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                     {loading ? (
                         <div className="flex justify-center py-10">
-                            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                            <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--color-primary)' }} />
                         </div>
                     ) : history.length === 0 ? (
-                        <div className="text-center py-10 text-gray-500 italic">
+                        <div className="text-center py-10 text-[var(--color-text-muted)] italic">
                             No XP earned recently. Get moving!
                         </div>
                     ) : (
                         history.map((day) => (
-                            <div key={day.date} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
+                            <div key={day.date} className="flex justify-between items-center p-3 bg-[var(--color-bg-subtle)] rounded-xl border border-[var(--color-border-light)]">
                                 <div>
-                                    <p className="text-sm font-bold text-gray-900">
+                                    <p className="text-sm font-bold text-[var(--color-text)]">
                                         {format(parseISO(day.date), 'EEE, MMM d')}
                                     </p>
-                                    <p className="text-xs text-gray-500 mt-1">
+                                    <p className="text-xs text-[var(--color-text-muted)] mt-1">
                                         {day.details.join(' • ')}
                                     </p>
                                 </div>
-                                <div className="bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm font-bold text-green-600 text-sm">
+                                <div className="px-3 py-1 rounded-full border border-[var(--color-border)] shadow-sm font-bold text-sm" style={{ background: 'var(--color-surface-elevated)', color: 'var(--color-success)' }}>
                                     +{day.xp}
                                 </div>
                             </div>

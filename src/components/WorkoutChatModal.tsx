@@ -9,7 +9,7 @@ interface WorkoutChatModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (workout: any) => void;
-    initialData?: string; // Optional: Passing text handles it as an immediate user message
+    initialData?: string;
 }
 
 export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: WorkoutChatModalProps) {
@@ -28,7 +28,6 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const recognitionRef = useRef<any>(null);
 
-    // Initialize Speech Recognition
     useEffect(() => {
         if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
             // @ts-ignore
@@ -36,28 +35,23 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
             recognition.continuous = false;
             recognition.interimResults = false;
             recognition.lang = 'en-US';
-
             recognition.onresult = (event: any) => {
                 const text = event.results[0][0].transcript;
                 setInput(text);
-                handleSend(text); // Auto-send on voice end? Or let user confirm? Let's auto-send for fluidity.
+                handleSend(text);
             };
-
             recognition.onend = () => setIsListening(false);
             recognitionRef.current = recognition;
         }
     }, []);
 
-    // Scroll to bottom
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Initial Greeting or Handover
     useEffect(() => {
         if (isOpen && messages.length === 0) {
             if (initialData) {
-                // If we have initial data (e.g. from the other voice input), send it immediately as if user spoke it
                 handleSend(initialData);
             } else {
                 setMessages([{ role: 'assistant', content: "Hi! I'm your AI Coach. Tell me what workout you did today!" }]);
@@ -66,10 +60,7 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
     }, [isOpen, initialData]);
 
     const toggleListening = () => {
-        if (!recognitionRef.current) {
-            alert("Voice input not supported in this browser.");
-            return;
-        }
+        if (!recognitionRef.current) { alert("Voice input not supported in this browser."); return; }
         if (isListening) {
             recognitionRef.current.stop();
         } else {
@@ -80,29 +71,20 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
 
     const handleSend = async (text: string) => {
         if (!text.trim()) return;
-
-        // Add user message immediately
         const userMsg = { role: 'user', content: text };
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         setIsLoading(true);
-
         try {
             const res = await fetch('/api/ai/workout-chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    state: chatState,
-                    message: text
-                })
+                body: JSON.stringify({ state: chatState, message: text })
             });
             const newState: WorkoutChatState = await res.json();
-
             setChatState(newState);
             setMessages(prev => [...prev, { role: 'assistant', content: newState.reply }]);
-
         } catch (error) {
-            console.error(error);
             setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I had trouble connecting. Try again?" }]);
         } finally {
             setIsLoading(false);
@@ -112,55 +94,58 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
     const handleSave = async () => {
         if (!chatState.workoutData) return;
         setIsSaving(true);
-        try {
-            await onSave(chatState.workoutData);
-        } finally {
-            setIsSaving(false);
-        }
+        try { await onSave(chatState.workoutData); } finally { setIsSaving(false); }
     };
 
     const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-        return () => setMounted(false);
-    }, []);
+    useEffect(() => { setMounted(true); return () => setMounted(false); }, []);
 
     if (!mounted || !isOpen) return null;
 
     const content = (
         <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-14">
-            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="bg-[var(--color-surface-elevated)] rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
 
                 {/* Header */}
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 flex justify-between items-center text-white">
+                <div className="p-4 flex justify-between items-center text-white" style={{ background: 'var(--color-navy)' }}>
                     <div className="flex items-center gap-2">
-                        <div className="p-2 bg-white/20 rounded-full">
-                            <Sparkles className="w-5 h-5" />
+                        <div className="p-2 rounded-full" style={{ background: 'rgba(201,168,76,0.2)' }}>
+                            <Sparkles className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
                         </div>
                         <h3 className="font-bold text-lg">AI Trainer Chat</h3>
                     </div>
-                    <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-full transition"><X className="w-5 h-5" /></button>
+                    <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-full transition">
+                        <X className="w-5 h-5" />
+                    </button>
                 </div>
 
                 {/* Chat Area */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[var(--color-bg)]">
                     {messages.map((m, i) => (
                         <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${m.role === 'user'
-                                ? 'bg-blue-600 text-white rounded-br-none'
-                                : 'bg-white text-gray-800 border border-gray-200 shadow-sm rounded-bl-none'
-                                }`}>
+                            <div
+                                className="max-w-[80%] p-3 rounded-2xl text-sm"
+                                style={m.role === 'user' ? {
+                                    background: 'var(--color-primary)',
+                                    color: 'white',
+                                    borderRadius: '16px 16px 4px 16px'
+                                } : {
+                                    background: 'var(--color-surface-elevated)',
+                                    color: 'var(--color-text)',
+                                    border: '1px solid var(--color-border-light)',
+                                    borderRadius: '16px 16px 16px 4px'
+                                }}
+                            >
                                 {m.content}
                             </div>
                         </div>
                     ))}
                     {isLoading && (
                         <div className="flex justify-start">
-                            <div className="bg-white p-3 rounded-2xl rounded-bl-none border border-gray-100 flex gap-1">
-                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.1s]" />
-                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+                            <div className="bg-[var(--color-surface-elevated)] p-3 rounded-2xl border border-[var(--color-border-light)] flex gap-1">
+                                <span className="w-2 h-2 rounded-full animate-bounce" style={{ background: 'var(--color-text-muted)' }} />
+                                <span className="w-2 h-2 rounded-full animate-bounce [animation-delay:0.1s]" style={{ background: 'var(--color-text-muted)' }} />
+                                <span className="w-2 h-2 rounded-full animate-bounce [animation-delay:0.2s]" style={{ background: 'var(--color-text-muted)' }} />
                             </div>
                         </div>
                     )}
@@ -169,14 +154,14 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
 
                 {/* Completion State */}
                 {chatState.status === 'completed' && chatState.workoutData && (
-                    <div className="p-4 bg-green-50 border-t border-green-100 animate-in slide-in-from-bottom">
+                    <div className="p-4 border-t border-[var(--color-border-light)] animate-in slide-in-from-bottom" style={{ background: 'rgba(34,197,94,0.05)' }}>
                         <div className="flex gap-4 items-center mb-4">
-                            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+                            <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'rgba(34,197,94,0.1)', color: 'var(--color-success)' }}>
                                 <Dumbbell className="w-6 h-6" />
                             </div>
                             <div>
-                                <h4 className="font-bold text-gray-900">{chatState.workoutData.activity_type}</h4>
-                                <p className="text-xs text-gray-500">
+                                <h4 className="font-bold text-[var(--color-text)]">{chatState.workoutData.activity_type}</h4>
+                                <p className="text-xs text-[var(--color-text-muted)]">
                                     {chatState.workoutData.duration || '--'} min • {chatState.workoutData.intensity || 'Moderate'} • ~{chatState.workoutData.calories || '--'} kcal
                                 </p>
                             </div>
@@ -184,7 +169,8 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
                         <button
                             onClick={handleSave}
                             disabled={isSaving || isLoading}
-                            className="w-full py-3 bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-200 active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none flex justify-center items-center gap-2"
+                            className="w-full py-3 text-white rounded-xl font-bold active:scale-95 transition-all disabled:opacity-50 flex justify-center items-center gap-2"
+                            style={{ background: 'var(--color-primary)' }}
                         >
                             {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirm & Log Workout"}
                         </button>
@@ -193,12 +179,12 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
 
                 {/* Input Area */}
                 {chatState.status !== 'completed' && (
-                    <div className="p-4 bg-white border-t border-gray-100">
+                    <div className="p-4 bg-[var(--color-surface-elevated)] border-t border-[var(--color-border-light)]">
                         <div className="flex gap-2">
                             <button
                                 onClick={toggleListening}
-                                className={`p-3 rounded-full transition-all ${isListening ? 'bg-red-500 animate-pulse text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                    }`}
+                                className="p-3 rounded-full transition-all"
+                                style={isListening ? { background: '#ef4444', color: 'white' } : { background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
                             >
                                 {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                             </button>
@@ -208,12 +194,16 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
                                 onChange={e => setInput(e.target.value)}
                                 onKeyDown={e => e.key === 'Enter' && handleSend(input)}
                                 placeholder="Type or speak..."
-                                className="flex-1 bg-gray-50 rounded-xl px-4 outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
+                                className="flex-1 bg-[var(--color-bg-subtle)] rounded-xl px-4 outline-none text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]"
+                                style={{ border: '1px solid var(--color-border)' }}
+                                onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; }}
+                                onBlur={e => { e.target.style.borderColor = 'var(--color-border)'; }}
                             />
                             <button
                                 onClick={() => handleSend(input)}
                                 disabled={!input.trim() || isLoading}
-                                className="p-3 bg-blue-600 text-white rounded-xl disabled:opacity-50 disabled:shadow-none shadow-lg shadow-blue-200 active:scale-95 transition-all"
+                                className="p-3 text-white rounded-xl disabled:opacity-50 active:scale-95 transition-all"
+                                style={{ background: 'var(--color-primary)' }}
                             >
                                 <Send className="w-5 h-5" />
                             </button>
@@ -221,7 +211,7 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
                     </div>
                 )}
             </div>
-        </div >
+        </div>
     );
 
     return createPortal(content, document.body);

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { getUniqueExercises, getExerciseHistory, ExerciseStats } from '@/lib/analytics';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
-import { Loader2, TrendingUp, Filter } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { Loader2, TrendingUp } from 'lucide-react';
 
 export function ExerciseProgressChart() {
     const [loading, setLoading] = useState(true);
@@ -46,25 +46,33 @@ export function ExerciseProgressChart() {
         }
     }
 
-    if (loading && exercises.length === 0) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-gray-400" /></div>;
+    if (loading && exercises.length === 0) return (
+        <div className="p-12 flex justify-center">
+            <Loader2 className="animate-spin" style={{ color: 'var(--color-text-muted)' }} />
+        </div>
+    );
 
-    if (exercises.length === 0) return <div className="text-center p-8 text-gray-400 italic">No workout data found yet. Go lift something! 🏋️‍♂️</div>;
+    if (exercises.length === 0) return (
+        <div className="text-center p-8 text-[var(--color-text-muted)] italic">
+            No workout data found yet. Go lift something! 🏋️‍♂️
+        </div>
+    );
 
     return (
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6">
+        <div className="bg-[var(--color-surface-elevated)] p-6 rounded-2xl border border-[var(--color-border-light)] shadow-sm space-y-6">
 
             {/* Header Controls */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-purple-600" />
-                    <h3 className="font-bold text-lg">Gains Tracker</h3>
+                    <TrendingUp className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
+                    <h3 className="font-bold text-lg text-[var(--color-text)]">Gains Tracker</h3>
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                     <select
                         value={selectedExercise}
                         onChange={e => setSelectedExercise(e.target.value)}
-                        className="p-2 border border-gray-200 rounded-lg text-sm bg-gray-50 font-medium flex-1 sm:flex-none max-w-[200px]"
+                        className="p-2 border border-[var(--color-border)] rounded-lg text-sm bg-[var(--color-bg-subtle)] text-[var(--color-text)] font-medium flex-1 sm:flex-none max-w-[200px]"
                     >
                         {exercises.map(e => <option key={e} value={e}>{e}</option>)}
                     </select>
@@ -72,7 +80,12 @@ export function ExerciseProgressChart() {
                     <select
                         value={metric}
                         onChange={e => setMetric(e.target.value as any)}
-                        className="p-2 border border-blue-200 rounded-lg text-sm bg-blue-50 text-blue-700 font-bold"
+                        className="p-2 border rounded-lg text-sm font-bold"
+                        style={{
+                            borderColor: 'rgba(29,95,168,0.3)',
+                            background: 'rgba(29,95,168,0.06)',
+                            color: 'var(--color-primary)'
+                        }}
                     >
                         <option value="estimated_1rm">Est. 1RM</option>
                         <option value="weight">Max Weight</option>
@@ -85,18 +98,24 @@ export function ExerciseProgressChart() {
             <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-light)" />
                         <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} dy={10} />
                         <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                         <Tooltip
-                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                            contentStyle={{
+                                borderRadius: '12px',
+                                border: '1px solid var(--color-border-light)',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                background: 'var(--color-surface-elevated)',
+                                color: 'var(--color-text)'
+                            }}
                         />
                         <Line
                             type="monotone"
                             dataKey={metric}
-                            stroke="#8b5cf6"
+                            stroke="#1d5fa8"
                             strokeWidth={3}
-                            dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 0 }}
+                            dot={{ r: 4, fill: '#1d5fa8', strokeWidth: 0 }}
                             activeDot={{ r: 6 }}
                             animationDuration={1000}
                         />
@@ -106,17 +125,15 @@ export function ExerciseProgressChart() {
 
             {/* Stats Footer */}
             {data.length > 0 && (
-                <div className="flex justify-between items-center text-xs text-gray-500 pt-4 border-t border-gray-50">
+                <div className="flex justify-between items-center text-xs text-[var(--color-text-muted)] pt-4 border-t border-[var(--color-border-light)]">
                     <div>
-                        Started: <span className="font-bold text-gray-900">{data[0].date}</span>
+                        Started: <span className="font-bold text-[var(--color-text)]">{data[0].date}</span>
                     </div>
                     <div>
-                        Current: <span className="font-bold text-gray-900">{data[data.length - 1][metric]}</span>
+                        Current: <span className="font-bold text-[var(--color-text)]">{data[data.length - 1][metric]}</span>
                     </div>
-                    <div className="text-green-600 font-bold">
-                        {
-                            Math.round(((data[data.length - 1][metric] - data[0][metric]) / data[0][metric]) * 100)
-                        }% Impr.
+                    <div className="font-bold" style={{ color: 'var(--color-success)' }}>
+                        {Math.round(((data[data.length - 1][metric] - data[0][metric]) / data[0][metric]) * 100)}% Impr.
                     </div>
                 </div>
             )}
