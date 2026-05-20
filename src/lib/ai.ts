@@ -361,7 +361,7 @@ export interface CoachContext {
 }
 
 export async function chatWithCoach(history: any[], newMessage: string, context: CoachContext) {
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.ANTHROPIC_API_KEY) {
         return {
             role: 'assistant',
             content: "I'm in DEV mode (no API key). I see your data! You can ask me about your protein, workouts, or how to build a routine."
@@ -419,17 +419,17 @@ Example of "suggested_workout":
 }
 `;
 
-    const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+    const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        system: systemPrompt,
         messages: [
-            { role: "system", content: systemPrompt },
-            ...history,
+            ...history.filter((m: any) => m.role !== 'system'),
             { role: "user", content: newMessage }
         ],
-        response_format: { type: "json_object" }
     });
 
-    const content = response.choices[0].message.content;
+    const content = (response.content[0] as Anthropic.TextBlock).text;
     let parsed;
     try {
         parsed = content ? JSON.parse(content) : { reply: "I'm having trouble thinking right now." };
