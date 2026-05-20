@@ -95,9 +95,9 @@ export async function processVoiceIntent(transcript: string) {
     }
 
     const response = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-haiku-4-5",
         max_tokens: 300,
-        system: `You are a fitness logger assistant. Extract the intent and data from the user's message. Return ONLY valid JSON, no markdown.
+        system: `You are a fitness logger assistant. Extract the intent and data from the user's message. Return ONLY valid JSON, no markdown, no code fences.
 
 Rules:
 - If the user describes food/drink, intent="log_food". Return data={"items": [{ "name": "name", "calories": number, "protein": number, "carbs": number, "fat": number, "alcohol_units": number }]}.
@@ -113,13 +113,15 @@ Example: { "intent": "log_set", "data": { "reps": 12, "weight": 135, "weight_uni
         ],
     });
 
-    const content = (response.content[0] as Anthropic.TextBlock).text;
+    const raw = (response.content[0] as Anthropic.TextBlock).text;
+    // Strip markdown code fences if the model wraps its response
+    const content = raw?.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
     let result;
     try {
         result = content ? JSON.parse(content) : { intent: 'unknown' };
     } catch (e) {
-        console.error("Failed to parse AI response", content);
-        result = { intent: 'unknown', error: 'Failed to parse intent' };
+        console.error("Failed to parse AI response", raw);
+        result = { intent: 'unknown' };
     }
 
     return { ...result, original: transcript };
