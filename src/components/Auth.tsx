@@ -13,10 +13,7 @@ export function Auth() {
     const handleSignIn = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        const { error } = await supabase.auth.signInWithOtp({
-            email,
-            options: { emailRedirectTo: window.location.origin }
-        });
+        const { error } = await supabase.auth.signInWithOtp({ email });
         setLoading(false);
         if (error) {
             alert(error.message);
