@@ -11,19 +11,19 @@ export function WeeklySummary({ stats }: { stats: WeeklyStats }) {
     const cards = [
         {
             icon: Scale,
-            iconColor: 'text-purple-500',
+            iconStyle: { color: 'var(--color-gold)' },
             value: stats.avgWeight > 0 ? stats.avgWeight : '--',
             label: 'Avg Lbs'
         },
         {
             icon: Dumbbell,
-            iconColor: 'text-blue-500',
+            iconStyle: { color: 'var(--color-primary)' },
             value: stats.totalMovement,
             label: 'Mins'
         },
         {
             icon: Utensils,
-            iconColor: 'text-green-500',
+            iconStyle: { color: 'var(--color-success)' },
             value: stats.avgProtein,
             label: 'g Prot'
         },
@@ -44,7 +44,7 @@ export function WeeklySummary({ stats }: { stats: WeeklyStats }) {
                         className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-light)] p-3 rounded-xl flex flex-col items-center justify-center text-center gap-1 shadow-sm hover:border-[var(--color-border)] hover:shadow-md transition-all"
                     >
                         {card.icon ? (
-                            <card.icon className={`w-4 h-4 ${card.iconColor} mb-0.5`} aria-hidden="true" />
+                            <card.icon className="w-4 h-4 mb-0.5" style={card.iconStyle} aria-hidden="true" />
                         ) : (
                             <span className="text-lg mb-0.5" aria-hidden="true">{card.emoji}</span>
                         )}

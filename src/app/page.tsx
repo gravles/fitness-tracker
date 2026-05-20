@@ -126,11 +126,11 @@ export default function Dashboard() {
       <header className="flex justify-between items-center mb-2">
         <div>
           <p className="text-sm font-medium text-[var(--color-text-muted)] mb-0.5">{format(today, 'EEEE, MMMM d')}</p>
-          <h1 className="text-2xl font-bold text-[var(--color-text)]">{greeting}</h1>
+          <h1 className="text-2xl font-bold text-[var(--color-text)]" style={{ fontFamily: 'var(--font-display)' }}>{greeting}</h1>
         </div>
         <Link
           href="/settings"
-          className="p-3 bg-[var(--color-surface-elevated)] rounded-full border border-[var(--color-border-light)] shadow-sm text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:border-[var(--color-primary)]/30 transition-all focus-ring tap-target"
+          className="p-3 bg-[var(--color-surface-elevated)] rounded-full border border-[var(--color-border-light)] shadow-sm text-[var(--color-text-muted)] hover:text-[var(--color-gold)] hover:border-[var(--color-gold)]/30 transition-all focus-ring tap-target"
           aria-label="Settings"
         >
           <Settings className="w-5 h-5" aria-hidden="true" />
@@ -184,34 +184,49 @@ export default function Dashboard() {
             <SmartCoach tip={advice} />
             <button
               onClick={() => setShowInsightModal(true)}
-              className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 active:scale-[0.98] transition-all flex items-center justify-center gap-2 focus-ring tap-target"
+              className="w-full py-3.5 rounded-xl font-semibold active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 focus-ring tap-target border"
+              style={{
+                background: 'var(--color-navy)',
+                color: 'var(--color-gold)',
+                borderColor: 'rgba(201,168,76,0.25)',
+              }}
               aria-label="View AI Weekly Analysis"
             >
-              <span className="text-xl" aria-hidden="true">📊</span>
-              View AI Weekly Analysis
+              <span className="text-base" aria-hidden="true">📊</span>
+              AI Weekly Analysis
             </button>
           </div>
 
           {/* Streak Card */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+          <div
+            className="rounded-2xl p-6 shadow-xl relative overflow-hidden"
+            style={{ background: 'var(--color-navy)' }}
+          >
             <div className="relative z-10 flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="p-1.5 bg-orange-500/20 rounded-lg">
-                    <Flame className="w-4 h-4 text-orange-400" aria-hidden="true" />
+                  <div className="p-1.5 rounded-lg" style={{ background: 'rgba(201,168,76,0.15)' }}>
+                    <Flame className="w-4 h-4" style={{ color: 'var(--color-gold)' }} aria-hidden="true" />
                   </div>
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Current Streak</span>
+                  <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(201,168,76,0.6)' }}>
+                    Current Streak
+                  </span>
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-6xl font-black tracking-tight text-orange-400">{streak}</span>
-                  <span className="text-xl font-semibold text-slate-400">days</span>
+                  <span
+                    className="text-6xl font-black tracking-tight"
+                    style={{ color: 'var(--color-gold)', fontFamily: 'var(--font-display)' }}
+                  >
+                    {streak}
+                  </span>
+                  <span className="text-xl font-semibold" style={{ color: 'rgba(228,234,242,0.5)' }}>days</span>
                 </div>
-                <p className="text-sm text-slate-500 mt-2">
+                <p className="text-sm mt-2" style={{ color: 'rgba(228,234,242,0.45)' }}>
                   {streak === 0 ? 'Start your streak today' : streak < 7 ? 'Building momentum' : streak < 30 ? 'On a roll — keep it up' : 'Unstoppable'}
                 </p>
               </div>
-              <div className="opacity-5" aria-hidden="true">
-                <Flame className="w-28 h-28 text-orange-400" />
+              <div style={{ opacity: 0.04 }} aria-hidden="true">
+                <Flame className="w-28 h-28" style={{ color: 'var(--color-gold)' }} />
               </div>
             </div>
           </div>
@@ -229,27 +244,39 @@ export default function Dashboard() {
               {/* Voice Log Card */}
               <Link
                 href="/log?action=voice"
-                className="group relative p-5 bg-gradient-to-br from-purple-500/10 to-indigo-500/10 hover:from-purple-500/20 hover:to-indigo-500/20 rounded-2xl flex flex-col items-center justify-center gap-3 border border-purple-200/50 dark:border-purple-500/20 shadow-sm hover:shadow-lg hover:shadow-purple-500/10 active:scale-[0.97] transition-all focus-ring tap-target overflow-hidden"
+                className="group relative p-5 rounded-2xl flex flex-col items-center justify-center gap-3 shadow-sm active:scale-[0.97] transition-all focus-ring tap-target"
+                style={{
+                  background: 'var(--color-gold-muted)',
+                  border: '1px solid rgba(201,168,76,0.2)',
+                }}
                 aria-label="Log with voice"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-400/0 to-purple-600/0 group-hover:from-purple-400/5 group-hover:to-purple-600/10 transition-all" aria-hidden="true" />
-                <div className="relative w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30 group-hover:scale-110 group-hover:rotate-3 transition-all">
-                  <Mic className="w-6 h-6 text-white" aria-hidden="true" />
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 group-hover:rotate-3 transition-all"
+                  style={{ background: 'var(--color-gold)', color: 'var(--color-navy)' }}
+                >
+                  <Mic className="w-6 h-6" aria-hidden="true" />
                 </div>
-                <span className="relative font-bold text-sm text-purple-700 dark:text-purple-300">Voice Log</span>
+                <span className="font-bold text-sm" style={{ color: 'var(--color-gold)' }}>Voice Log</span>
               </Link>
 
               {/* Snap Meal Card */}
               <Link
                 href="/log?action=camera"
-                className="group relative p-5 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 hover:from-blue-500/20 hover:to-cyan-500/20 rounded-2xl flex flex-col items-center justify-center gap-3 border border-blue-200/50 dark:border-blue-500/20 shadow-sm hover:shadow-lg hover:shadow-blue-500/10 active:scale-[0.97] transition-all focus-ring tap-target overflow-hidden"
+                className="group relative p-5 rounded-2xl flex flex-col items-center justify-center gap-3 shadow-sm active:scale-[0.97] transition-all focus-ring tap-target"
+                style={{
+                  background: 'rgba(29,95,168,0.08)',
+                  border: '1px solid rgba(29,95,168,0.18)',
+                }}
                 aria-label="Snap a photo of your meal"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/0 to-cyan-600/0 group-hover:from-blue-400/5 group-hover:to-cyan-600/10 transition-all" aria-hidden="true" />
-                <div className="relative w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:scale-110 group-hover:-rotate-3 transition-all">
-                  <Camera className="w-6 h-6 text-white" aria-hidden="true" />
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 group-hover:-rotate-3 transition-all"
+                  style={{ background: 'var(--color-primary)', color: 'white' }}
+                >
+                  <Camera className="w-6 h-6" aria-hidden="true" />
                 </div>
-                <span className="relative font-bold text-sm text-blue-700 dark:text-blue-300">Snap Meal</span>
+                <span className="font-bold text-sm" style={{ color: 'var(--color-primary)' }}>Snap Meal</span>
               </Link>
             </div>
           </section>

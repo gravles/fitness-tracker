@@ -10,54 +10,68 @@ interface DateNavigatorProps {
 
 export function DateNavigator({ date, setDate }: DateNavigatorProps) {
     const isToday = isSameDay(date, new Date());
-    const isFuture = date > new Date();
 
     return (
-        <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6 sticky top-4 z-30">
+        <div
+            className="flex items-center justify-between p-3 rounded-2xl mb-6 sticky top-4 z-30"
+            style={{
+                background: 'var(--color-surface-elevated)',
+                border: '1px solid var(--color-border-light)',
+                boxShadow: 'var(--shadow-md)',
+            }}
+        >
             <button
                 onClick={() => setDate(subDays(date, 1))}
-                className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-50 text-gray-600 hover:bg-gray-100 active:scale-95 transition-all"
+                className="w-10 h-10 flex items-center justify-center rounded-xl transition-all active:scale-95 tap-target focus-ring"
+                style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--color-text)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
+                aria-label="Previous day"
             >
                 <ChevronLeft className="w-5 h-5" />
             </button>
 
-
-            <div className="relative flex flex-col items-center group cursor-pointer">
-                {/* Hidden Date Input Overlay */}
+            <div className="relative flex flex-col items-center cursor-pointer select-none">
                 <input
                     type="date"
                     value={format(date, 'yyyy-MM-dd')}
-                    onChange={(e) => {
-                        if (e.target.valueAsDate) {
-                            // Adjust for timezone offset to ensure the date picked is the date set
-                            // valueAsDate returns UTC midnight. We want to treat it as local.
-                            // Actually, e.target.value is "YYYY-MM-DD".
-                            // new Date("YYYY-MM-DD") in JS acts... variably. 
-                            // Best to use a library or appending time.
+                    onChange={e => {
+                        if (e.target.value) {
                             const [y, m, d] = e.target.value.split('-').map(Number);
                             setDate(new Date(y, m - 1, d));
                         }
                     }}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    aria-label="Pick a date"
                 />
-
-                <span className="text-sm font-medium text-gray-500 uppercase tracking-widest group-hover:text-blue-500 transition-colors">
+                <span
+                    className="text-[10px] font-bold tracking-widest uppercase"
+                    style={{ color: isToday ? 'var(--color-gold)' : 'var(--color-text-muted)' }}
+                >
                     {isToday ? 'Today' : format(date, 'EEEE')}
                 </span>
-                <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-blue-500" />
-                    <span className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                <div className="flex items-center gap-1.5 mt-0.5">
+                    <Calendar className="w-3.5 h-3.5" style={{ color: 'var(--color-primary)' }} />
+                    <span
+                        className="text-lg font-bold"
+                        style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
+                    >
                         {format(date, 'MMM d, yyyy')}
                     </span>
                 </div>
             </div>
 
             <button
-                onClick={() => setDate(addDays(date, 1))}
-                disabled={isToday} // Logic: Can we log future? User req says "Date selector (defaults to today, can log historical)". Usually future logging is rare. Let's disable for now to keep it simple.
-                className={`w-10 h-10 flex items-center justify-center rounded-full transition-all ${isToday
-                    ? 'bg-gray-50 text-gray-300 cursor-not-allowed'
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 active:scale-95'}`}
+                onClick={() => !isToday && setDate(addDays(date, 1))}
+                disabled={isToday}
+                className="w-10 h-10 flex items-center justify-center rounded-xl transition-all active:scale-95 tap-target focus-ring disabled:cursor-not-allowed"
+                style={{
+                    background: 'var(--color-bg-subtle)',
+                    color: isToday ? 'var(--color-border)' : 'var(--color-text-muted)',
+                }}
+                onMouseEnter={e => { if (!isToday) e.currentTarget.style.color = 'var(--color-text)'; }}
+                onMouseLeave={e => { if (!isToday) e.currentTarget.style.color = 'var(--color-text-muted)'; }}
+                aria-label="Next day"
             >
                 <ChevronRight className="w-5 h-5" />
             </button>
