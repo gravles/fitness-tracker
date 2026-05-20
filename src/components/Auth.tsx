@@ -68,7 +68,7 @@ export function Auth() {
                         <div className="gold-rule w-12 mt-3 mb-4" />
 
                         <p className="text-[var(--color-text-muted)] text-sm text-center leading-relaxed">
-                            We sent a 6-digit code to{' '}
+                            We sent an 8-digit code to{' '}
                             <span className="text-[var(--color-text)] font-medium">{email}</span>
                         </p>
                     </div>
@@ -80,7 +80,7 @@ export function Auth() {
                             autoComplete="one-time-code"
                             required
                             value={otp}
-                            onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
                             className="w-full px-4 py-4 rounded-xl text-center text-3xl font-mono tracking-[0.6em] transition-all outline-none placeholder:tracking-normal"
                             style={{
                                 background: 'var(--color-bg-subtle)',
@@ -95,14 +95,14 @@ export function Auth() {
                                 e.currentTarget.style.borderColor = 'var(--color-border)';
                                 e.currentTarget.style.boxShadow = 'none';
                             }}
-                            placeholder="000000"
-                            maxLength={6}
+                            placeholder="00000000"
+                            maxLength={8}
                             autoFocus
                         />
 
                         <button
                             type="submit"
-                            disabled={loading || otp.length < 6}
+                            disabled={loading || otp.length < 8}
                             className="w-full font-semibold py-3.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             style={{
                                 background: 'var(--color-gold)',
@@ -216,7 +216,7 @@ export function Auth() {
                 </form>
 
                 <p className="text-center text-xs mt-8" style={{ color: 'var(--color-text-muted)' }}>
-                    We'll send a 6-digit code to your inbox.
+                    We'll send an 8-digit code to your inbox.
                 </p>
             </div>
         </div>
