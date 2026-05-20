@@ -21,7 +21,7 @@ export default function BodyMetricsPage() {
         const start = subDays(end, 90);
         try {
             const data = await getBodyMetricsHistory(format(start, 'yyyy-MM-dd'), format(end, 'yyyy-MM-dd'));
-            setHistory(data.reverse()); // Show newest first
+            setHistory(data.reverse());
         } catch (error) {
             console.error(error);
         }
@@ -56,13 +56,26 @@ export default function BodyMetricsPage() {
     }
 
     return (
-        <main className="p-6 pt-12 pb-24 space-y-8">
-            <h1 className="text-3xl font-bold text-gray-900">Body Metrics</h1>
+        <main className="p-6 pt-12 pb-24 space-y-8 max-w-2xl mx-auto">
+            <h1
+                className="text-3xl font-bold text-[var(--color-text)]"
+                style={{ fontFamily: 'var(--font-display)' }}
+            >
+                Body Metrics
+            </h1>
 
-            {/* Input Form */}
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+            <section
+                className="p-6 rounded-2xl border shadow-sm space-y-4"
+                style={{
+                    background: 'var(--color-surface-elevated)',
+                    borderColor: 'var(--color-border-light)',
+                }}
+            >
                 <div>
-                    <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-2">
+                    <label
+                        className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 mb-2"
+                        style={{ color: 'var(--color-text-muted)' }}
+                    >
                         <Scale className="w-4 h-4" /> Weight (lbs)
                     </label>
                     <input
@@ -71,30 +84,64 @@ export default function BodyMetricsPage() {
                         placeholder="0.0"
                         value={weight}
                         onChange={e => setWeight(e.target.value)}
-                        className="w-full p-4 bg-gray-50 rounded-xl text-2xl font-bold text-center"
+                        className="w-full p-4 rounded-xl text-2xl font-bold text-center outline-none transition-all"
+                        style={{
+                            background: 'var(--color-bg-subtle)',
+                            border: '1px solid var(--color-border)',
+                            color: 'var(--color-text)',
+                        }}
+                        onFocus={e => {
+                            e.currentTarget.style.borderColor = 'var(--color-gold)';
+                            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)';
+                        }}
+                        onBlur={e => {
+                            e.currentTarget.style.borderColor = 'var(--color-border)';
+                            e.currentTarget.style.boxShadow = 'none';
+                        }}
                     />
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
-                    <div>
-                        <label className="text-xs font-medium text-gray-500 mb-1 block">Waist (in)</label>
-                        <input type="number" step="0.1" placeholder="0" className="w-full p-2 bg-gray-50 rounded-lg text-center"
-                            value={measurements.waist} onChange={e => setMeasurements({ ...measurements, waist: e.target.value })} />
-                    </div>
-                    <div>
-                        <label className="text-xs font-medium text-gray-500 mb-1 block">Chest (in)</label>
-                        <input type="number" step="0.1" placeholder="0" className="w-full p-2 bg-gray-50 rounded-lg text-center"
-                            value={measurements.chest} onChange={e => setMeasurements({ ...measurements, chest: e.target.value })} />
-                    </div>
-                    <div>
-                        <label className="text-xs font-medium text-gray-500 mb-1 block">Arms (in)</label>
-                        <input type="number" step="0.1" placeholder="0" className="w-full p-2 bg-gray-50 rounded-lg text-center"
-                            value={measurements.arms} onChange={e => setMeasurements({ ...measurements, arms: e.target.value })} />
-                    </div>
+                    {[
+                        { key: 'waist', label: 'Waist (in)' },
+                        { key: 'chest', label: 'Chest (in)' },
+                        { key: 'arms', label: 'Arms (in)' },
+                    ].map(({ key, label }) => (
+                        <div key={key}>
+                            <label
+                                className="text-xs font-bold uppercase tracking-wide mb-1 block"
+                                style={{ color: 'var(--color-text-muted)' }}
+                            >
+                                {label}
+                            </label>
+                            <input
+                                type="number"
+                                step="0.1"
+                                placeholder="0"
+                                className="w-full p-2 rounded-lg text-center outline-none transition-all"
+                                style={{
+                                    background: 'var(--color-bg-subtle)',
+                                    border: '1px solid var(--color-border)',
+                                    color: 'var(--color-text)',
+                                }}
+                                value={measurements[key as keyof typeof measurements]}
+                                onChange={e => setMeasurements({ ...measurements, [key]: e.target.value })}
+                                onFocus={e => {
+                                    e.currentTarget.style.borderColor = 'var(--color-gold)';
+                                }}
+                                onBlur={e => {
+                                    e.currentTarget.style.borderColor = 'var(--color-border)';
+                                }}
+                            />
+                        </div>
+                    ))}
                 </div>
 
                 <div>
-                    <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-2">
+                    <label
+                        className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 mb-2"
+                        style={{ color: 'var(--color-text-muted)' }}
+                    >
                         <Camera className="w-4 h-4" /> Photo URL (Optional)
                     </label>
                     <input
@@ -102,35 +149,70 @@ export default function BodyMetricsPage() {
                         placeholder="https://..."
                         value={photoUrl}
                         onChange={e => setPhotoUrl(e.target.value)}
-                        className="w-full p-3 bg-gray-50 rounded-xl text-sm"
+                        className="w-full p-3 rounded-xl text-sm outline-none transition-all"
+                        style={{
+                            background: 'var(--color-bg-subtle)',
+                            border: '1px solid var(--color-border)',
+                            color: 'var(--color-text)',
+                        }}
+                        onFocus={e => {
+                            e.currentTarget.style.borderColor = 'var(--color-gold)';
+                        }}
+                        onBlur={e => {
+                            e.currentTarget.style.borderColor = 'var(--color-border)';
+                        }}
                     />
                 </div>
 
                 <button
                     onClick={handleSave}
                     disabled={loading || !weight}
-                    className="w-full py-4 bg-black text-white rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-[0.98]"
+                    style={{
+                        background: 'var(--color-primary)',
+                        color: 'white',
+                    }}
                 >
-                    {loading ? <Loader2 className="animate-spin" /> : 'Log Measurement'}
+                    {loading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Log Measurement'}
                 </button>
             </section>
 
-            {/* History List */}
             <section>
-                <h3 className="font-bold text-gray-900 mb-4">Recent History</h3>
+                <h3
+                    className="font-bold mb-4"
+                    style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
+                >
+                    Recent History
+                </h3>
                 <div className="space-y-3">
                     {history.map((entry) => (
-                        <div key={entry.id} className="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center">
+                        <div
+                            key={entry.id}
+                            className="p-4 rounded-xl flex justify-between items-center border"
+                            style={{
+                                background: 'var(--color-surface-elevated)',
+                                borderColor: 'var(--color-border-light)',
+                            }}
+                        >
                             <div>
-                                <p className="font-bold text-gray-900">{format(new Date(entry.date), 'MMM d, yyyy')}</p>
-                                <div className="flex gap-2 text-xs text-gray-500">
+                                <p className="font-bold" style={{ color: 'var(--color-text)' }}>
+                                    {format(new Date(entry.date), 'MMM d, yyyy')}
+                                </p>
+                                <div className="flex gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
                                     {entry.measurements?.waist > 0 && <span>W: {entry.measurements.waist}"</span>}
                                     {entry.measurements?.chest > 0 && <span>C: {entry.measurements.chest}"</span>}
                                 </div>
-                                {entry.photo_url && <span className="text-xs text-blue-500 block mt-1">📸 Photo attached</span>}
+                                {entry.photo_url && (
+                                    <span className="text-xs block mt-1" style={{ color: 'var(--color-primary)' }}>
+                                        📸 Photo attached
+                                    </span>
+                                )}
                             </div>
-                            <div className="text-xl font-bold text-purple-600">
-                                {entry.weight} <span className="text-sm font-normal text-gray-400">lbs</span>
+                            <div className="text-xl font-bold" style={{ color: 'var(--color-gold)' }}>
+                                {entry.weight}{' '}
+                                <span className="text-sm font-normal" style={{ color: 'var(--color-text-muted)' }}>
+                                    lbs
+                                </span>
                             </div>
                         </div>
                     ))}

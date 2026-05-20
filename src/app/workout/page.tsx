@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Play, Calendar, Dumbbell, Sparkles, Clock } from 'lucide-react';
 import Link from 'next/link';
@@ -9,14 +8,31 @@ export default function WorkoutHubPage() {
     const router = useRouter();
 
     return (
-        <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+        <main className="min-h-screen pb-24" style={{ background: 'var(--color-bg)' }}>
             {/* Header */}
-            <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-lg border-b border-gray-100 px-4 py-4 safe-top">
+            <header
+                className="sticky top-0 z-10 backdrop-blur-lg border-b px-4 py-4 safe-top"
+                style={{
+                    background: 'var(--color-surface-elevated)',
+                    borderColor: 'var(--color-border)',
+                }}
+            >
                 <div className="max-w-lg mx-auto flex items-center justify-between">
-                    <button onClick={() => router.back()} className="p-2 -ml-2 hover:bg-gray-100 rounded-xl transition-colors">
+                    <button
+                        onClick={() => router.back()}
+                        className="p-2 -ml-2 rounded-xl transition-colors"
+                        style={{ color: 'var(--color-text-muted)' }}
+                        onMouseEnter={e => e.currentTarget.style.color = 'var(--color-text)'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
+                    >
                         <ArrowLeft className="w-6 h-6" />
                     </button>
-                    <h1 className="text-xl font-black tracking-tight">Workout Hub</h1>
+                    <h1
+                        className="text-xl font-bold"
+                        style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
+                    >
+                        Workout Hub
+                    </h1>
                     <div className="w-10" />
                 </div>
             </header>
@@ -24,34 +40,46 @@ export default function WorkoutHubPage() {
             <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
                 {/* Quick Start Section */}
                 <section className="space-y-3">
-                    <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Quick Start</h2>
+                    <h2
+                        className="text-xs font-bold uppercase tracking-widest"
+                        style={{ color: 'var(--color-text-muted)' }}
+                    >
+                        Quick Start
+                    </h2>
 
                     <Link
                         href="/workout/active/new"
-                        className="block p-5 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl text-white shadow-lg shadow-blue-200"
+                        className="block p-5 rounded-2xl text-white shadow-xl active:scale-[0.98] transition-all"
+                        style={{ background: 'var(--color-navy)' }}
                     >
                         <div className="flex items-center gap-4">
-                            <div className="p-3 bg-white/20 rounded-xl">
-                                <Play className="w-6 h-6" />
+                            <div className="p-3 rounded-xl" style={{ background: 'rgba(201,168,76,0.15)' }}>
+                                <Play className="w-6 h-6" style={{ color: 'var(--color-gold)' }} />
                             </div>
                             <div>
-                                <h3 className="font-bold text-lg">Start New Workout</h3>
-                                <p className="text-blue-100 text-sm">Begin a blank workout session</p>
+                                <h3 className="font-bold text-lg text-white">Start New Workout</h3>
+                                <p className="text-sm" style={{ color: 'rgba(228,234,242,0.6)' }}>
+                                    Begin a blank workout session
+                                </p>
                             </div>
                         </div>
                     </Link>
 
                     <Link
                         href="/coach"
-                        className="block p-5 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl text-white shadow-lg shadow-purple-200"
+                        className="block p-5 rounded-2xl shadow-lg active:scale-[0.98] transition-all"
+                        style={{
+                            background: 'var(--color-primary)',
+                            boxShadow: '0 8px 24px rgba(29,95,168,0.25)',
+                        }}
                     >
                         <div className="flex items-center gap-4">
-                            <div className="p-3 bg-white/20 rounded-xl">
-                                <Sparkles className="w-6 h-6" />
+                            <div className="p-3 bg-white/15 rounded-xl">
+                                <Sparkles className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-lg">AI Coach</h3>
-                                <p className="text-purple-100 text-sm">Get a personalized workout recommendation</p>
+                                <h3 className="font-bold text-lg text-white">AI Coach</h3>
+                                <p className="text-sm text-white/70">Get a personalized workout recommendation</p>
                             </div>
                         </div>
                     </Link>
@@ -59,44 +87,58 @@ export default function WorkoutHubPage() {
 
                 {/* Navigation Section */}
                 <section className="space-y-3">
-                    <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Manage</h2>
+                    <h2
+                        className="text-xs font-bold uppercase tracking-widest"
+                        style={{ color: 'var(--color-text-muted)' }}
+                    >
+                        Manage
+                    </h2>
 
                     <div className="grid grid-cols-2 gap-3">
-                        <Link
-                            href="/schedule"
-                            className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-blue-200 transition-colors"
-                        >
-                            <Calendar className="w-6 h-6 text-blue-500 mb-2" />
-                            <h3 className="font-bold text-gray-900">Schedule</h3>
-                            <p className="text-xs text-gray-500">Plan your week</p>
-                        </Link>
-
-                        <Link
-                            href="/schedule#templates"
-                            className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-purple-200 transition-colors"
-                        >
-                            <Dumbbell className="w-6 h-6 text-purple-500 mb-2" />
-                            <h3 className="font-bold text-gray-900">Templates</h3>
-                            <p className="text-xs text-gray-500">Saved workouts</p>
-                        </Link>
-
-                        <Link
-                            href="/progress"
-                            className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-green-200 transition-colors"
-                        >
-                            <Clock className="w-6 h-6 text-green-500 mb-2" />
-                            <h3 className="font-bold text-gray-900">History</h3>
-                            <p className="text-xs text-gray-500">Past workouts</p>
-                        </Link>
-
-                        <Link
-                            href="/log"
-                            className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-orange-200 transition-colors"
-                        >
-                            <ArrowLeft className="w-6 h-6 text-orange-500 mb-2" />
-                            <h3 className="font-bold text-gray-900">Back to Log</h3>
-                            <p className="text-xs text-gray-500">Today's log</p>
-                        </Link>
+                        {[
+                            {
+                                href: '/schedule',
+                                icon: Calendar,
+                                iconColor: 'var(--color-primary)',
+                                title: 'Schedule',
+                                sub: 'Plan your week',
+                            },
+                            {
+                                href: '/schedule#templates',
+                                icon: Dumbbell,
+                                iconColor: 'var(--color-gold)',
+                                title: 'Templates',
+                                sub: 'Saved workouts',
+                            },
+                            {
+                                href: '/progress',
+                                icon: Clock,
+                                iconColor: 'var(--color-success)',
+                                title: 'History',
+                                sub: 'Past workouts',
+                            },
+                            {
+                                href: '/log',
+                                icon: ArrowLeft,
+                                iconColor: 'var(--color-text-muted)',
+                                title: 'Back to Log',
+                                sub: "Today's log",
+                            },
+                        ].map(({ href, icon: Icon, iconColor, title, sub }) => (
+                            <Link
+                                key={href}
+                                href={href}
+                                className="p-4 rounded-2xl border transition-all hover:shadow-md active:scale-[0.98]"
+                                style={{
+                                    background: 'var(--color-surface-elevated)',
+                                    borderColor: 'var(--color-border-light)',
+                                }}
+                            >
+                                <Icon className="w-6 h-6 mb-2" style={{ color: iconColor }} />
+                                <h3 className="font-bold" style={{ color: 'var(--color-text)' }}>{title}</h3>
+                                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{sub}</p>
+                            </Link>
+                        ))}
                     </div>
                 </section>
             </div>

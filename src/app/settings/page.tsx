@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getSettings, updateSettings, getUserBadges, UserBadge } from '@/lib/api';
-import { Loader2, Save, Target, Plus, Trophy, Sparkles, Rocket } from 'lucide-react';
+import { Loader2, Save, Target, Plus, Sparkles, Rocket } from 'lucide-react';
 import { TrophyCase } from '@/components/TrophyCase';
 import { StravaConnect } from '@/components/StravaConnect';
 import { ChangelogModal } from '@/components/ChangelogModal';
@@ -13,62 +13,66 @@ function PWADiagnostic() {
     const [status, setStatus] = useState<'checking' | 'active' | 'missing'>('checking');
     const [error, setError] = useState('');
 
-    useEffect(() => {
-        checkStatus();
-    }, []);
+    useEffect(() => { checkStatus(); }, []);
 
     function checkStatus() {
         navigator.serviceWorker.getRegistration().then(reg => {
-            if (reg) {
-                setStatus('active');
-            } else {
-                setStatus('missing');
-            }
+            setStatus(reg ? 'active' : 'missing');
         });
     }
 
     function register() {
         setStatus('checking');
         navigator.serviceWorker.register('/sw.js')
-            .then(() => {
-                setTimeout(checkStatus, 500);
-            })
-            .catch(err => {
-                setStatus('missing');
-                setError(err.message);
-            });
+            .then(() => { setTimeout(checkStatus, 500); })
+            .catch(err => { setStatus('missing'); setError(err.message); });
     }
 
     return (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-            <h4 className="font-bold text-xs text-gray-400 uppercase mb-2">PWA Status</h4>
+        <div
+            className="mt-4 pt-4"
+            style={{ borderTop: '1px solid var(--color-border)' }}
+        >
+            <h4
+                className="font-bold text-xs uppercase tracking-widest mb-2"
+                style={{ color: 'var(--color-text-muted)' }}
+            >
+                PWA Status
+            </h4>
             <div className="text-xs space-y-2 font-mono">
                 <div className="flex justify-between">
-                    <span className="text-gray-500">Service Worker:</span>
-                    <span className="text-green-600">Supported</span>
+                    <span style={{ color: 'var(--color-text-muted)' }}>Service Worker:</span>
+                    <span style={{ color: 'var(--color-success)' }}>Supported</span>
                 </div>
                 <div className="flex justify-between items-center">
-                    <span className="text-gray-500">Registration:</span>
-                    <span className={status === 'active' ? 'text-green-600' : status === 'missing' ? 'text-red-500' : 'text-gray-400'}>
+                    <span style={{ color: 'var(--color-text-muted)' }}>Registration:</span>
+                    <span style={{
+                        color: status === 'active' ? 'var(--color-success)' : status === 'missing' ? '#ef4444' : 'var(--color-text-muted)'
+                    }}>
                         {status === 'active' ? 'Active ✅' : status === 'missing' ? 'Missing ❌' : 'Checking...'}
                     </span>
                 </div>
-
                 {status === 'missing' && (
-                    <div className="bg-red-50 p-3 rounded-lg border border-red-100">
-                        <p className="text-red-600 mb-2">Worker not running.</p>
+                    <div
+                        className="p-3 rounded-lg border"
+                        style={{ background: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.2)' }}
+                    >
+                        <p className="mb-2" style={{ color: '#ef4444' }}>Worker not running.</p>
                         <button
                             onClick={register}
-                            className="w-full py-2 bg-red-100 text-red-700 font-bold rounded hover:bg-red-200 transaction-colors"
+                            className="w-full py-2 font-bold rounded"
+                            style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}
                         >
                             Force Register
                         </button>
-                        {error && <p className="mt-2 text-[10px] text-red-500">{error}</p>}
+                        {error && <p className="mt-2 text-[10px]" style={{ color: '#ef4444' }}>{error}</p>}
                     </div>
                 )}
-
                 {status === 'active' && (
-                    <div className="bg-green-50 p-2 rounded text-green-700 text-center">
+                    <div
+                        className="p-2 rounded text-center text-xs"
+                        style={{ background: 'rgba(34,197,94,0.1)', color: 'var(--color-success)' }}
+                    >
                         Ready to Install!
                     </div>
                 )}
@@ -76,6 +80,11 @@ function PWADiagnostic() {
         </div>
     );
 }
+
+const sectionStyle = {
+    background: 'var(--color-surface-elevated)',
+    borderColor: 'var(--color-border-light)',
+};
 
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
@@ -91,19 +100,12 @@ export default function SettingsPage() {
     });
     const [earnedBadges, setEarnedBadges] = useState<UserBadge[]>([]);
 
-    useEffect(() => {
-        loadSettings();
-    }, []);
+    useEffect(() => { loadSettings(); }, []);
 
     async function loadSettings() {
         try {
-            const [data, badges] = await Promise.all([
-                getSettings(),
-                getUserBadges()
-            ]);
-
+            const [data, badges] = await Promise.all([getSettings(), getUserBadges()]);
             setEarnedBadges(badges);
-
             if (data) {
                 setTargets({
                     weight: data.target_weight?.toString() || '',
@@ -120,8 +122,6 @@ export default function SettingsPage() {
             setLoading(false);
         }
     }
-
-
 
     async function handleSave() {
         setSaving(true);
@@ -142,105 +142,172 @@ export default function SettingsPage() {
         }
     }
 
-    if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-gray-400" /></div>;
+    if (loading) return (
+        <div className="p-12 flex justify-center">
+            <Loader2 className="animate-spin w-8 h-8" style={{ color: 'var(--color-primary)' }} />
+        </div>
+    );
+
+    const inputClass = "w-full p-3 rounded-xl outline-none transition-all";
+    const inputStyle = {
+        background: 'var(--color-bg-subtle)',
+        border: '1px solid var(--color-border)',
+        color: 'var(--color-text)',
+    };
 
     return (
-        <main className="p-6 pt-12 pb-24 space-y-8">
-            <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+        <main className="p-6 pt-12 pb-24 space-y-6 max-w-2xl mx-auto">
+            <h1
+                className="text-3xl font-bold"
+                style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
+            >
+                Settings
+            </h1>
 
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6">
-                <div className="flex items-center gap-2 border-b border-gray-100 pb-4">
-                    <Target className="w-5 h-5 text-blue-600" />
-                    <h2 className="font-bold text-lg">My Targets</h2>
+            {/* My Targets */}
+            <section className="p-6 rounded-2xl border shadow-sm space-y-6" style={sectionStyle}>
+                <div
+                    className="flex items-center gap-2 pb-4"
+                    style={{ borderBottom: '1px solid var(--color-border-light)' }}
+                >
+                    <div
+                        className="p-1.5 rounded-lg"
+                        style={{ background: 'var(--color-gold-muted)' }}
+                    >
+                        <Target className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />
+                    </div>
+                    <h2
+                        className="font-bold text-lg"
+                        style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
+                    >
+                        My Targets
+                    </h2>
                 </div>
 
                 <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-600 mb-1">Goal Weight (lbs)</label>
-                        <input
-                            type="number"
-                            placeholder="e.g. 175"
-                            value={targets.weight}
-                            onChange={e => setTargets({ ...targets, weight: e.target.value })}
-                            className="w-full p-3 bg-gray-50 rounded-xl"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-600 mb-1">Daily Protein (g)</label>
-                        <input
-                            type="number"
-                            placeholder="e.g. 180"
-                            value={targets.protein}
-                            onChange={e => setTargets({ ...targets, protein: e.target.value })}
-                            className="w-full p-3 bg-gray-50 rounded-xl"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-600 mb-1">Daily Calories (kcal)</label>
-                        <input
-                            type="number"
-                            placeholder="e.g. 2500"
-                            value={targets.calories}
-                            onChange={e => setTargets({ ...targets, calories: e.target.value })}
-                            className="w-full p-3 bg-gray-50 rounded-xl"
-                        />
-                    </div>
+                    {[
+                        { key: 'weight', label: 'Goal Weight (lbs)', placeholder: 'e.g. 175' },
+                        { key: 'protein', label: 'Daily Protein (g)', placeholder: 'e.g. 180' },
+                        { key: 'calories', label: 'Daily Calories (kcal)', placeholder: 'e.g. 2500' },
+                    ].map(({ key, label, placeholder }) => (
+                        <div key={key}>
+                            <label
+                                className="block text-xs font-bold uppercase tracking-widest mb-1.5"
+                                style={{ color: 'var(--color-text-muted)' }}
+                            >
+                                {label}
+                            </label>
+                            <input
+                                type="number"
+                                placeholder={placeholder}
+                                value={targets[key as keyof typeof targets] as string}
+                                onChange={e => setTargets({ ...targets, [key]: e.target.value })}
+                                className={inputClass}
+                                style={inputStyle}
+                                onFocus={e => {
+                                    e.currentTarget.style.borderColor = 'var(--color-gold)';
+                                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)';
+                                }}
+                                onBlur={e => {
+                                    e.currentTarget.style.borderColor = 'var(--color-border)';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                }}
+                            />
+                        </div>
+                    ))}
                 </div>
             </section>
 
-            {/* Integrations Section */}
+            {/* Integrations */}
             <StravaConnect />
 
-            {/* Customization Section */}
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6">
-                <div className="flex items-center gap-2 border-b border-gray-100 pb-4">
+            {/* Customization */}
+            <section className="p-6 rounded-2xl border shadow-sm space-y-6" style={sectionStyle}>
+                <div
+                    className="flex items-center gap-2 pb-4"
+                    style={{ borderBottom: '1px solid var(--color-border-light)' }}
+                >
                     <span className="text-xl">⚙️</span>
-                    <h2 className="font-bold text-lg">Customization</h2>
+                    <h2
+                        className="font-bold text-lg"
+                        style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
+                    >
+                        Customization
+                    </h2>
                 </div>
 
-                {/* Daily Reminders */}
                 <NotificationSettings />
 
                 {/* Cycle Tracking Toggle */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h3 className="font-medium text-gray-900">Cycle Tracking</h3>
-                        <p className="text-sm text-gray-500">Show menstrual flow in daily logs</p>
+                        <h3 className="font-medium" style={{ color: 'var(--color-text)' }}>Cycle Tracking</h3>
+                        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                            Show menstrual flow in daily logs
+                        </p>
                     </div>
                     <button
                         onClick={() => setTargets({ ...targets, enableCycle: !targets.enableCycle })}
-                        className={`w-12 h-6 rounded-full transition-colors relative ${targets.enableCycle ? 'bg-black' : 'bg-gray-200'}`}
+                        className="w-12 h-6 rounded-full transition-colors relative"
+                        style={{
+                            background: targets.enableCycle ? 'var(--color-gold)' : 'var(--color-bg-subtle)',
+                            border: `1px solid ${targets.enableCycle ? 'var(--color-gold)' : 'var(--color-border)'}`,
+                        }}
                     >
-                        <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${targets.enableCycle ? 'translate-x-6' : ''}`} />
+                        <div
+                            className="absolute top-0.5 w-5 h-5 rounded-full transition-transform"
+                            style={{
+                                left: '2px',
+                                background: 'white',
+                                transform: targets.enableCycle ? 'translateX(24px)' : 'translateX(0)',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                            }}
+                        />
                     </button>
                 </div>
 
                 {/* Habit Manager */}
                 <div>
-                    <h3 className="font-medium text-gray-900 mb-2">My Habits</h3>
-                    <p className="text-sm text-gray-500 mb-4">Customize the habits you want to track daily.</p>
-
-                    <div className="flex flex-wrap gap-2 mb-4">
+                    <h3 className="font-medium mb-1" style={{ color: 'var(--color-text)' }}>My Habits</h3>
+                    <p className="text-sm mb-4" style={{ color: 'var(--color-text-muted)' }}>
+                        Customize the habits you want to track daily.
+                    </p>
+                    <div className="flex flex-wrap gap-2 mb-3">
                         {targets.habits.map(habit => (
-                            <div key={habit} className="bg-gray-100 px-3 py-1 rounded-lg text-sm flex items-center gap-2">
+                            <div
+                                key={habit}
+                                className="px-3 py-1 rounded-lg text-sm flex items-center gap-2"
+                                style={{
+                                    background: 'var(--color-bg-subtle)',
+                                    color: 'var(--color-text)',
+                                    border: '1px solid var(--color-border)',
+                                }}
+                            >
                                 {habit}
                                 <button
                                     onClick={() => setTargets({ ...targets, habits: targets.habits.filter(h => h !== habit) })}
-                                    className="text-gray-400 hover:text-red-500"
+                                    className="transition-colors"
+                                    style={{ color: 'var(--color-text-muted)' }}
+                                    onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                                    onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
                                 >
-                                    <span className="sr-only">Remove</span>x
+                                    <span className="sr-only">Remove</span>×
                                 </button>
                             </div>
                         ))}
                     </div>
-
                     <div className="flex gap-2">
                         <input
                             type="text"
                             placeholder="Add new habit..."
-                            className="flex-1 p-3 bg-gray-50 rounded-xl"
+                            className="flex-1 p-3 rounded-xl outline-none transition-all"
+                            style={inputStyle}
+                            onFocus={e => {
+                                e.currentTarget.style.borderColor = 'var(--color-gold)';
+                            }}
+                            onBlur={e => {
+                                e.currentTarget.style.borderColor = 'var(--color-border)';
+                            }}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                     const val = e.currentTarget.value.trim();
@@ -251,14 +318,18 @@ export default function SettingsPage() {
                                 }
                             }}
                         />
-                        <button className="bg-gray-900 text-white px-4 rounded-xl font-bold" onClick={(e) => {
-                            const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                            const val = input.value.trim();
-                            if (val && !targets.habits.includes(val)) {
-                                setTargets({ ...targets, habits: [...targets.habits, val] });
-                                input.value = '';
-                            }
-                        }}>
+                        <button
+                            className="px-4 rounded-xl font-bold transition-all"
+                            style={{ background: 'var(--color-navy)', color: 'var(--color-gold)' }}
+                            onClick={(e) => {
+                                const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                                const val = input.value.trim();
+                                if (val && !targets.habits.includes(val)) {
+                                    setTargets({ ...targets, habits: [...targets.habits, val] });
+                                    input.value = '';
+                                }
+                            }}
+                        >
                             <Plus className="w-5 h-5" />
                         </button>
                     </div>
@@ -266,31 +337,43 @@ export default function SettingsPage() {
 
                 {/* Equipment Manager */}
                 <div>
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-1">
                         <span className="text-lg">🏋️‍♂️</span>
-                        <h3 className="font-medium text-gray-900">Home Equipment</h3>
+                        <h3 className="font-medium" style={{ color: 'var(--color-text)' }}>Home Equipment</h3>
                     </div>
-                    <p className="text-sm text-gray-500 mb-4">Select what you have at home for the AI Coach to suggest appropriate workouts.</p>
-
-                    <div className="flex flex-wrap gap-2 mb-4">
+                    <p className="text-sm mb-4" style={{ color: 'var(--color-text-muted)' }}>
+                        Select what you have at home for the AI Coach to suggest appropriate workouts.
+                    </p>
+                    <div className="flex flex-wrap gap-2 mb-3">
                         {targets.equipment.map(item => (
-                            <div key={item} className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-sm flex items-center gap-2 border border-blue-100">
+                            <div
+                                key={item}
+                                className="px-3 py-1 rounded-lg text-sm flex items-center gap-2 border"
+                                style={{
+                                    background: 'rgba(29,95,168,0.08)',
+                                    color: 'var(--color-primary)',
+                                    borderColor: 'rgba(29,95,168,0.2)',
+                                }}
+                            >
                                 {item}
                                 <button
                                     onClick={() => setTargets({ ...targets, equipment: targets.equipment.filter(e => e !== item) })}
-                                    className="text-blue-400 hover:text-blue-600"
+                                    className="transition-colors"
+                                    style={{ color: 'var(--color-primary)' }}
                                 >
-                                    <span className="sr-only">Remove</span>x
+                                    <span className="sr-only">Remove</span>×
                                 </button>
                             </div>
                         ))}
                     </div>
-
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 mb-3">
                         <input
                             type="text"
                             placeholder="Add equipment (e.g. Dumbbells, Pull-up Bar)..."
-                            className="flex-1 p-3 bg-gray-50 rounded-xl"
+                            className="flex-1 p-3 rounded-xl outline-none transition-all"
+                            style={inputStyle}
+                            onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; }}
+                            onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                     const val = e.currentTarget.value.trim();
@@ -301,18 +384,22 @@ export default function SettingsPage() {
                                 }
                             }}
                         />
-                        <button className="bg-gray-900 text-white px-4 rounded-xl font-bold" onClick={(e) => {
-                            const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                            const val = input.value.trim();
-                            if (val && !targets.equipment.includes(val)) {
-                                setTargets({ ...targets, equipment: [...targets.equipment, val] });
-                                input.value = '';
-                            }
-                        }}>
+                        <button
+                            className="px-4 rounded-xl font-bold"
+                            style={{ background: 'var(--color-navy)', color: 'var(--color-gold)' }}
+                            onClick={(e) => {
+                                const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                                const val = input.value.trim();
+                                if (val && !targets.equipment.includes(val)) {
+                                    setTargets({ ...targets, equipment: [...targets.equipment, val] });
+                                    input.value = '';
+                                }
+                            }}
+                        >
                             <Plus className="w-5 h-5" />
                         </button>
                     </div>
-                    <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
+                    <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
                         {['Dumbbells', 'Kettlebell', 'Pull-up Bar', 'Resistance Bands', 'Bench', 'Yoga Mat'].map(s => (
                             <button
                                 key={s}
@@ -321,7 +408,20 @@ export default function SettingsPage() {
                                         setTargets({ ...targets, equipment: [...targets.equipment, s] });
                                     }
                                 }}
-                                className="px-3 py-1 rounded-full border border-gray-200 text-xs font-bold text-gray-500 hover:bg-gray-50 whitespace-nowrap"
+                                className="px-3 py-1 rounded-full border text-xs font-bold whitespace-nowrap transition-all"
+                                style={{
+                                    borderColor: 'var(--color-border)',
+                                    color: 'var(--color-text-muted)',
+                                    background: 'transparent',
+                                }}
+                                onMouseEnter={e => {
+                                    e.currentTarget.style.borderColor = 'var(--color-primary)';
+                                    e.currentTarget.style.color = 'var(--color-primary)';
+                                }}
+                                onMouseLeave={e => {
+                                    e.currentTarget.style.borderColor = 'var(--color-border)';
+                                    e.currentTarget.style.color = 'var(--color-text-muted)';
+                                }}
                             >
                                 + {s}
                             </button>
@@ -332,60 +432,95 @@ export default function SettingsPage() {
                 <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="w-full py-4 bg-black text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors"
+                    className="w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
+                    style={{ background: 'var(--color-navy)', color: 'var(--color-gold)' }}
                 >
-                    {saving ? <Loader2 className="animate-spin" /> : <><Save className="w-4 h-4" /> Save All Settings</>}
+                    {saving ? <Loader2 className="animate-spin w-5 h-5" /> : <><Save className="w-4 h-4" /> Save All Settings</>}
                 </button>
             </section>
 
-            {/* Trophy Case Section */}
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6">
+            {/* Trophy Case */}
+            <section className="p-6 rounded-2xl border shadow-sm" style={sectionStyle}>
                 <TrophyCase earnedBadges={earnedBadges} />
             </section>
 
             {/* Help & Updates */}
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-100 pb-4">
+            <section className="p-6 rounded-2xl border shadow-sm space-y-4" style={sectionStyle}>
+                <div
+                    className="flex items-center gap-2 pb-4"
+                    style={{ borderBottom: '1px solid var(--color-border-light)' }}
+                >
                     <span className="text-xl">ℹ️</span>
-                    <h2 className="font-bold text-lg">Help & Updates</h2>
+                    <h2
+                        className="font-bold text-lg"
+                        style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
+                    >
+                        Help &amp; Updates
+                    </h2>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <button
                         onClick={() => window.location.href = '/?tutorial=true'}
-                        className="p-4 bg-blue-50 text-blue-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition-colors"
+                        className="p-4 rounded-xl font-bold flex items-center justify-center gap-2 border transition-all"
+                        style={{
+                            background: 'rgba(29,95,168,0.06)',
+                            color: 'var(--color-primary)',
+                            borderColor: 'rgba(29,95,168,0.15)',
+                        }}
                     >
                         <Sparkles className="w-5 h-5" /> Re-run Onboarding
                     </button>
                     <button
                         onClick={() => setShowChangelog(true)}
-                        className="p-4 bg-purple-50 text-purple-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-purple-100 transition-colors"
+                        className="p-4 rounded-xl font-bold flex items-center justify-center gap-2 border transition-all"
+                        style={{
+                            background: 'var(--color-gold-muted)',
+                            color: 'var(--color-gold)',
+                            borderColor: 'rgba(201,168,76,0.2)',
+                        }}
                     >
-                        <Rocket className="w-5 h-5" /> What's New?
+                        <Rocket className="w-5 h-5" /> What&apos;s New?
                     </button>
                     <button
                         onClick={() => window.location.href = '/help'}
-                        className="p-4 bg-green-50 text-green-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-100 transition-colors md:col-span-2"
+                        className="p-4 rounded-xl font-bold flex items-center justify-center gap-2 border transition-all sm:col-span-2"
+                        style={{
+                            background: 'rgba(34,197,94,0.06)',
+                            color: 'var(--color-success)',
+                            borderColor: 'rgba(34,197,94,0.15)',
+                        }}
                     >
                         <span className="text-xl">📚</span> User Manual
                     </button>
                 </div>
             </section>
 
-            <section className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
-                <h3 className="font-bold text-gray-400 text-sm uppercase tracking-wide mb-4">About</h3>
-                <p className="text-xs text-gray-500 mb-2">
+            {/* About */}
+            <section
+                className="p-6 rounded-2xl border"
+                style={{
+                    background: 'var(--color-bg-subtle)',
+                    borderColor: 'var(--color-border)',
+                }}
+            >
+                <h3
+                    className="font-bold text-xs uppercase tracking-widest mb-4"
+                    style={{ color: 'var(--color-text-muted)' }}
+                >
+                    About
+                </h3>
+                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                     Fitness Tracker v1.2 (AI Edition)<br />
-                    Built with Next.js & Supabase
+                    Built with Next.js &amp; Supabase
                 </p>
 
-                {/* PWA Diagnostics */}
                 {typeof window !== 'undefined' && 'serviceWorker' in navigator && (
                     <PWADiagnostic />
                 )}
             </section>
 
             <ChangelogModal isOpen={showChangelog} onClose={() => setShowChangelog(false)} />
-        </main >
+        </main>
     );
 }

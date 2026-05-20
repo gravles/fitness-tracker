@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getMonthlyLogs, DailyLog } from '@/lib/api';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, getDay } from 'date-fns';
-import { ChevronLeft, ChevronRight, Loader2, Dumbbell, Utensils, Star, Flame } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths, subMonths, getDay } from 'date-fns';
+import { ChevronLeft, ChevronRight, Loader2, Dumbbell, Utensils, Star } from 'lucide-react';
 
 export default function CalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -27,28 +27,17 @@ export default function CalendarPage() {
                 format(end, 'yyyy-MM-dd')
             );
 
-            // Map logs by date
             const logMap: Record<string, DailyLog> = {};
-            let totalMov = 0;
-            let totalProt = 0;
-            let protCount = 0;
-            let perfect = 0;
+            let totalMov = 0, totalProt = 0, protCount = 0, perfect = 0;
 
             data.forEach(log => {
                 logMap[log.date] = log;
-
-                // Stats Logic
-                if (log.movement_completed) {
-                    totalMov += (log.movement_duration || 0);
-                }
+                if (log.movement_completed) totalMov += (log.movement_duration || 0);
                 if (log.protein_grams && log.protein_grams > 0) {
                     totalProt += log.protein_grams;
                     protCount++;
                 }
-
-                if (log.movement_completed && log.nutrition_logged) {
-                    perfect++;
-                }
+                if (log.movement_completed && log.nutrition_logged) perfect++;
             });
 
             setLogs(logMap);
@@ -57,7 +46,6 @@ export default function CalendarPage() {
                 avgProtein: protCount > 0 ? Math.round(totalProt / protCount) : 0,
                 perfectDays: perfect
             });
-
         } catch (error) {
             console.error(error);
         } finally {
@@ -69,59 +57,123 @@ export default function CalendarPage() {
         start: startOfMonth(currentDate),
         end: endOfMonth(currentDate)
     });
-
     const startDay = getDay(startOfMonth(currentDate));
     const padding = Array(startDay).fill(null);
 
     return (
-        <main className="p-6 pt-12 pb-24 space-y-8">
+        <main className="p-6 pt-12 pb-24 space-y-6 max-w-2xl mx-auto">
             <header className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold text-gray-900">History</h1>
+                <h1
+                    className="text-3xl font-bold"
+                    style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
+                >
+                    History
+                </h1>
 
-                <div className="flex items-center gap-4 bg-white p-1 rounded-full border border-gray-100 shadow-sm">
+                <div
+                    className="flex items-center gap-1 p-1 rounded-full border shadow-sm"
+                    style={{
+                        background: 'var(--color-surface-elevated)',
+                        borderColor: 'var(--color-border-light)',
+                    }}
+                >
                     <button
                         onClick={() => setCurrentDate(subMonths(currentDate, 1))}
-                        className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+                        className="w-9 h-9 flex items-center justify-center rounded-full transition-all"
+                        style={{ color: 'var(--color-text-muted)' }}
+                        onMouseEnter={e => e.currentTarget.style.color = 'var(--color-text)'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
                     >
-                        <ChevronLeft className="w-5 h-5 text-gray-500" />
+                        <ChevronLeft className="w-5 h-5" />
                     </button>
-                    <span className="font-bold w-32 text-center text-gray-800">{format(currentDate, 'MMMM yyyy')}</span>
+                    <span
+                        className="font-bold w-32 text-center text-sm"
+                        style={{ color: 'var(--color-text)' }}
+                    >
+                        {format(currentDate, 'MMMM yyyy')}
+                    </span>
                     <button
                         onClick={() => setCurrentDate(addMonths(currentDate, 1))}
-                        className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+                        className="w-9 h-9 flex items-center justify-center rounded-full transition-all"
+                        style={{ color: 'var(--color-text-muted)' }}
+                        onMouseEnter={e => e.currentTarget.style.color = 'var(--color-text)'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
                     >
-                        <ChevronRight className="w-5 h-5 text-gray-500" />
+                        <ChevronRight className="w-5 h-5" />
                     </button>
                 </div>
             </header>
 
-            {/* Monthly Stats Summary */}
+            {/* Monthly Stats */}
             <div className="grid grid-cols-3 gap-3">
-                <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 flex flex-col items-center justify-center text-center">
-                    <div className="mb-1 text-orange-500"><Dumbbell className="w-5 h-5" /></div>
-                    <span className="text-2xl font-black text-gray-900">{Math.round(stats.totalMovement / 60)}h</span>
-                    <span className="text-xs font-bold text-orange-800 uppercase tracking-wide">Active</span>
+                <div
+                    className="p-4 rounded-2xl border flex flex-col items-center justify-center text-center"
+                    style={{
+                        background: 'rgba(29,95,168,0.08)',
+                        borderColor: 'rgba(29,95,168,0.2)',
+                    }}
+                >
+                    <Dumbbell className="w-5 h-5 mb-1" style={{ color: 'var(--color-primary)' }} />
+                    <span className="text-2xl font-black" style={{ color: 'var(--color-text)' }}>
+                        {Math.round(stats.totalMovement / 60)}h
+                    </span>
+                    <span className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--color-primary)' }}>
+                        Active
+                    </span>
                 </div>
-                <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex flex-col items-center justify-center text-center">
-                    <div className="mb-1 text-blue-500"><Utensils className="w-5 h-5" /></div>
-                    <span className="text-2xl font-black text-gray-900">{stats.avgProtein}g</span>
-                    <span className="text-xs font-bold text-blue-800 uppercase tracking-wide">Avg Protein</span>
+                <div
+                    className="p-4 rounded-2xl border flex flex-col items-center justify-center text-center"
+                    style={{
+                        background: 'rgba(34,197,94,0.08)',
+                        borderColor: 'rgba(34,197,94,0.2)',
+                    }}
+                >
+                    <Utensils className="w-5 h-5 mb-1" style={{ color: 'var(--color-success)' }} />
+                    <span className="text-2xl font-black" style={{ color: 'var(--color-text)' }}>
+                        {stats.avgProtein}g
+                    </span>
+                    <span className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--color-success)' }}>
+                        Avg Protein
+                    </span>
                 </div>
-                <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-100 flex flex-col items-center justify-center text-center">
-                    <div className="mb-1 text-yellow-500"><Star className="w-5 h-5" /></div>
-                    <span className="text-2xl font-black text-gray-900">{stats.perfectDays}</span>
-                    <span className="text-xs font-bold text-yellow-800 uppercase tracking-wide">Perfect Days</span>
+                <div
+                    className="p-4 rounded-2xl border flex flex-col items-center justify-center text-center"
+                    style={{
+                        background: 'var(--color-gold-muted)',
+                        borderColor: 'rgba(201,168,76,0.25)',
+                    }}
+                >
+                    <Star className="w-5 h-5 mb-1" style={{ color: 'var(--color-gold)' }} />
+                    <span className="text-2xl font-black" style={{ color: 'var(--color-text)' }}>
+                        {stats.perfectDays}
+                    </span>
+                    <span className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--color-gold)' }}>
+                        Perfect Days
+                    </span>
                 </div>
             </div>
 
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                <div className="grid grid-cols-7 mb-4">
-                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
-                        <span key={d} className="text-center text-xs font-bold text-gray-400">{d}</span>
+            {/* Calendar Grid */}
+            <div
+                className="p-5 rounded-3xl border relative"
+                style={{
+                    background: 'var(--color-surface-elevated)',
+                    borderColor: 'var(--color-border-light)',
+                }}
+            >
+                <div className="grid grid-cols-7 mb-3">
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+                        <span
+                            key={i}
+                            className="text-center text-xs font-bold uppercase tracking-wide"
+                            style={{ color: 'var(--color-text-muted)' }}
+                        >
+                            {d}
+                        </span>
                     ))}
                 </div>
 
-                <div className="grid grid-cols-7 gap-y-4 gap-x-2">
+                <div className="grid grid-cols-7 gap-y-3 gap-x-1.5">
                     {padding.map((_, i) => <div key={`pad-${i}`} />)}
 
                     {days.map(day => {
@@ -129,34 +181,49 @@ export default function CalendarPage() {
                         const log = logs[dateStr];
                         const isCurrent = isToday(day);
                         const isPast = day < new Date() && !isCurrent;
-                        const isMissed = isPast && !log; // No log record at all
-
-                        // Indicators
+                        const isMissed = isPast && !log;
                         const moved = log?.movement_completed;
                         const ate = log?.nutrition_logged;
 
                         return (
-                            <Link
-                                key={dateStr}
-                                href={`/log?date=${dateStr}`}
-                                className="group relative"
-                            >
-                                <div className={`aspect-square flex flex-col items-center justify-start pt-1 rounded-xl transition-all
-                                    ${isCurrent ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-105 z-10' : ''}
-                                    ${isMissed ? 'bg-gray-100 text-gray-400' : ''}
-                                    ${!isCurrent && !isMissed ? 'hover:bg-gray-50 text-gray-700' : ''}
-                                `}>
-                                    <span className={`text-sm font-bold ${isCurrent ? 'text-white' : ''} ${isMissed ? 'text-gray-400' : ''}`}>{format(day, 'd')}</span>
-
-                                    <div className="flex gap-1 mt-1">
+                            <Link key={dateStr} href={`/log?date=${dateStr}`} className="group relative">
+                                <div
+                                    className="aspect-square flex flex-col items-center justify-start pt-1 rounded-xl transition-all"
+                                    style={
+                                        isCurrent
+                                            ? { background: 'var(--color-primary)', boxShadow: '0 4px 12px rgba(29,95,168,0.3)' }
+                                            : isMissed
+                                            ? { background: 'var(--color-bg-subtle)' }
+                                            : {}
+                                    }
+                                >
+                                    <span
+                                        className="text-sm font-bold"
+                                        style={{
+                                            color: isCurrent
+                                                ? 'white'
+                                                : isMissed
+                                                ? 'var(--color-text-muted)'
+                                                : 'var(--color-text)',
+                                        }}
+                                    >
+                                        {format(day, 'd')}
+                                    </span>
+                                    <div className="flex gap-0.5 mt-0.5">
                                         {isMissed && (
-                                            <span className="text-[10px] text-gray-400">✕</span>
+                                            <span className="text-[9px]" style={{ color: 'var(--color-text-muted)' }}>✕</span>
                                         )}
                                         {moved && (
-                                            <div className={`w-1.5 h-1.5 rounded-full ${isCurrent ? 'bg-white' : 'bg-green-500'}`} />
+                                            <div
+                                                className="w-1.5 h-1.5 rounded-full"
+                                                style={{ background: isCurrent ? 'rgba(255,255,255,0.8)' : 'var(--color-success)' }}
+                                            />
                                         )}
                                         {ate && (
-                                            <div className={`w-1.5 h-1.5 rounded-full ${isCurrent ? 'bg-blue-200' : 'bg-orange-400'}`} />
+                                            <div
+                                                className="w-1.5 h-1.5 rounded-full"
+                                                style={{ background: isCurrent ? 'rgba(255,255,255,0.5)' : 'var(--color-gold)' }}
+                                            />
                                         )}
                                     </div>
                                 </div>
@@ -165,26 +232,51 @@ export default function CalendarPage() {
                     })}
                 </div>
 
-                {loading && <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center rounded-3xl z-20">
-                    <div className="bg-white p-4 rounded-full shadow-lg">
-                        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                {loading && (
+                    <div
+                        className="absolute inset-0 backdrop-blur-sm flex items-center justify-center rounded-3xl z-20"
+                        style={{ background: 'var(--color-surface-elevated)/60' }}
+                    >
+                        <div
+                            className="p-4 rounded-full shadow-lg"
+                            style={{ background: 'var(--color-surface-elevated)' }}
+                        >
+                            <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--color-primary)' }} />
+                        </div>
                     </div>
-                </div>}
+                )}
             </div>
 
             {/* Legend */}
-            <div className="flex flex-wrap justify-center gap-4 text-xs font-medium text-gray-500">
-                <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500" /> Movement
+            <div
+                className="flex flex-wrap justify-center gap-4 text-xs font-medium"
+                style={{ color: 'var(--color-text-muted)' }}
+            >
+                <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full" style={{ background: 'var(--color-success)' }} />
+                    Movement
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-orange-400" /> Nutrition
+                <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full" style={{ background: 'var(--color-gold)' }} />
+                    Nutrition
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-gray-100 text-gray-400 flex items-center justify-center text-[10px]">✕</div> Missed
+                <div className="flex items-center gap-1.5">
+                    <div
+                        className="w-6 h-6 rounded-lg flex items-center justify-center text-[9px]"
+                        style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
+                    >
+                        ✕
+                    </div>
+                    Missed
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-blue-600 border border-blue-600 text-white flex items-center justify-center text-[10px]">Today</div> Current
+                <div className="flex items-center gap-1.5">
+                    <div
+                        className="w-6 h-6 rounded-lg flex items-center justify-center text-[9px] text-white"
+                        style={{ background: 'var(--color-primary)' }}
+                    >
+                        Today
+                    </div>
+                    Current
                 </div>
             </div>
         </main>

@@ -111,8 +111,8 @@ export default function CoachPage() {
             {/* Header */}
             <div className="bg-[var(--color-surface-elevated)] border-b border-[var(--color-border)] p-4 pt-12 sticky top-0 z-10 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-3">
-                    <div className="bg-gradient-to-tr from-blue-500 to-purple-500 p-2 rounded-xl text-white">
-                        <Bot className="w-6 h-6" />
+                    <div className="p-2 rounded-xl" style={{ background: 'var(--color-navy)' }}>
+                        <Bot className="w-6 h-6" style={{ color: 'var(--color-gold)' }} />
                     </div>
                     <div>
                         <h1 className="font-bold text-xl text-[var(--color-text)]">Smart Coach</h1>
