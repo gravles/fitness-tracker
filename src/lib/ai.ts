@@ -405,18 +405,14 @@ Rules:
 - Be concise. Don't ramble.
 - IF they ask for a workout, check if a template matches or build a new one using ONLY their equipment.
 
-CRITICAL JSON STRUCTURE:
+CRITICAL: Return ONLY valid JSON, no markdown, no code fences, no explanation outside the JSON.
 You MUST return a JSON object with this EXACT structure:
 {
   "reply": "Your conversational answer here...",
-  "suggested_workout": { ... } // OPTIONAL: Only include this if proposing/saving a workout
+  "suggested_workout": { "title": "Workout Name", "exercises": [ { "name": "Exercise Name", "sets": 3, "reps": "10-12" } ] }
 }
 
-Example of "suggested_workout":
-{
-  "title": "Workout Name",
-  "exercises": [ { "name": "Exercise Name", "sets": 3, "reps": "10-12" } ]
-}
+The "suggested_workout" field is OPTIONAL — only include it if proposing or saving a workout.
 `;
 
     const response = await anthropic.messages.create({
@@ -429,11 +425,14 @@ Example of "suggested_workout":
         ],
     });
 
-    const content = (response.content[0] as Anthropic.TextBlock).text;
+    const raw = (response.content[0] as Anthropic.TextBlock).text || '';
+    const content = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+
     let parsed;
     try {
         parsed = content ? JSON.parse(content) : { reply: "I'm having trouble thinking right now." };
     } catch (e) {
+        // If JSON parse still fails, surface the reply text as-is
         parsed = { reply: content || "Error parsing response" };
     }
 
