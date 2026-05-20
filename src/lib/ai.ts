@@ -245,52 +245,11 @@ export async function chatWithTrainer(state: WorkoutChatState, newUserInput: str
         };
     }
 
-<<<<<<< HEAD
-    const messages = [
-        {
-            role: "system",
-            content: `You are an energetic, encouraging AI Fitness Coach. 
-            Your goal is to help the user log a workout by extracting: Activity Type, Duration (minutes), and Intensity (Light/Moderate/Hard).
-            
-            1. Conversational Style: Be concise, friendly, and encouraging. Ask ONE question at a time if information is missing.
-            2. Estimation: Once you have the core details, ESTIMATE the calories burned and primary muscle groups worked based on the specific application of the activity and user stats (assume average if unknown).
-            3. Final Output: When you have all 3 core fields (activity, duration, intensity), set status to "completed" and output the final JSON.
-            
-            Current known data: ${JSON.stringify(state.workoutData || {})}
-            
-            Return JSON ONLY:
-            {
-                "reply": "Your conversational response...",
-                "status": "continue" | "completed",
-                // "workout_data" is for LOGGING a past workout
-                "workout_data": { 
-                    "activity_type": "string (e.g. Running, Yoga)",
-                    "duration": number (minutes, REQUIRED, cannot be null), 
-                    "intensity": "Light"|"Moderate"|"Hard",
-                    "calories": number (estimated total kcal, REQUIRED)
-                },
-                // "suggested_workout" is for PLANNING a future workout
-                "suggested_workout": {
-                     "title": "Workout Name",
-                     "exercises": [
-                         { "name": "Exercise Name", "sets": 3, "reps": "10-12" }
-                     ]
-                }
-            }
-            
-            IMPORTANT: Do NOT return 'workout_data' until you have ALL fields: activity_type, duration (mins), intensity. 
-            Estimated calories MUST be a number.`
-        },
-        ...state.history.map(m => ({ role: m.role as any, content: m.content })),
-        { role: "user", content: newUserInput }
-    ];
-=======
     const response = await anthropic.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 300,
         system: `You are an energetic, encouraging AI Fitness Coach.
 Your goal is to help the user log a workout by extracting: Activity Type, Duration (minutes), and Intensity (Light/Moderate/Hard).
->>>>>>> 9ff9e31 (feat: Migrate AI integration from OpenAI to Anthropic SDK)
 
 1. Conversational Style: Be concise, friendly, and encouraging. Ask ONE question at a time if information is missing.
 2. Estimation: Once you have the core details, ESTIMATE the calories burned and primary muscle groups worked based on the activity and average user stats.

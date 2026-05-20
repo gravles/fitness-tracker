@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
-const openai = new OpenAI();
+const anthropic = new Anthropic();
 
 export async function POST(request: NextRequest) {
     try {
@@ -37,20 +37,18 @@ Consider:
 
 Return ONLY valid JSON, no markdown or explanation.`;
 
-        const completion = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+        const response = await anthropic.messages.create({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 300,
             messages: [{ role: 'user', content: prompt }],
-            temperature: 0.7,
         });
 
-        const content = completion.choices[0]?.message?.content || '';
+        const content = (response.content[0] as Anthropic.TextBlock).text || '';
 
-        // Parse JSON from response
         let recommendations;
         try {
             recommendations = JSON.parse(content);
         } catch {
-            // If parsing fails, extract from markdown code block
             const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
             if (jsonMatch) {
                 recommendations = JSON.parse(jsonMatch[1]);
@@ -64,7 +62,6 @@ Return ONLY valid JSON, no markdown or explanation.`;
     } catch (error) {
         console.error('Goal generation error:', error);
 
-        // Return sensible defaults on error
         return NextResponse.json({
             recommendations: {
                 calories: 2200,
