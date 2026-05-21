@@ -71,8 +71,11 @@ export async function getValidToken(userId: string): Promise<string | null> {
     if (!integration) return null;
 
     // 2. Check if expired (or expiring soon/within 5 mins)
-    const now = Math.floor(Date.now() / 1000);
-    if (integration.expires_at > now + 300) {
+    const now = Date.now();
+    const expiresAt = integration.token_expires_at
+        ? new Date(integration.token_expires_at).getTime()
+        : 0;
+    if (expiresAt > now + 300_000) {
         return integration.access_token;
     }
 
@@ -102,8 +105,8 @@ export async function getValidToken(userId: string): Promise<string | null> {
         .update({
             access_token: data.access_token,
             refresh_token: data.refresh_token,
-            expires_at: data.expires_at,
-            updated_at: new Date().toISOString()
+            token_expires_at: new Date(data.expires_at * 1000).toISOString(),
+            updated_at: new Date().toISOString(),
         })
         .eq('id', integration.id);
 

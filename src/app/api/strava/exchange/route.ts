@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { exchangeToken } from '@/lib/strava';
+
+const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(request: Request) {
     try {
@@ -27,7 +32,7 @@ export async function POST(request: Request) {
         }
 
         const token = authHeader.replace('Bearer ', '');
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
 
         if (authError || !user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -36,17 +41,16 @@ export async function POST(request: Request) {
         // 2. Exchange Code for Strava Tokens
         const tokenData = await exchangeToken(code);
 
-        // 3. Save to Database
-        // We use the `user.id` we just verified
-        const { error: dbError } = await supabase
+        // 3. Save to Database using admin client to bypass RLS
+        const { error: dbError } = await supabaseAdmin
             .from('integrations')
             .upsert({
                 user_id: user.id,
                 provider: 'strava',
                 access_token: tokenData.access_token,
                 refresh_token: tokenData.refresh_token,
-                expires_at: tokenData.expires_at,
-                updated_at: new Date().toISOString()
+                token_expires_at: new Date(tokenData.expires_at * 1000).toISOString(),
+                updated_at: new Date().toISOString(),
             }, { onConflict: 'user_id,provider' });
 
         if (dbError) {
