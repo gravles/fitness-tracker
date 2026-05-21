@@ -1,9 +1,16 @@
 import { supabase } from './supabase';
+import { createClient } from '@supabase/supabase-js';
 import { addWorkout, Workout } from './api';
 import { addDays, subDays } from 'date-fns';
 
 const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
 const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
+
+// Admin client for server-side token operations (bypasses RLS)
+const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export interface StravaToken {
     access_token: string;
@@ -60,13 +67,13 @@ export async function exchangeToken(code: string): Promise<StravaToken> {
  * Refreshes the access token if expired
  */
 export async function getValidToken(userId: string): Promise<string | null> {
-    // 1. Get current token from DB
-    const { data: integration } = await supabase
+    // 1. Get current token from DB — use admin client to bypass RLS
+    const { data: integration } = await supabaseAdmin
         .from('integrations')
         .select('*')
         .eq('user_id', userId)
         .eq('provider', 'strava')
-        .single();
+        .maybeSingle();
 
     if (!integration) return null;
 
@@ -99,8 +106,8 @@ export async function getValidToken(userId: string): Promise<string | null> {
 
     const data = await response.json();
 
-    // 4. Update DB
-    await supabase
+    // 4. Update DB — use admin client to bypass RLS
+    await supabaseAdmin
         .from('integrations')
         .update({
             access_token: data.access_token,
