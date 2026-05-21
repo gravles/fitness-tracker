@@ -292,7 +292,7 @@ export default function NutritionPage() {
 
         setLoggingMeal(k);
         try {
-            const existing = await getDailyLog(date) ?? {};
+            const existing = (await getDailyLog(date)) ?? {} as import('@/lib/api').DailyLog;
             const existingItems: any[] = existing.food_items ?? [];
             const newItem = {
                 name: meal.name,
