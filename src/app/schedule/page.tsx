@@ -6,7 +6,7 @@ import {
     ChevronLeft, ChevronRight, Plus, Calendar, Clock, Dumbbell, Play, X, Trash2,
     Loader2, LayoutGrid, Edit2, Sparkles, Star, MoreVertical, Copy, Check, Eye, Zap, Bot, Trophy
 } from 'lucide-react';
-import { getTrainingPrograms, createTrainingProgram, updateTrainingProgram, deleteTrainingProgram, TrainingProgram } from '@/lib/api';
+import { getTrainingPrograms, createTrainingProgram, updateTrainingProgram, deleteTrainingProgram, TrainingProgram, getSettings } from '@/lib/api';
 import { toast } from 'sonner';
 import { getScheduledWorkouts, deleteScheduledWorkout, skipScheduledWorkout, ScheduledWorkout } from '@/lib/schedule-api';
 import { getTemplates, createTemplate, deleteTemplate, updateTemplate, WorkoutTemplate } from '@/lib/workout-api';
@@ -75,6 +75,7 @@ export default function WorkoutHubPage() {
     const [programNotes, setProgramNotes] = useState('');
     const [showProgramForm, setShowProgramForm] = useState(false);
     const [expandedProgram, setExpandedProgram] = useState<string | null>(null);
+    const [userEquipment, setUserEquipment] = useState<string[]>([]);
 
     const weekDays = eachDayOfInterval({ start: currentWeekStart, end: addDays(currentWeekStart, 6) });
 
@@ -105,16 +106,18 @@ export default function WorkoutHubPage() {
         try {
             const startStr = format(currentWeekStart, 'yyyy-MM-dd');
             const endStr = format(addDays(currentWeekStart, 6), 'yyyy-MM-dd');
-            const [workouts, templateData, publicData, programData] = await Promise.all([
+            const [workouts, templateData, publicData, programData, settings] = await Promise.all([
                 getScheduledWorkouts(startStr, endStr),
                 getTemplates(),
                 activeTab === 'discover' ? getPublicTemplates(categoryFilter === 'all' ? undefined : categoryFilter) : Promise.resolve([]),
                 activeTab === 'programs' ? getTrainingPrograms() : Promise.resolve(null),
+                getSettings(),
             ]);
             setScheduledWorkouts(workouts);
             setTemplates(templateData);
             if (activeTab === 'discover') setPublicTemplates(publicData);
             if (programData) setPrograms(programData);
+            if (settings?.available_equipment?.length) setUserEquipment(settings.available_equipment);
         } catch (error) {
             console.error('Error loading data:', error);
         } finally {
@@ -1037,11 +1040,28 @@ export default function WorkoutHubPage() {
                                     ))}
                                 </div>
                             </div>
+                            {/* Equipment preview */}
+                            <div className="p-3 rounded-xl" style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border-light)' }}>
+                                <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-muted)' }}>
+                                    Equipment (from Settings)
+                                </p>
+                                {userEquipment.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {userEquipment.map(e => (
+                                            <span key={e} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(29,95,168,0.1)', color: 'var(--color-primary)' }}>{e}</span>
+                                        ))}
+                                        <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(34,197,94,0.1)', color: 'var(--color-success)' }}>+ Bodyweight</span>
+                                    </div>
+                                ) : (
+                                    <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>No equipment set — will use standard gym + bodyweight. Add yours in Settings → Home Equipment.</p>
+                                )}
+                            </div>
+
                             <div>
                                 <label className="text-xs font-bold uppercase tracking-wider mb-2 block" style={{ color: 'var(--color-text-muted)' }}>Notes (optional)</label>
                                 <input
                                     type="text"
-                                    placeholder="e.g. no barbell, bad knees, focus on upper body"
+                                    placeholder="e.g. bad knees, focus on upper body, no overhead pressing"
                                     value={programNotes}
                                     onChange={e => setProgramNotes(e.target.value)}
                                     className="w-full p-3 rounded-xl text-sm outline-none"
@@ -1058,7 +1078,7 @@ export default function WorkoutHubPage() {
                                         const res = await fetch('/api/ai/generate-program', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-                                            body: JSON.stringify({ goal: programGoal, daysPerWeek: programDays, notes: programNotes }),
+                                            body: JSON.stringify({ goal: programGoal, daysPerWeek: programDays, equipment: userEquipment, notes: programNotes }),
                                         });
                                         if (!res.ok) throw new Error(await res.text());
                                         const programData = await res.json();
