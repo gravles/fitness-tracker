@@ -915,7 +915,7 @@ export default function NutritionPage() {
 
             {/* ── REVIEW MODAL (scan results) ───────────────────────────────────── */}
             {showReview && (
-                <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--color-bg)' }}>
+                <div className="fixed inset-0 z-[100] flex flex-col" style={{ background: 'var(--color-bg)' }}>
                     {/* Header */}
                     <div className="flex items-center justify-between px-4 py-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
                         <div>
@@ -1013,8 +1013,8 @@ export default function NutritionPage() {
                         ))}
                     </div>
 
-                    {/* Footer */}
-                    <div className="px-4 py-4 border-t" style={{ borderColor: 'var(--color-border)', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+                    {/* Footer — sits above the bottom nav */}
+                    <div className="px-4 pt-4 pb-6 border-t flex-shrink-0" style={{ borderColor: 'var(--color-border)' }}>
                         <button
                             onClick={handleBulkAdd}
                             disabled={bulkAdding || reviewItems.filter(i => i.selected).length === 0}
