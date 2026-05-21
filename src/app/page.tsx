@@ -14,6 +14,7 @@ import { RecentLogs } from '@/components/RecentLogs';
 import { AIWeeklyInsightModal } from '@/components/AIWeeklyInsightModal';
 import { FeatureTutorial } from '@/components/FeatureTutorial';
 import { getSmartAdvice, CoachingTip } from '@/lib/smartCoach';
+import { calculateXP, XPTargets } from '@/lib/gamification';
 import { LevelProgress } from '@/components/LevelProgress';
 import { XPHistoryModal } from '@/components/XPHistoryModal';
 import { ShareModal } from '@/components/ShareModal';
@@ -38,6 +39,7 @@ export default function Dashboard() {
 
   // Gamification State
   const [userLevel, setUserLevel] = useState({ level: 1, xp: 0 });
+  const [weeklyXP, setWeeklyXP] = useState<number[]>([]);
   const [showXPModal, setShowXPModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showInsightModal, setShowInsightModal] = useState(false);
@@ -92,6 +94,18 @@ export default function Dashboard() {
           level: settings.current_level || 1,
           xp: settings.total_xp || 0
         });
+
+        const xpTargets: XPTargets = {
+          daily_protein: settings.target_protein || undefined,
+          daily_calories: settings.target_calories || undefined,
+        };
+        setWeeklyXP(
+          Array.from({ length: 7 }, (_, i) => {
+            const d = format(subDays(today, 6 - i), 'yyyy-MM-dd');
+            const log = recentLogs.find((l: DailyLog) => l.date === d);
+            return log ? calculateXP(log, xpTargets) : 0;
+          })
+        );
       }
 
       // Calculate Weekly Stats
@@ -146,6 +160,7 @@ export default function Dashboard() {
           <LevelProgress
             level={userLevel.level}
             xp={userLevel.xp}
+            weeklyXP={weeklyXP.length === 7 ? weeklyXP : undefined}
             onClick={() => setShowXPModal(true)}
           />
 

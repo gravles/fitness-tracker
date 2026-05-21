@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getDailyLog, upsertDailyLog, getWorkouts, Workout, getFavoriteFoods, FavoriteFood, addWorkout, getSettings } from '@/lib/api';
+import { getDailyLog, upsertDailyLog, getWorkouts, Workout, getFavoriteFoods, FavoriteFood, addWorkout, getSettings, getStreak, getUserBadges, getMonthlyLogs, awardBadge, getLifetimeLogCount } from '@/lib/api';
+import { getNewlyEarnedBadges } from '@/lib/gamification';
+import { format, subDays } from 'date-fns';
 import { Loader2, Utensils, Activity, Heart, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { MenuScanner } from './MenuScanner';
@@ -303,6 +305,31 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
 
             if (isManualLog) {
                 haptics.success();
+            }
+
+            // Check for newly earned badges after every save
+            try {
+                const today = new Date();
+                const startStr = format(subDays(today, 30), 'yyyy-MM-dd');
+                const endStr = format(today, 'yyyy-MM-dd');
+                const [streak, recentLogs, earnedBadges, settings, totalLogs] = await Promise.all([
+                    getStreak(),
+                    getMonthlyLogs(startStr, endStr),
+                    getUserBadges(),
+                    getSettings(),
+                    getLifetimeLogCount(),
+                ]);
+                const alreadyEarned = new Set(earnedBadges.map((b: any) => b.badge_id));
+                const newBadges = getNewlyEarnedBadges(recentLogs, streak, {
+                    totalLogs,
+                    proteinGoal: settings?.target_protein || undefined,
+                }, alreadyEarned);
+                await Promise.all(newBadges.map(b => awardBadge(b.id)));
+                newBadges.forEach(b =>
+                    toast.success(`${b.icon} Badge unlocked: ${b.name}!`, { duration: 5000 })
+                );
+            } catch (e) {
+                console.error('Badge check failed', e);
             }
         } catch (e) {
             if (isManualLog) {

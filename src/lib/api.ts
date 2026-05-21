@@ -443,6 +443,16 @@ export async function awardBadge(badgeId: string) {
     if (error) console.error('Error awarding badge:', error);
 }
 
+export async function getLifetimeLogCount(): Promise<number> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return 0;
+    const { count } = await supabase
+        .from('daily_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', session.user.id);
+    return count || 0;
+}
+
 export async function updateUserXP(xpToAdd: number) {
     const settings = await getSettings();
     if (!settings) return;
