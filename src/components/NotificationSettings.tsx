@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bell, BellOff, Clock, Loader2, Check } from 'lucide-react';
+import { Bell, BellOff, Clock, Loader2, Check, Send } from 'lucide-react';
 import {
     isPushSupported,
     getPermissionStatus,
     subscribeToPush,
     unsubscribeFromPush,
     updateNotificationPrefs,
+    sendLocalNotification,
 } from '@/lib/notifications';
 import { haptics } from '@/lib/haptics';
 
@@ -215,13 +216,28 @@ export function NotificationSettings() {
                                 <span className="text-lg">📝</span>
                                 <span className="font-medium text-[var(--color-text)]">Log Reminder</span>
                             </div>
-                            <button
-                                onClick={() => handleReminderToggle('logReminderEnabled')}
-                                className="w-10 h-6 rounded-full transition-colors"
-                                style={{ background: settings.logReminderEnabled ? 'var(--color-primary)' : 'var(--color-bg-muted)' }}
-                            >
-                                <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.logReminderEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => sendLocalNotification("Don't forget to log today! 📝", {
+                                        body: 'Keep your streak going - log your activity now.',
+                                        tag: 'test-log-reminder',
+                                        data: { url: '/log' },
+                                    })}
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors"
+                                    style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
+                                    title="Send test notification now"
+                                >
+                                    <Send className="w-3 h-3" />
+                                    Test
+                                </button>
+                                <button
+                                    onClick={() => handleReminderToggle('logReminderEnabled')}
+                                    className="w-10 h-6 rounded-full transition-colors"
+                                    style={{ background: settings.logReminderEnabled ? 'var(--color-primary)' : 'var(--color-bg-muted)' }}
+                                >
+                                    <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.logReminderEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
+                                </button>
+                            </div>
                         </div>
                         {settings.logReminderEnabled && (
                             <div className="flex items-center gap-2">
@@ -246,13 +262,28 @@ export function NotificationSettings() {
                                 <span className="text-lg">💪</span>
                                 <span className="font-medium text-[var(--color-text)]">Move Reminder</span>
                             </div>
-                            <button
-                                onClick={() => handleReminderToggle('moveReminderEnabled')}
-                                className="w-10 h-6 rounded-full transition-colors"
-                                style={{ background: settings.moveReminderEnabled ? 'var(--color-primary)' : 'var(--color-bg-muted)' }}
-                            >
-                                <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.moveReminderEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => sendLocalNotification('Time to move! 💪', {
+                                        body: 'Get some exercise in today to stay on track.',
+                                        tag: 'test-move-reminder',
+                                        data: { url: '/log' },
+                                    })}
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors"
+                                    style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
+                                    title="Send test notification now"
+                                >
+                                    <Send className="w-3 h-3" />
+                                    Test
+                                </button>
+                                <button
+                                    onClick={() => handleReminderToggle('moveReminderEnabled')}
+                                    className="w-10 h-6 rounded-full transition-colors"
+                                    style={{ background: settings.moveReminderEnabled ? 'var(--color-primary)' : 'var(--color-bg-muted)' }}
+                                >
+                                    <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.moveReminderEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
+                                </button>
+                            </div>
                         </div>
                         {settings.moveReminderEnabled && (
                             <div className="flex items-center gap-2">
