@@ -21,15 +21,14 @@ async function getUserId(request: NextRequest): Promise<string | null> {
     return user?.id ?? null;
 }
 
+/** Subscribe (or re-subscribe) and save reminder prefs */
 export async function POST(request: NextRequest) {
     try {
         const userId = await getUserId(request);
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const body = await request.json();
-        const { endpoint, keys, logReminderEnabled, moveReminderEnabled, logReminderTime, moveReminderTime } = body;
+        const { endpoint, keys, reminders } = body;
 
         if (!endpoint || !keys?.p256dh || !keys?.auth) {
             return NextResponse.json({ error: 'Invalid subscription data' }, { status: 400 });
@@ -44,17 +43,13 @@ export async function POST(request: NextRequest) {
                     endpoint,
                     p256dh: keys.p256dh,
                     auth: keys.auth,
-                    log_reminder_enabled: logReminderEnabled ?? true,
-                    move_reminder_enabled: moveReminderEnabled ?? true,
-                    log_reminder_time: logReminderTime ?? '20:00',
-                    move_reminder_time: moveReminderTime ?? '09:00',
+                    reminders: reminders ?? [],
                     last_used_at: new Date().toISOString(),
                 },
                 { onConflict: 'endpoint' }
             );
 
         if (error) throw error;
-
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Subscribe error:', error);
@@ -62,41 +57,33 @@ export async function POST(request: NextRequest) {
     }
 }
 
+/** Update reminder preferences only (no need to re-subscribe) */
 export async function PATCH(request: NextRequest) {
     try {
         const userId = await getUserId(request);
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        const { logReminderEnabled, moveReminderEnabled, logReminderTime, moveReminderTime } = await request.json();
+        const { reminders } = await request.json();
 
         const supabase = getSupabaseAdmin();
         const { error } = await supabase
             .from('push_subscriptions')
-            .update({
-                log_reminder_enabled: logReminderEnabled,
-                move_reminder_enabled: moveReminderEnabled,
-                log_reminder_time: logReminderTime,
-                move_reminder_time: moveReminderTime,
-            })
+            .update({ reminders })
             .eq('user_id', userId);
 
         if (error) throw error;
-
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('Update preferences error:', error);
-        return NextResponse.json({ error: 'Failed to update preferences' }, { status: 500 });
+        console.error('Update reminders error:', error);
+        return NextResponse.json({ error: 'Failed to update reminders' }, { status: 500 });
     }
 }
 
+/** Unsubscribe */
 export async function DELETE(request: NextRequest) {
     try {
         const userId = await getUserId(request);
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const supabase = getSupabaseAdmin();
         const { error } = await supabase
@@ -105,7 +92,6 @@ export async function DELETE(request: NextRequest) {
             .eq('user_id', userId);
 
         if (error) throw error;
-
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Unsubscribe error:', error);

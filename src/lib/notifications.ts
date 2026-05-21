@@ -39,7 +39,7 @@ export async function requestPermission(): Promise<NotificationPermission> {
 /**
  * Subscribe to push notifications
  */
-export async function subscribeToPush(prefs?: ReminderPrefs): Promise<PushSubscription | null> {
+export async function subscribeToPush(reminders?: Reminder[]): Promise<PushSubscription | null> {
     if (!isPushSupported()) return null;
 
     const permission = await requestPermission();
@@ -60,7 +60,7 @@ export async function subscribeToPush(prefs?: ReminderPrefs): Promise<PushSubscr
     }
 
     if (subscription) {
-        await saveSubscription(subscription, prefs);
+        await saveSubscription(subscription, reminders);
     }
 
     return subscription;
@@ -267,11 +267,12 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
     return outputArray;
 }
 
-interface ReminderPrefs {
-    logReminderEnabled?: boolean;
-    moveReminderEnabled?: boolean;
-    logReminderTime?: string;
-    moveReminderTime?: string;
+export interface Reminder {
+    id: string;
+    label: string;
+    time: string;   // "HH:MM"
+    enabled: boolean;
+    body?: string;
 }
 
 async function getAuthToken(): Promise<string | null> {
@@ -284,7 +285,7 @@ async function getAuthToken(): Promise<string | null> {
     }
 }
 
-async function saveSubscription(subscription: PushSubscription, prefs?: ReminderPrefs): Promise<void> {
+async function saveSubscription(subscription: PushSubscription, reminders?: Reminder[]): Promise<void> {
     try {
         const token = await getAuthToken();
         await fetch('/api/notifications/subscribe', {
@@ -293,14 +294,14 @@ async function saveSubscription(subscription: PushSubscription, prefs?: Reminder
                 'Content-Type': 'application/json',
                 ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
-            body: JSON.stringify({ ...subscription.toJSON(), ...prefs }),
+            body: JSON.stringify({ ...subscription.toJSON(), reminders: reminders ?? [] }),
         });
     } catch (error) {
         console.error('Failed to save push subscription', error);
     }
 }
 
-export async function updateNotificationPrefs(prefs: ReminderPrefs): Promise<void> {
+export async function updateReminders(reminders: Reminder[]): Promise<void> {
     try {
         const token = await getAuthToken();
         await fetch('/api/notifications/subscribe', {
@@ -309,10 +310,10 @@ export async function updateNotificationPrefs(prefs: ReminderPrefs): Promise<voi
                 'Content-Type': 'application/json',
                 ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
-            body: JSON.stringify(prefs),
+            body: JSON.stringify({ reminders }),
         });
     } catch (error) {
-        console.error('Failed to update notification prefs', error);
+        console.error('Failed to update reminders', error);
     }
 }
 
