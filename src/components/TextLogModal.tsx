@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface TextLogModalProps {
     isOpen: boolean;
@@ -35,7 +36,7 @@ export function TextLogModal({ isOpen, onClose, onProcessed, onWorkoutRequest }:
             const intent = await res.json();
 
             if (intent.error) {
-                alert("Error: " + intent.error);
+                toast.error("Error: " + intent.error);
                 setLoading(false);
                 return;
             }
@@ -51,7 +52,7 @@ export function TextLogModal({ isOpen, onClose, onProcessed, onWorkoutRequest }:
 
         } catch (e: any) {
             console.error(e);
-            alert('Failed to process text: ' + e.message);
+            toast.error('Failed to process text: ' + e.message);
         } finally {
             setLoading(false);
         }

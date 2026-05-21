@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Mic, MicOff, Volume2, StopCircle, Zap } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface WorkoutSpotterProps {
     onSetDetected: (set: { exercise?: string, reps: number, weight: number, weight_unit: string }) => void;
@@ -88,7 +89,7 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
                 console.warn("Speech error", e);
                 if (e.error === 'not-allowed') {
                     setIsActive(false);
-                    alert("Microphone access denied. Please check permission settings.");
+                    toast.error("Microphone access denied. Please check permission settings.");
                 }
             };
 

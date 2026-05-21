@@ -4,6 +4,10 @@ const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+function stripFences(raw: string): string {
+    return raw?.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim() ?? '';
+}
+
 function extractBase64(base64Image: string): { data: string; media_type: "image/jpeg" | "image/png" | "image/gif" | "image/webp" } {
     if (base64Image.startsWith('data:')) {
         const [header, data] = base64Image.split(',');
@@ -74,7 +78,7 @@ Return ONLY a valid JSON object with this exact structure, no markdown:
         ],
     });
 
-    const content = (response.content[0] as Anthropic.TextBlock).text;
+    const content = stripFences((response.content[0] as Anthropic.TextBlock).text);
     if (!content) throw new Error("No analysis received");
     return JSON.parse(content) as FoodAnalysis;
 }
@@ -208,7 +212,7 @@ Return ONLY a valid JSON object with this exact structure, no markdown:
         ],
     });
 
-    const content = (response.content[0] as Anthropic.TextBlock).text;
+    const content = stripFences((response.content[0] as Anthropic.TextBlock).text);
     try {
         const parsed = content ? JSON.parse(content) : { recommendations: [] };
         return parsed.recommendations || [];
@@ -280,7 +284,7 @@ Return ONLY valid JSON, no markdown:
         ],
     });
 
-    const content = (response.content[0] as Anthropic.TextBlock).text;
+    const content = stripFences((response.content[0] as Anthropic.TextBlock).text);
     const result = content ? JSON.parse(content) : { reply: "Error", status: "continue" };
 
     return {
@@ -342,7 +346,7 @@ Return ONLY valid JSON, no markdown:
         ],
     });
 
-    const content = (response.content[0] as Anthropic.TextBlock).text;
+    const content = stripFences((response.content[0] as Anthropic.TextBlock).text);
     return content ? JSON.parse(content) : {
         summary: "Could not generate analysis.",
         wins: [],

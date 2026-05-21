@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Send, X, Dumbbell, Sparkles, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import { WorkoutChatState } from '@/lib/ai';
 
@@ -60,7 +61,7 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
     }, [isOpen, initialData]);
 
     const toggleListening = () => {
-        if (!recognitionRef.current) { alert("Voice input not supported in this browser."); return; }
+        if (!recognitionRef.current) { toast.error("Voice input not supported in this browser."); return; }
         if (isListening) {
             recognitionRef.current.stop();
         } else {

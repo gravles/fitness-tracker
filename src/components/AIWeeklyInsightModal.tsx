@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from "react";
+import { toast } from 'sonner';
 import { Brain, X, TrendingUp, AlertTriangle, Wine, Dumbbell, Utensils, CheckCircle2 } from "lucide-react";
 import { WeeklyInsight } from "@/lib/ai";
 
@@ -32,7 +33,7 @@ export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightM
             setInsight(data);
         } catch (e) {
             console.error(e);
-            alert("Failed to generate report");
+            toast.error("Failed to generate report");
         } finally {
             setLoading(false);
         }

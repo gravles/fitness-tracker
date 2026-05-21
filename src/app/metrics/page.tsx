@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { upsertBodyMetrics, getBodyMetricsHistory } from '@/lib/api';
 import { Loader2, Scale, Camera } from 'lucide-react';
+import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
 
 export default function BodyMetricsPage() {
@@ -43,13 +44,13 @@ export default function BodyMetricsPage() {
                     arms: parseFloat(measurements.arms) || 0,
                 }
             });
-            alert('Saved!');
+            toast.success('Saved!');
             setWeight('');
             setPhotoUrl('');
             setMeasurements({ waist: '', chest: '', arms: '' });
             loadHistory();
         } catch (error) {
-            alert('Error saving metrics');
+            toast.error('Error saving metrics');
         } finally {
             setLoading(false);
         }

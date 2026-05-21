@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Loader2, ArrowLeft, Mail } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function Auth() {
     const [loading, setLoading] = useState(false);
@@ -16,7 +17,7 @@ export function Auth() {
         const { error } = await supabase.auth.signInWithOtp({ email });
         setLoading(false);
         if (error) {
-            alert(error.message);
+            toast.error(error.message);
         } else {
             setSent(true);
         }
@@ -32,7 +33,7 @@ export function Auth() {
         });
         setLoading(false);
         if (error) {
-            alert(error.message);
+            toast.error(error.message);
         }
     };
 

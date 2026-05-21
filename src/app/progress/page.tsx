@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Camera, Loader2, ChevronLeft, ChevronRight, Trash2, Plus, X, Scale } from 'lucide-react';
 import { ProgressPhoto, uploadProgressPhoto, getProgressPhotos, deleteProgressPhoto } from '@/lib/features';
 import { haptics } from '@/lib/haptics';
+import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import Link from 'next/link';
 
@@ -57,7 +58,7 @@ export default function ProgressPage() {
         } catch (error) {
             console.error('Upload failed', error);
             haptics.error();
-            alert('Failed to upload photo. Please try again.');
+            toast.error('Failed to upload photo. Please try again.');
         } finally {
             setUploading(false);
         }

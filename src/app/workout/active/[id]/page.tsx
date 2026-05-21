@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { Loader2, Plus, Check, Clock, Play, Pause, Trash2, History, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { getTemplates, getWorkoutDetails, createWorkoutExercise, logSet, getLastSetsForExercise, WorkoutTemplate } from '@/lib/workout-api';
 import { useTemplate as useTemplateAction, WorkoutTemplate as FeaturesTemplate } from '@/lib/features';
@@ -175,7 +176,7 @@ export default function ActiveWorkoutPage() {
     const finishWorkout = async () => {
         const completedExercises = exercises.filter(e => e.sets.some(s => s.completed));
         if (completedExercises.length === 0) {
-            alert('No exercises completed! Please mark at least one set as done.');
+            toast.error('No exercises completed. Mark at least one set as done.');
             return;
         }
         if (isPaused) setIsPaused(false);
@@ -243,7 +244,7 @@ export default function ActiveWorkoutPage() {
             router.push('/');
         } catch (e) {
             console.error(e);
-            alert('Error saving workout');
+            toast.error('Error saving workout');
             setLoading(false);
         }
     };
@@ -257,7 +258,7 @@ export default function ActiveWorkoutPage() {
             router.push('/');
         } catch (e) {
             console.error(e);
-            alert('Error deleting workout');
+            toast.error('Error deleting workout');
             setLoading(false);
         }
     };

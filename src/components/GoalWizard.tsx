@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X, Loader2, Target, Sparkles, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import { createGoal, GoalType, UserGoal } from '@/lib/features';
 import { haptics } from '@/lib/haptics';
 import { Confetti } from './Confetti';
@@ -82,7 +83,7 @@ export function GoalWizard({ isOpen, onClose, onComplete, currentWeight, current
             setTimeout(() => onComplete(goal), 2000);
         } catch (error) {
             haptics.error();
-            alert('Failed to create goal. Please try again.');
+            toast.error('Failed to create goal. Please try again.');
         }
         setLoading(false);
     };

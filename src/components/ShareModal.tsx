@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X, Share2, Copy, Check, Twitter, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { shareAchievement, SharedAchievement } from '@/lib/features';
 import { haptics } from '@/lib/haptics';
 import { Confetti } from './Confetti';
@@ -38,7 +39,7 @@ export function ShareModal({ isOpen, onClose, type, data }: ShareModalProps) {
         } catch (error) {
             console.error('Failed to generate share link', error);
             haptics.error();
-            alert('Failed to generate share link. Please try again.');
+            toast.error('Failed to generate share link. Please try again.');
         } finally {
             setLoading(false);
         }

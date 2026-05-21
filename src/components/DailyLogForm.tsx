@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getDailyLog, upsertDailyLog, getWorkouts, Workout, getFavoriteFoods, FavoriteFood, addWorkout, getSettings } from '@/lib/api';
 import { Loader2, Utensils, Activity, Heart, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import { MenuScanner } from './MenuScanner';
 import { WorkoutChatModal } from './WorkoutChatModal';
 import { FoodSelector } from './FoodSelector';
@@ -305,7 +306,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             }
         } catch (e) {
             if (isManualLog) {
-                alert('Failed to save. Please try again.');
+                toast.error('Failed to save. Please try again.');
                 haptics.error();
             }
         } finally {
@@ -461,12 +462,12 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                         try {
                             const added = await addWorkout({ ...w, date: dateStr });
                             setWorkouts([...workouts, added]);
-                            alert('Workout added!');
+                            toast.success('Workout added!');
                             setShowWorkoutChat(false);
                             setChatInitialInput('');
                         } catch (e) {
                             console.error("Failed to add workout", e);
-                            alert("Failed to save workout. Please try again.");
+                            toast.error("Failed to save workout. Please try again.");
                         }
                     }}
                     initialData={chatInitialInput}
@@ -501,16 +502,16 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                                 addFoodItems(newItems);
                                 if (alcoholAdded > 0) {
                                     setAlcohol(prev => prev + alcoholAdded);
-                                    alert(`Added: ${newItems.map((i: any) => i.name).join(', ')} (and +${alcoholAdded} standard drinks)`);
+                                    toast.success(`Added: ${newItems.map((i: any) => i.name).join(', ')} (and +${alcoholAdded} standard drinks)`);
                                 } else {
-                                    alert(`Added: ${newItems.map((i: any) => i.name).join(', ')}`);
+                                    toast.success(`Added: ${newItems.map((i: any) => i.name).join(', ')}`);
                                 }
                             } else if (intent.data?.item) {
                                 setSubjective(prev => ({ ...prev, note: (prev.note + ' ' + intent.data.item).trim() }));
-                                alert(`Text added to notes (no specific items detected)`);
+                                toast(`Text added to notes (no items detected)`);
                             }
                         } else {
-                            alert(`Could not understand. Please try again.`);
+                            toast.error(`Could not understand. Please try again.`);
                         }
                     }}
                 />

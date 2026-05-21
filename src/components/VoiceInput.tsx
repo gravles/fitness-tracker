@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface VoiceInputProps {
     onIntentDetected: (intent: any) => void;
@@ -53,7 +54,7 @@ export function VoiceInput({ onIntentDetected, autoStart = false, customTrigger 
 
     const toggleListening = () => {
         if (!recognition) {
-            alert("Voice input not supported in this browser.");
+            toast.error("Voice input not supported in this browser.");
             return;
         }
 

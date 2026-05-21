@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Loader2, RefreshCw, Check, Activity } from 'lucide-react';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
 export function StravaConnect() {
@@ -55,19 +56,19 @@ export function StravaConnect() {
             const data = await res.json();
             if (res.ok) {
                 if (data.count > 0) {
-                    const names = data.added.map((a: any) => `• ${a.name} (${a.date})`).join('\n');
-                    alert(`Synced ${data.count} new activities:\n${names}`);
+                    const names = data.added.map((a: any) => `${a.name} (${a.date})`).join(', ');
+                    toast.success(`Synced ${data.count} new activities: ${names}`);
                 } else {
-                    alert('No new activities found (checked last 30 days).');
+                    toast('No new activities found (checked last 30 days).');
                 }
                 router.refresh();
             } else {
-                alert('Sync failed: ' + data.error);
+                toast.error('Sync failed: ' + data.error);
             }
 
         } catch (e) {
             console.error(e);
-            alert('Error syncing');
+            toast.error('Error syncing');
         } finally {
             setSyncing(false);
         }

@@ -3,7 +3,7 @@
 import { Workout, addWorkout, deleteWorkout, updateWorkout } from '@/lib/api';
 import { Loader2, Plus, Dumbbell, Clock, Trash2, Sparkles, Pencil, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
 import { useState } from 'react';
-
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
 interface MovementSectionProps {
@@ -65,7 +65,7 @@ export function MovementSection({
             setShowAddForm(false); // Collapse after adding
         } catch (error) {
             console.error('Error adding workout', error);
-            alert('Failed to add workout');
+            toast.error('Failed to add workout');
         } finally {
             setLocalAdding(false);
         }
@@ -83,7 +83,7 @@ export function MovementSection({
             setWorkouts([...workouts, added]);
         } catch (error) {
             console.error('Error adding workout', error);
-            alert('Failed to add workout');
+            toast.error('Failed to add workout');
         } finally {
             setLocalAdding(false);
         }
@@ -125,7 +125,7 @@ export function MovementSection({
             setEditingId(null);
         } catch (error) {
             console.error('Error updating workout', error);
-            alert('Failed to update workout');
+            toast.error('Failed to update workout');
         }
     }
 

@@ -4,6 +4,7 @@ import { VoiceInput } from '../VoiceInput';
 import { FoodCamera } from '../FoodCamera';
 import { BarcodeScanner } from '../BarcodeScanner';
 import { Keyboard, ChefHat, Camera, X, Brain, Heart, Trash2, BookOpen, Pencil, Barcode } from 'lucide-react';
+import { toast } from 'sonner';
 import { useState } from 'react';
 import { addFavoriteFood, deleteFavoriteFood, getFavoriteFoods, FavoriteFood } from '@/lib/api';
 
@@ -169,11 +170,11 @@ export function NutritionSection({
                     portion_estimate: item.portion_estimate
                 });
                 setFavorites((prev: any[]) => [...prev, newFav]);
-                alert(`Saved '${item.name}' to favorites!`);
+                toast.success(`Saved '${item.name}' to favorites!`);
             }
         } catch (e) {
             console.error('Error toggling favorite:', e);
-            alert('Failed to update favorite');
+            toast.error('Failed to update favorite');
         }
     }
 
@@ -312,7 +313,7 @@ export function NutritionSection({
                         autoStart={autoStartVoice}
                         onIntentDetected={(intent) => {
                             if (intent.error) {
-                                alert("Voice Error: " + intent.error);
+                                toast.error("Voice Error: " + intent.error);
                                 return;
                             }
 
@@ -327,19 +328,19 @@ export function NutritionSection({
                                     onAddFoodItems(newItems);
                                     if (alcoholAdded > 0) {
                                         setAlcohol((prev: number) => prev + alcoholAdded);
-                                        alert(`Added: ${newItems.map((i: any) => i.name).join(', ')} (and +${alcoholAdded} standard drinks)`);
+                                        toast.success(`Added: ${newItems.map((i: any) => i.name).join(', ')} (and +${alcoholAdded} standard drinks)`);
                                     } else {
-                                        alert(`Added: ${newItems.map((i: any) => i.name).join(', ')}`);
+                                        toast.success(`Added: ${newItems.map((i: any) => i.name).join(', ')}`);
                                     }
                                 } else if (intent.data?.item) {
                                     setSubjective((prev: any) => ({ ...prev, note: (prev.note + ' ' + intent.data.item).trim() }));
-                                    alert(`Voice text added to notes (no specific items detected)`);
+                                    toast(`Voice text added to notes (no items detected)`);
                                 }
                             } else if (intent.intent === 'log_workout') {
                                 setChatInitialInput(intent.original || '');
                                 setShowWorkoutChat(true);
                             } else {
-                                alert(`Could not understand: "${intent.original}"`);
+                                toast.error(`Could not understand: "${intent.original}"`);
                             }
                         }}
                         customTrigger={(onClick, isListening) => (
@@ -442,12 +443,12 @@ export function NutritionSection({
 
                                     if (data.alcohol_units && data.alcohol_units > 0) {
                                         setAlcohol((prev: number) => prev + data.alcohol_units);
-                                        alert(`Logged '${data.name}' and added +${data.alcohol_units} standard drinks.`);
+                                        toast.success(`Logged '${data.name}' and added +${data.alcohol_units} standard drinks.`);
                                     }
 
                                 } catch (e: any) {
                                     console.error(e);
-                                    alert('AI Error: ' + (e.message || 'Failed to analyze food. Check usage limits.'));
+                                    toast.error('AI Error: ' + (e.message || 'Failed to analyze food. Check usage limits.'));
                                 } finally {
                                     setLoadingAI(false);
                                 }

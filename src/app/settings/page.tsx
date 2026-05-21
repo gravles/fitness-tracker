@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getSettings, updateSettings, getUserBadges, UserBadge } from '@/lib/api';
 import { Loader2, Save, Target, Plus, Sparkles, Rocket } from 'lucide-react';
+import { toast } from 'sonner';
 import { TrophyCase } from '@/components/TrophyCase';
 import { StravaConnect } from '@/components/StravaConnect';
 import { ChangelogModal } from '@/components/ChangelogModal';
@@ -134,9 +135,9 @@ export default function SettingsPage() {
                 custom_habits: targets.habits,
                 available_equipment: targets.equipment
             });
-            alert('Settings saved!');
+            toast.success('Settings saved!');
         } catch (error) {
-            alert('Error saving settings');
+            toast.error('Error saving settings');
         } finally {
             setSaving(false);
         }

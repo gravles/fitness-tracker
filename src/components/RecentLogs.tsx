@@ -2,6 +2,7 @@ import { DailyLog } from '@/lib/api';
 import { format, parse } from 'date-fns';
 import { Activity, Pencil, X } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
 export function RecentLogs({ logs }: { logs: DailyLog[] }) {
@@ -80,7 +81,7 @@ export function RecentLogs({ logs }: { logs: DailyLog[] }) {
 
         } catch (e) {
             console.error(e);
-            alert('Failed to save changes');
+            toast.error('Failed to save changes');
         } finally {
             setLoadingEdit(false);
             setEditingLog(null);

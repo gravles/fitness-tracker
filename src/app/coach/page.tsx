@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Loader2, Send, Bot, User, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 import { getMonthlyLogs, getSettings, getWorkoutsRange } from '@/lib/api';
 import { getTemplates, createTemplate } from '@/lib/workout-api';
 import { subDays, format } from 'date-fns';
@@ -175,11 +176,11 @@ export default function CoachPage() {
                                                         target_reps: e.reps,
                                                         order_index: 0
                                                     })));
-                                                    alert('Saved! Redirecting to builder...');
+                                                    toast.success('Saved! Redirecting to builder...');
                                                     window.location.href = '/workout/builder';
                                                 } catch (e: any) {
                                                     console.error(e);
-                                                    alert(`Failed to save template: ${e.message}`);
+                                                    toast.error(`Failed to save template: ${e.message}`);
                                                 }
                                             }
                                         }}

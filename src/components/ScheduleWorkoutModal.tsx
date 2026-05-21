@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { X, Calendar, Clock, Dumbbell, FileText, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { scheduleWorkout } from '@/lib/schedule-api';
 import { haptics } from '@/lib/haptics';
 
@@ -35,7 +36,7 @@ export function ScheduleWorkoutModal({
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (!title.trim()) {
-            alert('Please enter a title');
+            toast.error('Please enter a title');
             return;
         }
 
@@ -56,7 +57,7 @@ export function ScheduleWorkoutModal({
         } catch (error) {
             console.error('Error scheduling workout:', error);
             haptics.error();
-            alert('Failed to schedule workout');
+            toast.error('Failed to schedule workout');
         } finally {
             setSaving(false);
         }

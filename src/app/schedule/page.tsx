@@ -6,6 +6,7 @@ import {
     ChevronLeft, ChevronRight, Plus, Calendar, Clock, Dumbbell, Play, X, Trash2,
     Loader2, LayoutGrid, Edit2, Sparkles, Star, MoreVertical, Copy, Check, Eye, Zap, Bot
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { getScheduledWorkouts, deleteScheduledWorkout, skipScheduledWorkout, ScheduledWorkout } from '@/lib/schedule-api';
 import { getTemplates, createTemplate, deleteTemplate, updateTemplate, WorkoutTemplate } from '@/lib/workout-api';
 import { getPublicTemplates, WorkoutTemplate as PublicTemplate, WorkoutCategory } from '@/lib/features';
@@ -192,7 +193,7 @@ export default function WorkoutHubPage() {
             if (editingTemplate) await updateTemplate(editingTemplate.id, { name: formTitle, exercises: formExercises });
             else await createTemplate(formTitle, exercisesData);
             setShowEditorModal(false); setEditingTemplate(null); loadData(); haptics.success();
-        } catch { alert('Failed to save template'); haptics.error(); } finally { setSaving(false); }
+        } catch { toast.error('Failed to save template'); haptics.error(); } finally { setSaving(false); }
     }
 
     async function handleDeleteTemplate(id: string) {

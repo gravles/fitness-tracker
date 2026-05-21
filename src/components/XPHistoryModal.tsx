@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Loader2, Trophy, Share2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { format, subDays, parseISO } from 'date-fns';
 import { getMonthlyLogs, getSettings, recalculateTotalXP } from '@/lib/api';
 import { calculateXP, XPTargets } from '@/lib/gamification';
@@ -79,10 +80,10 @@ export function XPHistoryModal({ isOpen, onClose, lifetimeXP, currentLevel, onSy
             await recalculateTotalXP();
             if (onSync) onSync();
             onClose();
-            alert('XP Synced Successfully!');
+            toast.success('XP Synced Successfully!');
         } catch (error) {
             console.error(error);
-            alert('Failed to sync XP');
+            toast.error('Failed to sync XP');
         } finally {
             setSyncing(false);
         }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Camera, X, Check, ChefHat, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import { FoodCamera } from './FoodCamera';
 
@@ -41,10 +42,10 @@ export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
         } catch (error: any) {
             if (error.name === 'AbortError') {
                 console.error("Menu scan timed out");
-                alert("Scan Timed Out: The menu image might be too large or the AI is taking too long. Try a smaller section of the menu.");
+                toast.error("Scan timed out. The image may be too large — try a smaller section of the menu.");
             } else {
                 console.error(error);
-                alert('Scan Failed: ' + error.message);
+                toast.error('Scan failed: ' + error.message);
             }
             onClose();
         } finally {
