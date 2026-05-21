@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { upsertBodyMetrics, getBodyMetricsHistory } from '@/lib/api';
-import { Loader2, Scale, Camera, ImageIcon, Activity, Zap } from 'lucide-react';
+import { Loader2, Scale, Camera, ImageIcon, Activity, Zap, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -101,12 +102,22 @@ export default function BodyMetricsPage() {
 
     return (
         <main className="p-6 pt-12 pb-24 space-y-8 max-w-2xl mx-auto">
-            <h1
-                className="text-3xl font-bold"
-                style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text)' }}
-            >
-                Body Metrics
-            </h1>
+            <div className="flex items-center justify-between">
+                <h1
+                    className="text-3xl font-bold"
+                    style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text)' }}
+                >
+                    Body Metrics
+                </h1>
+                <Link
+                    href="/trends"
+                    className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl transition-all active:scale-95"
+                    style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-primary)' }}
+                >
+                    <TrendingUp className="w-4 h-4" />
+                    Stats
+                </Link>
+            </div>
 
             {/* Body Composition Summary (Withings data) */}
             {latestBodyComp && (

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PlusCircle, TrendingUp, Dumbbell, UtensilsCrossed } from 'lucide-react';
+import { Home, PlusCircle, Scale, Dumbbell, UtensilsCrossed } from 'lucide-react';
 
 export function BottomNav() {
     const pathname = usePathname();
@@ -14,7 +14,7 @@ export function BottomNav() {
         { href: '/log',       icon: PlusCircle,      label: 'Log'     },
         { href: '/schedule',  icon: Dumbbell,        label: 'Workout' },
         { href: '/nutrition', icon: UtensilsCrossed, label: 'Eat'     },
-        { href: '/trends',    icon: TrendingUp,      label: 'Stats'   },
+        { href: '/metrics',   icon: Scale,           label: 'Metrics' },
     ];
 
     return (
