@@ -264,6 +264,8 @@ export interface UserSettings {
     // Gamification
     total_xp?: number;
     current_level?: number;
+    // Nutrition
+    nutrition_prefs?: NutritionPrefs | null;
 }
 
 export async function getSettings() {
