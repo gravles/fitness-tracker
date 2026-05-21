@@ -7,7 +7,6 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { GoalWizard } from '@/components/GoalWizard';
 import { toast } from 'sonner';
 import { TrophyCase } from '@/components/TrophyCase';
-import { StravaConnect } from '@/components/StravaConnect';
 import { ChangelogModal } from '@/components/ChangelogModal';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { haptics } from '@/lib/haptics';
@@ -152,6 +151,17 @@ export default function SettingsPage() {
             router.replace('/settings');
         }
 
+        // Strava uses a different callback — /settings/strava-callback redirects here with ?strava_connected=true
+        const stravaConnected = searchParams.get('strava_connected');
+        if (stravaConnected === 'true') {
+            async function handleStravaConnected() {
+                toast.success('Strava connected!');
+                setIntegrations(await getIntegrations());
+                router.replace('/settings');
+            }
+            handleStravaConnected();
+        }
+
         handleOAuthCallback();
     }, [searchParams]);
 
@@ -272,9 +282,6 @@ export default function SettingsPage() {
                     ))}
                 </div>
             </section>
-
-            {/* Integrations */}
-            <StravaConnect />
 
             {/* Customization */}
             <section className="p-6 rounded-2xl border shadow-sm space-y-6" style={sectionStyle}>
@@ -581,8 +588,9 @@ export default function SettingsPage() {
                 </div>
 
                 {[
-                    { id: 'withings', name: 'Withings', icon: '⚖️', desc: 'Auto-sync weight from your smart scale', authUrl: '/api/integrations/withings/auth', syncUrl: '/api/integrations/withings/sync' },
-                    { id: 'oura', name: 'Oura Ring', icon: '💍', desc: 'Sync readiness score, sleep & HRV', authUrl: '/api/integrations/oura/auth', syncUrl: '/api/integrations/oura/sync' },
+                    { id: 'strava',   name: 'Strava',     icon: '🏃', desc: 'Auto-sync runs, rides & workouts',       authUrl: '/api/strava/auth',                 syncUrl: '/api/strava/sync' },
+                    { id: 'withings', name: 'Withings',   icon: '⚖️', desc: 'Auto-sync weight from your smart scale', authUrl: '/api/integrations/withings/auth',  syncUrl: '/api/integrations/withings/sync' },
+                    { id: 'oura',     name: 'Oura Ring',  icon: '💍', desc: 'Sync readiness score, sleep & HRV',      authUrl: '/api/integrations/oura/auth',      syncUrl: '/api/integrations/oura/sync' },
                 ].map(provider => {
                     const connected = integrations.find(i => i.provider === provider.id);
                     return (
