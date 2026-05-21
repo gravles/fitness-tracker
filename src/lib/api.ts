@@ -735,3 +735,314 @@ export async function getRecentFoods(limit = 1000) {
 
     return allItems.slice(0, limit);
 }
+
+// ─── Saved Meals ──────────────────────────────────────────────────────────────
+
+export interface SavedMeal {
+    id: string;
+    user_id?: string;
+    name: string;
+    food_items: any[];
+    total_calories: number;
+    total_protein: number;
+    total_carbs: number;
+    total_fat: number;
+    use_count: number;
+    created_at?: string;
+}
+
+export async function getSavedMeals(): Promise<SavedMeal[]> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
+    const { data, error } = await supabase
+        .from('saved_meals')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('use_count', { ascending: false });
+    if (error) throw error;
+    return data as SavedMeal[];
+}
+
+export async function createSavedMeal(name: string, foodItems: any[]): Promise<SavedMeal> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+    const totals = foodItems.reduce((acc, f) => ({
+        calories: acc.calories + Math.round(f.calories || 0),
+        protein: acc.protein + Math.round(f.protein || 0),
+        carbs: acc.carbs + Math.round(f.carbs || 0),
+        fat: acc.fat + Math.round(f.fat || 0),
+    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+    const { data, error } = await supabase
+        .from('saved_meals')
+        .insert({ user_id: session.user.id, name, food_items: foodItems, ...totals })
+        .select().single();
+    if (error) throw error;
+    return data as SavedMeal;
+}
+
+export async function deleteSavedMeal(id: string): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const { error } = await supabase.from('saved_meals').delete()
+        .eq('id', id).eq('user_id', session.user.id);
+    if (error) throw error;
+}
+
+export async function incrementSavedMealUseCount(id: string): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    try {
+        await supabase.rpc('increment_saved_meal_use_count', { meal_id: id });
+    } catch {
+        // Fallback: fetch current count and update
+        const { data } = await supabase.from('saved_meals').select('use_count').eq('id', id).single();
+        if (data) {
+            await supabase.from('saved_meals').update({ use_count: (data.use_count || 0) + 1 }).eq('id', id);
+        }
+    }
+}
+
+// ─── Coach Messages ───────────────────────────────────────────────────────────
+
+export interface CoachMessage {
+    id?: string;
+    role: 'user' | 'assistant';
+    content: string;
+    suggested_workout?: any;
+    created_at?: string;
+}
+
+export async function getCoachMessages(): Promise<CoachMessage[]> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
+    const { data, error } = await supabase
+        .from('coach_messages')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: true })
+        .limit(200);
+    if (error) throw error;
+    return data as CoachMessage[];
+}
+
+export async function saveCoachMessage(msg: Omit<CoachMessage, 'id' | 'created_at'>): Promise<CoachMessage> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+    const { data, error } = await supabase
+        .from('coach_messages')
+        .insert({ ...msg, user_id: session.user.id })
+        .select().single();
+    if (error) throw error;
+    return data as CoachMessage;
+}
+
+export async function clearCoachMessages(): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const { error } = await supabase.from('coach_messages').delete()
+        .eq('user_id', session.user.id);
+    if (error) throw error;
+}
+
+// ─── Accountability Partners ──────────────────────────────────────────────────
+
+export interface AccountabilityPartner {
+    id: string;
+    partner_email: string;
+    partner_name?: string | null;
+    status: 'active' | 'paused';
+    created_at?: string;
+}
+
+export async function getAccountabilityPartners(): Promise<AccountabilityPartner[]> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
+    const { data, error } = await supabase
+        .from('accountability_partners')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data as AccountabilityPartner[];
+}
+
+export async function addAccountabilityPartner(email: string, name?: string): Promise<AccountabilityPartner> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+    const { data, error } = await supabase
+        .from('accountability_partners')
+        .insert({ user_id: session.user.id, partner_email: email.toLowerCase().trim(), partner_name: name || null })
+        .select().single();
+    if (error) throw error;
+    return data as AccountabilityPartner;
+}
+
+export async function deleteAccountabilityPartner(id: string): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const { error } = await supabase.from('accountability_partners').delete()
+        .eq('id', id).eq('user_id', session.user.id);
+    if (error) throw error;
+}
+
+// ─── Integrations ─────────────────────────────────────────────────────────────
+
+export interface Integration {
+    id?: string;
+    provider: string;
+    access_token?: string | null;
+    refresh_token?: string | null;
+    token_expires_at?: string | null;
+    provider_user_id?: string | null;
+    metadata?: Record<string, any> | null;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export async function getIntegrations(): Promise<Integration[]> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
+    const { data, error } = await supabase
+        .from('integrations')
+        .select('*')
+        .eq('user_id', session.user.id);
+    if (error) throw error;
+    return data as Integration[];
+}
+
+export async function getIntegration(provider: string): Promise<Integration | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    const { data } = await supabase
+        .from('integrations')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('provider', provider)
+        .maybeSingle();
+    return data as Integration | null;
+}
+
+export async function upsertIntegration(provider: string, updates: Partial<Integration>): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+    const { error } = await supabase.from('integrations').upsert(
+        { ...updates, user_id: session.user.id, provider, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id,provider' }
+    );
+    if (error) throw error;
+}
+
+export async function deleteIntegration(provider: string): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const { error } = await supabase.from('integrations').delete()
+        .eq('user_id', session.user.id).eq('provider', provider);
+    if (error) throw error;
+}
+
+// ─── Training Programs ────────────────────────────────────────────────────────
+
+export interface ProgramWeek {
+    week: number;
+    phase: string;
+    volume_modifier: number; // 1.0 = normal, 0.5 = deload
+    days: {
+        day: number;
+        label: string; // 'Upper A', 'Lower A', 'Rest', etc.
+        exercises: { name: string; sets: number; reps: string; load_pct?: number }[];
+    }[];
+}
+
+export interface TrainingProgram {
+    id: string;
+    name: string;
+    goal: 'strength' | 'hypertrophy' | 'endurance' | 'athletic';
+    duration_weeks: number;
+    phases: { name: string; weeks: string; description: string }[];
+    weeks: ProgramWeek[];
+    is_active: boolean;
+    current_week: number;
+    started_at?: string | null;
+    created_at?: string;
+}
+
+export async function getTrainingPrograms(): Promise<TrainingProgram[]> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
+    const { data, error } = await supabase
+        .from('training_programs')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data as TrainingProgram[];
+}
+
+export async function getActiveProgram(): Promise<TrainingProgram | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    const { data } = await supabase
+        .from('training_programs')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+    return data as TrainingProgram | null;
+}
+
+export async function createTrainingProgram(program: Omit<TrainingProgram, 'id' | 'created_at'>): Promise<TrainingProgram> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+    // Deactivate any existing active program first
+    if (program.is_active) {
+        await supabase.from('training_programs')
+            .update({ is_active: false })
+            .eq('user_id', session.user.id);
+    }
+    const { data, error } = await supabase
+        .from('training_programs')
+        .insert({ ...program, user_id: session.user.id })
+        .select().single();
+    if (error) throw error;
+    return data as TrainingProgram;
+}
+
+export async function updateTrainingProgram(id: string, updates: Partial<TrainingProgram>): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const { error } = await supabase.from('training_programs')
+        .update(updates).eq('id', id).eq('user_id', session.user.id);
+    if (error) throw error;
+}
+
+export async function deleteTrainingProgram(id: string): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const { error } = await supabase.from('training_programs').delete()
+        .eq('id', id).eq('user_id', session.user.id);
+    if (error) throw error;
+}
+
+export async function getExerciseRecords(exerciseName?: string): Promise<any[]> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
+    let q = supabase.from('exercise_records').select('*').eq('user_id', session.user.id);
+    if (exerciseName) q = q.eq('exercise_name', exerciseName);
+    const { data, error } = await q.order('recorded_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+}
+
+export async function recordExercisePR(exerciseName: string, weight: number, reps: number): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const estimated1rm = Math.round(weight * (1 + reps / 30));
+    const { error } = await supabase.from('exercise_records').insert({
+        user_id: session.user.id,
+        exercise_name: exerciseName,
+        estimated_1rm: estimated1rm,
+        actual_weight: weight,
+        actual_reps: reps,
+    });
+    if (error) console.error('PR record error', error);
+}

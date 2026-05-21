@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Loader2, Send, Bot, User, Sparkles, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getMonthlyLogs, getSettings, getWorkoutsRange } from '@/lib/api';
+import { getMonthlyLogs, getSettings, getWorkoutsRange, getCoachMessages, saveCoachMessage, clearCoachMessages } from '@/lib/api';
 import { getTemplates, createTemplate } from '@/lib/workout-api';
 import { subDays, format } from 'date-fns';
 
@@ -25,32 +25,35 @@ export default function CoachPage() {
     const [context, setContext] = useState<any>(null);
     const [showClearConfirm, setShowClearConfirm] = useState(false);
 
+    const [historyLoading, setHistoryLoading] = useState(true);
+
     useEffect(() => {
-        // Load history or set initial
-        const saved = localStorage.getItem('coach_history');
-        if (saved) {
+        async function loadHistory() {
             try {
-                setMessages(JSON.parse(saved));
+                const saved = await getCoachMessages();
+                if (saved.length > 0) {
+                    setMessages(saved.map(m => ({
+                        role: m.role,
+                        content: m.content,
+                        suggested_workout: m.suggested_workout ?? undefined,
+                    })));
+                } else {
+                    setMessages([{ role: 'assistant', content: "Hi! I'm your Smart Coach. I've analyzed your last 30 days of activity. How can I help you today? (Try asking me to build a workout!)" }]);
+                }
             } catch (e) {
-                console.error("Failed to parse history", e);
-                setInitialGreeting();
+                // Fallback to localStorage if Supabase fails
+                const saved = localStorage.getItem('coach_history');
+                if (saved) {
+                    try { setMessages(JSON.parse(saved)); } catch { setMessages([{ role: 'assistant', content: "Hi! I'm your Smart Coach." }]); }
+                } else {
+                    setMessages([{ role: 'assistant', content: "Hi! I'm your Smart Coach. I've analyzed your last 30 days of activity. How can I help you today? (Try asking me to build a workout!)" }]);
+                }
+            } finally {
+                setHistoryLoading(false);
             }
-        } else {
-            setInitialGreeting();
         }
-
-        function setInitialGreeting() {
-            setMessages([
-                { role: 'assistant', content: "Hi! I'm your Smart Coach. I've analyzed your last 30 days of activity. How can I help you today? (Try asking me to build a workout!)" }
-            ]);
-        }
+        loadHistory();
     }, []);
-
-    useEffect(() => {
-        if (messages.length > 0) {
-            localStorage.setItem('coach_history', JSON.stringify(messages));
-        }
-    }, [messages]);
 
     // Prefetch Context
     useEffect(() => {
@@ -83,25 +86,28 @@ export default function CoachPage() {
         setMessages(prev => [...prev, newMsg]);
         setInput('');
         setLoading(true);
+        // Persist user message
+        saveCoachMessage({ role: 'user', content: input }).catch(() => {});
 
         try {
             const res = await fetch('/api/ai/coach', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: [...messages, newMsg],
-                    context: context // Pass fetched context
-                })
+                body: JSON.stringify({ messages: [...messages, newMsg], context })
             });
 
             const data = await res.json();
             if (data.error) throw new Error(data.error);
 
             setMessages(prev => [...prev, data]);
+            // Persist assistant reply
+            saveCoachMessage({ role: 'assistant', content: data.content, suggested_workout: data.suggested_workout ?? null }).catch(() => {});
 
         } catch (error) {
             console.error(error);
-            setMessages(prev => [...prev, { role: 'assistant', content: `Sorry, there was an error: ${(error as any).message || 'Connection failed'}` }]);
+            const errMsg = { role: 'assistant' as const, content: `Sorry, there was an error: ${(error as any).message || 'Connection failed'}` };
+            setMessages(prev => [...prev, errMsg]);
+            saveCoachMessage(errMsg).catch(() => {});
         } finally {
             setLoading(false);
         }
@@ -137,10 +143,16 @@ export default function CoachPage() {
                     <div className="flex items-center gap-2">
                         <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Clear history?</span>
                         <button
-                            onClick={() => {
-                                setMessages([{ role: 'assistant', content: "Hi! I'm your Smart Coach. I've analyzed your last 30 days of activity. How can I help you today? (Try asking me to build a workout!)" }]);
-                                localStorage.removeItem('coach_history');
+                            onClick={async () => {
+                                const greeting = { role: 'assistant' as const, content: "Hi! I'm your Smart Coach. I've analyzed your last 30 days of activity. How can I help you today? (Try asking me to build a workout!)" };
+                                setMessages([greeting]);
                                 setShowClearConfirm(false);
+                                try {
+                                    await clearCoachMessages();
+                                    await saveCoachMessage(greeting);
+                                } catch (e) {
+                                    localStorage.removeItem('coach_history');
+                                }
                             }}
                             className="text-xs font-bold px-2.5 py-1 rounded-lg bg-red-500/10 text-red-500"
                         >Yes</button>
@@ -155,6 +167,11 @@ export default function CoachPage() {
 
             {/* Chat Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                {historyLoading && (
+                    <div className="flex justify-center py-10">
+                        <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--color-text-muted)' }} />
+                    </div>
+                )}
                 {messages.map((m, i) => (
                     <div key={i} className={`flex gap-3 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${

@@ -5,7 +5,7 @@ import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
 import {
     Plus, Trash2, Loader2, Sparkles, ChevronLeft, ChevronRight,
     Clock, CheckCircle2, RefreshCw, Settings2, UtensilsCrossed,
-    Camera, Mic, MicOff, X,
+    Camera, Mic, MicOff, X, BookMarked, PlayCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -14,7 +14,8 @@ import {
     getMealPlan, saveMealPlan,
     getNutritionPrefs, saveNutritionPrefs,
     getSettings, getDailyLog, upsertDailyLog,
-    PantryItem, PlannedMeal, NutritionPrefs, DEFAULT_NUTRITION_PREFS,
+    getSavedMeals, createSavedMeal, deleteSavedMeal,
+    PantryItem, PlannedMeal, NutritionPrefs, DEFAULT_NUTRITION_PREFS, SavedMeal,
 } from '@/lib/api';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -153,10 +154,11 @@ function MealCard({
 
 export default function NutritionPage() {
     const today = new Date();
-    const [tab, setTab] = useState<'today' | 'plan' | 'pantry'>('today');
+    const [tab, setTab] = useState<'today' | 'plan' | 'meals' | 'pantry'>('today');
 
     // Data
     const [pantry, setPantry] = useState<PantryItem[]>([]);
+    const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
     const [meals, setMeals] = useState<Record<string, PlannedMeal | null>>({});
     const [prefs, setPrefs] = useState<NutritionPrefs>(DEFAULT_NUTRITION_PREFS);
     const [settings, setSettings] = useState<any>(null);
@@ -201,15 +203,17 @@ export default function NutritionPage() {
     async function loadAll() {
         setIsLoading(true);
         try {
-            const [p, pr, s] = await Promise.all([
+            const [p, pr, s, sm] = await Promise.all([
                 getPantryItems(),
                 getNutritionPrefs(),
                 getSettings(),
+                getSavedMeals(),
             ]);
             setPantry(p);
             setPrefs(pr);
             setEditPrefs(pr);
             setSettings(s);
+            setSavedMeals(sm);
         } finally {
             setIsLoading(false);
         }
@@ -563,17 +567,17 @@ export default function NutritionPage() {
 
             {/* Tabs */}
             <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--color-bg-subtle)' }}>
-                {(['today', 'plan', 'pantry'] as const).map(t => (
+                {(['today', 'plan', 'meals', 'pantry'] as const).map(t => (
                     <button
                         key={t}
                         onClick={() => setTab(t)}
-                        className="flex-1 py-2 rounded-lg text-sm font-semibold capitalize transition-all"
+                        className="flex-1 py-2 rounded-lg text-xs font-semibold capitalize transition-all"
                         style={tab === t
                             ? { background: 'var(--color-surface-elevated)', color: 'var(--color-text)', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
                             : { color: 'var(--color-text-muted)' }
                         }
                     >
-                        {t === 'today' ? "Today's Plan" : t === 'plan' ? 'This Week' : `Pantry (${pantry.length})`}
+                        {t === 'today' ? 'Today' : t === 'plan' ? 'Week' : t === 'meals' ? `Meals${savedMeals.length > 0 ? ` (${savedMeals.length})` : ''}` : `Pantry`}
                     </button>
                 ))}
             </div>
@@ -719,6 +723,104 @@ export default function NutritionPage() {
                             </div>
                         );
                     })}
+                </div>
+            )}
+
+            {/* ── MEALS TAB ─────────────────────────────────────────────────────── */}
+            {tab === 'meals' && (
+                <div className="space-y-4">
+                    {savedMeals.length === 0 ? (
+                        <div className="text-center py-12 space-y-3">
+                            <div className="text-5xl">🍱</div>
+                            <p className="font-bold text-[var(--color-text)]">No saved meals yet</p>
+                            <p className="text-sm text-[var(--color-text-muted)] max-w-xs mx-auto">
+                                In your daily log, select multiple food items and tap "Save as Meal" to create a one-tap bundle.
+                            </p>
+                        </div>
+                    ) : (
+                        savedMeals.map(meal => (
+                            <div
+                                key={meal.id}
+                                className="p-4 rounded-2xl border space-y-3"
+                                style={{ background: 'var(--color-surface-elevated)', borderColor: 'var(--color-border-light)' }}
+                            >
+                                <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <BookMarked className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-gold)' }} />
+                                            <h3 className="font-bold text-[var(--color-text)]">{meal.name}</h3>
+                                        </div>
+                                        <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                                            {meal.total_calories} cal · {meal.total_protein}g P · {meal.total_carbs}g C · {meal.total_fat}g F
+                                        </p>
+                                        <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                                            {meal.food_items.length} item{meal.food_items.length !== 1 ? 's' : ''}{meal.use_count > 0 ? ` · logged ${meal.use_count}×` : ''}
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    const today = format(new Date(), 'yyyy-MM-dd');
+                                                    const log = await getDailyLog(today) ?? {} as any;
+                                                    const existing = log.food_items || [];
+                                                    await upsertDailyLog({
+                                                        date: today,
+                                                        food_items: [...existing, ...meal.food_items],
+                                                        nutrition_logged: true,
+                                                        calories: (log.calories || 0) + meal.total_calories,
+                                                        protein_grams: (log.protein_grams || 0) + meal.total_protein,
+                                                        carbs_grams: (log.carbs_grams || 0) + meal.total_carbs,
+                                                        fat_grams: (log.fat_grams || 0) + meal.total_fat,
+                                                    });
+                                                    // bump use count
+                                                    const { supabase: sb } = await import('@/lib/supabase');
+                                                    await sb.from('saved_meals').update({ use_count: (meal.use_count || 0) + 1 }).eq('id', meal.id);
+                                                    setSavedMeals(prev => prev.map(m => m.id === meal.id ? { ...m, use_count: m.use_count + 1 } : m));
+                                                    toast.success(`"${meal.name}" logged to today!`);
+                                                } catch (e) {
+                                                    toast.error('Failed to log meal');
+                                                }
+                                            }}
+                                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
+                                            style={{ background: 'var(--color-primary)', color: 'white' }}
+                                        >
+                                            <PlayCircle className="w-3.5 h-3.5" /> Log today
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                if (!confirm(`Delete "${meal.name}"?`)) return;
+                                                await deleteSavedMeal(meal.id);
+                                                setSavedMeals(prev => prev.filter(m => m.id !== meal.id));
+                                                toast.success('Meal deleted');
+                                            }}
+                                            className="p-2 rounded-xl transition-all"
+                                            style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                                {/* Ingredient pills */}
+                                <div className="flex flex-wrap gap-1.5">
+                                    {meal.food_items.slice(0, 5).map((item: any, i: number) => (
+                                        <span
+                                            key={i}
+                                            className="text-[11px] px-2 py-0.5 rounded-full"
+                                            style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
+                                        >
+                                            {item.name}
+                                        </span>
+                                    ))}
+                                    {meal.food_items.length > 5 && (
+                                        <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}>
+                                            +{meal.food_items.length - 5} more
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             )}
 

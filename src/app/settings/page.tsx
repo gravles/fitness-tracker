@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getSettings, updateSettings, getUserBadges, UserBadge } from '@/lib/api';
-import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2 } from 'lucide-react';
+import { getSettings, updateSettings, getUserBadges, UserBadge, getAccountabilityPartners, addAccountabilityPartner, deleteAccountabilityPartner, AccountabilityPartner, getIntegrations, upsertIntegration, deleteIntegration, Integration } from '@/lib/api';
+import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2, Users, Trash2, Send, X, Link2, RefreshCw } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { GoalWizard } from '@/components/GoalWizard';
 import { toast } from 'sonner';
 import { TrophyCase } from '@/components/TrophyCase';
@@ -93,6 +94,15 @@ export default function SettingsPage() {
     const [saving, setSaving] = useState(false);
     const [showChangelog, setShowChangelog] = useState(false);
     const [showGoalWizard, setShowGoalWizard] = useState(false);
+    const [partners, setPartners] = useState<AccountabilityPartner[]>([]);
+    const [newPartnerEmail, setNewPartnerEmail] = useState('');
+    const [newPartnerName, setNewPartnerName] = useState('');
+    const [addingPartner, setAddingPartner] = useState(false);
+    const [sendingSummary, setSendingSummary] = useState<string | null>(null);
+    const [integrations, setIntegrations] = useState<Integration[]>([]);
+    const [syncingIntegration, setSyncingIntegration] = useState<string | null>(null);
+    const searchParams = useSearchParams();
+    const router = useRouter();
     const [targets, setTargets] = useState({
         weight: '',
         protein: '',
@@ -105,9 +115,51 @@ export default function SettingsPage() {
 
     useEffect(() => { loadSettings(); }, []);
 
+    // Handle OAuth callbacks from Withings / Oura
+    useEffect(() => {
+        const connected = searchParams.get('connected');
+        if (!connected) return;
+
+        async function handleOAuthCallback() {
+            const { supabase: sb } = await import('@/lib/supabase');
+
+            if (connected === 'withings') {
+                const accessToken = searchParams.get('withings_access');
+                const refreshToken = searchParams.get('withings_refresh');
+                const expiresAt = searchParams.get('withings_expires');
+                const providerUserId = searchParams.get('withings_user');
+                if (accessToken) {
+                    await upsertIntegration('withings', { access_token: accessToken, refresh_token: refreshToken, token_expires_at: expiresAt ? new Date(Number(expiresAt)).toISOString() : null, provider_user_id: providerUserId });
+                    toast.success('Withings connected!');
+                    setIntegrations(await getIntegrations());
+                }
+            }
+            if (connected === 'oura') {
+                const accessToken = searchParams.get('oura_access');
+                const refreshToken = searchParams.get('oura_refresh');
+                const expiresAt = searchParams.get('oura_expires');
+                if (accessToken) {
+                    await upsertIntegration('oura', { access_token: accessToken, refresh_token: refreshToken || null, token_expires_at: expiresAt ? new Date(Number(expiresAt)).toISOString() : null });
+                    toast.success('Oura connected!');
+                    setIntegrations(await getIntegrations());
+                }
+            }
+
+            const error = searchParams.get('error');
+            if (error) toast.error(`Connection failed: ${error.replace(/_/g, ' ')}`);
+
+            // Clean URL
+            router.replace('/settings');
+        }
+
+        handleOAuthCallback();
+    }, [searchParams]);
+
     async function loadSettings() {
         try {
-            const [data, badges] = await Promise.all([getSettings(), getUserBadges()]);
+            const [data, badges, partnerList, integrationList] = await Promise.all([getSettings(), getUserBadges(), getAccountabilityPartners(), getIntegrations()]);
+            setPartners(partnerList);
+            setIntegrations(integrationList);
             setEarnedBadges(badges);
             if (data) {
                 setTargets({
@@ -517,6 +569,179 @@ export default function SettingsPage() {
                         <span className="text-xl">📚</span> User Manual
                     </button>
                 </div>
+            </section>
+
+            {/* Health Integrations */}
+            <section className="p-6 rounded-2xl border shadow-sm space-y-4" style={sectionStyle}>
+                <div className="flex items-center gap-2">
+                    <Link2 className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                    <h3 className="font-bold text-xs uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
+                        Health Integrations
+                    </h3>
+                </div>
+
+                {[
+                    { id: 'withings', name: 'Withings', icon: '⚖️', desc: 'Auto-sync weight from your smart scale', authUrl: '/api/integrations/withings/auth', syncUrl: '/api/integrations/withings/sync' },
+                    { id: 'oura', name: 'Oura Ring', icon: '💍', desc: 'Sync readiness score, sleep & HRV', authUrl: '/api/integrations/oura/auth', syncUrl: '/api/integrations/oura/sync' },
+                ].map(provider => {
+                    const connected = integrations.find(i => i.provider === provider.id);
+                    return (
+                        <div key={provider.id} className="flex items-center justify-between p-3 rounded-xl" style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border-light)' }}>
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl">{provider.icon}</span>
+                                <div>
+                                    <p className="font-bold text-sm text-[var(--color-text)]">{provider.name}</p>
+                                    <p className="text-xs" style={{ color: connected ? 'var(--color-success)' : 'var(--color-text-muted)' }}>
+                                        {connected ? '● Connected' : provider.desc}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {connected && (
+                                    <button
+                                        disabled={syncingIntegration === provider.id}
+                                        onClick={async () => {
+                                            setSyncingIntegration(provider.id);
+                                            try {
+                                                const { supabase: sb } = await import('@/lib/supabase');
+                                                const { data: { session } } = await sb.auth.getSession();
+                                                const res = await fetch(provider.syncUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${session?.access_token}` } });
+                                                const data = await res.json();
+                                                if (data.success) toast.success(`Synced ${data.synced ?? ''} entries`);
+                                                else toast.error(data.error || 'Sync failed');
+                                            } finally { setSyncingIntegration(null); }
+                                        }}
+                                        className="p-2 rounded-lg transition-all"
+                                        style={{ color: 'var(--color-primary)', background: 'rgba(29,95,168,0.08)' }}
+                                        title="Sync now"
+                                    >
+                                        {syncingIntegration === provider.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                    </button>
+                                )}
+                                {connected ? (
+                                    <button
+                                        onClick={async () => {
+                                            await deleteIntegration(provider.id);
+                                            setIntegrations(prev => prev.filter(i => i.provider !== provider.id));
+                                            toast.success(`${provider.name} disconnected`);
+                                        }}
+                                        className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                                        style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}
+                                    >
+                                        Disconnect
+                                    </button>
+                                ) : (
+                                    <a
+                                        href={provider.authUrl}
+                                        className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                                        style={{ background: 'var(--color-primary)', color: 'white' }}
+                                    >
+                                        Connect
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </section>
+
+            {/* Accountability Partners */}
+            <section className="p-6 rounded-2xl border shadow-sm space-y-4" style={sectionStyle}>
+                <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                    <h3 className="font-bold text-xs uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
+                        Accountability Partners
+                    </h3>
+                </div>
+                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    Add up to 3 people to receive a weekly summary of your progress.
+                </p>
+
+                {/* Existing partners */}
+                {partners.map(p => (
+                    <div key={p.id} className="flex items-center justify-between p-3 rounded-xl" style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border-light)' }}>
+                        <div>
+                            <p className="font-bold text-sm text-[var(--color-text)]">{p.partner_name || p.partner_email}</p>
+                            {p.partner_name && <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{p.partner_email}</p>}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                disabled={sendingSummary === p.id}
+                                onClick={async () => {
+                                    setSendingSummary(p.id);
+                                    try {
+                                        const { supabase: sb } = await import('@/lib/supabase');
+                                        const { data: { session } } = await sb.auth.getSession();
+                                        const res = await fetch('/api/accountability/send-summary', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` }, body: JSON.stringify({ partnerId: p.id }) });
+                                        if (res.ok) toast.success(`Summary sent to ${p.partner_email}!`);
+                                        else toast.error('Failed to send — check email settings.');
+                                    } finally { setSendingSummary(null); }
+                                }}
+                                className="p-2 rounded-lg transition-all"
+                                style={{ color: 'var(--color-primary)', background: 'rgba(29,95,168,0.08)' }}
+                                title="Send weekly summary now"
+                            >
+                                {sendingSummary === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    await deleteAccountabilityPartner(p.id);
+                                    setPartners(prev => prev.filter(x => x.id !== p.id));
+                                    toast.success('Partner removed');
+                                }}
+                                className="p-2 rounded-lg transition-all"
+                                style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                ))}
+
+                {/* Add partner form */}
+                {partners.length < 3 && (
+                    <div className="space-y-2">
+                        <input
+                            type="text"
+                            placeholder="Partner's name (optional)"
+                            value={newPartnerName}
+                            onChange={e => setNewPartnerName(e.target.value)}
+                            className="w-full p-3 rounded-xl outline-none text-sm"
+                            style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                        />
+                        <div className="flex gap-2">
+                            <input
+                                type="email"
+                                placeholder="their@email.com"
+                                value={newPartnerEmail}
+                                onChange={e => setNewPartnerEmail(e.target.value)}
+                                className="flex-1 p-3 rounded-xl outline-none text-sm"
+                                style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                                onKeyDown={e => e.key === 'Enter' && newPartnerEmail && document.getElementById('add-partner-btn')?.click()}
+                            />
+                            <button
+                                id="add-partner-btn"
+                                disabled={!newPartnerEmail.includes('@') || addingPartner}
+                                onClick={async () => {
+                                    setAddingPartner(true);
+                                    try {
+                                        const p = await addAccountabilityPartner(newPartnerEmail, newPartnerName || undefined);
+                                        setPartners(prev => [...prev, p]);
+                                        setNewPartnerEmail('');
+                                        setNewPartnerName('');
+                                        toast.success('Partner added!');
+                                    } catch (e: any) {
+                                        toast.error(e.message?.includes('duplicate') ? 'Already added' : 'Failed to add');
+                                    } finally { setAddingPartner(false); }
+                                }}
+                                className="px-4 py-3 rounded-xl font-bold text-sm disabled:opacity-40 transition-all"
+                                style={{ background: 'var(--color-primary)', color: 'white' }}
+                            >
+                                {addingPartner ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                            </button>
+                        </div>
+                    </div>
+                )}
             </section>
 
             {/* About */}

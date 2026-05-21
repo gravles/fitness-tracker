@@ -95,7 +95,11 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
     const handleSave = async () => {
         if (!chatState.workoutData) return;
         setIsSaving(true);
-        try { await onSave(chatState.workoutData); } finally { setIsSaving(false); }
+        try {
+            // Strip fields that don't exist on the Workout DB table (e.g. muscles)
+            const { muscles, ...cleanWorkout } = chatState.workoutData as any;
+            await onSave(cleanWorkout);
+        } finally { setIsSaving(false); }
     };
 
     const [mounted, setMounted] = useState(false);

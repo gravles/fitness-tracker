@@ -4,17 +4,19 @@ import { useState, useEffect, useRef } from 'react';
 import { format, addDays, startOfWeek, eachDayOfInterval, isToday } from 'date-fns';
 import {
     ChevronLeft, ChevronRight, Plus, Calendar, Clock, Dumbbell, Play, X, Trash2,
-    Loader2, LayoutGrid, Edit2, Sparkles, Star, MoreVertical, Copy, Check, Eye, Zap, Bot
+    Loader2, LayoutGrid, Edit2, Sparkles, Star, MoreVertical, Copy, Check, Eye, Zap, Bot, Trophy
 } from 'lucide-react';
+import { getTrainingPrograms, createTrainingProgram, updateTrainingProgram, deleteTrainingProgram, TrainingProgram } from '@/lib/api';
 import { toast } from 'sonner';
 import { getScheduledWorkouts, deleteScheduledWorkout, skipScheduledWorkout, ScheduledWorkout } from '@/lib/schedule-api';
 import { getTemplates, createTemplate, deleteTemplate, updateTemplate, WorkoutTemplate } from '@/lib/workout-api';
 import { getPublicTemplates, WorkoutTemplate as PublicTemplate, WorkoutCategory } from '@/lib/features';
 import { ScheduleWorkoutModal } from '@/components/ScheduleWorkoutModal';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { haptics } from '@/lib/haptics';
 
-type Tab = 'schedule' | 'templates' | 'discover';
+type Tab = 'schedule' | 'templates' | 'discover' | 'programs';
 type WorkoutCategoryFilter = WorkoutCategory | 'all';
 
 const CATEGORIES: { value: WorkoutCategoryFilter; label: string; icon: string }[] = [
@@ -66,6 +68,13 @@ export default function WorkoutHubPage() {
     const [aiError, setAiError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [programs, setPrograms] = useState<TrainingProgram[]>([]);
+    const [generatingProgram, setGeneratingProgram] = useState(false);
+    const [programGoal, setProgramGoal] = useState<'strength' | 'hypertrophy' | 'endurance' | 'athletic'>('hypertrophy');
+    const [programDays, setProgramDays] = useState(4);
+    const [programNotes, setProgramNotes] = useState('');
+    const [showProgramForm, setShowProgramForm] = useState(false);
+    const [expandedProgram, setExpandedProgram] = useState<string | null>(null);
 
     const weekDays = eachDayOfInterval({ start: currentWeekStart, end: addDays(currentWeekStart, 6) });
 
@@ -96,14 +105,16 @@ export default function WorkoutHubPage() {
         try {
             const startStr = format(currentWeekStart, 'yyyy-MM-dd');
             const endStr = format(addDays(currentWeekStart, 6), 'yyyy-MM-dd');
-            const [workouts, templateData, publicData] = await Promise.all([
+            const [workouts, templateData, publicData, programData] = await Promise.all([
                 getScheduledWorkouts(startStr, endStr),
                 getTemplates(),
                 activeTab === 'discover' ? getPublicTemplates(categoryFilter === 'all' ? undefined : categoryFilter) : Promise.resolve([]),
+                activeTab === 'programs' ? getTrainingPrograms() : Promise.resolve(null),
             ]);
             setScheduledWorkouts(workouts);
             setTemplates(templateData);
             if (activeTab === 'discover') setPublicTemplates(publicData);
+            if (programData) setPrograms(programData);
         } catch (error) {
             console.error('Error loading data:', error);
         } finally {
@@ -279,14 +290,32 @@ export default function WorkoutHubPage() {
                 )}
             </header>
 
+            {/* AI Coach CTA */}
+            <Link
+                href="/coach"
+                className="flex items-center justify-between px-4 py-3 rounded-2xl transition-all active:scale-[0.98]"
+                style={{ background: 'var(--color-navy)' }}
+            >
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(201,168,76,0.2)' }}>
+                        <Bot className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />
+                    </div>
+                    <div>
+                        <p className="font-bold text-sm text-white leading-tight">AI Coach</p>
+                        <p className="text-xs leading-tight" style={{ color: 'rgba(255,255,255,0.55)' }}>Personalised plans &amp; weekly insights</p>
+                    </div>
+                </div>
+                <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.4)' }} />
+            </Link>
+
             {/* Tabs */}
             <div
                 className="flex rounded-xl p-1"
                 style={{ background: 'var(--color-bg-subtle)' }}
             >
-                {(['schedule', 'templates', 'discover'] as Tab[]).map((tab) => {
-                    const labels = { schedule: 'Schedule', templates: 'My Templates', discover: 'Discover' };
-                    const icons = { schedule: Calendar, templates: LayoutGrid, discover: Sparkles };
+                {(['schedule', 'templates', 'discover', 'programs'] as Tab[]).map((tab) => {
+                    const labels = { schedule: 'Schedule', templates: 'Templates', discover: 'Discover', programs: 'Programs' };
+                    const icons = { schedule: Calendar, templates: LayoutGrid, discover: Sparkles, programs: Trophy };
                     const Icon = icons[tab];
                     const active = activeTab === tab;
                     return (
@@ -889,6 +918,200 @@ export default function WorkoutHubPage() {
                                             )}
                                         </div>
                                     )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ========== PROGRAMS TAB ========== */}
+            {activeTab === 'programs' && (
+                <div className="space-y-4">
+                    {/* Active program banner */}
+                    {programs.find(p => p.is_active) && (() => {
+                        const active = programs.find(p => p.is_active)!;
+                        const currentWeekData = active.weeks?.[active.current_week - 1];
+                        const phase = active.phases?.find(ph => {
+                            const [start, end] = ph.weeks.split('-').map(Number);
+                            return active.current_week >= start && active.current_week <= end;
+                        });
+                        return (
+                            <div className="p-4 rounded-2xl border space-y-3" style={{ background: 'var(--color-navy)', borderColor: 'rgba(201,168,76,0.2)' }}>
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-gold)' }}>Active Program</p>
+                                        <h3 className="font-bold text-white text-lg leading-tight">{active.name}</h3>
+                                        <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                                            Week {active.current_week}/{active.duration_weeks} · {phase?.name || 'Phase 1'}
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-2xl font-bold text-white">{Math.round((active.current_week / active.duration_weeks) * 100)}%</div>
+                                        <div className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>complete</div>
+                                    </div>
+                                </div>
+                                <div className="h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                                    <div className="h-full rounded-full" style={{ background: 'var(--color-gold)', width: `${Math.round((active.current_week / active.duration_weeks) * 100)}%` }} />
+                                </div>
+                                {currentWeekData && (
+                                    <div className="space-y-1">
+                                        {currentWeekData.days.filter((d: any) => d.exercises.length > 0).map((d: any, i: number) => (
+                                            <div key={i} className="flex items-center justify-between text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                                                <span>Day {d.day}: {d.label}</span>
+                                                <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{d.exercises.length} exercises</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={async () => {
+                                            await updateTrainingProgram(active.id, { current_week: Math.min(active.current_week + 1, active.duration_weeks) });
+                                            setPrograms(prev => prev.map(p => p.id === active.id ? { ...p, current_week: Math.min(p.current_week + 1, p.duration_weeks) } : p));
+                                        }}
+                                        className="flex-1 py-2 rounded-xl font-bold text-sm text-white transition-all active:scale-95"
+                                        style={{ background: 'var(--color-gold)' }}
+                                        disabled={active.current_week >= active.duration_weeks}
+                                    >
+                                        Complete Week →
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* Generate new program */}
+                    {!showProgramForm ? (
+                        <button
+                            onClick={() => { setShowProgramForm(true); if (programs.length === 0) getTrainingPrograms().then(setPrograms); }}
+                            className="w-full p-4 rounded-2xl border-2 border-dashed flex items-center justify-center gap-2 font-bold transition-all active:scale-[0.98]"
+                            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+                        >
+                            <Sparkles className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
+                            Generate 12-Week AI Program
+                        </button>
+                    ) : (
+                        <div className="p-5 rounded-2xl border space-y-4" style={{ background: 'var(--color-surface-elevated)', borderColor: 'var(--color-border-light)' }}>
+                            <div className="flex items-center justify-between">
+                                <h3 className="font-bold text-[var(--color-text)]">New 12-Week Program</h3>
+                                <button onClick={() => setShowProgramForm(false)} className="p-1"><X className="w-4 h-4 text-[var(--color-text-muted)]" /></button>
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold uppercase tracking-wider mb-2 block" style={{ color: 'var(--color-text-muted)' }}>Goal</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { id: 'strength', label: '💪 Strength', desc: 'Heavy loads, compound lifts' },
+                                        { id: 'hypertrophy', label: '🔥 Hypertrophy', desc: 'Muscle building, volume focus' },
+                                        { id: 'endurance', label: '🏃 Endurance', desc: 'High reps, conditioning' },
+                                        { id: 'athletic', label: '⚡ Athletic', desc: 'Power, speed, agility' },
+                                    ].map(g => (
+                                        <button
+                                            key={g.id}
+                                            onClick={() => setProgramGoal(g.id as any)}
+                                            className="p-3 rounded-xl text-left transition-all border"
+                                            style={programGoal === g.id
+                                                ? { background: 'var(--color-gold-muted)', borderColor: 'var(--color-gold)' }
+                                                : { background: 'var(--color-bg-subtle)', borderColor: 'var(--color-border-light)' }
+                                            }
+                                        >
+                                            <p className="font-bold text-sm text-[var(--color-text)]">{g.label}</p>
+                                            <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>{g.desc}</p>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold uppercase tracking-wider mb-2 block" style={{ color: 'var(--color-text-muted)' }}>Days per week</label>
+                                <div className="flex gap-2">
+                                    {[3, 4, 5, 6].map(d => (
+                                        <button
+                                            key={d}
+                                            onClick={() => setProgramDays(d)}
+                                            className="flex-1 py-2 rounded-xl font-bold text-sm transition-all"
+                                            style={programDays === d
+                                                ? { background: 'var(--color-primary)', color: 'white' }
+                                                : { background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }
+                                            }
+                                        >{d}x</button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold uppercase tracking-wider mb-2 block" style={{ color: 'var(--color-text-muted)' }}>Notes (optional)</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. no barbell, bad knees, focus on upper body"
+                                    value={programNotes}
+                                    onChange={e => setProgramNotes(e.target.value)}
+                                    className="w-full p-3 rounded-xl text-sm outline-none"
+                                    style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                                />
+                            </div>
+                            <button
+                                disabled={generatingProgram}
+                                onClick={async () => {
+                                    setGeneratingProgram(true);
+                                    try {
+                                        const { supabase: sb } = await import('@/lib/supabase');
+                                        const { data: { session } } = await sb.auth.getSession();
+                                        const res = await fetch('/api/ai/generate-program', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+                                            body: JSON.stringify({ goal: programGoal, daysPerWeek: programDays, notes: programNotes }),
+                                        });
+                                        if (!res.ok) throw new Error(await res.text());
+                                        const programData = await res.json();
+                                        const saved = await createTrainingProgram({ ...programData, is_active: true, current_week: 1, started_at: format(new Date(), 'yyyy-MM-dd') });
+                                        setPrograms(prev => [...prev.map(p => ({ ...p, is_active: false })), saved]);
+                                        setShowProgramForm(false);
+                                        haptics.success();
+                                    } catch (e: any) {
+                                        toast.error('Failed to generate program: ' + e.message);
+                                    } finally {
+                                        setGeneratingProgram(false);
+                                    }
+                                }}
+                                className="w-full py-3.5 rounded-xl font-bold text-white flex items-center justify-center gap-2 disabled:opacity-60 transition-all active:scale-[0.98]"
+                                style={{ background: 'var(--color-primary)' }}
+                            >
+                                {generatingProgram ? <><Loader2 className="w-5 h-5 animate-spin" /> Generating (20–30s)…</> : <><Sparkles className="w-5 h-5" /> Generate Program</>}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Past programs */}
+                    {programs.filter(p => !p.is_active).length > 0 && (
+                        <div className="space-y-3">
+                            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Other Programs</p>
+                            {programs.filter(p => !p.is_active).map(prog => (
+                                <div key={prog.id} className="p-4 rounded-xl border flex items-center justify-between" style={{ background: 'var(--color-surface-elevated)', borderColor: 'var(--color-border-light)' }}>
+                                    <div>
+                                        <p className="font-bold text-sm text-[var(--color-text)]">{prog.name}</p>
+                                        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Week {prog.current_week}/{prog.duration_weeks}</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={async () => {
+                                                await Promise.all([
+                                                    ...programs.filter(p => p.is_active).map(p => updateTrainingProgram(p.id, { is_active: false })),
+                                                    updateTrainingProgram(prog.id, { is_active: true }),
+                                                ]);
+                                                setPrograms(prev => prev.map(p => ({ ...p, is_active: p.id === prog.id })));
+                                                toast.success('Program activated');
+                                            }}
+                                            className="px-3 py-1.5 rounded-lg text-xs font-bold"
+                                            style={{ background: 'var(--color-primary)', color: 'white' }}
+                                        >Activate</button>
+                                        <button
+                                            onClick={async () => {
+                                                await deleteTrainingProgram(prog.id);
+                                                setPrograms(prev => prev.filter(p => p.id !== prog.id));
+                                            }}
+                                            className="p-1.5 rounded-lg"
+                                            style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}
+                                        ><Trash2 className="w-4 h-4" /></button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
