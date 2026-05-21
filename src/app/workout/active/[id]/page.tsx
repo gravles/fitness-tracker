@@ -42,6 +42,7 @@ export default function ActiveWorkoutPage() {
     const [showExercisePicker, setShowExercisePicker] = useState(false);
     const [historyExercise, setHistoryExercise] = useState<string | null>(null);
     const [lastSets, setLastSets] = useState<Record<string, { date: string; sets: any[] } | null>>({});
+    const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -166,11 +167,15 @@ export default function ActiveWorkoutPage() {
     };
 
     const deleteExercise = (index: number) => {
-        if (confirm('Delete this exercise?')) {
-            const copy = [...exercises];
-            copy.splice(index, 1);
-            setExercises(copy);
-        }
+        setConfirmModal({
+            message: 'Remove this exercise?',
+            onConfirm: () => {
+                const copy = [...exercises];
+                copy.splice(index, 1);
+                setExercises(copy);
+                setConfirmModal(null);
+            }
+        });
     };
 
     const finishWorkout = async () => {
@@ -179,11 +184,19 @@ export default function ActiveWorkoutPage() {
             toast.error('No exercises completed. Mark at least one set as done.');
             return;
         }
-        if (isPaused) setIsPaused(false);
-
         const isUpdate = params.id && params.id !== 'new';
         const actionLabel = isUpdate ? 'Update' : 'Finish and log';
-        if (!confirm(`${actionLabel} this workout?`)) return;
+        setConfirmModal({
+            message: `${actionLabel} this workout?`,
+            onConfirm: async () => {
+                setConfirmModal(null);
+                await _doFinishWorkout(isUpdate as boolean, completedExercises);
+            }
+        });
+    };
+
+    const _doFinishWorkout = async (isUpdate: boolean, completedExercises: ActiveExercise[]) => {
+        if (isPaused) setIsPaused(false);
         setLoading(true);
 
         try {
@@ -249,18 +262,23 @@ export default function ActiveWorkoutPage() {
         }
     };
 
-    const handleDeleteWorkout = async () => {
-        if (!confirm('Delete this workout? This cannot be undone.')) return;
-        setLoading(true);
-        try {
-            await deleteWorkout(params.id as string);
-            localStorage.removeItem(DRAFT_KEY);
-            router.push('/');
-        } catch (e) {
-            console.error(e);
-            toast.error('Error deleting workout');
-            setLoading(false);
-        }
+    const handleDeleteWorkout = () => {
+        setConfirmModal({
+            message: 'Delete this workout? This cannot be undone.',
+            onConfirm: async () => {
+                setConfirmModal(null);
+                setLoading(true);
+                try {
+                    await deleteWorkout(params.id as string);
+                    localStorage.removeItem(DRAFT_KEY);
+                    router.push('/');
+                } catch (e) {
+                    console.error(e);
+                    toast.error('Error deleting workout');
+                    setLoading(false);
+                }
+            }
+        });
     };
 
     const handleSetDetected = (data: { exercise?: string, reps: number, weight: number, weight_unit: string }) => {
@@ -567,6 +585,41 @@ export default function ActiveWorkoutPage() {
                     exerciseName={historyExercise}
                     onClose={() => setHistoryExercise(null)}
                 />
+            )}
+
+            {/* Inline confirm modal */}
+            {confirmModal && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center px-6"
+                    style={{ background: 'rgba(0,0,0,0.5)' }}
+                    onClick={() => setConfirmModal(null)}
+                >
+                    <div
+                        className="w-full max-w-sm rounded-2xl p-6 space-y-4 shadow-xl"
+                        style={{ background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-light)' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <p className="font-semibold text-center" style={{ color: 'var(--color-text)' }}>
+                            {confirmModal.message}
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setConfirmModal(null)}
+                                className="flex-1 py-2.5 rounded-xl font-semibold text-sm"
+                                style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmModal.onConfirm}
+                                className="flex-1 py-2.5 rounded-xl font-bold text-sm"
+                                style={{ background: 'var(--color-primary)', color: 'white' }}
+                            >
+                                Confirm
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </main>
     );

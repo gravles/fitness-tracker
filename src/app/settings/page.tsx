@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { getSettings, updateSettings, getUserBadges, UserBadge } from '@/lib/api';
-import { Loader2, Save, Target, Plus, Sparkles, Rocket } from 'lucide-react';
+import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2 } from 'lucide-react';
+import { GoalWizard } from '@/components/GoalWizard';
 import { toast } from 'sonner';
 import { TrophyCase } from '@/components/TrophyCase';
 import { StravaConnect } from '@/components/StravaConnect';
@@ -91,11 +92,12 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showChangelog, setShowChangelog] = useState(false);
+    const [showGoalWizard, setShowGoalWizard] = useState(false);
     const [targets, setTargets] = useState({
         weight: '',
         protein: '',
         calories: '',
-        enableCycle: true,
+        enableCycle: false,
         habits: [] as string[],
         equipment: [] as string[]
     });
@@ -112,7 +114,7 @@ export default function SettingsPage() {
                     weight: data.target_weight?.toString() || '',
                     protein: data.target_protein?.toString() || '',
                     calories: data.target_calories?.toString() || '',
-                    enableCycle: data.enable_cycle_tracking ?? true,
+                    enableCycle: data.enable_cycle_tracking ?? false,
                     habits: data.custom_habits || [],
                     equipment: data.available_equipment || []
                 });
@@ -401,7 +403,7 @@ export default function SettingsPage() {
                         </button>
                     </div>
                     <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
-                        {['Dumbbells', 'Kettlebell', 'Pull-up Bar', 'Resistance Bands', 'Bench', 'Yoga Mat'].map(s => (
+                        {['Dumbbells', 'Barbell', 'Kettlebell', 'Pull-up Bar', 'Resistance Bands', 'Bench', 'Cable Machine', 'TRX', 'Medicine Ball', 'Battle Ropes', 'Yoga Mat'].map(s => (
                             <button
                                 key={s}
                                 onClick={() => {
@@ -438,6 +440,26 @@ export default function SettingsPage() {
                 >
                     {saving ? <Loader2 className="animate-spin w-5 h-5" /> : <><Save className="w-4 h-4" /> Save All Settings</>}
                 </button>
+            </section>
+
+            {/* Goal Wizard */}
+            <section className="p-5 rounded-2xl border shadow-sm" style={{ ...sectionStyle, background: 'var(--color-navy)', borderColor: 'rgba(201,168,76,0.2)' }}>
+                <div className="flex items-center gap-4">
+                    <div className="p-2.5 rounded-xl flex-shrink-0" style={{ background: 'rgba(201,168,76,0.15)' }}>
+                        <Wand2 className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="font-bold" style={{ color: 'var(--color-gold)' }}>Set Goals with AI</p>
+                        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>Answer a few quick questions and get personalised targets</p>
+                    </div>
+                    <button
+                        onClick={() => setShowGoalWizard(true)}
+                        className="px-4 py-2 rounded-xl font-bold text-sm flex-shrink-0 transition-all active:scale-95"
+                        style={{ background: 'var(--color-gold)', color: 'var(--color-navy)' }}
+                    >
+                        Start
+                    </button>
+                </div>
             </section>
 
             {/* Trophy Case */}
@@ -522,6 +544,11 @@ export default function SettingsPage() {
             </section>
 
             <ChangelogModal isOpen={showChangelog} onClose={() => setShowChangelog(false)} />
+            <GoalWizard
+                isOpen={showGoalWizard}
+                onClose={() => setShowGoalWizard(false)}
+                onComplete={() => { setShowGoalWizard(false); loadSettings(); }}
+            />
         </main>
     );
 }

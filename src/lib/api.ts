@@ -455,13 +455,28 @@ export async function getLifetimeLogCount(): Promise<number> {
     return count || 0;
 }
 
+/** Exponential XP curve: each level requires 15% more XP than the last.
+ *  Level 1→2: 100 XP, Level 2→3: 115 XP, Level 10→11: ~405 XP, etc.
+ *  Formula: level = floor(log(1 + xp * 0.15 / 100) / log(1.15)) + 1
+ */
+export function levelFromXP(xp: number): number {
+    if (xp <= 0) return 1;
+    return Math.floor(Math.log(1 + xp * 0.15 / 100) / Math.log(1.15)) + 1;
+}
+
+/** XP required to reach a given level (cumulative from 0) */
+export function xpForLevel(level: number): number {
+    if (level <= 1) return 0;
+    return Math.round(100 * (Math.pow(1.15, level - 1) - 1) / 0.15);
+}
+
 export async function updateUserXP(xpToAdd: number) {
     const settings = await getSettings();
     if (!settings) return;
 
     const currentXP = settings.total_xp || 0;
     const newXP = currentXP + xpToAdd;
-    const newLevel = Math.floor(newXP / 100) + 1;
+    const newLevel = levelFromXP(newXP);
 
     await updateSettings({
         ...settings,

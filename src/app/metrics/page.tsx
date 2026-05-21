@@ -1,17 +1,47 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { upsertBodyMetrics, getBodyMetricsHistory } from '@/lib/api';
-import { Loader2, Scale, Camera } from 'lucide-react';
+import { Loader2, Scale, Camera, ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
+import { supabase } from '@/lib/supabase';
 
 export default function BodyMetricsPage() {
     const [loading, setLoading] = useState(false);
     const [weight, setWeight] = useState<string>('');
     const [photoUrl, setPhotoUrl] = useState('');
+    const [photoUploading, setPhotoUploading] = useState(false);
     const [measurements, setMeasurements] = useState({ waist: '', chest: '', arms: '' });
     const [history, setHistory] = useState<any[]>([]);
+    const photoInputRef = useRef<HTMLInputElement>(null);
+
+    async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = '';
+        setPhotoUploading(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('Not authenticated');
+            const ext = file.name.split('.').pop() || 'jpg';
+            const path = `${session.user.id}/metrics/${Date.now()}.${ext}`;
+            const { error: uploadError } = await supabase.storage
+                .from('progress-photos')
+                .upload(path, file, { upsert: true });
+            if (uploadError) throw uploadError;
+            const { data: { publicUrl } } = supabase.storage
+                .from('progress-photos')
+                .getPublicUrl(path);
+            setPhotoUrl(publicUrl);
+            toast.success('Photo uploaded!');
+        } catch (err: any) {
+            toast.error('Failed to upload photo');
+            console.error(err);
+        } finally {
+            setPhotoUploading(false);
+        }
+    }
 
     useEffect(() => {
         loadHistory();
@@ -143,26 +173,31 @@ export default function BodyMetricsPage() {
                         className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 mb-2"
                         style={{ color: 'var(--color-text-muted)' }}
                     >
-                        <Camera className="w-4 h-4" /> Photo URL (Optional)
+                        <Camera className="w-4 h-4" /> Photo (Optional)
                     </label>
-                    <input
-                        type="text"
-                        placeholder="https://..."
-                        value={photoUrl}
-                        onChange={e => setPhotoUrl(e.target.value)}
-                        className="w-full p-3 rounded-xl text-sm outline-none transition-all"
-                        style={{
-                            background: 'var(--color-bg-subtle)',
-                            border: '1px solid var(--color-border)',
-                            color: 'var(--color-text)',
-                        }}
-                        onFocus={e => {
-                            e.currentTarget.style.borderColor = 'var(--color-gold)';
-                        }}
-                        onBlur={e => {
-                            e.currentTarget.style.borderColor = 'var(--color-border)';
-                        }}
-                    />
+                    <input ref={photoInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoUpload} />
+                    {photoUrl ? (
+                        <div className="relative">
+                            <img src={photoUrl} alt="Progress" className="w-full h-40 object-cover rounded-xl" />
+                            <button
+                                onClick={() => setPhotoUrl('')}
+                                className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                                style={{ background: 'rgba(0,0,0,0.6)', color: 'white' }}
+                            >✕</button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => photoInputRef.current?.click()}
+                            disabled={photoUploading}
+                            className="w-full py-4 rounded-xl border-2 border-dashed flex items-center justify-center gap-2 transition-all"
+                            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+                        >
+                            {photoUploading
+                                ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading…</>
+                                : <><ImageIcon className="w-4 h-4" /> Take or upload a photo</>
+                            }
+                        </button>
+                    )}
                 </div>
 
                 <button

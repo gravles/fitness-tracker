@@ -113,7 +113,10 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
                         <div className="p-2 rounded-full" style={{ background: 'rgba(201,168,76,0.2)' }}>
                             <Sparkles className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
                         </div>
-                        <h3 className="font-bold text-lg">AI Trainer Chat</h3>
+                        <div>
+                            <h3 className="font-bold leading-tight">Quick Workout Builder</h3>
+                            <p className="text-xs opacity-60">Build a workout now · Full coaching in the Coach tab</p>
+                        </div>
                     </div>
                     <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-full transition">
                         <X className="w-5 h-5" />

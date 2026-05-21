@@ -173,7 +173,21 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
         return () => setMounted(false);
     }, []);
 
+    const isSpeechSupported = typeof window !== 'undefined' &&
+        ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
+
     if (!isActive) {
+        if (!isSpeechSupported) {
+            return (
+                <div
+                    className="flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold"
+                    style={{ background: 'rgba(234,179,8,0.1)', color: 'var(--color-gold)', border: '1px solid rgba(234,179,8,0.3)' }}
+                    title="Voice spotter requires Chrome or Safari"
+                >
+                    🎙️ Voice spotter not supported in this browser — use Chrome or Safari
+                </div>
+            );
+        }
         return (
             <button
                 onClick={() => setIsActive(true)}

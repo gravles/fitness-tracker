@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Loader2, Send, Bot, User, Sparkles } from 'lucide-react';
+import { Loader2, Send, Bot, User, Sparkles, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getMonthlyLogs, getSettings, getWorkoutsRange } from '@/lib/api';
 import { getTemplates, createTemplate } from '@/lib/workout-api';
@@ -23,6 +23,7 @@ export default function CoachPage() {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const [context, setContext] = useState<any>(null);
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
 
     useEffect(() => {
         // Load history or set initial
@@ -123,18 +124,32 @@ export default function CoachPage() {
                         </p>
                     </div>
                 </div>
-                {messages.length > 1 && (
+                {messages.length > 1 && !showClearConfirm && (
                     <button
-                        onClick={() => {
-                            if (confirm('Clear chat history?')) {
+                        onClick={() => setShowClearConfirm(true)}
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                        style={{ color: 'var(--color-text-muted)' }}
+                    >
+                        <Trash2 className="w-4 h-4 inline mr-1" />Clear
+                    </button>
+                )}
+                {showClearConfirm && (
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Clear history?</span>
+                        <button
+                            onClick={() => {
                                 setMessages([{ role: 'assistant', content: "Hi! I'm your Smart Coach. I've analyzed your last 30 days of activity. How can I help you today? (Try asking me to build a workout!)" }]);
                                 localStorage.removeItem('coach_history');
-                            }
-                        }}
-                        className="text-xs font-bold text-[var(--color-text-muted)] hover:text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-500/10 transition-colors"
-                    >
-                        Clear Chat
-                    </button>
+                                setShowClearConfirm(false);
+                            }}
+                            className="text-xs font-bold px-2.5 py-1 rounded-lg bg-red-500/10 text-red-500"
+                        >Yes</button>
+                        <button
+                            onClick={() => setShowClearConfirm(false)}
+                            className="text-xs font-bold px-2.5 py-1 rounded-lg"
+                            style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
+                        >No</button>
+                    </div>
                 )}
             </div>
 
@@ -168,20 +183,18 @@ export default function CoachPage() {
                                     <button
                                         onClick={async () => {
                                             if (!m.suggested_workout) return;
-                                            if (confirm(`Save "${m.suggested_workout.title}" to your templates?`)) {
-                                                try {
-                                                    await createTemplate(m.suggested_workout.title, m.suggested_workout.exercises.map(e => ({
-                                                        exercise_name: e.name,
-                                                        target_sets: e.sets,
-                                                        target_reps: e.reps,
-                                                        order_index: 0
-                                                    })));
-                                                    toast.success('Saved! Redirecting to builder...');
-                                                    window.location.href = '/workout/builder';
-                                                } catch (e: any) {
-                                                    console.error(e);
-                                                    toast.error(`Failed to save template: ${e.message}`);
-                                                }
+                                            try {
+                                                await createTemplate(m.suggested_workout.title, m.suggested_workout.exercises.map(e => ({
+                                                    exercise_name: e.name,
+                                                    target_sets: e.sets,
+                                                    target_reps: e.reps,
+                                                    order_index: 0
+                                                })));
+                                                toast.success('Saved! Opening in Schedule...');
+                                                window.location.href = '/schedule?tab=templates';
+                                            } catch (e: any) {
+                                                console.error(e);
+                                                toast.error(`Failed to save template: ${e.message}`);
                                             }
                                         }}
                                         className="w-full py-2 bg-[var(--color-primary)] text-white rounded-lg text-xs font-bold hover:opacity-90 transition-opacity"
