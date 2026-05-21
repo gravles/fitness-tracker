@@ -2,10 +2,20 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { upsertBodyMetrics, getBodyMetricsHistory } from '@/lib/api';
-import { Loader2, Scale, Camera, ImageIcon } from 'lucide-react';
+import { Loader2, Scale, Camera, ImageIcon, Activity, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+
+const WITHINGS_LABELS: Record<string, { label: string; unit: string; color: string }> = {
+    body_fat_pct:      { label: 'Body Fat',     unit: '%',  color: 'var(--color-primary)' },
+    muscle_mass_kg:    { label: 'Muscle Mass',  unit: 'kg', color: '#22c55e' },
+    fat_free_mass_kg:  { label: 'Fat-Free Mass',unit: 'kg', color: '#3b82f6' },
+    bone_mass_kg:      { label: 'Bone Mass',    unit: 'kg', color: '#a855f7' },
+    hydration_kg:      { label: 'Hydration',    unit: 'kg', color: '#06b6d4' },
+    visceral_fat_index:{ label: 'Visceral Fat', unit: '',   color: '#f97316' },
+    vascular_age:      { label: 'Vascular Age', unit: 'yrs',color: '#ec4899' },
+};
 
 export default function BodyMetricsPage() {
     const [loading, setLoading] = useState(false);
@@ -43,9 +53,7 @@ export default function BodyMetricsPage() {
         }
     }
 
-    useEffect(() => {
-        loadHistory();
-    }, []);
+    useEffect(() => { loadHistory(); }, []);
 
     async function loadHistory() {
         const end = new Date();
@@ -62,7 +70,6 @@ export default function BodyMetricsPage() {
         if (!weight) return;
         setLoading(true);
         const todayStr = format(new Date(), 'yyyy-MM-dd');
-
         try {
             await upsertBodyMetrics({
                 date: todayStr,
@@ -71,7 +78,7 @@ export default function BodyMetricsPage() {
                 measurements: {
                     waist: parseFloat(measurements.waist) || 0,
                     chest: parseFloat(measurements.chest) || 0,
-                    arms: parseFloat(measurements.arms) || 0,
+                    arms:  parseFloat(measurements.arms)  || 0,
                 }
             });
             toast.success('Saved!');
@@ -86,15 +93,64 @@ export default function BodyMetricsPage() {
         }
     }
 
+    // Find the most recent entry that has body comp data (from Withings)
+    const latestBodyComp = history.find(e =>
+        e.measurements?.body_fat_pct !== undefined ||
+        e.measurements?.muscle_mass_kg !== undefined
+    );
+
     return (
         <main className="p-6 pt-12 pb-24 space-y-8 max-w-2xl mx-auto">
             <h1
-                className="text-3xl font-bold text-[var(--color-text)]"
-                style={{ fontFamily: 'var(--font-display)' }}
+                className="text-3xl font-bold"
+                style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text)' }}
             >
                 Body Metrics
             </h1>
 
+            {/* Body Composition Summary (Withings data) */}
+            {latestBodyComp && (
+                <section
+                    className="p-5 rounded-2xl border space-y-3"
+                    style={{
+                        background: 'var(--color-surface-elevated)',
+                        borderColor: 'var(--color-border-light)',
+                    }}
+                >
+                    <div className="flex items-center gap-2 mb-1">
+                        <Activity className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                        <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
+                            Body Composition · {format(new Date(latestBodyComp.date), 'MMM d')}
+                        </span>
+                        <span
+                            className="ml-auto text-xs px-2 py-0.5 rounded-full font-medium"
+                            style={{ background: 'var(--color-primary)', color: 'white', opacity: 0.85 }}
+                        >
+                            Withings
+                        </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        {Object.entries(WITHINGS_LABELS).map(([key, { label, unit, color }]) => {
+                            const val = latestBodyComp.measurements?.[key];
+                            if (val === undefined) return null;
+                            return (
+                                <div
+                                    key={key}
+                                    className="rounded-xl p-3 text-center"
+                                    style={{ background: 'var(--color-bg-subtle)' }}
+                                >
+                                    <p className="text-xs font-medium mb-1" style={{ color: 'var(--color-text-muted)' }}>{label}</p>
+                                    <p className="text-lg font-bold" style={{ color }}>
+                                        {val}<span className="text-sm font-normal ml-0.5">{unit}</span>
+                                    </p>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </section>
+            )}
+
+            {/* Manual log form */}
             <section
                 className="p-6 rounded-2xl border shadow-sm space-y-4"
                 style={{
@@ -102,6 +158,13 @@ export default function BodyMetricsPage() {
                     borderColor: 'var(--color-border-light)',
                 }}
             >
+                <div className="flex items-center gap-2 mb-1">
+                    <Zap className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />
+                    <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
+                        Log Manually
+                    </span>
+                </div>
+
                 <div>
                     <label
                         className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 mb-2"
@@ -136,7 +199,7 @@ export default function BodyMetricsPage() {
                     {[
                         { key: 'waist', label: 'Waist (in)' },
                         { key: 'chest', label: 'Chest (in)' },
-                        { key: 'arms', label: 'Arms (in)' },
+                        { key: 'arms',  label: 'Arms (in)'  },
                     ].map(({ key, label }) => (
                         <div key={key}>
                             <label
@@ -157,12 +220,8 @@ export default function BodyMetricsPage() {
                                 }}
                                 value={measurements[key as keyof typeof measurements]}
                                 onChange={e => setMeasurements({ ...measurements, [key]: e.target.value })}
-                                onFocus={e => {
-                                    e.currentTarget.style.borderColor = 'var(--color-gold)';
-                                }}
-                                onBlur={e => {
-                                    e.currentTarget.style.borderColor = 'var(--color-border)';
-                                }}
+                                onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; }}
+                                onBlur={e =>  { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
                             />
                         </div>
                     ))}
@@ -204,54 +263,92 @@ export default function BodyMetricsPage() {
                     onClick={handleSave}
                     disabled={loading || !weight}
                     className="w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-[0.98]"
-                    style={{
-                        background: 'var(--color-primary)',
-                        color: 'white',
-                    }}
+                    style={{ background: 'var(--color-primary)', color: 'white' }}
                 >
                     {loading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Log Measurement'}
                 </button>
             </section>
 
+            {/* History */}
             <section>
                 <h3
                     className="font-bold mb-4"
                     style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
                 >
-                    Recent History
+                    History
                 </h3>
                 <div className="space-y-3">
-                    {history.map((entry) => (
-                        <div
-                            key={entry.id}
-                            className="p-4 rounded-xl flex justify-between items-center border"
-                            style={{
-                                background: 'var(--color-surface-elevated)',
-                                borderColor: 'var(--color-border-light)',
-                            }}
-                        >
-                            <div>
-                                <p className="font-bold" style={{ color: 'var(--color-text)' }}>
-                                    {format(new Date(entry.date), 'MMM d, yyyy')}
-                                </p>
-                                <div className="flex gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                                    {entry.measurements?.waist > 0 && <span>W: {entry.measurements.waist}"</span>}
-                                    {entry.measurements?.chest > 0 && <span>C: {entry.measurements.chest}"</span>}
+                    {history.map((entry) => {
+                        const isWithings = entry.source === 'withings';
+                        const withingsKeys = Object.keys(WITHINGS_LABELS).filter(
+                            k => entry.measurements?.[k] !== undefined
+                        );
+                        return (
+                            <div
+                                key={entry.id}
+                                className="p-4 rounded-xl border"
+                                style={{
+                                    background: 'var(--color-surface-elevated)',
+                                    borderColor: 'var(--color-border-light)',
+                                }}
+                            >
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-bold" style={{ color: 'var(--color-text)' }}>
+                                                {format(new Date(entry.date), 'MMM d, yyyy')}
+                                            </p>
+                                            {isWithings && (
+                                                <span
+                                                    className="text-xs px-2 py-0.5 rounded-full font-medium"
+                                                    style={{ background: 'var(--color-primary)', color: 'white', opacity: 0.8 }}
+                                                >
+                                                    Withings
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex gap-2 text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                                            {entry.measurements?.waist > 0 && <span>Waist: {entry.measurements.waist}"</span>}
+                                            {entry.measurements?.chest > 0 && <span>Chest: {entry.measurements.chest}"</span>}
+                                        </div>
+                                        {entry.photo_url && (
+                                            <span className="text-xs block mt-1" style={{ color: 'var(--color-primary)' }}>
+                                                📸 Photo attached
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-xl font-bold text-right" style={{ color: 'var(--color-gold)' }}>
+                                        {entry.weight}
+                                        <span className="text-sm font-normal ml-1" style={{ color: 'var(--color-text-muted)' }}>lbs</span>
+                                    </div>
                                 </div>
-                                {entry.photo_url && (
-                                    <span className="text-xs block mt-1" style={{ color: 'var(--color-primary)' }}>
-                                        📸 Photo attached
-                                    </span>
+
+                                {/* Withings body comp pills */}
+                                {withingsKeys.length > 0 && (
+                                    <div className="flex flex-wrap gap-1.5 mt-3">
+                                        {withingsKeys.map(key => {
+                                            const { label, unit, color } = WITHINGS_LABELS[key];
+                                            const val = entry.measurements[key];
+                                            return (
+                                                <span
+                                                    key={key}
+                                                    className="text-xs px-2 py-1 rounded-full font-medium"
+                                                    style={{ background: 'var(--color-bg-subtle)', color }}
+                                                >
+                                                    {label}: {val}{unit}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
                                 )}
                             </div>
-                            <div className="text-xl font-bold" style={{ color: 'var(--color-gold)' }}>
-                                {entry.weight}{' '}
-                                <span className="text-sm font-normal" style={{ color: 'var(--color-text-muted)' }}>
-                                    lbs
-                                </span>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
+                    {history.length === 0 && (
+                        <p className="text-center py-8 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                            No measurements yet. Log one above or sync from Withings in Settings.
+                        </p>
+                    )}
                 </div>
             </section>
         </main>

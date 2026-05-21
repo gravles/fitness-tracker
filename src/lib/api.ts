@@ -62,6 +62,7 @@ export interface BodyMetrics {
     weight?: number | null;
     photo_url?: string | null;
     measurements?: Record<string, number> | null;
+    source?: string | null;
     created_at?: string;
 }
 
