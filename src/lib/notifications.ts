@@ -39,7 +39,7 @@ export async function requestPermission(): Promise<NotificationPermission> {
 /**
  * Subscribe to push notifications
  */
-export async function subscribeToPush(): Promise<PushSubscription | null> {
+export async function subscribeToPush(prefs?: ReminderPrefs): Promise<PushSubscription | null> {
     if (!isPushSupported()) return null;
 
     const permission = await requestPermission();
@@ -50,11 +50,9 @@ export async function subscribeToPush(): Promise<PushSubscription | null> {
 
     const registration = await navigator.serviceWorker.ready;
 
-    // Check if already subscribed
     let subscription = await registration.pushManager.getSubscription();
 
     if (!subscription && VAPID_PUBLIC_KEY) {
-        // Create new subscription
         subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: VAPID_PUBLIC_KEY,
@@ -62,8 +60,7 @@ export async function subscribeToPush(): Promise<PushSubscription | null> {
     }
 
     if (subscription) {
-        // Save subscription to backend
-        await saveSubscription(subscription);
+        await saveSubscription(subscription, prefs);
     }
 
     return subscription;
@@ -270,22 +267,61 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
     return outputArray;
 }
 
-async function saveSubscription(subscription: PushSubscription): Promise<void> {
+interface ReminderPrefs {
+    logReminderEnabled?: boolean;
+    moveReminderEnabled?: boolean;
+    logReminderTime?: string;
+    moveReminderTime?: string;
+}
+
+async function getAuthToken(): Promise<string | null> {
     try {
+        const { supabase } = await import('./supabase');
+        const { data: { session } } = await supabase.auth.getSession();
+        return session?.access_token ?? null;
+    } catch {
+        return null;
+    }
+}
+
+async function saveSubscription(subscription: PushSubscription, prefs?: ReminderPrefs): Promise<void> {
+    try {
+        const token = await getAuthToken();
         await fetch('/api/notifications/subscribe', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(subscription.toJSON()),
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ ...subscription.toJSON(), ...prefs }),
         });
     } catch (error) {
         console.error('Failed to save push subscription', error);
     }
 }
 
+export async function updateNotificationPrefs(prefs: ReminderPrefs): Promise<void> {
+    try {
+        const token = await getAuthToken();
+        await fetch('/api/notifications/subscribe', {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify(prefs),
+        });
+    } catch (error) {
+        console.error('Failed to update notification prefs', error);
+    }
+}
+
 async function deleteSubscription(): Promise<void> {
     try {
+        const token = await getAuthToken();
         await fetch('/api/notifications/subscribe', {
             method: 'DELETE',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
     } catch (error) {
         console.error('Failed to delete push subscription', error);

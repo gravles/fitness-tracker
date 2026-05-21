@@ -7,6 +7,7 @@ import {
     getPermissionStatus,
     subscribeToPush,
     unsubscribeFromPush,
+    updateNotificationPrefs,
 } from '@/lib/notifications';
 import { haptics } from '@/lib/haptics';
 
@@ -51,7 +52,12 @@ export function NotificationSettings() {
                 setSettings(newSettings);
                 saveSettings(newSettings);
             } else {
-                const subscription = await subscribeToPush();
+                const subscription = await subscribeToPush({
+                    logReminderEnabled: settings.logReminderEnabled,
+                    moveReminderEnabled: settings.moveReminderEnabled,
+                    logReminderTime: settings.logReminderTime,
+                    moveReminderTime: settings.moveReminderTime,
+                });
                 if (subscription) {
                     const newSettings = { ...settings, enabled: true };
                     setSettings(newSettings);
@@ -73,7 +79,15 @@ export function NotificationSettings() {
         const newSettings = { ...settings, [field]: value };
         setSettings(newSettings);
         saveSettings(newSettings);
-        if (settings.enabled) scheduleReminders(newSettings);
+        if (settings.enabled) {
+            scheduleReminders(newSettings);
+            updateNotificationPrefs({
+                logReminderEnabled: newSettings.logReminderEnabled,
+                moveReminderEnabled: newSettings.moveReminderEnabled,
+                logReminderTime: newSettings.logReminderTime,
+                moveReminderTime: newSettings.moveReminderTime,
+            });
+        }
     }
 
     function handleReminderToggle(field: 'logReminderEnabled' | 'moveReminderEnabled') {
@@ -81,7 +95,15 @@ export function NotificationSettings() {
         const newSettings = { ...settings, [field]: !settings[field] };
         setSettings(newSettings);
         saveSettings(newSettings);
-        if (settings.enabled) scheduleReminders(newSettings);
+        if (settings.enabled) {
+            scheduleReminders(newSettings);
+            updateNotificationPrefs({
+                logReminderEnabled: newSettings.logReminderEnabled,
+                moveReminderEnabled: newSettings.moveReminderEnabled,
+                logReminderTime: newSettings.logReminderTime,
+                moveReminderTime: newSettings.moveReminderTime,
+            });
+        }
     }
 
     function saveSettings(newSettings: ReminderSettings) {
@@ -249,8 +271,8 @@ export function NotificationSettings() {
                     </div>
 
                     <p className="text-xs text-[var(--color-text-muted)] text-center px-4">
-                        Reminders check when you open the app. For reliable scheduled notifications,
-                        deploy the app and set up backend cron jobs.
+                        Reminders are sent server-side and arrive even when the app is closed.
+                        Times are in your device's local timezone.
                     </p>
                 </div>
             )}
