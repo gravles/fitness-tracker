@@ -255,8 +255,7 @@ export function NotificationSettings() {
                     </button>
 
                     <p className="text-xs text-[var(--color-text-muted)] text-center px-4">
-                        Reminders are sent server-side — they arrive even when the app is closed.
-                        Times are in UTC.
+                        Reminders fire at 9:00 AM or 8:00 PM UTC. Set your reminder time to whichever is closest to when you want it. Times shown are UTC.
                     </p>
                 </div>
             )}
