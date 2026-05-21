@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
 import {
     Plus, Trash2, Loader2, Sparkles, ChevronLeft, ChevronRight,
     Clock, CheckCircle2, RefreshCw, Settings2, UtensilsCrossed,
+    Camera, Mic, MicOff, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -31,6 +32,16 @@ const MEAL_LABELS: Record<string, string> = {
     lunch: '☀️ Lunch',
     dinner: '🌙 Dinner',
     snack: '🍎 Snack',
+};
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type ScanItem = {
+    name: string;
+    category: PantryItem['category'];
+    prep_time: PantryItem['prep_time'];
+    notes: string;
+    selected: boolean;
 };
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -168,6 +179,16 @@ export default function NutritionPage() {
     const [showPrefs, setShowPrefs] = useState(false);
     const [editPrefs, setEditPrefs] = useState<NutritionPrefs>(DEFAULT_NUTRITION_PREFS);
     const [savingPrefs, setSavingPrefs] = useState(false);
+
+    // Smart pantry scanning
+    const [scanning, setScanning] = useState(false);
+    const [recording, setRecording] = useState(false);
+    const [voiceTranscript, setVoiceTranscript] = useState('');
+    const [reviewItems, setReviewItems] = useState<ScanItem[]>([]);
+    const [showReview, setShowReview] = useState(false);
+    const [bulkAdding, setBulkAdding] = useState(false);
+    const photoInputRef = useRef<HTMLInputElement>(null);
+    const recognitionRef = useRef<any>(null);
 
     useEffect(() => {
         loadAll();
@@ -372,6 +393,115 @@ export default function NutritionPage() {
             toast.success('Preferences saved');
         } finally {
             setSavingPrefs(false);
+        }
+    }
+
+    // ── Smart pantry scan ──────────────────────────────────────────────────────
+
+    async function processScan(imageBase64?: string, imageMimeType?: string, transcript?: string) {
+        setScanning(true);
+        try {
+            const authHeaders = await getAuthHeader();
+            const body = imageBase64
+                ? { image: imageBase64, mimeType: imageMimeType || 'image/jpeg' }
+                : { transcript };
+            const res = await fetch('/api/nutrition/pantry/scan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...authHeaders },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const { items } = await res.json();
+            if (!items?.length) { toast.error('No food items detected — try again'); return; }
+            setReviewItems(items.map((item: any) => ({ ...item, notes: item.notes || '', selected: true })));
+            setShowReview(true);
+        } catch (e) {
+            console.error(e);
+            toast.error('Scan failed — try again');
+        } finally {
+            setScanning(false);
+        }
+    }
+
+    function handlePhotoScan(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = '';
+        const reader = new FileReader();
+        reader.onload = () => {
+            const dataUrl = reader.result as string;
+            const base64 = dataUrl.split(',')[1];
+            processScan(base64, file.type);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function handleVoiceToggle() {
+        if (recording) {
+            recognitionRef.current?.stop();
+            setRecording(false);
+            const transcript = voiceTranscript;
+            setVoiceTranscript('');
+            if (transcript.trim()) processScan(undefined, undefined, transcript);
+        } else {
+            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                toast.error('Voice input not supported in this browser. Try Chrome or Safari.');
+                return;
+            }
+            const recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            let finalTranscript = '';
+            recognition.onresult = (event: any) => {
+                let interim = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript + ' ';
+                    else interim += event.results[i][0].transcript;
+                }
+                setVoiceTranscript(finalTranscript + interim);
+            };
+            recognition.onerror = () => {
+                setRecording(false);
+                toast.error('Voice error — check microphone permission');
+            };
+            recognition.onend = () => setRecording(false);
+
+            recognitionRef.current = recognition;
+            finalTranscript = '';
+            recognition.start();
+            setRecording(true);
+            setVoiceTranscript('');
+        }
+    }
+
+    async function handleBulkAdd() {
+        const toAdd = reviewItems.filter(i => i.selected && i.name.trim());
+        if (!toAdd.length) return;
+        setBulkAdding(true);
+        try {
+            for (const item of toAdd) {
+                await addPantryItem({
+                    name: item.name.trim(),
+                    category: item.category,
+                    prep_time: item.prep_time,
+                    notes: item.notes || null,
+                    calories_per_100g: null,
+                    protein_per_100g: null,
+                    carbs_per_100g: null,
+                    fat_per_100g: null,
+                });
+            }
+            const updated = await getPantryItems();
+            setPantry(updated);
+            setShowReview(false);
+            toast.success(`Added ${toAdd.length} item${toAdd.length !== 1 ? 's' : ''} to pantry!`);
+        } catch {
+            toast.error('Failed to add some items');
+        } finally {
+            setBulkAdding(false);
         }
     }
 
@@ -596,23 +726,71 @@ export default function NutritionPage() {
             {tab === 'pantry' && (
                 <div className="space-y-5">
                     {pantry.length === 0 && !showAddItem && (
-                        <div className="text-center py-12 space-y-3">
+                        <div className="text-center py-8 space-y-2">
                             <div className="text-5xl">🛒</div>
                             <p className="font-bold text-[var(--color-text)]">Your pantry is empty</p>
-                            <p className="text-sm text-[var(--color-text-muted)] max-w-xs mx-auto">Add the foods you normally have at home and the AI will only suggest meals using those ingredients.</p>
+                            <p className="text-sm text-[var(--color-text-muted)] max-w-xs mx-auto">Scan a photo or read out what's in your fridge — AI will categorise everything for you.</p>
                         </div>
                     )}
 
-                    {/* Add item button / form */}
-                    {!showAddItem ? (
-                        <button
-                            onClick={() => setShowAddItem(true)}
-                            className="w-full py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 border border-dashed transition-all"
-                            style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)', background: 'rgba(29,95,168,0.04)' }}
-                        >
-                            <Plus className="w-4 h-4" /> Add Pantry Item
-                        </button>
-                    ) : (
+                    {/* Hidden file input for camera */}
+                    <input
+                        ref={photoInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={handlePhotoScan}
+                    />
+
+                    {/* Smart add buttons */}
+                    {!showAddItem && (
+                        <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    onClick={() => photoInputRef.current?.click()}
+                                    disabled={scanning || recording}
+                                    className="py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                                    style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid rgba(201,168,76,0.2)' }}
+                                >
+                                    {scanning ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
+                                    {scanning ? 'Scanning…' : 'Scan Photo'}
+                                </button>
+                                <button
+                                    onClick={handleVoiceToggle}
+                                    disabled={scanning}
+                                    className="py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                                    style={recording
+                                        ? { background: '#ef4444', color: 'white' }
+                                        : { background: 'var(--color-surface-elevated)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }
+                                    }
+                                >
+                                    {recording ? <><MicOff className="w-5 h-5" /> Done</> : <><Mic className="w-5 h-5" /> Voice</>}
+                                </button>
+                            </div>
+
+                            {/* Live transcript preview */}
+                            {recording && (
+                                <div className="px-4 py-3 rounded-xl flex items-start gap-2" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                                    <div className="w-2 h-2 rounded-full bg-red-500 mt-1.5 animate-pulse flex-shrink-0" />
+                                    <p className="text-sm text-[var(--color-text)] italic min-h-[20px]">
+                                        {voiceTranscript || 'Listening… say your food items'}
+                                    </p>
+                                </div>
+                            )}
+
+                            <button
+                                onClick={() => setShowAddItem(true)}
+                                className="w-full py-2.5 rounded-2xl text-sm font-semibold flex items-center justify-center gap-1.5 border border-dashed transition-all"
+                                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+                            >
+                                <Plus className="w-3.5 h-3.5" /> Add manually
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Add item form (manual) */}
+                    {showAddItem && (
                         <div className="p-4 rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-surface-elevated)] space-y-3">
                             <p className="font-bold text-[var(--color-text)]">Add Item</p>
 
@@ -732,6 +910,123 @@ export default function NutritionPage() {
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* ── REVIEW MODAL (scan results) ───────────────────────────────────── */}
+            {showReview && (
+                <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--color-bg)' }}>
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-4 py-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
+                        <div>
+                            <h2 className="font-bold text-lg text-[var(--color-text)]">Review Items</h2>
+                            <p className="text-sm text-[var(--color-text-muted)]">
+                                {reviewItems.filter(i => i.selected).length} of {reviewItems.length} selected
+                                {' · '}
+                                <button
+                                    onClick={() => setReviewItems(items => items.map(i => ({ ...i, selected: true })))}
+                                    className="font-semibold"
+                                    style={{ color: 'var(--color-primary)' }}
+                                >
+                                    Select all
+                                </button>
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setShowReview(false)}
+                            className="p-2 rounded-xl"
+                            style={{ background: 'var(--color-bg-subtle)' }}
+                        >
+                            <X className="w-5 h-5 text-[var(--color-text-muted)]" />
+                        </button>
+                    </div>
+
+                    {/* Items list */}
+                    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+                        {reviewItems.map((item, idx) => (
+                            <div
+                                key={idx}
+                                className="p-3 rounded-2xl border transition-all"
+                                style={{
+                                    background: item.selected ? 'var(--color-surface-elevated)' : 'var(--color-bg-subtle)',
+                                    borderColor: item.selected ? 'var(--color-primary)' : 'var(--color-border-light)',
+                                    opacity: item.selected ? 1 : 0.45,
+                                }}
+                            >
+                                <div className="flex items-start gap-3">
+                                    {/* Checkbox */}
+                                    <button
+                                        onClick={() => setReviewItems(its => its.map((it, i) => i === idx ? { ...it, selected: !it.selected } : it))}
+                                        className="mt-0.5 flex-shrink-0"
+                                    >
+                                        {item.selected
+                                            ? <CheckCircle2 className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
+                                            : <div className="w-5 h-5 rounded-full border-2" style={{ borderColor: 'var(--color-border)' }} />
+                                        }
+                                    </button>
+
+                                    <div className="flex-1 min-w-0">
+                                        {/* Editable name */}
+                                        <input
+                                            type="text"
+                                            value={item.name}
+                                            onChange={e => setReviewItems(its => its.map((it, i) => i === idx ? { ...it, name: e.target.value } : it))}
+                                            className="w-full font-semibold text-sm bg-transparent outline-none text-[var(--color-text)] border-b border-transparent focus:border-[var(--color-border)]"
+                                        />
+
+                                        {/* Category chips */}
+                                        <div className="flex flex-wrap gap-1 mt-1.5">
+                                            {CATEGORIES.map(cat => (
+                                                <button
+                                                    key={cat}
+                                                    onClick={() => setReviewItems(its => its.map((it, i) => i === idx ? { ...it, category: cat } : it))}
+                                                    className="px-2 py-0.5 rounded-full text-[10px] font-bold transition-all"
+                                                    style={item.category === cat
+                                                        ? { background: 'var(--color-primary)', color: 'white' }
+                                                        : { background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border-light)' }
+                                                    }
+                                                >
+                                                    {cat}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {/* Prep time pills */}
+                                        <div className="flex gap-1 mt-1">
+                                            {PREP_TIMES.map(pt => (
+                                                <button
+                                                    key={pt.value}
+                                                    onClick={() => setReviewItems(its => its.map((it, i) => i === idx ? { ...it, prep_time: pt.value } : it))}
+                                                    className="px-2 py-0.5 rounded-full text-[10px] font-bold transition-all"
+                                                    style={item.prep_time === pt.value
+                                                        ? { background: 'var(--color-gold)', color: 'white' }
+                                                        : { background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border-light)' }
+                                                    }
+                                                >
+                                                    {pt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="px-4 py-4 border-t" style={{ borderColor: 'var(--color-border)', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+                        <button
+                            onClick={handleBulkAdd}
+                            disabled={bulkAdding || reviewItems.filter(i => i.selected).length === 0}
+                            className="w-full py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                            style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid rgba(201,168,76,0.2)' }}
+                        >
+                            {bulkAdding
+                                ? <><Loader2 className="w-5 h-5 animate-spin" /> Adding…</>
+                                : <><Plus className="w-5 h-5" /> Add {reviewItems.filter(i => i.selected).length} Items to Pantry</>
+                            }
+                        </button>
+                    </div>
                 </div>
             )}
 
