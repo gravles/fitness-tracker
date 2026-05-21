@@ -567,6 +567,121 @@ export async function deleteFavoriteFood(id: string) {
     if (error) throw error;
 }
 
+// ─── Nutrition Planner ──────────────────────────────────────────────────────
+
+export interface PantryItem {
+    id: string;
+    user_id?: string;
+    name: string;
+    category: 'Protein' | 'Carbs' | 'Vegetables' | 'Dairy' | 'Fats' | 'Other';
+    prep_time: 'no-prep' | 'quick' | 'standard' | 'extended';
+    calories_per_100g?: number | null;
+    protein_per_100g?: number | null;
+    carbs_per_100g?: number | null;
+    fat_per_100g?: number | null;
+    notes?: string | null;
+    created_at?: string;
+}
+
+export interface PlannedMeal {
+    name: string;
+    prep_time_min: number;
+    ingredients: string[];
+    instructions?: string;
+    macros: { calories: number; protein: number; carbs: number; fat: number };
+}
+
+export interface MealPlan {
+    id?: string;
+    week_start: string;
+    meals: Record<string, PlannedMeal | null>; // key: "2026-05-21_breakfast"
+}
+
+export interface NutritionPrefs {
+    breakfast_prep_min: number;
+    lunch_prep_min: number;
+    dinner_prep_min: number;
+    dietary_notes: string;
+}
+
+export const DEFAULT_NUTRITION_PREFS: NutritionPrefs = {
+    breakfast_prep_min: 10,
+    lunch_prep_min: 15,
+    dinner_prep_min: 30,
+    dietary_notes: '',
+};
+
+export async function getPantryItems(): Promise<PantryItem[]> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
+    const { data, error } = await supabase
+        .from('pantry_items')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('category')
+        .order('name');
+    if (error) throw error;
+    return data as PantryItem[];
+}
+
+export async function addPantryItem(item: Omit<PantryItem, 'id' | 'user_id' | 'created_at'>): Promise<PantryItem> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+    const { data, error } = await supabase
+        .from('pantry_items')
+        .insert({ ...item, user_id: session.user.id })
+        .select()
+        .single();
+    if (error) throw error;
+    return data as PantryItem;
+}
+
+export async function deletePantryItem(id: string): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const { error } = await supabase
+        .from('pantry_items')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', session.user.id);
+    if (error) throw error;
+}
+
+export async function getMealPlan(weekStart: string): Promise<MealPlan | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    const { data } = await supabase
+        .from('meal_plans')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('week_start', weekStart)
+        .maybeSingle();
+    return data as MealPlan | null;
+}
+
+export async function saveMealPlan(weekStart: string, meals: MealPlan['meals']): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const { error } = await supabase
+        .from('meal_plans')
+        .upsert(
+            { user_id: session.user.id, week_start: weekStart, meals, updated_at: new Date().toISOString() },
+            { onConflict: 'user_id,week_start' }
+        );
+    if (error) throw error;
+}
+
+export async function getNutritionPrefs(): Promise<NutritionPrefs> {
+    const settings = await getSettings();
+    const prefs = settings?.nutrition_prefs;
+    if (!prefs || Object.keys(prefs).length === 0) return DEFAULT_NUTRITION_PREFS;
+    return { ...DEFAULT_NUTRITION_PREFS, ...prefs } as NutritionPrefs;
+}
+
+export async function saveNutritionPrefs(prefs: NutritionPrefs): Promise<void> {
+    await updateSettings({ nutrition_prefs: prefs } as any);
+}
+
 export async function getRecentFoods(limit = 1000) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
