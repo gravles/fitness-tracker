@@ -24,7 +24,10 @@ export async function POST(req: NextRequest) {
         const { program, message } = await req.json();
         if (!program || !message) return NextResponse.json({ error: 'program and message required' }, { status: 400 });
 
-        const response = await anthropic.messages.create({
+        // Use streaming — required by the SDK when max_tokens is large enough
+        // that the request could take >10 min. We collect server-side and return
+        // a regular JSON response to the client.
+        const stream = anthropic.messages.stream({
             model: 'claude-sonnet-4-6',
             max_tokens: 32000,
             system: `You are editing a 12-week training program for a user. The program is stored as JSON with a "weeks" array. Each week has a "days" array. Each non-rest day has an "exercises" array with {name, sets, reps, load_pct} objects.
@@ -45,6 +48,7 @@ Return ONLY valid JSON in exactly the same structure as the input program.`,
             }],
         });
 
+        const response = await stream.finalMessage();
         const raw = (response.content[0] as Anthropic.TextBlock).text;
         const cleaned = stripFences(raw);
 
