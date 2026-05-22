@@ -8,24 +8,54 @@ import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 
-const WITHINGS_LABELS: Record<string, { label: string; unit: string; color: string }> = {
-    body_fat_pct:      { label: 'Body Fat',     unit: '%',  color: 'var(--color-primary)' },
-    muscle_mass_kg:    { label: 'Muscle Mass',  unit: 'kg', color: '#22c55e' },
-    fat_free_mass_kg:  { label: 'Fat-Free Mass',unit: 'kg', color: '#3b82f6' },
-    bone_mass_kg:      { label: 'Bone Mass',    unit: 'kg', color: '#a855f7' },
-    hydration_kg:      { label: 'Hydration',    unit: 'kg', color: '#06b6d4' },
-    visceral_fat_index:{ label: 'Visceral Fat', unit: '',   color: '#f97316' },
-    vascular_age:      { label: 'Vascular Age', unit: 'yrs',color: '#ec4899' },
+const KG_PER_LB = 0.453592;
+const LB_PER_KG = 2.20462;
+const CM_PER_IN = 2.54;
+
+const WITHINGS_CONFIG: Record<string, { label: string; color: string; isMass: boolean; fixedUnit?: string }> = {
+    body_fat_pct:       { label: 'Body Fat',      color: 'var(--color-primary)', isMass: false, fixedUnit: '%'   },
+    muscle_mass_kg:     { label: 'Muscle Mass',   color: '#22c55e',              isMass: true                   },
+    fat_free_mass_kg:   { label: 'Fat-Free Mass', color: '#3b82f6',              isMass: true                   },
+    bone_mass_kg:       { label: 'Bone Mass',     color: '#a855f7',              isMass: true                   },
+    hydration_kg:       { label: 'Hydration',     color: '#06b6d4',              isMass: true                   },
+    visceral_fat_index: { label: 'Visceral Fat',  color: '#f97316',              isMass: false, fixedUnit: ''    },
+    vascular_age:       { label: 'Vascular Age',  color: '#ec4899',              isMass: false, fixedUnit: 'yrs' },
 };
 
 export default function BodyMetricsPage() {
-    const [loading, setLoading] = useState(false);
-    const [weight, setWeight] = useState<string>('');
-    const [photoUrl, setPhotoUrl] = useState('');
+    const [loading, setLoading]     = useState(false);
+    const [weight, setWeight]       = useState<string>('');
+    const [photoUrl, setPhotoUrl]   = useState('');
     const [photoUploading, setPhotoUploading] = useState(false);
-    const [measurements, setMeasurements] = useState({ waist: '', chest: '', arms: '' });
-    const [history, setHistory] = useState<any[]>([]);
+    const [measurements, setMeasurements]     = useState({ waist: '', chest: '', arms: '' });
+    const [history, setHistory]     = useState<any[]>([]);
+    const [unit, setUnit]           = useState<'imperial' | 'metric'>('imperial');
     const photoInputRef = useRef<HTMLInputElement>(null);
+
+    // Load unit preference
+    useEffect(() => {
+        const saved = localStorage.getItem('fitness_unit_pref');
+        if (saved === 'metric') setUnit('metric');
+    }, []);
+
+    const toggleUnit = (next: 'imperial' | 'metric') => {
+        setUnit(next);
+        localStorage.setItem('fitness_unit_pref', next);
+    };
+
+    // Helpers
+    const weightUnit      = unit === 'metric' ? 'kg' : 'lbs';
+    const massUnit        = unit === 'metric' ? 'kg' : 'lbs';
+    const measureUnit     = unit === 'metric' ? 'cm' : 'in';
+
+    const displayWeight = (lbs: number) =>
+        unit === 'metric' ? Math.round(lbs * KG_PER_LB * 10) / 10 : lbs;
+
+    const displayMass = (kg: number) =>
+        unit === 'imperial' ? Math.round(kg * LB_PER_KG * 10) / 10 : kg;
+
+    const displayMeasure = (inches: number) =>
+        unit === 'metric' ? Math.round(inches * CM_PER_IN * 10) / 10 : inches;
 
     async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
@@ -57,7 +87,7 @@ export default function BodyMetricsPage() {
     useEffect(() => { loadHistory(); }, []);
 
     async function loadHistory() {
-        const end = new Date();
+        const end   = new Date();
         const start = subDays(end, 90);
         try {
             const data = await getBodyMetricsHistory(format(start, 'yyyy-MM-dd'), format(end, 'yyyy-MM-dd'));
@@ -71,15 +101,25 @@ export default function BodyMetricsPage() {
         if (!weight) return;
         setLoading(true);
         const todayStr = format(new Date(), 'yyyy-MM-dd');
+        // Convert input to lbs for storage (DB always stores lbs)
+        const weightLbs = unit === 'metric'
+            ? Math.round(parseFloat(weight) * LB_PER_KG * 10) / 10
+            : parseFloat(weight);
+        // Convert measurements to inches for storage
+        const waistIn = parseFloat(measurements.waist) || 0;
+        const chestIn = parseFloat(measurements.chest) || 0;
+        const armsIn  = parseFloat(measurements.arms)  || 0;
+        const toInches = (v: number) => unit === 'metric' ? v / CM_PER_IN : v;
+
         try {
             await upsertBodyMetrics({
-                date: todayStr,
-                weight: parseFloat(weight),
-                photo_url: photoUrl || null,
+                date:       todayStr,
+                weight:     weightLbs,
+                photo_url:  photoUrl || null,
                 measurements: {
-                    waist: parseFloat(measurements.waist) || 0,
-                    chest: parseFloat(measurements.chest) || 0,
-                    arms:  parseFloat(measurements.arms)  || 0,
+                    waist: toInches(waistIn),
+                    chest: toInches(chestIn),
+                    arms:  toInches(armsIn),
                 }
             });
             toast.success('Saved!');
@@ -94,7 +134,7 @@ export default function BodyMetricsPage() {
         }
     }
 
-    // Find the most recent entry that has body comp data (from Withings)
+    // Most recent entry with body comp data
     const latestBodyComp = history.find(e =>
         e.measurements?.body_fat_pct !== undefined ||
         e.measurements?.muscle_mass_kg !== undefined
@@ -102,13 +142,38 @@ export default function BodyMetricsPage() {
 
     return (
         <main className="p-6 pt-12 pb-24 space-y-8 max-w-2xl mx-auto">
+            {/* Header */}
             <div className="flex items-center justify-between">
-                <h1
-                    className="text-3xl font-bold"
-                    style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text)' }}
-                >
-                    Body Metrics
-                </h1>
+                <div className="flex items-center gap-3">
+                    <h1
+                        className="text-3xl font-bold"
+                        style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text)' }}
+                    >
+                        Body Metrics
+                    </h1>
+                    {/* Unit Toggle */}
+                    <div
+                        className="flex text-xs font-bold rounded-full overflow-hidden"
+                        style={{ border: '1px solid var(--color-border)' }}
+                    >
+                        <button
+                            onClick={() => toggleUnit('imperial')}
+                            className="px-2.5 py-1 transition-all"
+                            style={unit === 'imperial'
+                                ? { background: 'var(--color-navy)', color: 'var(--color-gold)' }
+                                : { background: 'transparent', color: 'var(--color-text-muted)' }
+                            }
+                        >lbs</button>
+                        <button
+                            onClick={() => toggleUnit('metric')}
+                            className="px-2.5 py-1 transition-all"
+                            style={unit === 'metric'
+                                ? { background: 'var(--color-navy)', color: 'var(--color-gold)' }
+                                : { background: 'transparent', color: 'var(--color-text-muted)' }
+                            }
+                        >kg</button>
+                    </div>
+                </div>
                 <Link
                     href="/trends"
                     className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl transition-all active:scale-95"
@@ -131,7 +196,7 @@ export default function BodyMetricsPage() {
                     <div className="flex items-center gap-2 mb-1">
                         <Activity className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
                         <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
-                            Body Composition · {format(new Date(latestBodyComp.date), 'MMM d')}
+                            Body Composition · {format(new Date(latestBodyComp.date + 'T00:00:00'), 'MMM d')}
                         </span>
                         <span
                             className="ml-auto text-xs px-2 py-0.5 rounded-full font-medium"
@@ -140,19 +205,38 @@ export default function BodyMetricsPage() {
                             Withings
                         </span>
                     </div>
+
+                    {/* Weight tile */}
+                    {latestBodyComp.weight && (
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            <div
+                                className="rounded-xl p-3 text-center"
+                                style={{ background: 'var(--color-bg-subtle)' }}
+                            >
+                                <p className="text-xs font-medium mb-1" style={{ color: 'var(--color-text-muted)' }}>Weight</p>
+                                <p className="text-lg font-bold" style={{ color: 'var(--color-gold)' }}>
+                                    {displayWeight(latestBodyComp.weight)}
+                                    <span className="text-sm font-normal ml-0.5">{weightUnit}</span>
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        {Object.entries(WITHINGS_LABELS).map(([key, { label, unit, color }]) => {
-                            const val = latestBodyComp.measurements?.[key];
-                            if (val === undefined) return null;
+                        {Object.entries(WITHINGS_CONFIG).map(([key, config]) => {
+                            const rawVal = latestBodyComp.measurements?.[key];
+                            if (rawVal === undefined) return null;
+                            const val = config.isMass ? displayMass(rawVal) : rawVal;
+                            const unitStr = config.isMass ? massUnit : (config.fixedUnit ?? '');
                             return (
                                 <div
                                     key={key}
                                     className="rounded-xl p-3 text-center"
                                     style={{ background: 'var(--color-bg-subtle)' }}
                                 >
-                                    <p className="text-xs font-medium mb-1" style={{ color: 'var(--color-text-muted)' }}>{label}</p>
-                                    <p className="text-lg font-bold" style={{ color }}>
-                                        {val}<span className="text-sm font-normal ml-0.5">{unit}</span>
+                                    <p className="text-xs font-medium mb-1" style={{ color: 'var(--color-text-muted)' }}>{config.label}</p>
+                                    <p className="text-lg font-bold" style={{ color: config.color }}>
+                                        {val}<span className="text-sm font-normal ml-0.5">{unitStr}</span>
                                     </p>
                                 </div>
                             );
@@ -181,7 +265,7 @@ export default function BodyMetricsPage() {
                         className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 mb-2"
                         style={{ color: 'var(--color-text-muted)' }}
                     >
-                        <Scale className="w-4 h-4" /> Weight (lbs)
+                        <Scale className="w-4 h-4" /> Weight ({weightUnit})
                     </label>
                     <input
                         type="number"
@@ -208,9 +292,9 @@ export default function BodyMetricsPage() {
 
                 <div className="grid grid-cols-3 gap-2">
                     {[
-                        { key: 'waist', label: 'Waist (in)' },
-                        { key: 'chest', label: 'Chest (in)' },
-                        { key: 'arms',  label: 'Arms (in)'  },
+                        { key: 'waist', label: `Waist (${measureUnit})` },
+                        { key: 'chest', label: `Chest (${measureUnit})` },
+                        { key: 'arms',  label: `Arms (${measureUnit})`  },
                     ].map(({ key, label }) => (
                         <div key={key}>
                             <label
@@ -290,10 +374,12 @@ export default function BodyMetricsPage() {
                 </h3>
                 <div className="space-y-3">
                     {history.map((entry) => {
-                        const isWithings = entry.source === 'withings';
-                        const withingsKeys = Object.keys(WITHINGS_LABELS).filter(
+                        const isWithings  = entry.source === 'withings';
+                        const withingsKeys = Object.keys(WITHINGS_CONFIG).filter(
                             k => entry.measurements?.[k] !== undefined
                         );
+                        const waistVal = entry.measurements?.waist > 0 ? displayMeasure(entry.measurements.waist) : null;
+                        const chestVal = entry.measurements?.chest > 0 ? displayMeasure(entry.measurements.chest) : null;
                         return (
                             <div
                                 key={entry.id}
@@ -307,7 +393,7 @@ export default function BodyMetricsPage() {
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <p className="font-bold" style={{ color: 'var(--color-text)' }}>
-                                                {format(new Date(entry.date), 'MMM d, yyyy')}
+                                                {format(new Date(entry.date + 'T00:00:00'), 'MMM d, yyyy')}
                                             </p>
                                             {isWithings && (
                                                 <span
@@ -319,8 +405,8 @@ export default function BodyMetricsPage() {
                                             )}
                                         </div>
                                         <div className="flex gap-2 text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                                            {entry.measurements?.waist > 0 && <span>Waist: {entry.measurements.waist}"</span>}
-                                            {entry.measurements?.chest > 0 && <span>Chest: {entry.measurements.chest}"</span>}
+                                            {waistVal && <span>Waist: {waistVal}{measureUnit}</span>}
+                                            {chestVal && <span>Chest: {chestVal}{measureUnit}</span>}
                                         </div>
                                         {entry.photo_url && (
                                             <span className="text-xs block mt-1" style={{ color: 'var(--color-primary)' }}>
@@ -328,25 +414,29 @@ export default function BodyMetricsPage() {
                                             </span>
                                         )}
                                     </div>
-                                    <div className="text-xl font-bold text-right" style={{ color: 'var(--color-gold)' }}>
-                                        {entry.weight}
-                                        <span className="text-sm font-normal ml-1" style={{ color: 'var(--color-text-muted)' }}>lbs</span>
-                                    </div>
+                                    {entry.weight && (
+                                        <div className="text-xl font-bold text-right" style={{ color: 'var(--color-gold)' }}>
+                                            {displayWeight(entry.weight)}
+                                            <span className="text-sm font-normal ml-1" style={{ color: 'var(--color-text-muted)' }}>{weightUnit}</span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Withings body comp pills */}
                                 {withingsKeys.length > 0 && (
                                     <div className="flex flex-wrap gap-1.5 mt-3">
                                         {withingsKeys.map(key => {
-                                            const { label, unit, color } = WITHINGS_LABELS[key];
-                                            const val = entry.measurements[key];
+                                            const config  = WITHINGS_CONFIG[key];
+                                            const rawVal  = entry.measurements[key];
+                                            const val     = config.isMass ? displayMass(rawVal) : rawVal;
+                                            const unitStr = config.isMass ? massUnit : (config.fixedUnit ?? '');
                                             return (
                                                 <span
                                                     key={key}
                                                     className="text-xs px-2 py-1 rounded-full font-medium"
-                                                    style={{ background: 'var(--color-bg-subtle)', color }}
+                                                    style={{ background: 'var(--color-bg-subtle)', color: config.color }}
                                                 >
-                                                    {label}: {val}{unit}
+                                                    {config.label}: {val}{unitStr}
                                                 </span>
                                             );
                                         })}
