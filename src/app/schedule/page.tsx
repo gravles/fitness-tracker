@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { format, addDays, startOfWeek, eachDayOfInterval, isToday } from 'date-fns';
 import {
     ChevronLeft, ChevronRight, Plus, Calendar, Clock, Dumbbell, Play, X, Trash2,
-    Loader2, LayoutGrid, Edit2, Sparkles, Star, MoreVertical, Copy, Check, Eye, Zap, Bot, Trophy
+    Loader2, LayoutGrid, Edit2, Sparkles, Star, MoreVertical, Copy, Check, Eye, Zap, Bot, Trophy, RefreshCw
 } from 'lucide-react';
 import { getTrainingPrograms, createTrainingProgram, updateTrainingProgram, deleteTrainingProgram, TrainingProgram, getSettings } from '@/lib/api';
 import { getProgramStats } from '@/lib/schedule-api';
@@ -80,6 +80,7 @@ export default function WorkoutHubPage() {
     const [userEquipment, setUserEquipment] = useState<string[]>([]);
     const [reviewingProgram, setReviewingProgram] = useState<TrainingProgram | null>(null);
     const [programStats, setProgramStats] = useState<Record<string, { total: number; completed: number }>>({});
+    const [syncingStrava, setSyncingStrava] = useState(false);
 
     const weekDays = eachDayOfInterval({ start: currentWeekStart, end: addDays(currentWeekStart, 6) });
 
@@ -260,6 +261,30 @@ export default function WorkoutHubPage() {
         } catch { haptics.error(); }
     }
 
+    async function handleSyncStrava() {
+        setSyncingStrava(true);
+        try {
+            const { supabase: sb } = await import('@/lib/supabase');
+            const { data: { session } } = await sb.auth.getSession();
+            const res = await fetch('/api/strava/sync', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${session?.access_token}` },
+            });
+            const data = await res.json();
+            if (data.success) {
+                const count = data.synced ?? data.count ?? '';
+                toast.success(`Synced${count ? ` ${count}` : ''} Strava activities`);
+                loadData();
+            } else {
+                toast.error(data.error || 'Strava sync failed');
+            }
+        } catch {
+            toast.error('Strava sync failed');
+        } finally {
+            setSyncingStrava(false);
+        }
+    }
+
     const cardStyle = {
         background: 'var(--color-surface-elevated)',
         borderColor: 'var(--color-border-light)',
@@ -277,18 +302,32 @@ export default function WorkoutHubPage() {
                     Workout
                 </h1>
                 {activeTab === 'schedule' && (
-                    <button
-                        onClick={() => { setSelectedDate(new Date()); setShowScheduleModal(true); }}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium shadow-lg transition-all active:scale-[0.98]"
-                        style={{
-                            background: 'var(--color-primary)',
-                            color: 'white',
-                            boxShadow: '0 4px 16px rgba(29,95,168,0.3)',
-                        }}
-                    >
-                        <Plus className="w-5 h-5" />
-                        Schedule
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleSyncStrava}
+                            disabled={syncingStrava}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-medium transition-all active:scale-[0.98] disabled:opacity-50"
+                            style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }}
+                            title="Sync Strava"
+                        >
+                            {syncingStrava
+                                ? <Loader2 className="w-4 h-4 animate-spin" />
+                                : <RefreshCw className="w-4 h-4" />}
+                            <span className="text-sm">Strava</span>
+                        </button>
+                        <button
+                            onClick={() => { setSelectedDate(new Date()); setShowScheduleModal(true); }}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium shadow-lg transition-all active:scale-[0.98]"
+                            style={{
+                                background: 'var(--color-primary)',
+                                color: 'white',
+                                boxShadow: '0 4px 16px rgba(29,95,168,0.3)',
+                            }}
+                        >
+                            <Plus className="w-5 h-5" />
+                            Schedule
+                        </button>
+                    </div>
                 )}
                 {activeTab === 'templates' && (
                     <button

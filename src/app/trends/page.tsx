@@ -7,7 +7,8 @@ import {
     LineChart, Line, BarChart, Bar, ComposedChart,
     XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid, Legend
 } from 'recharts';
-import { Loader2, TrendingUp, Scale, Camera, Calendar, Activity } from 'lucide-react';
+import { Loader2, TrendingUp, Scale, Camera, Calendar, Activity, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 import Link from 'next/link';
 import { ExerciseProgressChart } from '@/components/analytics/ExerciseProgressChart';
 import { PersonalRecordsList } from '@/components/analytics/PersonalRecordsList';
@@ -72,6 +73,7 @@ export default function TrendsPage() {
     const [activeTab, setActiveTab] = useState<'overview' | 'body' | 'gains' | 'heatmap'>('overview');
     const [workouts, setWorkouts]   = useState<any[]>([]);
     const [unit, setUnit]           = useState<'imperial' | 'metric'>('imperial');
+    const [syncingWithings, setSyncingWithings] = useState(false);
 
     // Load unit preference
     useEffect(() => {
@@ -140,6 +142,29 @@ export default function TrendsPage() {
         ),
         [rawMetrics]
     );
+
+    async function handleSyncWithings() {
+        setSyncingWithings(true);
+        try {
+            const { supabase: sb } = await import('@/lib/supabase');
+            const { data: { session } } = await sb.auth.getSession();
+            const res = await fetch('/api/integrations/withings/sync', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${session?.access_token}` },
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success(`Synced ${data.synced ?? ''} entries from Withings`);
+                fetchData(range);
+            } else {
+                toast.error(data.error || 'Sync failed');
+            }
+        } catch {
+            toast.error('Sync failed');
+        } finally {
+            setSyncingWithings(false);
+        }
+    }
 
     useEffect(() => { fetchData(range); }, [range]);
 
@@ -474,6 +499,21 @@ export default function TrendsPage() {
                     {/* ── Body Tab ── */}
                     {activeTab === 'body' && (
                         <div className="space-y-6 animate-in fade-in duration-300">
+
+                            {/* Sync Withings button */}
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={handleSyncWithings}
+                                    disabled={syncingWithings}
+                                    className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl transition-all active:scale-95 disabled:opacity-50"
+                                    style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-primary)', border: '1px solid var(--color-border)' }}
+                                >
+                                    {syncingWithings
+                                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                                        : <RefreshCw className="w-4 h-4" />}
+                                    Sync Withings
+                                </button>
+                            </div>
 
                             {/* Latest Withings summary card */}
                             {latestBodyComp ? (
