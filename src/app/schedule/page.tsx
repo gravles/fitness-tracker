@@ -7,6 +7,8 @@ import {
     Loader2, LayoutGrid, Edit2, Sparkles, Star, MoreVertical, Copy, Check, Eye, Zap, Bot, Trophy
 } from 'lucide-react';
 import { getTrainingPrograms, createTrainingProgram, updateTrainingProgram, deleteTrainingProgram, TrainingProgram, getSettings } from '@/lib/api';
+import { getProgramStats } from '@/lib/schedule-api';
+import { ProgramReviewModal } from '@/components/ProgramReviewModal';
 import { toast } from 'sonner';
 import { getScheduledWorkouts, deleteScheduledWorkout, skipScheduledWorkout, ScheduledWorkout } from '@/lib/schedule-api';
 import { getTemplates, createTemplate, deleteTemplate, updateTemplate, WorkoutTemplate } from '@/lib/workout-api';
@@ -76,6 +78,8 @@ export default function WorkoutHubPage() {
     const [showProgramForm, setShowProgramForm] = useState(false);
     const [expandedProgram, setExpandedProgram] = useState<string | null>(null);
     const [userEquipment, setUserEquipment] = useState<string[]>([]);
+    const [reviewingProgram, setReviewingProgram] = useState<TrainingProgram | null>(null);
+    const [programStats, setProgramStats] = useState<Record<string, { total: number; completed: number }>>({});
 
     const weekDays = eachDayOfInterval({ start: currentWeekStart, end: addDays(currentWeekStart, 6) });
 
@@ -116,7 +120,15 @@ export default function WorkoutHubPage() {
             setScheduledWorkouts(workouts);
             setTemplates(templateData);
             if (activeTab === 'discover') setPublicTemplates(publicData);
-            if (programData) setPrograms(programData);
+            if (programData) {
+                setPrograms(programData);
+                // Load completion stats for each program
+                const statsMap: Record<string, { total: number; completed: number }> = {};
+                await Promise.all(programData.map(async (p: TrainingProgram) => {
+                    statsMap[p.id] = await getProgramStats(p.id);
+                }));
+                setProgramStats(statsMap);
+            }
             if (settings?.available_equipment?.length) setUserEquipment(settings.available_equipment);
         } catch (error) {
             console.error('Error loading data:', error);
@@ -254,6 +266,7 @@ export default function WorkoutHubPage() {
     };
 
     return (
+        <>
         <main className="p-6 pt-12 pb-24 space-y-6 max-w-2xl mx-auto">
             {/* Header */}
             <header className="flex items-center justify-between">
@@ -967,14 +980,30 @@ export default function WorkoutHubPage() {
                                         ))}
                                     </div>
                                 )}
+                                {/* Stats */}
+                                {programStats[active.id] && programStats[active.id].total > 0 && (
+                                    <div className="flex items-center gap-2 text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                                        <div className="flex-1 h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                                            <div className="h-full rounded-full" style={{ background: 'var(--color-gold)', width: `${Math.round((programStats[active.id].completed / programStats[active.id].total) * 100)}%` }} />
+                                        </div>
+                                        <span>{programStats[active.id].completed}/{programStats[active.id].total} sessions</span>
+                                    </div>
+                                )}
                                 <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setReviewingProgram(active)}
+                                        className="flex-1 py-2 rounded-xl font-bold text-sm transition-all active:scale-95"
+                                        style={{ background: 'rgba(255,255,255,0.12)', color: 'white' }}
+                                    >
+                                        Review / Edit
+                                    </button>
                                     <button
                                         onClick={async () => {
                                             await updateTrainingProgram(active.id, { current_week: Math.min(active.current_week + 1, active.duration_weeks) });
                                             setPrograms(prev => prev.map(p => p.id === active.id ? { ...p, current_week: Math.min(p.current_week + 1, p.duration_weeks) } : p));
                                         }}
                                         className="flex-1 py-2 rounded-xl font-bold text-sm text-white transition-all active:scale-95"
-                                        style={{ background: 'var(--color-gold)' }}
+                                        style={{ background: 'var(--color-gold)', color: 'var(--color-navy)' }}
                                         disabled={active.current_week >= active.duration_weeks}
                                     >
                                         Complete Week →
@@ -1083,8 +1112,10 @@ export default function WorkoutHubPage() {
                                         if (!res.ok) throw new Error(await res.text());
                                         const programData = await res.json();
                                         const saved = await createTrainingProgram({ ...programData, is_active: true, current_week: 1, started_at: format(new Date(), 'yyyy-MM-dd') });
-                                        setPrograms(prev => [...prev.map(p => ({ ...p, is_active: false })), saved]);
+                                        const updated = [...programs.map(p => ({ ...p, is_active: false })), saved];
+                                        setPrograms(updated);
                                         setShowProgramForm(false);
+                                        setReviewingProgram(saved);
                                         haptics.success();
                                     } catch (e: any) {
                                         toast.error('Failed to generate program: ' + e.message);
@@ -1111,6 +1142,11 @@ export default function WorkoutHubPage() {
                                         <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Week {prog.current_week}/{prog.duration_weeks}</p>
                                     </div>
                                     <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setReviewingProgram(prog)}
+                                            className="px-3 py-1.5 rounded-lg text-xs font-bold"
+                                            style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }}
+                                        >Review</button>
                                         <button
                                             onClick={async () => {
                                                 await Promise.all([
@@ -1411,5 +1447,20 @@ export default function WorkoutHubPage() {
                 </div>
             )}
         </main>
+
+        {/* ========== PROGRAM REVIEW MODAL ========== */}
+        {reviewingProgram && (
+            <ProgramReviewModal
+                program={reviewingProgram}
+                onClose={() => setReviewingProgram(null)}
+                onScheduled={() => {
+                    setReviewingProgram(null);
+                    setActiveTab('schedule');
+                    loadData();
+                    toast.success('Program scheduled! Check your calendar.');
+                }}
+            />
+        )}
+        </>
     );
 }
