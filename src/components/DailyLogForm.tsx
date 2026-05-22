@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { getDailyLog, upsertDailyLog, getWorkouts, Workout, getFavoriteFoods, FavoriteFood, addWorkout, getSettings, getStreak, getUserBadges, getMonthlyLogs, awardBadge, getLifetimeLogCount } from '@/lib/api';
 import { getNewlyEarnedBadges } from '@/lib/gamification';
 import { format, subDays } from 'date-fns';
-import { Loader2, Utensils, Activity, Heart, Check } from 'lucide-react';
+import { Loader2, Utensils, Activity, Heart } from 'lucide-react';
 import { toast } from 'sonner';
 import { MenuScanner } from './MenuScanner';
 import { WorkoutChatModal } from './WorkoutChatModal';
@@ -410,44 +410,6 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                             {habits.length > 0 ? `${habits.length} habits` : '—'}
                         </span>
                     </button>
-                </div>
-
-                {/* Macro Bar + Autosave indicator */}
-                <div className="flex items-center gap-2">
-                    {/* Persistent macro summary */}
-                    <div
-                        className="flex-1 flex items-center justify-around rounded-xl px-3 py-2"
-                        style={{ background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-light)' }}
-                    >
-                        {[
-                            { label: 'Cal', value: nutrition.calories, target: targetsState.calories, unit: '' },
-                            { label: 'P', value: nutrition.protein, target: targetsState.protein, unit: 'g' },
-                            { label: 'C', value: nutrition.carbs, target: 0, unit: 'g' },
-                            { label: 'F', value: nutrition.fat, target: 0, unit: 'g' },
-                        ].map(({ label, value, target }) => {
-                            const pct = target > 0 ? Math.min(100, Math.round((value / target) * 100)) : null;
-                            const color = pct === null ? 'var(--color-text-muted)' : pct >= 90 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-gold)' : 'var(--color-text)';
-                            return (
-                                <div key={label} className="flex flex-col items-center gap-0.5">
-                                    <span className="text-xs font-bold leading-none" style={{ color }}>{value}</span>
-                                    <span className="text-[9px] leading-none" style={{ color: 'var(--color-text-muted)' }}>{label}</span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                    {/* Autosave status */}
-                    <div className="flex-shrink-0 w-16 flex items-center justify-center h-9">
-                        {saveStatus === 'saving' && (
-                            <span className="text-[10px] font-medium flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
-                                <Loader2 className="w-3 h-3 animate-spin" /> Saving
-                            </span>
-                        )}
-                        {saveStatus === 'saved' && (
-                            <span className="text-[10px] font-bold flex items-center gap-1 animate-in fade-in" style={{ color: 'var(--color-success)' }}>
-                                <Check className="w-3 h-3" /> Saved
-                            </span>
-                        )}
-                    </div>
                 </div>
 
                 {/* ==================== NUTRITION TAB ==================== */}
