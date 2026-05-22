@@ -959,11 +959,13 @@ export interface TrainingProgram {
     name: string;
     goal: 'strength' | 'hypertrophy' | 'endurance' | 'athletic';
     duration_weeks: number;
+    days_per_week?: number | null;
     phases: { name: string; weeks: string; description: string }[];
     weeks: ProgramWeek[];
-    is_active: boolean;
-    current_week: number;
-    started_at?: string | null;
+    status: 'draft' | 'active' | 'paused' | 'completed';
+    start_date?: string | null;
+    paused_at?: string | null;
+    completed_at?: string | null;
     created_at?: string;
 }
 
@@ -986,7 +988,7 @@ export async function getActiveProgram(): Promise<TrainingProgram | null> {
         .from('training_programs')
         .select('*')
         .eq('user_id', session.user.id)
-        .eq('is_active', true)
+        .eq('status', 'active')
         .maybeSingle();
     return data as TrainingProgram | null;
 }
@@ -994,11 +996,12 @@ export async function getActiveProgram(): Promise<TrainingProgram | null> {
 export async function createTrainingProgram(program: Omit<TrainingProgram, 'id' | 'created_at'>): Promise<TrainingProgram> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
-    // Deactivate any existing active program first
-    if (program.is_active) {
+    // Pause any existing active program first
+    if (program.status === 'active') {
         await supabase.from('training_programs')
-            .update({ is_active: false })
-            .eq('user_id', session.user.id);
+            .update({ status: 'paused' })
+            .eq('user_id', session.user.id)
+            .eq('status', 'active');
     }
     const { data, error } = await supabase
         .from('training_programs')

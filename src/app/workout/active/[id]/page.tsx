@@ -2,12 +2,16 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
-import { Loader2, Plus, Check, Clock, Play, Pause, Trash2, History, X } from 'lucide-react';
+import { Loader2, Plus, Check, Clock, Play, Pause, Trash2, History, X, Dumbbell, Activity, Wind } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { getTemplates, getWorkoutDetails, createWorkoutExercise, logSet, getLastSetsForExercise, WorkoutTemplate } from '@/lib/workout-api';
 import { useTemplate as useTemplateAction, WorkoutTemplate as FeaturesTemplate } from '@/lib/features';
 import { upsertDailyLog, addWorkout, deleteWorkout } from '@/lib/api';
+import {
+    getProgramSession, completeProgramSession, saveExercise1RM,
+    getAll1RMs, epley1RM, pctToWeight, ProgramSession,
+} from '@/lib/program-api';
 import { WorkoutSpotter } from '@/components/WorkoutSpotter';
 import { RestTimer } from '@/components/RestTimer';
 import { ExercisePicker } from '@/components/ExercisePicker';
@@ -32,9 +36,11 @@ export default function ActiveWorkoutPage() {
     const router = useRouter();
     const params = useParams();
     const searchParams = useSearchParams();
-    const templateId = searchParams.get('template');
+    const templateId       = searchParams.get('template');
+    const programSessionId = searchParams.get('programSession');
 
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading]             = useState(true);
+    const [activeProgramSession, setActiveProgramSession] = useState<ProgramSession | null>(null);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
     const [title, setTitle] = useState('New Workout');
@@ -43,6 +49,7 @@ export default function ActiveWorkoutPage() {
     const [historyExercise, setHistoryExercise] = useState<string | null>(null);
     const [lastSets, setLastSets] = useState<Record<string, { date: string; sets: any[] } | null>>({});
     const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null);
+    const prevOneRMsRef = useRef<Record<string, number>>({});
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -77,6 +84,47 @@ export default function ActiveWorkoutPage() {
         async function init() {
             setLoading(true);
             try {
+                // ── Program session: fetch session → pre-load exercises with target weights
+                if (programSessionId) {
+                    const sess = await getProgramSession(programSessionId);
+                    if (sess) {
+                        setActiveProgramSession(sess);
+                        setTitle(`Wk ${sess.week_number} · ${sess.day_label}`);
+
+                        // Pull 1RM data so we can compute kg targets for strength exercises
+                        const oneRMs = await getAll1RMs();
+                        prevOneRMsRef.current = oneRMs;
+
+                        const exs: ActiveExercise[] = (sess.exercises || []).map((ex: any) => {
+                            // Cardio exercise: has duration_min instead of sets/reps
+                            if ('duration_min' in ex) {
+                                const label = ex.zone ? `${ex.duration_min} min · Zone ${ex.zone}` : `${ex.duration_min} min`;
+                                return {
+                                    name: ex.name,
+                                    sets: [{ weight: '', reps: label, completed: false }],
+                                };
+                            }
+                            // Strength exercise: compute target weight from 1RM
+                            const oneRM = oneRMs[ex.name];
+                            const targetWeight = oneRM && ex.load_pct
+                                ? pctToWeight(oneRM, ex.load_pct).toString()
+                                : '';
+                            return {
+                                name: ex.name,
+                                sets: Array(ex.sets || 3).fill(0).map(() => ({
+                                    weight: targetWeight,
+                                    reps: ex.reps || '10',
+                                    completed: false,
+                                })),
+                            };
+                        });
+                        setExercises(exs);
+                    }
+                    setLoading(false);
+                    return;
+                }
+
+                // ── Resume from draft (no template)
                 if (!templateId) {
                     try {
                         const raw = localStorage.getItem(DRAFT_KEY);
@@ -94,6 +142,7 @@ export default function ActiveWorkoutPage() {
                     } catch { /* ignore malformed draft */ }
                 }
 
+                // ── Template-based init
                 if (templateId) {
                     try {
                         const template = await useTemplateAction(templateId);
@@ -120,6 +169,7 @@ export default function ActiveWorkoutPage() {
                         }
                     }
                 } else if (params.id && params.id !== 'new') {
+                    // ── Resume existing workout by ID
                     const workout = await getWorkoutDetails(params.id as string);
                     if (workout) {
                         setTitle(workout.activity_type);
@@ -146,7 +196,7 @@ export default function ActiveWorkoutPage() {
             }
         }
         init();
-    }, [templateId, params.id]);
+    }, [templateId, programSessionId, params.id]);
 
     const formatTime = (secs: number) => {
         const mins = Math.floor(secs / 60);
@@ -243,6 +293,42 @@ export default function ActiveWorkoutPage() {
                 }
             }
 
+            // ── Program session completion & 1RM tracking ─────────────────────────
+            if (activeProgramSession && programSessionId && workoutId) {
+                await completeProgramSession(programSessionId, workoutId);
+
+                // Identify strength exercises from this session (skip cardio)
+                const strengthExNames = new Set(
+                    (activeProgramSession.exercises || [])
+                        .filter((ex: any) => !('duration_min' in ex))
+                        .map((ex: any) => ex.name as string)
+                );
+
+                const improved: string[] = [];
+                for (const ex of completedExercises) {
+                    if (!strengthExNames.has(ex.name)) continue;
+                    let bestEst = 0, bestWeight = 0, bestReps = 0;
+                    for (const s of ex.sets.filter(s => s.completed)) {
+                        const w = parseFloat(s.weight);
+                        const r = parseFloat(s.reps);
+                        if (!w || !r || isNaN(w) || isNaN(r)) continue;
+                        const est = epley1RM(w, r);
+                        if (est > bestEst) { bestEst = est; bestWeight = w; bestReps = r; }
+                    }
+                    if (bestEst > 0) {
+                        const prev = prevOneRMsRef.current[ex.name];
+                        await saveExercise1RM(ex.name, bestEst, bestWeight, bestReps);
+                        if (!prev || bestEst > prev * 1.03) improved.push(ex.name);
+                    }
+                }
+
+                if (improved.length > 0) {
+                    const names = improved.slice(0, 3).join(', ');
+                    const extra = improved.length > 3 ? ` +${improved.length - 3} more` : '';
+                    toast.success(`🏆 New 1RM PR! ${names}${extra}`);
+                }
+            }
+
             await upsertDailyLog({
                 date: workoutData.date,
                 movement_completed: true,
@@ -313,6 +399,12 @@ export default function ActiveWorkoutPage() {
         </div>
     );
 
+    // ── Program session accent colours (banner) ──────────────────────────────
+    const psAccent = !activeProgramSession ? null
+        : activeProgramSession.session_type === 'cardio'   ? { color: '#f97316', bg: 'rgba(249,115,22,0.08)',  iconBg: 'rgba(249,115,22,0.15)'  }
+        : activeProgramSession.session_type === 'mobility' ? { color: '#a855f7', bg: 'rgba(168,85,247,0.08)', iconBg: 'rgba(168,85,247,0.15)' }
+        : { color: 'var(--color-primary)', bg: 'rgba(29,95,168,0.08)', iconBg: 'rgba(29,95,168,0.15)' };
+
     return (
         <main className="h-screen flex flex-col" style={{ background: 'var(--color-bg)' }}>
             {/* Header */}
@@ -379,6 +471,39 @@ export default function ActiveWorkoutPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Program Session Banner */}
+            {activeProgramSession && psAccent && (
+                <div className="px-4 pt-3 flex-shrink-0">
+                    <div
+                        className="rounded-xl px-4 py-3 flex items-center gap-3"
+                        style={{ background: psAccent.bg, borderLeft: `3px solid ${psAccent.color}` }}
+                    >
+                        <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{ background: psAccent.iconBg }}
+                        >
+                            {activeProgramSession.session_type === 'cardio'   && <Activity  className="w-4 h-4" style={{ color: psAccent.color }} />}
+                            {activeProgramSession.session_type === 'mobility' && <Wind      className="w-4 h-4" style={{ color: psAccent.color }} />}
+                            {activeProgramSession.session_type === 'strength' && <Dumbbell  className="w-4 h-4" style={{ color: psAccent.color }} />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: psAccent.color }}>
+                                Program Session
+                            </p>
+                            <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>
+                                Week {activeProgramSession.week_number} · {activeProgramSession.day_label}
+                            </p>
+                        </div>
+                        <span
+                            className="text-xs font-bold capitalize px-2 py-1 rounded-full"
+                            style={{ background: psAccent.iconBg, color: psAccent.color }}
+                        >
+                            {activeProgramSession.session_type}
+                        </span>
+                    </div>
+                </div>
+            )}
 
             {/* Exercise List */}
             <div

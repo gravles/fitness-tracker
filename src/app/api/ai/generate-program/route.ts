@@ -14,9 +14,10 @@ function stripFences(text: string): string {
 
 // Expand compact AI output → full ProgramWeek[] the frontend expects
 function expandProgram(compact: any) {
-    const templates: Record<string, any[]> = {};
+    // Store full template objects (not just exercises) so session_type is accessible
+    const templates: Record<string, any> = {};
     for (const t of compact.day_templates || []) {
-        templates[t.label] = t.exercises || [];
+        templates[t.label] = t;
     }
 
     const weeks = (compact.weeks || []).map((w: any) => {
@@ -25,16 +26,21 @@ function expandProgram(compact: any) {
 
         const days = schedule.map((label: string, idx: number) => {
             const isRest = label === 'Rest' || label === 'rest';
-            const baseExercises = isRest ? [] : (templates[label] || []);
+            const template = isRest ? null : (templates[label] || null);
+            const baseExercises = template?.exercises || [];
+            const sessionType: string = isRest ? 'strength' : (template?.session_type || 'strength');
 
             const exercises = baseExercises.map((ex: any) => ({
                 name: ex.name,
                 sets: isDeload ? Math.max(1, Math.ceil(ex.sets * 0.5)) : ex.sets,
                 reps: ex.reps,
                 load_pct: w.load_pct ?? ex.load_pct ?? 70,
+                ...(ex.duration_min ? { duration_min: ex.duration_min } : {}),
+                ...(ex.zone ? { zone: ex.zone } : {}),
+                ...(ex.intensity ? { intensity: ex.intensity } : {}),
             }));
 
-            return { day: idx + 1, label, exercises };
+            return { day: idx + 1, label, session_type: sessionType, exercises };
         });
 
         return {
@@ -92,6 +98,9 @@ Rules:
 - Notes: ${notes || 'none'}
 - Progress load_pct by 2-3% per week within each phase
 - Deload week: volume_modifier 0.5, same exercises
+- Each day_template MUST have a "session_type": "strength" | "cardio" | "mobility"
+- Cardio templates use duration_min + zone or intensity fields instead of sets/reps
+- For strength/hypertrophy/athletic goals, include 1 dedicated cardio day per week if daysPerWeek >= 4
 
 Return ONLY valid compact JSON — no markdown, no prose:
 {
@@ -107,6 +116,7 @@ Return ONLY valid compact JSON — no markdown, no prose:
   "day_templates": [
     {
       "label": "Upper A",
+      "session_type": "strength",
       "exercises": [
         { "name": "Bench Press",  "sets": 4, "reps": "8-10" },
         { "name": "Barbell Row",  "sets": 4, "reps": "8-10" },
@@ -114,17 +124,25 @@ Return ONLY valid compact JSON — no markdown, no prose:
         { "name": "Pull-ups",     "sets": 3, "reps": "6-10" },
         { "name": "Lateral Raise","sets": 3, "reps": "12-15" }
       ]
+    },
+    {
+      "label": "Cardio",
+      "session_type": "cardio",
+      "exercises": [
+        { "name": "Zone 2 Run", "duration_min": 30, "zone": 2, "intensity": "easy" },
+        { "name": "Cycling",    "duration_min": 15, "zone": 3, "intensity": "moderate" }
+      ]
     }
   ],
   "weeks": [
     { "week": 1, "phase": "Accumulation", "volume_modifier": 1.0, "load_pct": 65,
-      "schedule": ["Upper A", "Rest", "Lower A", "Rest", "Upper B", "Lower B", "Rest"] },
+      "schedule": ["Upper A", "Rest", "Lower A", "Cardio", "Upper B", "Lower B", "Rest"] },
     { "week": 12, "phase": "Deload", "volume_modifier": 0.5, "load_pct": 55,
       "schedule": ["Upper A", "Rest", "Lower A", "Rest", "Upper B", "Rest", "Rest"] }
   ]
 }
 
-Provide ${daysPerWeek} distinct day_templates (e.g. Upper A/B, Lower A/B, Full Body A/B, Push/Pull/Legs). Include all 12 weeks in the "weeks" array.`;
+Provide ${daysPerWeek} distinct day_templates (e.g. Upper A/B, Lower A/B, Full Body A/B, Push/Pull/Legs, plus Cardio if applicable). Include all 12 weeks in the "weeks" array.`;
 
         const response = await anthropic.messages.create({
             model: 'claude-sonnet-4-6',

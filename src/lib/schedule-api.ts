@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { format, addDays } from 'date-fns';
+import { format } from 'date-fns';
 
 export interface ScheduledWorkout {
     id: string;
@@ -14,9 +14,6 @@ export interface ScheduledWorkout {
     reminder_sent: boolean;
     created_at: string;
     updated_at: string;
-    program_id?: string | null;
-    program_week?: number | null;
-    exercises?: any[] | null;
     // Joined data
     template?: {
         id: string;
@@ -206,80 +203,5 @@ export async function skipScheduledWorkout(id: string): Promise<ScheduledWorkout
     return updateScheduledWorkout(id, { status: 'skipped' });
 }
 
-/**
- * Bulk-schedule all training days of a program to the calendar.
- * Returns the number of sessions created.
- */
-export async function scheduleProgramToCalendar(
-    programId: string,
-    weeks: any[],
-    startDate: Date
-): Promise<number> {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('Not authenticated');
-
-    // Remove any existing scheduled workouts for this program (re-schedule)
-    await supabase
-        .from('scheduled_workouts')
-        .delete()
-        .eq('user_id', session.user.id)
-        .eq('program_id', programId);
-
-    const inserts: any[] = [];
-
-    for (const week of weeks) {
-        for (const day of week.days || []) {
-            if (!day.exercises || day.exercises.length === 0) continue; // skip rest days
-
-            const dayOffset = (week.week - 1) * 7 + (day.day - 1);
-            const date = format(addDays(startDate, dayOffset), 'yyyy-MM-dd');
-            const exerciseSummary = day.exercises
-                .slice(0, 3)
-                .map((e: any) => `${e.name} ${e.sets}×${e.reps}`)
-                .join(', ');
-            const moreCount = day.exercises.length - 3;
-
-            inserts.push({
-                user_id: session.user.id,
-                program_id: programId,
-                program_week: week.week,
-                scheduled_date: date,
-                scheduled_time: '07:00:00',
-                title: `Week ${week.week} · ${day.label}`,
-                notes: exerciseSummary + (moreCount > 0 ? ` +${moreCount} more` : ''),
-                exercises: day.exercises,
-                status: 'scheduled',
-            });
-        }
-    }
-
-    // Insert in batches of 50 to avoid request size limits
-    for (let i = 0; i < inserts.length; i += 50) {
-        const { error } = await supabase
-            .from('scheduled_workouts')
-            .insert(inserts.slice(i, i + 50));
-        if (error) throw error;
-    }
-
-    return inserts.length;
-}
-
-/**
- * Get completion stats for a program
- */
-export async function getProgramStats(programId: string): Promise<{ total: number; completed: number }> {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return { total: 0, completed: 0 };
-
-    const { data } = await supabase
-        .from('scheduled_workouts')
-        .select('status')
-        .eq('user_id', session.user.id)
-        .eq('program_id', programId);
-
-    const all = data || [];
-    return {
-        total: all.length,
-        completed: all.filter((w: any) => w.status === 'completed').length,
-    };
-}
+// Note: scheduleProgramToCalendar and getProgramStats have been moved to
+// src/lib/program-api.ts — use scheduleProgramSessions and getProgramStats from there.

@@ -1,16 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { format, addDays, startOfWeek, eachDayOfInterval, isToday } from 'date-fns';
 import {
     ChevronLeft, ChevronRight, Plus, Calendar, Clock, Dumbbell, Play, X, Trash2,
-    Loader2, LayoutGrid, Edit2, Sparkles, Star, MoreVertical, Copy, Check, Eye, Zap, Bot, Trophy, RefreshCw
+    Loader2, LayoutGrid, Edit2, Sparkles, Star, MoreVertical, Copy, Check, Eye, Zap, Bot, Trophy, RefreshCw,
+    Activity, Wind,
 } from 'lucide-react';
-import { getTrainingPrograms, createTrainingProgram, updateTrainingProgram, deleteTrainingProgram, TrainingProgram, getSettings } from '@/lib/api';
-import { getProgramStats } from '@/lib/schedule-api';
-import { ProgramReviewModal } from '@/components/ProgramReviewModal';
 import { toast } from 'sonner';
 import { getScheduledWorkouts, deleteScheduledWorkout, skipScheduledWorkout, ScheduledWorkout } from '@/lib/schedule-api';
+import { getProgramSessionsForRange, skipProgramSession, updateProgramSession, ProgramSession, SessionType } from '@/lib/program-api';
 import { getTemplates, createTemplate, deleteTemplate, updateTemplate, WorkoutTemplate } from '@/lib/workout-api';
 import { getPublicTemplates, WorkoutTemplate as PublicTemplate, WorkoutCategory } from '@/lib/features';
 import { ScheduleWorkoutModal } from '@/components/ScheduleWorkoutModal';
@@ -70,17 +69,11 @@ export default function WorkoutHubPage() {
     const [aiError, setAiError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [programs, setPrograms] = useState<TrainingProgram[]>([]);
-    const [generatingProgram, setGeneratingProgram] = useState(false);
-    const [programGoal, setProgramGoal] = useState<'strength' | 'hypertrophy' | 'endurance' | 'athletic'>('hypertrophy');
-    const [programDays, setProgramDays] = useState(4);
-    const [programNotes, setProgramNotes] = useState('');
-    const [showProgramForm, setShowProgramForm] = useState(false);
-    const [expandedProgram, setExpandedProgram] = useState<string | null>(null);
-    const [userEquipment, setUserEquipment] = useState<string[]>([]);
-    const [reviewingProgram, setReviewingProgram] = useState<TrainingProgram | null>(null);
-    const [programStats, setProgramStats] = useState<Record<string, { total: number; completed: number }>>({});
     const [syncingStrava, setSyncingStrava] = useState(false);
+    const [programSessions, setProgramSessions]         = useState<ProgramSession[]>([]);
+    const [skipConfirmSession, setSkipConfirmSession]   = useState<ProgramSession | null>(null);
+    const [reschedulingSession, setReschedulingSession] = useState<ProgramSession | null>(null);
+    const [rescheduleDate, setRescheduleDate]           = useState('');
 
     const weekDays = eachDayOfInterval({ start: currentWeekStart, end: addDays(currentWeekStart, 6) });
 
@@ -111,26 +104,16 @@ export default function WorkoutHubPage() {
         try {
             const startStr = format(currentWeekStart, 'yyyy-MM-dd');
             const endStr = format(addDays(currentWeekStart, 6), 'yyyy-MM-dd');
-            const [workouts, templateData, publicData, programData, settings] = await Promise.all([
+            const [workouts, templateData, publicData, sessions] = await Promise.all([
                 getScheduledWorkouts(startStr, endStr),
                 getTemplates(),
                 activeTab === 'discover' ? getPublicTemplates(categoryFilter === 'all' ? undefined : categoryFilter) : Promise.resolve([]),
-                activeTab === 'programs' ? getTrainingPrograms() : Promise.resolve(null),
-                getSettings(),
+                getProgramSessionsForRange(startStr, endStr),
             ]);
             setScheduledWorkouts(workouts);
             setTemplates(templateData);
+            setProgramSessions(sessions);
             if (activeTab === 'discover') setPublicTemplates(publicData);
-            if (programData) {
-                setPrograms(programData);
-                // Load completion stats for each program
-                const statsMap: Record<string, { total: number; completed: number }> = {};
-                await Promise.all(programData.map(async (p: TrainingProgram) => {
-                    statsMap[p.id] = await getProgramStats(p.id);
-                }));
-                setProgramStats(statsMap);
-            }
-            if (settings?.available_equipment?.length) setUserEquipment(settings.available_equipment);
         } catch (error) {
             console.error('Error loading data:', error);
         } finally {
@@ -154,6 +137,65 @@ export default function WorkoutHubPage() {
 
     function getWorkoutsForDay(day: Date) {
         return scheduledWorkouts.filter(w => w.scheduled_date === format(day, 'yyyy-MM-dd'));
+    }
+
+    function getProgramSessionsForDay(day: Date) {
+        return programSessions.filter(s => s.scheduled_date === format(day, 'yyyy-MM-dd'));
+    }
+
+    // Visual accent colours for each session type
+    function sessionAccent(type: SessionType): { color: string; bgAlpha: string; iconBg: string } {
+        switch (type) {
+            case 'cardio':   return { color: '#f97316', bgAlpha: 'rgba(249,115,22,0.06)',  iconBg: 'rgba(249,115,22,0.12)' };
+            case 'mobility': return { color: '#a855f7', bgAlpha: 'rgba(168,85,247,0.06)', iconBg: 'rgba(168,85,247,0.12)' };
+            default:         return { color: 'var(--color-primary)', bgAlpha: 'rgba(29,95,168,0.06)', iconBg: 'rgba(29,95,168,0.12)' };
+        }
+    }
+
+    function SessionTypeIcon({ type, className, style }: { type: SessionType; className?: string; style?: CSSProperties }) {
+        if (type === 'cardio')   return <Activity className={className} style={style} />;
+        if (type === 'mobility') return <Wind     className={className} style={style} />;
+        return <Dumbbell className={className} style={style} />;
+    }
+
+    async function handleSkipProgramSession(session: ProgramSession, cascade: boolean) {
+        haptics.tap();
+        try {
+            await skipProgramSession(session.id, cascade);
+            setProgramSessions(prev => prev.map(s =>
+                s.id === session.id ? { ...s, status: 'skipped' as const } : s
+            ));
+            setSkipConfirmSession(null);
+            if (cascade) {
+                await loadData();
+                toast.success('Session skipped — future sessions shifted +1 day');
+            }
+        } catch {
+            toast.error('Could not skip session');
+        }
+    }
+
+    async function handleRescheduleSession(session: ProgramSession) {
+        if (!rescheduleDate) return;
+        haptics.tap();
+        try {
+            await updateProgramSession(session.id, {
+                scheduled_date: rescheduleDate,
+                status: 'rescheduled',
+            });
+            setReschedulingSession(null);
+            setRescheduleDate('');
+            await loadData();
+            toast.success('Session rescheduled');
+        } catch {
+            toast.error('Could not reschedule session');
+        }
+    }
+
+    function handleStartProgramSession(session: ProgramSession) {
+        haptics.success();
+        // Phase 5: pre-load exercises into logger; for now launch empty workout with session ID
+        router.push(`/workout/active/new?programSession=${session.id}`);
     }
 
     function handlePrevWeek() { haptics.tap(); setCurrentWeekStart(addDays(currentWeekStart, -7)); }
@@ -463,9 +505,17 @@ export default function WorkoutHubPage() {
                                     >
                                         {format(day, 'd')}
                                     </div>
-                                    {getWorkoutsForDay(day).length > 0 && (
-                                        <div className="flex justify-center mt-1">
-                                            <div className="w-2 h-2 rounded-full" style={{ background: 'var(--color-success)' }} />
+                                    {(getWorkoutsForDay(day).length > 0 || getProgramSessionsForDay(day).length > 0) && (
+                                        <div className="flex justify-center gap-1 mt-1">
+                                            {getProgramSessionsForDay(day).some(s => s.status === 'completed')
+                                                ? <div className="w-2 h-2 rounded-full" style={{ background: 'var(--color-success)' }} />
+                                                : getProgramSessionsForDay(day).length > 0
+                                                    ? <div className="w-2 h-2 rounded-full" style={{ background: 'var(--color-primary)' }} />
+                                                    : null
+                                            }
+                                            {getWorkoutsForDay(day).length > 0 && (
+                                                <div className="w-2 h-2 rounded-full" style={{ background: 'var(--color-gold)' }} />
+                                            )}
                                         </div>
                                     )}
                                 </button>
@@ -474,8 +524,9 @@ export default function WorkoutHubPage() {
 
                         <div style={{ borderTop: '1px solid var(--color-border-light)' }}>
                             {weekDays.map(day => {
-                                const dayWorkouts = getWorkoutsForDay(day);
-                                if (dayWorkouts.length === 0) return null;
+                                const dayWorkouts  = getWorkoutsForDay(day);
+                                const daySessions  = getProgramSessionsForDay(day);
+                                if (dayWorkouts.length === 0 && daySessions.length === 0) return null;
                                 return (
                                     <div key={day.toString()} className="p-4" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
                                         <div
@@ -486,6 +537,92 @@ export default function WorkoutHubPage() {
                                             {isToday(day) && <span className="ml-2" style={{ color: 'var(--color-primary)' }}>• Today</span>}
                                         </div>
                                         <div className="space-y-2">
+                                            {/* ── Program sessions (rendered first) ── */}
+                                            {daySessions.map(session => {
+                                                const accent  = sessionAccent(session.session_type);
+                                                const isActive = session.status === 'upcoming' || session.status === 'rescheduled';
+                                                const isDone   = session.status === 'completed';
+                                                const isSkipped = session.status === 'skipped';
+                                                return (
+                                                    <div
+                                                        key={session.id}
+                                                        className="flex items-center justify-between p-3 rounded-xl border"
+                                                        style={{
+                                                            background: isDone
+                                                                ? 'rgba(34,197,94,0.06)'
+                                                                : isSkipped
+                                                                ? 'var(--color-bg-subtle)'
+                                                                : accent.bgAlpha,
+                                                            borderColor: isDone
+                                                                ? 'rgba(34,197,94,0.2)'
+                                                                : isSkipped
+                                                                ? 'var(--color-border)'
+                                                                : accent.color + '40',
+                                                            borderLeft: `3px solid ${isDone ? 'var(--color-success)' : accent.color}`,
+                                                            opacity: isSkipped ? 0.55 : 1,
+                                                        }}
+                                                    >
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            <div className="p-2 rounded-lg flex-shrink-0" style={{ background: isDone ? 'rgba(34,197,94,0.1)' : accent.iconBg }}>
+                                                                <SessionTypeIcon
+                                                                    type={session.session_type}
+                                                                    className="w-4 h-4"
+                                                                    style={{ color: isDone ? 'var(--color-success)' : accent.color }}
+                                                                />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <div className="flex items-center gap-1.5 mb-0.5">
+                                                                    <span
+                                                                        className="text-xs font-bold uppercase tracking-wider"
+                                                                        style={{ color: isDone ? 'var(--color-success)' : accent.color }}
+                                                                    >
+                                                                        Program · Wk {session.week_number}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="font-medium truncate" style={{ color: 'var(--color-text)' }}>
+                                                                    {session.day_label}
+                                                                </div>
+                                                                <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                                                                    {session.exercises?.length ?? 0} exercise{(session.exercises?.length ?? 0) !== 1 ? 's' : ''}
+                                                                    {isDone && <span className="ml-2" style={{ color: 'var(--color-success)' }}>✓ Completed</span>}
+                                                                    {isSkipped && <span className="ml-2">Skipped</span>}
+                                                                    {session.status === 'rescheduled' && <span className="ml-2" style={{ color: '#f97316' }}>Rescheduled</span>}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        {isActive && (
+                                                            <div className="flex items-center gap-2 flex-shrink-0">
+                                                                <button
+                                                                    onClick={() => handleStartProgramSession(session)}
+                                                                    className="p-2 rounded-lg transition-colors"
+                                                                    style={{ background: 'var(--color-success)', color: 'white' }}
+                                                                    title="Start"
+                                                                >
+                                                                    <Play className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => { setReschedulingSession(session); setRescheduleDate(session.scheduled_date); }}
+                                                                    className="p-2 rounded-lg transition-colors"
+                                                                    style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
+                                                                    title="Reschedule"
+                                                                >
+                                                                    <Calendar className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setSkipConfirmSession(session)}
+                                                                    className="p-2 rounded-lg transition-colors"
+                                                                    style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
+                                                                    title="Skip"
+                                                                >
+                                                                    <X className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+
+                                            {/* ── Ad-hoc scheduled workouts ── */}
                                             {dayWorkouts.map(workout => (
                                                 <div
                                                     key={workout.id}
@@ -504,7 +641,7 @@ export default function WorkoutHubPage() {
                                                             style={{
                                                                 background: workout.status === 'completed'
                                                                     ? 'rgba(34,197,94,0.1)'
-                                                                    : 'rgba(29,95,168,0.1)',
+                                                                    : 'rgba(201,168,76,0.12)',
                                                             }}
                                                         >
                                                             <Dumbbell
@@ -512,7 +649,7 @@ export default function WorkoutHubPage() {
                                                                 style={{
                                                                     color: workout.status === 'completed'
                                                                         ? 'var(--color-success)'
-                                                                        : 'var(--color-primary)',
+                                                                        : 'var(--color-gold)',
                                                                 }}
                                                             />
                                                         </div>
@@ -570,7 +707,7 @@ export default function WorkoutHubPage() {
                                 );
                             })}
 
-                            {scheduledWorkouts.length === 0 && !loading && (
+                            {scheduledWorkouts.length === 0 && programSessions.length === 0 && !loading && (
                                 <div className="p-8 text-center">
                                     <Calendar className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--color-border)' }} />
                                     <p className="font-medium" style={{ color: 'var(--color-text)' }}>No workouts scheduled this week</p>
@@ -581,24 +718,34 @@ export default function WorkoutHubPage() {
                     </div>
 
                     {/* Quick Stats */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-3">
                         <div
                             className="p-4 rounded-2xl border"
                             style={{ background: 'rgba(34,197,94,0.06)', borderColor: 'rgba(34,197,94,0.2)' }}
                         >
                             <div className="text-2xl font-black" style={{ color: 'var(--color-success)' }}>
-                                {scheduledWorkouts.filter(w => w.status === 'completed').length}
+                                {scheduledWorkouts.filter(w => w.status === 'completed').length
+                                 + programSessions.filter(s => s.status === 'completed').length}
                             </div>
-                            <div className="text-sm font-medium" style={{ color: 'var(--color-success)' }}>Completed this week</div>
+                            <div className="text-xs font-medium mt-0.5" style={{ color: 'var(--color-success)' }}>Done</div>
                         </div>
                         <div
                             className="p-4 rounded-2xl border"
                             style={{ background: 'rgba(29,95,168,0.06)', borderColor: 'rgba(29,95,168,0.2)' }}
                         >
                             <div className="text-2xl font-black" style={{ color: 'var(--color-primary)' }}>
+                                {programSessions.filter(s => s.status === 'upcoming' || s.status === 'rescheduled').length}
+                            </div>
+                            <div className="text-xs font-medium mt-0.5" style={{ color: 'var(--color-primary)' }}>Program</div>
+                        </div>
+                        <div
+                            className="p-4 rounded-2xl border"
+                            style={{ background: 'rgba(201,168,76,0.06)', borderColor: 'rgba(201,168,76,0.2)' }}
+                        >
+                            <div className="text-2xl font-black" style={{ color: 'var(--color-gold)' }}>
                                 {scheduledWorkouts.filter(w => w.status === 'scheduled').length}
                             </div>
-                            <div className="text-sm font-medium" style={{ color: 'var(--color-primary)' }}>Upcoming</div>
+                            <div className="text-xs font-medium mt-0.5" style={{ color: 'var(--color-gold)' }}>Ad-hoc</div>
                         </div>
                     </div>
                 </>
@@ -982,236 +1129,24 @@ export default function WorkoutHubPage() {
 
             {/* ========== PROGRAMS TAB ========== */}
             {activeTab === 'programs' && (
-                <div className="space-y-4">
-                    {/* Active program banner */}
-                    {programs.find(p => p.is_active) && (() => {
-                        const active = programs.find(p => p.is_active)!;
-                        const currentWeekData = active.weeks?.[active.current_week - 1];
-                        const phase = active.phases?.find(ph => {
-                            const [start, end] = ph.weeks.split('-').map(Number);
-                            return active.current_week >= start && active.current_week <= end;
-                        });
-                        return (
-                            <div className="p-4 rounded-2xl border space-y-3" style={{ background: 'var(--color-navy)', borderColor: 'rgba(201,168,76,0.2)' }}>
-                                <div className="flex items-start justify-between">
-                                    <div>
-                                        <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-gold)' }}>Active Program</p>
-                                        <h3 className="font-bold text-white text-lg leading-tight">{active.name}</h3>
-                                        <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                                            Week {active.current_week}/{active.duration_weeks} · {phase?.name || 'Phase 1'}
-                                        </p>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-2xl font-bold text-white">{Math.round((active.current_week / active.duration_weeks) * 100)}%</div>
-                                        <div className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>complete</div>
-                                    </div>
-                                </div>
-                                <div className="h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
-                                    <div className="h-full rounded-full" style={{ background: 'var(--color-gold)', width: `${Math.round((active.current_week / active.duration_weeks) * 100)}%` }} />
-                                </div>
-                                {currentWeekData && (
-                                    <div className="space-y-1">
-                                        {currentWeekData.days.filter((d: any) => d.exercises.length > 0).map((d: any, i: number) => (
-                                            <div key={i} className="flex items-center justify-between text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                                                <span>Day {d.day}: {d.label}</span>
-                                                <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{d.exercises.length} exercises</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                                {/* Stats */}
-                                {programStats[active.id] && programStats[active.id].total > 0 && (
-                                    <div className="flex items-center gap-2 text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                                        <div className="flex-1 h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
-                                            <div className="h-full rounded-full" style={{ background: 'var(--color-gold)', width: `${Math.round((programStats[active.id].completed / programStats[active.id].total) * 100)}%` }} />
-                                        </div>
-                                        <span>{programStats[active.id].completed}/{programStats[active.id].total} sessions</span>
-                                    </div>
-                                )}
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setReviewingProgram(active)}
-                                        className="flex-1 py-2 rounded-xl font-bold text-sm transition-all active:scale-95"
-                                        style={{ background: 'rgba(255,255,255,0.12)', color: 'white' }}
-                                    >
-                                        Review / Edit
-                                    </button>
-                                    <button
-                                        onClick={async () => {
-                                            await updateTrainingProgram(active.id, { current_week: Math.min(active.current_week + 1, active.duration_weeks) });
-                                            setPrograms(prev => prev.map(p => p.id === active.id ? { ...p, current_week: Math.min(p.current_week + 1, p.duration_weeks) } : p));
-                                        }}
-                                        className="flex-1 py-2 rounded-xl font-bold text-sm text-white transition-all active:scale-95"
-                                        style={{ background: 'var(--color-gold)', color: 'var(--color-navy)' }}
-                                        disabled={active.current_week >= active.duration_weeks}
-                                    >
-                                        Complete Week →
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })()}
-
-                    {/* Generate new program */}
-                    {!showProgramForm ? (
-                        <button
-                            onClick={() => { setShowProgramForm(true); if (programs.length === 0) getTrainingPrograms().then(setPrograms); }}
-                            className="w-full p-4 rounded-2xl border-2 border-dashed flex items-center justify-center gap-2 font-bold transition-all active:scale-[0.98]"
-                            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
-                        >
-                            <Sparkles className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
-                            Generate 12-Week AI Program
-                        </button>
-                    ) : (
-                        <div className="p-5 rounded-2xl border space-y-4" style={{ background: 'var(--color-surface-elevated)', borderColor: 'var(--color-border-light)' }}>
-                            <div className="flex items-center justify-between">
-                                <h3 className="font-bold text-[var(--color-text)]">New 12-Week Program</h3>
-                                <button onClick={() => setShowProgramForm(false)} className="p-1"><X className="w-4 h-4 text-[var(--color-text-muted)]" /></button>
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold uppercase tracking-wider mb-2 block" style={{ color: 'var(--color-text-muted)' }}>Goal</label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {[
-                                        { id: 'strength', label: '💪 Strength', desc: 'Heavy loads, compound lifts' },
-                                        { id: 'hypertrophy', label: '🔥 Hypertrophy', desc: 'Muscle building, volume focus' },
-                                        { id: 'endurance', label: '🏃 Endurance', desc: 'High reps, conditioning' },
-                                        { id: 'athletic', label: '⚡ Athletic', desc: 'Power, speed, agility' },
-                                    ].map(g => (
-                                        <button
-                                            key={g.id}
-                                            onClick={() => setProgramGoal(g.id as any)}
-                                            className="p-3 rounded-xl text-left transition-all border"
-                                            style={programGoal === g.id
-                                                ? { background: 'var(--color-gold-muted)', borderColor: 'var(--color-gold)' }
-                                                : { background: 'var(--color-bg-subtle)', borderColor: 'var(--color-border-light)' }
-                                            }
-                                        >
-                                            <p className="font-bold text-sm text-[var(--color-text)]">{g.label}</p>
-                                            <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>{g.desc}</p>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold uppercase tracking-wider mb-2 block" style={{ color: 'var(--color-text-muted)' }}>Days per week</label>
-                                <div className="flex gap-2">
-                                    {[3, 4, 5, 6].map(d => (
-                                        <button
-                                            key={d}
-                                            onClick={() => setProgramDays(d)}
-                                            className="flex-1 py-2 rounded-xl font-bold text-sm transition-all"
-                                            style={programDays === d
-                                                ? { background: 'var(--color-primary)', color: 'white' }
-                                                : { background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }
-                                            }
-                                        >{d}x</button>
-                                    ))}
-                                </div>
-                            </div>
-                            {/* Equipment preview */}
-                            <div className="p-3 rounded-xl" style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border-light)' }}>
-                                <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-muted)' }}>
-                                    Equipment (from Settings)
-                                </p>
-                                {userEquipment.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {userEquipment.map(e => (
-                                            <span key={e} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(29,95,168,0.1)', color: 'var(--color-primary)' }}>{e}</span>
-                                        ))}
-                                        <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(34,197,94,0.1)', color: 'var(--color-success)' }}>+ Bodyweight</span>
-                                    </div>
-                                ) : (
-                                    <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>No equipment set — will use standard gym + bodyweight. Add yours in Settings → Home Equipment.</p>
-                                )}
-                            </div>
-
-                            <div>
-                                <label className="text-xs font-bold uppercase tracking-wider mb-2 block" style={{ color: 'var(--color-text-muted)' }}>Notes (optional)</label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. bad knees, focus on upper body, no overhead pressing"
-                                    value={programNotes}
-                                    onChange={e => setProgramNotes(e.target.value)}
-                                    className="w-full p-3 rounded-xl text-sm outline-none"
-                                    style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
-                                />
-                            </div>
-                            <button
-                                disabled={generatingProgram}
-                                onClick={async () => {
-                                    setGeneratingProgram(true);
-                                    try {
-                                        const { supabase: sb } = await import('@/lib/supabase');
-                                        const { data: { session } } = await sb.auth.getSession();
-                                        const res = await fetch('/api/ai/generate-program', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-                                            body: JSON.stringify({ goal: programGoal, daysPerWeek: programDays, equipment: userEquipment, notes: programNotes }),
-                                        });
-                                        if (!res.ok) throw new Error(await res.text());
-                                        const programData = await res.json();
-                                        const saved = await createTrainingProgram({ ...programData, is_active: true, current_week: 1, started_at: format(new Date(), 'yyyy-MM-dd') });
-                                        const updated = [...programs.map(p => ({ ...p, is_active: false })), saved];
-                                        setPrograms(updated);
-                                        setShowProgramForm(false);
-                                        setReviewingProgram(saved);
-                                        haptics.success();
-                                    } catch (e: any) {
-                                        toast.error('Failed to generate program: ' + e.message);
-                                    } finally {
-                                        setGeneratingProgram(false);
-                                    }
-                                }}
-                                className="w-full py-3.5 rounded-xl font-bold text-white flex items-center justify-center gap-2 disabled:opacity-60 transition-all active:scale-[0.98]"
-                                style={{ background: 'var(--color-primary)' }}
-                            >
-                                {generatingProgram ? <><Loader2 className="w-5 h-5 animate-spin" /> Generating (20–30s)…</> : <><Sparkles className="w-5 h-5" /> Generate Program</>}
-                            </button>
+                <Link
+                    href="/programs"
+                    className="flex items-center justify-between p-5 rounded-2xl border transition-all active:scale-[0.98]"
+                    style={{ background: 'var(--color-surface-elevated)', borderColor: 'var(--color-border-light)' }}
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 rounded-2xl" style={{ background: 'var(--color-primary)' }}>
+                            <Trophy className="w-6 h-6 text-white" />
                         </div>
-                    )}
-
-                    {/* Past programs */}
-                    {programs.filter(p => !p.is_active).length > 0 && (
-                        <div className="space-y-3">
-                            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Other Programs</p>
-                            {programs.filter(p => !p.is_active).map(prog => (
-                                <div key={prog.id} className="p-4 rounded-xl border flex items-center justify-between" style={{ background: 'var(--color-surface-elevated)', borderColor: 'var(--color-border-light)' }}>
-                                    <div>
-                                        <p className="font-bold text-sm text-[var(--color-text)]">{prog.name}</p>
-                                        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Week {prog.current_week}/{prog.duration_weeks}</p>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => setReviewingProgram(prog)}
-                                            className="px-3 py-1.5 rounded-lg text-xs font-bold"
-                                            style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }}
-                                        >Review</button>
-                                        <button
-                                            onClick={async () => {
-                                                await Promise.all([
-                                                    ...programs.filter(p => p.is_active).map(p => updateTrainingProgram(p.id, { is_active: false })),
-                                                    updateTrainingProgram(prog.id, { is_active: true }),
-                                                ]);
-                                                setPrograms(prev => prev.map(p => ({ ...p, is_active: p.id === prog.id })));
-                                                toast.success('Program activated');
-                                            }}
-                                            className="px-3 py-1.5 rounded-lg text-xs font-bold"
-                                            style={{ background: 'var(--color-primary)', color: 'white' }}
-                                        >Activate</button>
-                                        <button
-                                            onClick={async () => {
-                                                await deleteTrainingProgram(prog.id);
-                                                setPrograms(prev => prev.filter(p => p.id !== prog.id));
-                                            }}
-                                            className="p-1.5 rounded-lg"
-                                            style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}
-                                        ><Trash2 className="w-4 h-4" /></button>
-                                    </div>
-                                </div>
-                            ))}
+                        <div>
+                            <p className="font-bold text-base" style={{ color: 'var(--color-text)' }}>12-Week Programs</p>
+                            <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                                Create, track and manage your training programs
+                            </p>
                         </div>
-                    )}
-                </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--color-primary)' }} />
+                </Link>
             )}
 
             {/* ========== SCHEDULE MODAL ========== */}
@@ -1485,21 +1420,123 @@ export default function WorkoutHubPage() {
                     </div>
                 </div>
             )}
+
+            {/* ── Skip Confirm Bottom Sheet ────────────────────────────────── */}
+            {skipConfirmSession && (
+                <div
+                    className="fixed inset-0 z-50 flex items-end justify-center"
+                    style={{ background: 'rgba(0,0,0,0.55)' }}
+                    onClick={() => setSkipConfirmSession(null)}
+                >
+                    <div
+                        className="w-full max-w-lg rounded-t-2xl p-6 space-y-3 pb-10 shadow-2xl"
+                        style={{ background: 'var(--color-surface-elevated)' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="mb-1">
+                            <p className="font-bold text-base" style={{ color: 'var(--color-text)' }}>
+                                Skip this session?
+                            </p>
+                            <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                                Week {skipConfirmSession.week_number} · {skipConfirmSession.day_label}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => handleSkipProgramSession(skipConfirmSession, false)}
+                            className="w-full py-3.5 rounded-xl text-left px-4 transition-all active:scale-[0.98]"
+                            style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)' }}
+                        >
+                            <div className="font-bold text-sm" style={{ color: 'var(--color-text)' }}>
+                                Skip this session only
+                            </div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                                Future sessions stay on their current dates
+                            </div>
+                        </button>
+                        <button
+                            onClick={() => handleSkipProgramSession(skipConfirmSession, true)}
+                            className="w-full py-3.5 rounded-xl text-left px-4 transition-all active:scale-[0.98]"
+                            style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.3)' }}
+                        >
+                            <div className="font-bold text-sm" style={{ color: 'var(--color-text)' }}>
+                                Skip &amp; push future sessions +1 day
+                            </div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                                All upcoming sessions shift forward by one day
+                            </div>
+                        </button>
+                        <button
+                            onClick={() => setSkipConfirmSession(null)}
+                            className="w-full py-3 rounded-xl font-semibold text-sm"
+                            style={{ color: 'var(--color-text-muted)' }}
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Reschedule Modal ─────────────────────────────────────────── */}
+            {reschedulingSession && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center px-4"
+                    style={{ background: 'rgba(0,0,0,0.55)' }}
+                    onClick={() => { setReschedulingSession(null); setRescheduleDate(''); }}
+                >
+                    <div
+                        className="w-full max-w-sm rounded-2xl p-6 space-y-4 shadow-xl"
+                        style={{ background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-light)' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div>
+                            <p className="font-bold text-base" style={{ color: 'var(--color-text)' }}>
+                                Reschedule Session
+                            </p>
+                            <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                                Week {reschedulingSession.week_number} · {reschedulingSession.day_label}
+                            </p>
+                        </div>
+                        <div>
+                            <label
+                                className="text-xs font-bold uppercase tracking-wider block mb-1.5"
+                                style={{ color: 'var(--color-text-muted)' }}
+                            >
+                                New Date
+                            </label>
+                            <input
+                                type="date"
+                                value={rescheduleDate}
+                                onChange={e => setRescheduleDate(e.target.value)}
+                                className="w-full p-3 rounded-xl outline-none"
+                                style={{
+                                    background: 'var(--color-bg-subtle)',
+                                    border: '1px solid var(--color-border)',
+                                    color: 'var(--color-text)',
+                                }}
+                            />
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => { setReschedulingSession(null); setRescheduleDate(''); }}
+                                className="flex-1 py-3 rounded-xl font-bold text-sm"
+                                style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleRescheduleSession(reschedulingSession)}
+                                disabled={!rescheduleDate}
+                                className="flex-1 py-3 rounded-xl font-bold text-sm disabled:opacity-50 transition-all"
+                                style={{ background: 'var(--color-primary)', color: 'white' }}
+                            >
+                                Reschedule
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </main>
 
-        {/* ========== PROGRAM REVIEW MODAL ========== */}
-        {reviewingProgram && (
-            <ProgramReviewModal
-                program={reviewingProgram}
-                onClose={() => setReviewingProgram(null)}
-                onScheduled={() => {
-                    setReviewingProgram(null);
-                    setActiveTab('schedule');
-                    loadData();
-                    toast.success('Program scheduled! Check your calendar.');
-                }}
-            />
-        )}
         </>
     );
 }

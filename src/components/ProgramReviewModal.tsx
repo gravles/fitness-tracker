@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { format, addWeeks, nextMonday } from 'date-fns';
 import { X, ChevronDown, ChevronRight, Sparkles, Send, Loader2, CalendarDays, Check, Bot, User } from 'lucide-react';
 import { TrainingProgram } from '@/lib/api';
-import { scheduleProgramToCalendar } from '@/lib/schedule-api';
+import { scheduleProgramSessions } from '@/lib/program-api';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 
@@ -80,20 +80,16 @@ export function ProgramReviewModal({ program, onClose, onScheduled }: Props) {
         setScheduling(true);
         try {
             const start = new Date(startDate + 'T00:00:00');
-            const count = await scheduleProgramToCalendar(currentProgram.id, currentProgram.weeks, start);
+            const count = await scheduleProgramSessions(currentProgram.id, currentProgram.weeks, start);
 
-            // Save any AI edits back to DB
-            const { data: { session } } = await supabase.auth.getSession();
-            await fetch(`/api/programs/${currentProgram.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-                body: JSON.stringify({ weeks: currentProgram.weeks, started_at: startDate }),
-            }).catch(() => {}); // best-effort save
-
-            // Update started_at via supabase directly
+            // Mark program as active with a start date, save any AI edits back to DB
             await supabase
                 .from('training_programs')
-                .update({ started_at: startDate })
+                .update({
+                    status:     'active',
+                    start_date: startDate,
+                    weeks:      currentProgram.weeks,
+                })
                 .eq('id', currentProgram.id);
 
             toast.success(`Scheduled ${count} sessions to your calendar!`);
