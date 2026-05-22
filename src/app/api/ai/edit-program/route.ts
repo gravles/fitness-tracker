@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
         const response = await anthropic.messages.create({
             model: 'claude-sonnet-4-6',
-            max_tokens: 8000,
+            max_tokens: 32000,
             system: `You are editing a 12-week training program for a user. The program is stored as JSON with a "weeks" array. Each week has a "days" array. Each non-rest day has an "exercises" array with {name, sets, reps, load_pct} objects.
 
 When making edits:
@@ -35,6 +35,8 @@ When making edits:
 - Keep the same number of exercises per day
 - Maintain the same sets/reps/load_pct pattern
 - Only return the modified JSON — no markdown, no explanation
+
+IMPORTANT: You must return the COMPLETE program JSON — all 12 weeks, every day, every exercise. Do not truncate or summarise any part of the output.
 
 Return ONLY valid JSON in exactly the same structure as the input program.`,
             messages: [{
@@ -46,12 +48,27 @@ Return ONLY valid JSON in exactly the same structure as the input program.`,
         const raw = (response.content[0] as Anthropic.TextBlock).text;
         const cleaned = stripFences(raw);
 
+        // Guard against truncated responses
+        if (response.stop_reason === 'max_tokens') {
+            return NextResponse.json(
+                { error: 'The program is too large to edit in one pass. Try a more targeted change (e.g. one exercise or one week at a time).' },
+                { status: 422 }
+            );
+        }
+
         let modified: any;
         try {
             modified = JSON.parse(cleaned);
         } catch {
             const salvaged = cleaned.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
-            modified = JSON.parse(salvaged);
+            try {
+                modified = JSON.parse(salvaged);
+            } catch {
+                return NextResponse.json(
+                    { error: 'The AI returned malformed JSON. Please try again or rephrase your request.' },
+                    { status: 422 }
+                );
+            }
         }
 
         return NextResponse.json({ program: modified });
