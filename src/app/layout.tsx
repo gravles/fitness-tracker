@@ -43,6 +43,7 @@ export const viewport: Viewport = {
 import { SWRegister } from "@/components/SWRegister";
 import { AuthWrapper } from "@/components/AuthWrapper";
 import { SyncManager } from "@/components/SyncManager";
+import { CapacitorProvider } from "@/components/CapacitorProvider";
 import { Toaster } from "sonner";
 
 export default function RootLayout({
@@ -55,6 +56,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${playfair.variable} antialiased`}>
         <SWRegister />
         <AuthWrapper>
+          <CapacitorProvider>
           <SyncManager />
           <Toaster
             position="bottom-center"
@@ -71,6 +73,7 @@ export default function RootLayout({
           <div className="max-w-2xl mx-auto min-h-dvh pb-24 relative border-x border-[var(--color-border-light)] shadow-2xl bg-[var(--color-bg)]">
             {children}
           </div>
+          </CapacitorProvider>
         </AuthWrapper>
       </body>
     </html>
