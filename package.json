@@ -46,6 +46,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.3.4",
     "@playwright/test": "^1.58.1",
     "@tailwindcss/postcss": "^4",
