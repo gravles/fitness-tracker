@@ -1,56 +1,73 @@
 /**
  * Haptic Feedback Utility
- * Provides tactile feedback on mobile devices that support the Vibration API
+ *
+ * On native (iOS / Android) uses @capacitor/haptics for real motor feedback:
+ *   - Impact styles:       Light, Medium, Heavy
+ *   - Notification types:  Success, Warning, Error
+ *
+ * On web falls back to the Vibration API (works in Chrome on Android,
+ * silently ignored everywhere else).
  */
+
+import { isNative } from './native';
 
 type HapticPattern = 'tap' | 'success' | 'error' | 'warning' | 'heavy';
 
-const patterns: Record<HapticPattern, number | number[]> = {
-    tap: 10,           // Subtle tap for button presses
-    success: 50,       // Single pulse for achievements
-    error: [50, 50, 50], // Triple short pulse for errors
-    warning: [30, 30], // Double pulse for warnings
-    heavy: 100,        // Strong feedback for important actions
+// Web fallback patterns (milliseconds)
+const webPatterns: Record<HapticPattern, number | number[]> = {
+    tap:     10,
+    success: 50,
+    error:   [50, 50, 50],
+    warning: [30, 30],
+    heavy:   100,
 };
 
-/**
- * Check if haptic feedback is supported
- */
-export function isHapticSupported(): boolean {
-    return typeof navigator !== 'undefined' && 'vibrate' in navigator;
-}
-
-/**
- * Trigger a haptic pattern
- */
-export function haptic(pattern: HapticPattern = 'tap'): void {
-    if (!isHapticSupported()) return;
-
+async function nativeHaptic(pattern: HapticPattern): Promise<void> {
     try {
-        navigator.vibrate(patterns[pattern]);
-    } catch (e) {
-        // Silently fail - haptics are optional
+        const { Haptics, ImpactStyle, NotificationType } = await import('@capacitor/haptics');
+        switch (pattern) {
+            case 'tap':     await Haptics.impact({ style: ImpactStyle.Light });             break;
+            case 'success': await Haptics.notification({ type: NotificationType.Success }); break;
+            case 'error':   await Haptics.notification({ type: NotificationType.Error });   break;
+            case 'warning': await Haptics.notification({ type: NotificationType.Warning }); break;
+            case 'heavy':   await Haptics.impact({ style: ImpactStyle.Heavy });             break;
+        }
+    } catch {
+        // Silently fail — haptics are optional
     }
 }
 
+function webHaptic(pattern: HapticPattern): void {
+    if (typeof navigator === 'undefined' || !('vibrate' in navigator)) return;
+    try { navigator.vibrate(webPatterns[pattern]); } catch { /* ignore */ }
+}
+
+export function isHapticSupported(): boolean {
+    return isNative() || (typeof navigator !== 'undefined' && 'vibrate' in navigator);
+}
+
 /**
- * Convenience functions for common interactions
+ * Trigger a haptic pattern. Fire-and-forget — safe to call from synchronous event handlers.
  */
+export function haptic(pattern: HapticPattern = 'tap'): void {
+    if (isNative()) {
+        nativeHaptic(pattern); // intentionally not awaited
+    } else {
+        webHaptic(pattern);
+    }
+}
+
 export const haptics = {
     /** Subtle tap for button presses */
-    tap: () => haptic('tap'),
-
-    /** Celebratory pulse for achievements, level ups, PRs */
+    tap:     () => haptic('tap'),
+    /** Celebratory pulse for achievements, level-ups, PRs */
     success: () => haptic('success'),
-
     /** Error feedback */
-    error: () => haptic('error'),
-
-    /** Warning/alert feedback */
+    error:   () => haptic('error'),
+    /** Warning / alert */
     warning: () => haptic('warning'),
-
-    /** Heavy impact for important actions like saving */
-    heavy: () => haptic('heavy'),
+    /** Strong impact for important actions like saving */
+    heavy:   () => haptic('heavy'),
 };
 
 export default haptics;

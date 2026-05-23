@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bell, BellOff, Clock, Loader2, Plus, Trash2, Check } from 'lucide-react';
+import { Bell, BellOff, Clock, Loader2, Plus, Trash2 } from 'lucide-react';
 import {
     isPushSupported,
     getPermissionStatus,
@@ -10,8 +10,10 @@ import {
     updateReminders,
     Reminder,
 } from '@/lib/notifications';
+import { isNative } from '@/lib/native';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 function randomId() {
     return Math.random().toString(36).slice(2, 10);
@@ -22,12 +24,55 @@ const DEFAULT_REMINDERS: Reminder[] = [
     { id: randomId(), label: "Time to move 💪", time: '09:00', enabled: true },
 ];
 
+// ─── Native helpers ────────────────────────────────────────────────────────
+
+async function checkNativePermission(): Promise<'granted' | 'denied' | 'default'> {
+    try {
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+        const result = await PushNotifications.checkPermissions();
+        return result.receive === 'granted' ? 'granted'
+             : result.receive === 'denied'  ? 'denied'
+             : 'default';
+    } catch {
+        return 'default';
+    }
+}
+
+async function subscribeNative(reminders: Reminder[]): Promise<boolean> {
+    try {
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+        const result = await PushNotifications.requestPermissions();
+        if (result.receive !== 'granted') return false;
+        await PushNotifications.register();
+        await updateReminders(reminders);   // save reminder prefs server-side
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+async function unsubscribeNative(): Promise<void> {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        await fetch('/api/notifications/register-device', {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+    } catch {
+        // Silently fail
+    }
+}
+
+// ─── Component ─────────────────────────────────────────────────────────────
+
 export function NotificationSettings() {
-    const [enabled, setEnabled] = useState(false);
-    const [reminders, setReminders] = useState<Reminder[]>(DEFAULT_REMINDERS);
+    const [enabled, setEnabled]                   = useState(false);
+    const [reminders, setReminders]               = useState<Reminder[]>(DEFAULT_REMINDERS);
     const [permissionStatus, setPermissionStatus] = useState<NotificationPermission | 'unsupported'>('default');
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading]                   = useState(false);
     const [syncingReminders, setSyncingReminders] = useState(false);
+    const [native]                                = useState(() => isNative());
 
     useEffect(() => {
         const saved = localStorage.getItem('reminder_settings_v2');
@@ -51,8 +96,14 @@ export function NotificationSettings() {
                 if (migrated.length) setReminders(migrated);
             }
         }
-        setPermissionStatus(getPermissionStatus());
-    }, []);
+
+        // Check current permission state
+        if (native) {
+            checkNativePermission().then(s => setPermissionStatus(s as any));
+        } else {
+            setPermissionStatus(getPermissionStatus());
+        }
+    }, [native]);
 
     function saveLocal(newEnabled: boolean, newReminders: Reminder[]) {
         localStorage.setItem('reminder_settings_v2', JSON.stringify({ enabled: newEnabled, reminders: newReminders }));
@@ -63,18 +114,40 @@ export function NotificationSettings() {
         haptics.tap();
         try {
             if (enabled) {
-                await unsubscribeFromPush();
+                // ── Disable ──────────────────────────────────────────────
+                if (native) {
+                    await unsubscribeNative();
+                } else {
+                    await unsubscribeFromPush();
+                }
                 setEnabled(false);
                 saveLocal(false, reminders);
             } else {
-                const sub = await subscribeToPush(reminders);
-                if (sub) {
-                    setEnabled(true);
-                    saveLocal(true, reminders);
-                    setPermissionStatus('granted');
-                    toast.success('Reminders enabled!');
+                // ── Enable ───────────────────────────────────────────────
+                if (native) {
+                    const ok = await subscribeNative(reminders);
+                    if (ok) {
+                        setEnabled(true);
+                        saveLocal(true, reminders);
+                        setPermissionStatus('granted');
+                        toast.success('Reminders enabled!');
+                    } else {
+                        const status = await checkNativePermission();
+                        setPermissionStatus(status as any);
+                        if (status === 'denied') {
+                            toast.error('Please enable notifications in your device settings.');
+                        }
+                    }
                 } else {
-                    setPermissionStatus(getPermissionStatus());
+                    const sub = await subscribeToPush(reminders);
+                    if (sub) {
+                        setEnabled(true);
+                        saveLocal(true, reminders);
+                        setPermissionStatus('granted');
+                        toast.success('Reminders enabled!');
+                    } else {
+                        setPermissionStatus(getPermissionStatus());
+                    }
                 }
             }
         } catch (e) {
@@ -84,7 +157,7 @@ export function NotificationSettings() {
         }
     }
 
-    async function syncReminders(newReminders: Reminder[]) {
+    async function syncRemindersToServer(newReminders: Reminder[]) {
         if (!enabled) return;
         setSyncingReminders(true);
         try {
@@ -98,7 +171,7 @@ export function NotificationSettings() {
         const updated = reminders.map(r => r.id === id ? { ...r, ...patch } : r);
         setReminders(updated);
         saveLocal(enabled, updated);
-        syncReminders(updated);
+        syncRemindersToServer(updated);
     }
 
     function removeReminder(id: string) {
@@ -106,24 +179,20 @@ export function NotificationSettings() {
         const updated = reminders.filter(r => r.id !== id);
         setReminders(updated);
         saveLocal(enabled, updated);
-        syncReminders(updated);
+        syncRemindersToServer(updated);
     }
 
     function addReminder() {
         haptics.tap();
-        const newReminder: Reminder = {
-            id: randomId(),
-            label: 'New reminder',
-            time: '12:00',
-            enabled: true,
-        };
+        const newReminder: Reminder = { id: randomId(), label: 'New reminder', time: '12:00', enabled: true };
         const updated = [...reminders, newReminder];
         setReminders(updated);
         saveLocal(enabled, updated);
-        syncReminders(updated);
+        syncRemindersToServer(updated);
     }
 
-    if (!isPushSupported()) {
+    // ── Not supported (web only) ─────────────────────────────────────────
+    if (!native && !isPushSupported()) {
         return (
             <div className="p-4 rounded-2xl border" style={{ background: 'rgba(234,179,8,0.05)', borderColor: 'rgba(234,179,8,0.3)' }}>
                 <div className="flex items-center gap-3">
@@ -137,6 +206,7 @@ export function NotificationSettings() {
         );
     }
 
+    // ── Blocked ──────────────────────────────────────────────────────────
     if (permissionStatus === 'denied') {
         return (
             <div className="p-4 rounded-2xl border" style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.2)' }}>
@@ -144,13 +214,18 @@ export function NotificationSettings() {
                     <BellOff className="w-5 h-5 text-red-500" />
                     <div>
                         <p className="font-medium text-[var(--color-text)]">Notifications Blocked</p>
-                        <p className="text-sm text-[var(--color-text-muted)]">Please enable notifications in your browser settings.</p>
+                        <p className="text-sm text-[var(--color-text-muted)]">
+                            {native
+                                ? 'Enable notifications in your device Settings → FitnessTracker.'
+                                : 'Please enable notifications in your browser settings.'}
+                        </p>
                     </div>
                 </div>
             </div>
         );
     }
 
+    // ── Main UI ──────────────────────────────────────────────────────────
     return (
         <div className="space-y-4">
             {/* Master toggle */}
@@ -166,7 +241,9 @@ export function NotificationSettings() {
                         <div>
                             <p className="font-bold text-[var(--color-text)]">Daily Reminders</p>
                             <p className="text-sm text-[var(--color-text-muted)]">
-                                {enabled ? `${reminders.filter(r => r.enabled).length} active reminder${reminders.filter(r => r.enabled).length !== 1 ? 's' : ''}` : 'Get notified throughout the day'}
+                                {enabled
+                                    ? `${reminders.filter(r => r.enabled).length} active reminder${reminders.filter(r => r.enabled).length !== 1 ? 's' : ''}`
+                                    : 'Get notified throughout the day'}
                             </p>
                         </div>
                     </div>
@@ -189,11 +266,7 @@ export function NotificationSettings() {
             {enabled && (
                 <div className="space-y-2">
                     {reminders.map((r) => (
-                        <div
-                            key={r.id}
-                            className="p-4 bg-[var(--color-surface-elevated)] rounded-2xl border border-[var(--color-border-light)] space-y-3"
-                        >
-                            {/* Label + toggle + delete */}
+                        <div key={r.id} className="p-4 bg-[var(--color-surface-elevated)] rounded-2xl border border-[var(--color-border-light)] space-y-3">
                             <div className="flex items-center gap-2">
                                 <input
                                     type="text"
@@ -202,7 +275,6 @@ export function NotificationSettings() {
                                     className="flex-1 text-sm font-medium bg-transparent outline-none text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]"
                                     placeholder="Reminder label"
                                 />
-                                {/* Enabled toggle */}
                                 <button
                                     onClick={() => { haptics.tap(); updateReminder(r.id, { enabled: !r.enabled }); }}
                                     className="w-10 h-6 rounded-full transition-colors flex-shrink-0"
@@ -210,7 +282,6 @@ export function NotificationSettings() {
                                 >
                                     <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ml-1 ${r.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
                                 </button>
-                                {/* Delete */}
                                 <button
                                     onClick={() => removeReminder(r.id)}
                                     className="p-1.5 rounded-lg transition-colors flex-shrink-0"
@@ -220,8 +291,6 @@ export function NotificationSettings() {
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                             </div>
-
-                            {/* Time picker */}
                             {r.enabled && (
                                 <div className="flex items-center gap-2">
                                     <Clock className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} />
@@ -241,21 +310,19 @@ export function NotificationSettings() {
                         </div>
                     ))}
 
-                    {/* Add reminder */}
                     <button
                         onClick={addReminder}
                         className="w-full py-3 rounded-2xl border border-dashed flex items-center justify-center gap-2 text-sm font-medium transition-all"
-                        style={{
-                            borderColor: 'var(--color-border)',
-                            color: 'var(--color-text-muted)',
-                        }}
+                        style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
                     >
                         <Plus className="w-4 h-4" />
                         Add reminder
                     </button>
 
                     <p className="text-xs text-[var(--color-text-muted)] text-center px-4">
-                        Reminders fire at 9:00 AM or 8:00 PM UTC. Set your reminder time to whichever is closest to when you want it. Times shown are UTC.
+                        {native
+                            ? 'Reminders are delivered as native push notifications, even when the app is closed.'
+                            : 'Reminders fire at the UTC hour closest to your set time. Times shown are UTC.'}
                     </p>
                 </div>
             )}
