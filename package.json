@@ -14,9 +14,11 @@
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "e2e:report": "playwright show-report",
-    "cap:sync": "npx cap sync",
-    "cap:android": "npx cap open android",
-    "cap:ios": "npx cap open ios"
+    "cap:sync": "node ./node_modules/@capacitor/cli/bin/capacitor sync",
+    "cap:android": "node ./node_modules/@capacitor/cli/bin/capacitor open android",
+    "cap:ios": "node ./node_modules/@capacitor/cli/bin/capacitor open ios",
+    "cap:add:android": "node ./node_modules/@capacitor/cli/bin/capacitor add android",
+    "cap:add:ios": "node ./node_modules/@capacitor/cli/bin/capacitor add ios"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",
