@@ -10,7 +10,7 @@ import {
     updateReminders,
     Reminder,
 } from '@/lib/notifications';
-import { isNative } from '@/lib/native';
+import { useIsNative } from '@/lib/native';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -72,7 +72,7 @@ export function NotificationSettings() {
     const [permissionStatus, setPermissionStatus] = useState<NotificationPermission | 'unsupported'>('default');
     const [loading, setLoading]                   = useState(false);
     const [syncingReminders, setSyncingReminders] = useState(false);
-    const [native]                                = useState(() => isNative());
+    const native                                  = useIsNative();
 
     useEffect(() => {
         const saved = localStorage.getItem('reminder_settings_v2');

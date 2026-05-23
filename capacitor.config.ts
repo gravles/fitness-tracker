@@ -11,8 +11,6 @@ const config: CapacitorConfig = {
     // all work exactly as they do in the browser.
     url: 'https://fit.nathandavie.com',
     cleartext: false,
-    // Allows the WebView to handle the custom URL scheme for deep links
-    androidScheme: 'com.nathandavie.fitnesstracker',
   },
   plugins: {
     SplashScreen: {
