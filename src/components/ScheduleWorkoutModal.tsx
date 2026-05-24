@@ -27,7 +27,7 @@ export function ScheduleWorkoutModal({
     onScheduled,
 }: ScheduleWorkoutModalProps) {
     const [date, setDate] = useState(selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
-    const [time, setTime] = useState('09:00');
+    const [time, setTime] = useState('12:00');
     const [title, setTitle] = useState('');
     const [templateId, setTemplateId] = useState('');
     const [notes, setNotes] = useState('');
