@@ -13,6 +13,7 @@ export interface ScheduledWorkout {
     completed_workout_id: string | null;
     reminder_sent: boolean;
     remind_minutes: number | null;
+    duration_minutes: number;
     created_at: string;
     updated_at: string;
     // Joined data
@@ -105,6 +106,7 @@ export async function scheduleWorkout(workout: {
     title: string;
     notes?: string;
     remindMinutes?: number;
+    durationMinutes?: number;
 }): Promise<ScheduledWorkout> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
@@ -120,6 +122,7 @@ export async function scheduleWorkout(workout: {
             notes: workout.notes || null,
             status: 'scheduled',
             remind_minutes: workout.remindMinutes ?? 15,
+            duration_minutes: workout.durationMinutes ?? 60,
         })
         .select()
         .single();
@@ -141,6 +144,8 @@ export async function updateScheduledWorkout(
         status?: 'scheduled' | 'completed' | 'skipped' | 'rescheduled';
         completedWorkoutId?: string;
         reminderSent?: boolean;
+        remindMinutes?: number;
+        durationMinutes?: number;
     }
 ): Promise<ScheduledWorkout> {
     const { data: { session } } = await supabase.auth.getSession();
@@ -157,6 +162,8 @@ export async function updateScheduledWorkout(
     if (updates.status) updateData.status = updates.status;
     if (updates.completedWorkoutId) updateData.completed_workout_id = updates.completedWorkoutId;
     if (updates.reminderSent !== undefined) updateData.reminder_sent = updates.reminderSent;
+    if (updates.remindMinutes !== undefined) updateData.remind_minutes = updates.remindMinutes;
+    if (updates.durationMinutes !== undefined) updateData.duration_minutes = updates.durationMinutes;
 
     const { data, error } = await supabase
         .from('scheduled_workouts')

@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { confirm } from '@/components/ConfirmDialog';
-import { getScheduledWorkouts, deleteScheduledWorkout, skipScheduledWorkout, ScheduledWorkout } from '@/lib/schedule-api';
+import { getScheduledWorkouts, deleteScheduledWorkout, skipScheduledWorkout, updateScheduledWorkout, ScheduledWorkout } from '@/lib/schedule-api';
 import { getProgramSessionsForRange, skipProgramSession, updateProgramSession, ProgramSession, SessionType } from '@/lib/program-api';
 import { getTemplates, createTemplate, deleteTemplate, updateTemplate, WorkoutTemplate } from '@/lib/workout-api';
 import { getPublicTemplates, WorkoutTemplate as PublicTemplate, WorkoutCategory } from '@/lib/features';
@@ -76,6 +76,16 @@ export default function WorkoutHubPage() {
     const [reschedulingSession, setReschedulingSession] = useState<ProgramSession | null>(null);
     const [rescheduleDate, setRescheduleDate]           = useState('');
     const [rescheduleTime, setRescheduleTime]           = useState('12:00');
+
+    // Edit ad-hoc workout
+    const [editingWorkout, setEditingWorkout]           = useState<ScheduledWorkout | null>(null);
+    const [editTitle, setEditTitle]                     = useState('');
+    const [editDate, setEditDate]                       = useState('');
+    const [editTime, setEditTime]                       = useState('');
+    const [editNotes, setEditNotes]                     = useState('');
+    const [editRemind, setEditRemind]                   = useState(15);
+    const [editDuration, setEditDuration]               = useState(60);
+    const [editSaving, setEditSaving]                   = useState(false);
 
     const weekDays = eachDayOfInterval({ start: currentWeekStart, end: addDays(currentWeekStart, 6) });
 
@@ -174,6 +184,43 @@ export default function WorkoutHubPage() {
             }
         } catch {
             toast.error('Could not skip session');
+        }
+    }
+
+    function openEditWorkout(w: ScheduledWorkout) {
+        setEditingWorkout(w);
+        setEditTitle(w.title);
+        setEditDate(w.scheduled_date);
+        setEditTime(w.scheduled_time.slice(0, 5));
+        setEditNotes(w.notes ?? '');
+        setEditRemind(w.remind_minutes ?? 15);
+        setEditDuration(w.duration_minutes ?? 60);
+    }
+
+    function closeEditWorkout() {
+        setEditingWorkout(null);
+    }
+
+    async function handleSaveEdit() {
+        if (!editingWorkout || !editTitle.trim()) return;
+        setEditSaving(true);
+        haptics.tap();
+        try {
+            await updateScheduledWorkout(editingWorkout.id, {
+                date: editDate,
+                time: editTime + ':00',
+                title: editTitle.trim(),
+                notes: editNotes.trim() || undefined,
+                remindMinutes: editRemind,
+                durationMinutes: editDuration,
+            });
+            closeEditWorkout();
+            await loadData();
+            toast.success('Workout updated');
+        } catch {
+            toast.error('Could not update workout');
+        } finally {
+            setEditSaving(false);
         }
     }
 
@@ -688,6 +735,14 @@ export default function WorkoutHubPage() {
                                                                 title="Start"
                                                             >
                                                                 <Play className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => openEditWorkout(workout)}
+                                                                className="p-2 rounded-lg transition-colors"
+                                                                style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
+                                                                title="Edit"
+                                                            >
+                                                                <Edit2 className="w-4 h-4" />
                                                             </button>
                                                             <button
                                                                 onClick={() => handleSkip(workout.id)}
@@ -1479,6 +1534,125 @@ export default function WorkoutHubPage() {
                         >
                             Cancel
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Edit Ad-hoc Workout Modal ────────────────────────────────── */}
+            {editingWorkout && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center px-4"
+                    style={{ background: 'rgba(0,0,0,0.55)' }}
+                    onClick={closeEditWorkout}
+                >
+                    <div
+                        className="w-full max-w-sm rounded-2xl p-6 space-y-4 shadow-xl"
+                        style={{ background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-light)' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <p className="font-bold text-base" style={{ color: 'var(--color-text)' }}>Edit Workout</p>
+
+                        {/* Title */}
+                        <div>
+                            <label className="text-xs font-bold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-text-muted)' }}>Title</label>
+                            <input
+                                type="text"
+                                value={editTitle}
+                                onChange={e => setEditTitle(e.target.value)}
+                                className="w-full p-3 rounded-xl outline-none"
+                                style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                            />
+                        </div>
+
+                        {/* Date + Time */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-xs font-bold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-text-muted)' }}>Date</label>
+                                <input
+                                    type="date"
+                                    value={editDate}
+                                    onChange={e => setEditDate(e.target.value)}
+                                    className="w-full p-3 rounded-xl outline-none"
+                                    style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-text-muted)' }}>Time</label>
+                                <input
+                                    type="time"
+                                    value={editTime}
+                                    onChange={e => setEditTime(e.target.value)}
+                                    className="w-full p-3 rounded-xl outline-none"
+                                    style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Duration + Remind */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-xs font-bold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-text-muted)' }}>Duration</label>
+                                <select
+                                    value={editDuration}
+                                    onChange={e => setEditDuration(Number(e.target.value))}
+                                    className="w-full p-3 rounded-xl outline-none"
+                                    style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                                >
+                                    <option value={30}>30 min</option>
+                                    <option value={45}>45 min</option>
+                                    <option value={60}>1 hour</option>
+                                    <option value={75}>75 min</option>
+                                    <option value={90}>90 min</option>
+                                    <option value={120}>2 hours</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-text-muted)' }}>Remind Me</label>
+                                <select
+                                    value={editRemind}
+                                    onChange={e => setEditRemind(Number(e.target.value))}
+                                    className="w-full p-3 rounded-xl outline-none"
+                                    style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                                >
+                                    <option value={0}>At start</option>
+                                    <option value={5}>5 min before</option>
+                                    <option value={15}>15 min before</option>
+                                    <option value={30}>30 min before</option>
+                                    <option value={60}>1 hr before</option>
+                                    <option value={1440}>1 day before</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Notes */}
+                        <div>
+                            <label className="text-xs font-bold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-text-muted)' }}>Notes</label>
+                            <textarea
+                                value={editNotes}
+                                onChange={e => setEditNotes(e.target.value)}
+                                rows={2}
+                                className="w-full p-3 rounded-xl outline-none resize-none"
+                                style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                            />
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={closeEditWorkout}
+                                className="flex-1 py-3 rounded-xl font-bold text-sm"
+                                style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveEdit}
+                                disabled={editSaving || !editTitle.trim()}
+                                className="flex-1 py-3 rounded-xl font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                                style={{ background: 'var(--color-primary)', color: 'white' }}
+                            >
+                                {editSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

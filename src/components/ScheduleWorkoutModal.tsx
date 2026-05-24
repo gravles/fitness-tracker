@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { X, Calendar, Clock, Dumbbell, FileText, Loader2, Bell } from 'lucide-react';
+import { X, Calendar, Clock, Dumbbell, FileText, Loader2, Bell, Timer } from 'lucide-react';
 import { toast } from 'sonner';
 import { scheduleWorkout } from '@/lib/schedule-api';
 import { haptics } from '@/lib/haptics';
@@ -32,6 +32,7 @@ export function ScheduleWorkoutModal({
     const [templateId, setTemplateId] = useState('');
     const [notes, setNotes] = useState('');
     const [remindMinutes, setRemindMinutes] = useState<number>(15);
+    const [durationMinutes, setDurationMinutes] = useState<number>(60);
     const [saving, setSaving] = useState(false);
 
     async function handleSubmit(e: React.FormEvent) {
@@ -48,10 +49,11 @@ export function ScheduleWorkoutModal({
             await scheduleWorkout({
                 templateId: templateId || undefined,
                 date,
-                time: time + ':00', // Add seconds
+                time: time + ':00',
                 title: title.trim(),
                 notes: notes.trim() || undefined,
                 remindMinutes,
+                durationMinutes,
             });
 
             haptics.success();
@@ -167,6 +169,27 @@ export function ScheduleWorkoutModal({
                         />
                     </div>
 
+                    {/* Duration + Reminder side by side */}
+                    <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1.5">
+                            <Timer className="w-4 h-4 inline mr-1" />
+                            Duration
+                        </label>
+                        <select
+                            value={durationMinutes}
+                            onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                            className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                        >
+                            <option value={30}>30 min</option>
+                            <option value={45}>45 min</option>
+                            <option value={60}>1 hour</option>
+                            <option value={75}>75 min</option>
+                            <option value={90}>90 min</option>
+                            <option value={120}>2 hours</option>
+                        </select>
+                    </div>
+
                     {/* Reminder */}
                     <div>
                         <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1.5">
@@ -186,6 +209,7 @@ export function ScheduleWorkoutModal({
                             <option value={1440}>1 day before</option>
                         </select>
                     </div>
+                    </div>{/* end grid */}
 
                     {/* Submit */}
                     <button

@@ -82,7 +82,7 @@ export async function GET(
         // Ad-hoc scheduled workouts
         supabase
             .from('scheduled_workouts')
-            .select('id, scheduled_date, scheduled_time, title, notes')
+            .select('id, scheduled_date, scheduled_time, title, notes, duration_minutes')
             .eq('user_id', user_id)
             .eq('status', 'scheduled')
             .gte('scheduled_date', todayStr)
@@ -104,27 +104,30 @@ export async function GET(
 
     // Normalise into a single list
     interface CalEvent {
-        uid:    string;
-        date:   string;
-        time:   string;
-        title:  string;
-        notes?: string | null;
+        uid:             string;
+        date:            string;
+        time:            string;
+        title:           string;
+        notes?:          string | null;
+        durationMinutes: number;
     }
 
     const events: CalEvent[] = [
         ...(adHocWorkouts ?? []).map(w => ({
-            uid:   `adhoc-${w.id}@fitness-tracker`,
-            date:  w.scheduled_date,
-            time:  w.scheduled_time,
-            title: w.title,
-            notes: w.notes,
+            uid:             `adhoc-${w.id}@fitness-tracker`,
+            date:            w.scheduled_date,
+            time:            w.scheduled_time,
+            title:           w.title,
+            notes:           w.notes,
+            durationMinutes: w.duration_minutes ?? 60,
         })),
         ...(programSessions ?? []).map(s => ({
-            uid:   `program-${s.id}@fitness-tracker`,
-            date:  s.scheduled_date,
-            time:  s.scheduled_time ?? '12:00:00',
-            title: s.day_label,
-            notes: s.notes,
+            uid:             `program-${s.id}@fitness-tracker`,
+            date:            s.scheduled_date,
+            time:            s.scheduled_time ?? '12:00:00',
+            title:           s.day_label,
+            notes:           s.notes,
+            durationMinutes: 60,
         })),
     ];
 
@@ -153,7 +156,7 @@ export async function GET(
 
     for (const ev of events) {
         const startUtc = localToUtcDate(ev.date, ev.time, timezone);
-        const endUtc   = new Date(startUtc.getTime() + 60 * 60_000); // 1-hour default
+        const endUtc   = new Date(startUtc.getTime() + ev.durationMinutes * 60_000);
 
         lines.push('BEGIN:VEVENT');
         lines.push(`UID:${ev.uid}`);
