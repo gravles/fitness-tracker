@@ -39,6 +39,7 @@ export default function SettingsPage() {
         heightFt: '',
         heightIn: '',
         fitnessGoal: '',
+        weightUnit: 'imperial' as 'imperial' | 'metric',
     });
     const [targets, setTargets] = useState({
         weight: '',
@@ -123,6 +124,7 @@ export default function SettingsPage() {
                     heightFt:     ft > 0 ? String(ft) : '',
                     heightIn:     inches > 0 ? String(inches) : '',
                     fitnessGoal:  data.fitness_goal ?? '',
+                    weightUnit:   (data.weight_unit ?? 'imperial') as 'imperial' | 'metric',
                 });
                 // Targets
                 setTargets({
@@ -347,7 +349,35 @@ export default function SettingsPage() {
                             ))}
                         </div>
                     </div>
-                </div>
+
+                    {/* Weight Unit */}
+                    <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-text-muted)' }}>
+                            Weight Unit
+                        </label>
+                        <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+                            {(['imperial', 'metric'] as const).map(u => (
+                                <button
+                                    key={u}
+                                    type="button"
+                                    onClick={async () => {
+                                        setProfile(p => ({ ...p, weightUnit: u }));
+                                        localStorage.setItem('fitness_unit_pref', u);
+                                        try { await updateSettings({ weight_unit: u }); } catch { /* ignore */ }
+                                    }}
+                                    className="flex-1 py-2.5 text-sm font-bold transition-all"
+                                    style={
+                                        profile.weightUnit === u
+                                            ? { background: 'var(--color-navy)', color: 'var(--color-gold)' }
+                                            : { background: 'transparent', color: 'var(--color-text-muted)' }
+                                    }
+                                >
+                                    {u === 'imperial' ? 'lbs' : 'kg'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>{/* end space-y-4 */}
 
                 <button
                     onClick={handleSaveProfile}

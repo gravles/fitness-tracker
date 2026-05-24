@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { upsertBodyMetrics, getBodyMetricsHistory } from '@/lib/api';
+import { upsertBodyMetrics, getBodyMetricsHistory, getSettings, updateSettings } from '@/lib/api';
 import { Loader2, Scale, Camera, ImageIcon, Activity, Zap, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
@@ -32,15 +32,27 @@ export default function BodyMetricsPage() {
     const [unit, setUnit]           = useState<'imperial' | 'metric'>('imperial');
     const photoInputRef = useRef<HTMLInputElement>(null);
 
-    // Load unit preference
+    // Load unit preference — Supabase first, localStorage as fallback
     useEffect(() => {
-        const saved = localStorage.getItem('fitness_unit_pref');
-        if (saved === 'metric') setUnit('metric');
+        async function loadUnit() {
+            try {
+                const settings = await getSettings();
+                if (settings?.weight_unit) {
+                    setUnit(settings.weight_unit);
+                    localStorage.setItem('fitness_unit_pref', settings.weight_unit);
+                    return;
+                }
+            } catch { /* ignore */ }
+            const saved = localStorage.getItem('fitness_unit_pref');
+            if (saved === 'metric' || saved === 'imperial') setUnit(saved);
+        }
+        loadUnit();
     }, []);
 
-    const toggleUnit = (next: 'imperial' | 'metric') => {
+    const toggleUnit = async (next: 'imperial' | 'metric') => {
         setUnit(next);
         localStorage.setItem('fitness_unit_pref', next);
+        try { await updateSettings({ weight_unit: next }); } catch { /* ignore */ }
     };
 
     // Helpers

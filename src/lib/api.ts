@@ -270,6 +270,8 @@ export interface UserSettings {
     // Calendar / notifications
     timezone?: string;               // IANA timezone, e.g. "America/New_York"
     calendar_token?: string;         // UUID for public iCal feed URL
+    // Units
+    weight_unit?: 'imperial' | 'metric'; // 'imperial' = lbs, 'metric' = kg
 }
 
 export async function getSettings() {
