@@ -63,9 +63,11 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        const supabase    = getSupabaseAdmin();
-        const messaging   = await getMessaging();
-        const currentHour = new Date().getUTCHours();
+        const supabase       = getSupabaseAdmin();
+        const messaging      = await getMessaging();
+        const now            = new Date();
+        const currentHour    = now.getUTCHours();
+        const currentMinute  = now.getUTCMinutes();
 
         // Fetch web-push subscriptions and native device tokens in parallel
         const [{ data: webSubs }, { data: deviceTokenRows }] = await Promise.all([
@@ -119,8 +121,8 @@ export async function GET(request: NextRequest) {
             const reminders: Reminder[] = sub.reminders ?? [];
             const due = reminders.filter(r => {
                 if (!r.enabled) return false;
-                const [h] = r.time.split(':').map(Number);
-                return h === currentHour;
+                const [h, m] = r.time.split(':').map(Number);
+                return h === currentHour && m === currentMinute;
             });
 
             for (const reminder of due) {
@@ -162,8 +164,8 @@ export async function GET(request: NextRequest) {
         for (const [userId, reminders] of Object.entries(nativeRemindersByUser)) {
             const due = reminders.filter(r => {
                 if (!r.enabled) return false;
-                const [h] = r.time.split(':').map(Number);
-                return h === currentHour;
+                const [h, m] = r.time.split(':').map(Number);
+                return h === currentHour && m === currentMinute;
             });
             for (const reminder of due) {
                 const title = reminder.label;
