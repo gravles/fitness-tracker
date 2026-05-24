@@ -40,10 +40,26 @@ export async function POST(request: NextRequest) {
         }
 
         const supabase = getSupabaseAdmin();
+
+        // Check if a row already exists for this token so we don't wipe reminders
+        const { data: existing } = await supabase
+            .from('device_tokens')
+            .select('reminders')
+            .eq('user_id', userId)
+            .eq('token', token)
+            .maybeSingle();
+
         const { error } = await supabase
             .from('device_tokens')
             .upsert(
-                { user_id: userId, token, platform, updated_at: new Date().toISOString() },
+                {
+                    user_id: userId,
+                    token,
+                    platform,
+                    updated_at: new Date().toISOString(),
+                    // Preserve existing reminders; only set to null if truly new row
+                    reminders: existing?.reminders ?? null,
+                },
                 { onConflict: 'user_id, token' }
             );
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bell, BellOff, Clock, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Bell, BellOff, Clock, Loader2, Plus, Trash2, Send } from 'lucide-react';
 import {
     isPushSupported,
     getPermissionStatus,
@@ -110,6 +110,7 @@ export function NotificationSettings() {
     const [permissionStatus, setPermissionStatus] = useState<NotificationPermission | 'unsupported'>('default');
     const [loading, setLoading]                   = useState(false);
     const [syncingReminders, setSyncingReminders] = useState(false);
+    const [testing, setTesting]                   = useState(false);
     const native                                  = useIsNative();
 
     useEffect(() => {
@@ -162,11 +163,15 @@ export function NotificationSettings() {
                 saveLocal(false, reminders);
             } else {
                 // ── Enable ───────────────────────────────────────────────
+                // If the user has no reminders configured, restore the defaults
+                const remindersToSave = reminders.length > 0 ? reminders : DEFAULT_REMINDERS;
+                if (remindersToSave !== reminders) setReminders(remindersToSave);
+
                 if (native) {
-                    const ok = await subscribeNative(reminders);
+                    const ok = await subscribeNative(remindersToSave);
                     if (ok) {
                         setEnabled(true);
-                        saveLocal(true, reminders);
+                        saveLocal(true, remindersToSave);
                         setPermissionStatus('granted');
                         toast.success('Reminders enabled!');
                     } else {
@@ -177,10 +182,10 @@ export function NotificationSettings() {
                         }
                     }
                 } else {
-                    const sub = await subscribeToPush(reminders);
+                    const sub = await subscribeToPush(remindersToSave);
                     if (sub) {
                         setEnabled(true);
-                        saveLocal(true, reminders);
+                        saveLocal(true, remindersToSave);
                         setPermissionStatus('granted');
                         toast.success('Reminders enabled!');
                     } else {
@@ -206,6 +211,33 @@ export function NotificationSettings() {
             }
         } finally {
             setSyncingReminders(false);
+        }
+    }
+
+    async function sendTestNotification() {
+        setTesting(true);
+        haptics.tap();
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) { toast.error('Not signed in'); return; }
+            const res = await fetch('/api/notifications/test', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success(`Test sent to ${data.sent} device${data.sent !== 1 ? 's' : ''}!`);
+                haptics.success();
+            } else {
+                toast.error(data.error ?? 'Test failed — check setup below');
+                haptics.error();
+                console.error('[Test notification]', data);
+            }
+        } catch (e) {
+            toast.error('Network error sending test');
+            haptics.error();
+        } finally {
+            setTesting(false);
         }
     }
 
@@ -359,6 +391,20 @@ export function NotificationSettings() {
                     >
                         <Plus className="w-4 h-4" />
                         Add reminder
+                    </button>
+
+                    {/* Test button — fires an immediate push to verify the full pipeline */}
+                    <button
+                        onClick={sendTestNotification}
+                        disabled={testing}
+                        className="w-full py-3 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold transition-all active:scale-95"
+                        style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }}
+                    >
+                        {testing
+                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                            : <Send className="w-4 h-4" />
+                        }
+                        {testing ? 'Sending…' : 'Send test notification'}
                     </button>
 
                     <UtcOffsetNote />
