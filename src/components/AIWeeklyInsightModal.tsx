@@ -30,6 +30,9 @@ export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightM
                 body: JSON.stringify({ logs })
             });
             const data = await res.json();
+            if (!res.ok || data.error) {
+                throw new Error(data.error || 'Failed to generate report');
+            }
             setInsight(data);
         } catch (e) {
             console.error(e);
@@ -88,7 +91,7 @@ export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightM
                                         <CheckCircle2 className="w-5 h-5" /> Wins
                                     </h3>
                                     <ul className="space-y-2">
-                                        {insight.wins.map((win, i) => (
+                                        {(insight.wins ?? []).map((win, i) => (
                                             <li key={i} className="flex gap-2 text-sm text-green-700 dark:text-green-400">
                                                 <span>•</span> {win}
                                             </li>
@@ -102,7 +105,7 @@ export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightM
                                         <AlertTriangle className="w-5 h-5" /> Focus Areas
                                     </h3>
                                     <ul className="space-y-2">
-                                        {insight.improvements.map((imp, i) => (
+                                        {(insight.improvements ?? []).map((imp, i) => (
                                             <li key={i} className="flex gap-2 text-sm text-orange-700 dark:text-orange-400">
                                                 <span>•</span> {imp}
                                             </li>

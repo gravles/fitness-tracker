@@ -11,78 +11,6 @@ import { ChangelogModal } from '@/components/ChangelogModal';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { haptics } from '@/lib/haptics';
 
-function PWADiagnostic() {
-    const [status, setStatus] = useState<'checking' | 'active' | 'missing'>('checking');
-    const [error, setError] = useState('');
-
-    useEffect(() => { checkStatus(); }, []);
-
-    function checkStatus() {
-        navigator.serviceWorker.getRegistration().then(reg => {
-            setStatus(reg ? 'active' : 'missing');
-        });
-    }
-
-    function register() {
-        setStatus('checking');
-        navigator.serviceWorker.register('/sw.js')
-            .then(() => { setTimeout(checkStatus, 500); })
-            .catch(err => { setStatus('missing'); setError(err.message); });
-    }
-
-    return (
-        <div
-            className="mt-4 pt-4"
-            style={{ borderTop: '1px solid var(--color-border)' }}
-        >
-            <h4
-                className="font-bold text-xs uppercase tracking-widest mb-2"
-                style={{ color: 'var(--color-text-muted)' }}
-            >
-                PWA Status
-            </h4>
-            <div className="text-xs space-y-2 font-mono">
-                <div className="flex justify-between">
-                    <span style={{ color: 'var(--color-text-muted)' }}>Service Worker:</span>
-                    <span style={{ color: 'var(--color-success)' }}>Supported</span>
-                </div>
-                <div className="flex justify-between items-center">
-                    <span style={{ color: 'var(--color-text-muted)' }}>Registration:</span>
-                    <span style={{
-                        color: status === 'active' ? 'var(--color-success)' : status === 'missing' ? '#ef4444' : 'var(--color-text-muted)'
-                    }}>
-                        {status === 'active' ? 'Active ✅' : status === 'missing' ? 'Missing ❌' : 'Checking...'}
-                    </span>
-                </div>
-                {status === 'missing' && (
-                    <div
-                        className="p-3 rounded-lg border"
-                        style={{ background: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.2)' }}
-                    >
-                        <p className="mb-2" style={{ color: '#ef4444' }}>Worker not running.</p>
-                        <button
-                            onClick={register}
-                            className="w-full py-2 font-bold rounded"
-                            style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}
-                        >
-                            Force Register
-                        </button>
-                        {error && <p className="mt-2 text-[10px]" style={{ color: '#ef4444' }}>{error}</p>}
-                    </div>
-                )}
-                {status === 'active' && (
-                    <div
-                        className="p-2 rounded text-center text-xs"
-                        style={{ background: 'rgba(34,197,94,0.1)', color: 'var(--color-success)' }}
-                    >
-                        Ready to Install!
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
 const sectionStyle = {
     background: 'var(--color-surface-elevated)',
     borderColor: 'var(--color-border-light)',
@@ -949,10 +877,6 @@ export default function SettingsPage() {
                     Fitness Tracker v1.2 (AI Edition)<br />
                     Built with Next.js &amp; Supabase
                 </p>
-
-                {typeof window !== 'undefined' && 'serviceWorker' in navigator && (
-                    <PWADiagnostic />
-                )}
             </section>
 
             <ChangelogModal isOpen={showChangelog} onClose={() => setShowChangelog(false)} />
