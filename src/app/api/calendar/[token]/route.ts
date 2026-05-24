@@ -14,10 +14,10 @@ function getSupabaseAdmin() {
  * Uses the Intl API — no external library required.
  */
 function localToUtcDate(dateStr: string, timeStr: string, tz: string): Date {
-    const probe    = new Date(`${dateStr}T${timeStr.slice(0, 5)}:00Z`);
+    const probe     = new Date(`${dateStr}T${timeStr.slice(0, 5)}:00Z`);
     const localRepr = probe.toLocaleString('sv-SE', { timeZone: tz }); // "YYYY-MM-DD HH:mm:ss"
-    const localMs  = new Date(localRepr.replace(' ', 'T') + 'Z').getTime();
-    const offsetMs = localMs - probe.getTime();
+    const localMs   = new Date(localRepr.replace(' ', 'T') + 'Z').getTime();
+    const offsetMs  = localMs - probe.getTime();
     return new Date(probe.getTime() - offsetMs);
 }
 
@@ -72,21 +72,68 @@ export async function GET(
     const { user_id, timezone = 'UTC', display_name } = userSettings;
     const calendarName = display_name ? `${display_name}'s Workouts` : 'My Workouts';
 
-    // Fetch upcoming scheduled workouts (next 90 days)
-    const today        = new Date();
-    const in90Days     = new Date(today.getTime() + 90 * 86_400_000);
-    const todayStr     = today.toISOString().slice(0, 10);
-    const in90DaysStr  = in90Days.toISOString().slice(0, 10);
+    // Fetch next 90 days from both tables in parallel
+    const today       = new Date();
+    const in90Days    = new Date(today.getTime() + 90 * 86_400_000);
+    const todayStr    = today.toISOString().slice(0, 10);
+    const in90DaysStr = in90Days.toISOString().slice(0, 10);
 
-    const { data: workouts } = await supabase
-        .from('scheduled_workouts')
-        .select('id, scheduled_date, scheduled_time, title, notes')
-        .eq('user_id', user_id)
-        .eq('status', 'scheduled')
-        .gte('scheduled_date', todayStr)
-        .lte('scheduled_date', in90DaysStr)
-        .order('scheduled_date', { ascending: true })
-        .order('scheduled_time', { ascending: true });
+    const [{ data: adHocWorkouts }, { data: programSessions }] = await Promise.all([
+        // Ad-hoc scheduled workouts
+        supabase
+            .from('scheduled_workouts')
+            .select('id, scheduled_date, scheduled_time, title, notes')
+            .eq('user_id', user_id)
+            .eq('status', 'scheduled')
+            .gte('scheduled_date', todayStr)
+            .lte('scheduled_date', in90DaysStr)
+            .order('scheduled_date', { ascending: true })
+            .order('scheduled_time',  { ascending: true }),
+
+        // Program sessions
+        supabase
+            .from('program_sessions')
+            .select('id, scheduled_date, scheduled_time, day_label, notes')
+            .eq('user_id', user_id)
+            .in('status', ['upcoming', 'rescheduled'])
+            .gte('scheduled_date', todayStr)
+            .lte('scheduled_date', in90DaysStr)
+            .order('scheduled_date', { ascending: true })
+            .order('scheduled_time',  { ascending: true }),
+    ]);
+
+    // Normalise into a single list
+    interface CalEvent {
+        uid:    string;
+        date:   string;
+        time:   string;
+        title:  string;
+        notes?: string | null;
+    }
+
+    const events: CalEvent[] = [
+        ...(adHocWorkouts ?? []).map(w => ({
+            uid:   `adhoc-${w.id}@fitness-tracker`,
+            date:  w.scheduled_date,
+            time:  w.scheduled_time,
+            title: w.title,
+            notes: w.notes,
+        })),
+        ...(programSessions ?? []).map(s => ({
+            uid:   `program-${s.id}@fitness-tracker`,
+            date:  s.scheduled_date,
+            time:  s.scheduled_time ?? '12:00:00',
+            title: s.day_label,
+            notes: s.notes,
+        })),
+    ];
+
+    // Sort combined list by date then time
+    events.sort((a, b) =>
+        a.date !== b.date
+            ? a.date.localeCompare(b.date)
+            : a.time.localeCompare(b.time)
+    );
 
     // Build iCal
     const lines: string[] = [
@@ -102,20 +149,20 @@ export async function GET(
         'X-PUBLISHED-TTL:PT1H',
     ];
 
-    for (const w of (workouts ?? [])) {
-        const startUtc = localToUtcDate(w.scheduled_date, w.scheduled_time, timezone);
-        const endUtc   = new Date(startUtc.getTime() + 60 * 60_000); // 1-hour default duration
-        const dtStamp  = toIcalDate(new Date());
-        const uid      = `workout-${w.id}@fitness-tracker`;
+    const dtStamp = toIcalDate(new Date());
+
+    for (const ev of events) {
+        const startUtc = localToUtcDate(ev.date, ev.time, timezone);
+        const endUtc   = new Date(startUtc.getTime() + 60 * 60_000); // 1-hour default
 
         lines.push('BEGIN:VEVENT');
-        lines.push(`UID:${uid}`);
+        lines.push(`UID:${ev.uid}`);
         lines.push(`DTSTAMP:${dtStamp}`);
         lines.push(`DTSTART:${toIcalDate(startUtc)}`);
         lines.push(`DTEND:${toIcalDate(endUtc)}`);
-        lines.push(`SUMMARY:🏋️ ${escapeIcal(w.title)}`);
-        if (w.notes) {
-            lines.push(`DESCRIPTION:${escapeIcal(w.notes)}`);
+        lines.push(`SUMMARY:🏋️ ${escapeIcal(ev.title)}`);
+        if (ev.notes) {
+            lines.push(`DESCRIPTION:${escapeIcal(ev.notes)}`);
         }
         lines.push('END:VEVENT');
     }
