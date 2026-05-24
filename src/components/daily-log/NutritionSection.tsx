@@ -3,7 +3,7 @@
 import { VoiceInput } from '../VoiceInput';
 import { FoodCamera } from '../FoodCamera';
 import { BarcodeScanner } from '../BarcodeScanner';
-import { Keyboard, ChefHat, Camera, X, Brain, Heart, Trash2, BookOpen, Pencil, Barcode } from 'lucide-react';
+import { Keyboard, ChefHat, Camera, X, Brain, Heart, Trash2, BookOpen, Pencil, Barcode, Loader2, Mic } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { addFavoriteFood, deleteFavoriteFood, getFavoriteFoods, FavoriteFood } from '@/lib/api';
@@ -108,6 +108,8 @@ export function NutritionSection({
 }: NutritionSectionProps) {
     const [loadingAI, setLoadingAI] = useState(false);
     const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+    const [voiceListening, setVoiceListening] = useState(false);
+    const [voiceProcessing, setVoiceProcessing] = useState(false);
 
     function updateFoodItemQuantity(index: number, newQuantity: string | number) {
         const updated = [...foodItems];
@@ -308,9 +310,37 @@ export function NutritionSection({
                 </div>
 
                 {/* Quick Actions Grid - 2 rows of 3 */}
+                {/* Listening / Processing banner */}
+                {(voiceListening || voiceProcessing) && (
+                    <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl mb-2 ${
+                        voiceListening
+                            ? 'bg-red-500/10 border border-red-500/30'
+                            : 'bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/30'
+                    }`}>
+                        {voiceListening ? (
+                            <>
+                                <div className="relative flex-shrink-0">
+                                    <div className="w-3 h-3 rounded-full bg-red-500 animate-ping absolute" />
+                                    <div className="w-3 h-3 rounded-full bg-red-500 relative" />
+                                </div>
+                                <span className="text-sm font-bold text-red-500">Listening… speak now</span>
+                            </>
+                        ) : (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" style={{ color: 'var(--color-primary)' }} />
+                                <span className="text-sm font-bold" style={{ color: 'var(--color-primary)' }}>Processing your voice…</span>
+                            </>
+                        )}
+                    </div>
+                )}
+
                 <div className="grid grid-cols-3 gap-2">
                     <VoiceInput
                         autoStart={autoStartVoice}
+                        onStateChange={(listening, processing) => {
+                            setVoiceListening(listening);
+                            setVoiceProcessing(processing);
+                        }}
                         onIntentDetected={(intent) => {
                             if (intent.error) {
                                 toast.error("Voice Error: " + intent.error);
@@ -343,19 +373,40 @@ export function NutritionSection({
                                 toast.error(`Could not understand: "${intent.original}"`);
                             }
                         }}
-                        customTrigger={(onClick, isListening) => (
+                        customTrigger={(onClick, isListening, isProcessing) => (
                             <button
                                 onClick={onClick}
+                                disabled={isProcessing}
                                 className="flex flex-col items-center gap-1 w-full"
                             >
-                                <div
-                                    className={`w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border transition-colors ${isListening ? 'bg-red-500 text-white animate-pulse border-red-400' : ''}`}
-                                    style={!isListening ? { background: 'rgba(29,95,168,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(29,95,168,0.2)' } : undefined}
-                                >
-                                    <span className="text-lg">🎙️</span>
+                                <div className="relative w-full flex justify-center">
+                                    {/* Ping ring when listening */}
+                                    {isListening && (
+                                        <span className="absolute inset-0 flex items-center justify-center">
+                                            <span className="w-[52px] h-[52px] rounded-2xl bg-red-500 animate-ping opacity-25 absolute" />
+                                        </span>
+                                    )}
+                                    <div
+                                        className={`w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border transition-all duration-200 relative z-10 ${
+                                            isListening ? 'bg-red-500 border-red-400 scale-110' :
+                                            isProcessing ? 'border-[var(--color-primary)] opacity-70' : ''
+                                        }`}
+                                        style={!isListening ? { background: 'rgba(29,95,168,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(29,95,168,0.2)' } : undefined}
+                                    >
+                                        {isProcessing
+                                            ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--color-primary)' }} />
+                                            : isListening
+                                            ? <Mic className="w-5 h-5 text-white" />
+                                            : <span className="text-lg">🎙️</span>
+                                        }
+                                    </div>
                                 </div>
-                                <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">
-                                    {isListening ? 'Active' : 'Voice'}
+                                <span className={`text-[10px] font-bold max-[320px]:hidden leading-tight ${
+                                    isListening ? 'text-red-500' :
+                                    isProcessing ? 'text-[var(--color-primary)]' :
+                                    'text-[var(--color-text-muted)]'
+                                }`}>
+                                    {isProcessing ? 'Thinking…' : isListening ? 'Listening' : 'Voice'}
                                 </span>
                             </button>
                         )}

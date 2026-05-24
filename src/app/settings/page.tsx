@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { getSettings, updateSettings, getUserBadges, UserBadge, getAccountabilityPartners, addAccountabilityPartner, deleteAccountabilityPartner, AccountabilityPartner, getIntegrations, upsertIntegration, deleteIntegration, Integration } from '@/lib/api';
-import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2, Users, Trash2, Send, X, Link2, RefreshCw, User } from 'lucide-react';
+import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2, Users, Trash2, Send, X, Link2, RefreshCw, User, Sun, Moon, Monitor } from 'lucide-react';
+import { useTheme } from '@/components/ThemeProvider';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { GoalWizard } from '@/components/GoalWizard';
 import { toast } from 'sonner';
@@ -31,6 +32,7 @@ export default function SettingsPage() {
     const [syncingIntegration, setSyncingIntegration] = useState<string | null>(null);
     const searchParams = useSearchParams();
     const router = useRouter();
+    const { theme, setTheme } = useTheme();
     const [profile, setProfile] = useState({
         displayName: '',
         dob: '',
@@ -403,6 +405,33 @@ export default function SettingsPage() {
                     >
                         Customization
                     </h2>
+                </div>
+
+                {/* Theme toggle */}
+                <div>
+                    <h3 className="font-medium mb-1" style={{ color: 'var(--color-text)' }}>Appearance</h3>
+                    <p className="text-sm mb-3" style={{ color: 'var(--color-text-muted)' }}>Choose light, dark, or follow your device setting.</p>
+                    <div className="grid grid-cols-3 gap-2">
+                        {([
+                            { value: 'light',  label: 'Light',  Icon: Sun },
+                            { value: 'system', label: 'System', Icon: Monitor },
+                            { value: 'dark',   label: 'Dark',   Icon: Moon },
+                        ] as const).map(({ value, label, Icon }) => (
+                            <button
+                                key={value}
+                                onClick={() => setTheme(value)}
+                                className="flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all"
+                                style={{
+                                    background: theme === value ? 'var(--color-navy)' : 'var(--color-bg-subtle)',
+                                    borderColor: theme === value ? 'var(--color-gold)' : 'var(--color-border)',
+                                    color: theme === value ? 'var(--color-gold)' : 'var(--color-text-muted)',
+                                }}
+                            >
+                                <Icon className="w-5 h-5" />
+                                <span className="text-xs font-bold">{label}</span>
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 <NotificationSettings />

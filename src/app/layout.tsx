@@ -44,6 +44,7 @@ import { SWRegister } from "@/components/SWRegister";
 import { AuthWrapper } from "@/components/AuthWrapper";
 import { SyncManager } from "@/components/SyncManager";
 import { CapacitorProvider } from "@/components/CapacitorProvider";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "sonner";
 
 export default function RootLayout({
@@ -53,8 +54,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Prevent flash of wrong theme on load */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.add('light');}catch(e){}})();` }} />
+      </head>
       <body className={`${inter.variable} ${playfair.variable} antialiased`}>
         <SWRegister />
+        <ThemeProvider>
         <AuthWrapper>
           <CapacitorProvider>
           <SyncManager />
@@ -75,6 +81,7 @@ export default function RootLayout({
           </div>
           </CapacitorProvider>
         </AuthWrapper>
+        </ThemeProvider>
       </body>
     </html>
   );

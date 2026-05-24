@@ -8,9 +8,10 @@ interface VoiceInputProps {
     onIntentDetected: (intent: any) => void;
     autoStart?: boolean;
     customTrigger?: (onClick: () => void, isListening: boolean, isProcessing: boolean) => React.ReactNode;
+    onStateChange?: (listening: boolean, processing: boolean) => void;
 }
 
-export function VoiceInput({ onIntentDetected, autoStart = false, customTrigger }: VoiceInputProps) {
+export function VoiceInput({ onIntentDetected, autoStart = false, customTrigger, onStateChange }: VoiceInputProps) {
     const [isListening, setIsListening] = useState(false);
     const [transcript, setTranscript] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
@@ -33,6 +34,7 @@ export function VoiceInput({ onIntentDetected, autoStart = false, customTrigger 
 
             recognition.onend = () => {
                 setIsListening(false);
+                // onStateChange will be set to processing next, so don't call here
             };
 
             setRecognition(recognition);
@@ -63,12 +65,14 @@ export function VoiceInput({ onIntentDetected, autoStart = false, customTrigger 
         } else {
             recognition.start();
             setIsListening(true);
+            onStateChange?.(true, false);
             setTranscript('');
         }
     };
 
     const handleProcess = async (text: string) => {
         setIsProcessing(true);
+        onStateChange?.(false, true);
         try {
             const res = await fetch('/api/ai/process-intent', {
                 method: 'POST',
@@ -81,6 +85,7 @@ export function VoiceInput({ onIntentDetected, autoStart = false, customTrigger 
             console.error(error);
         } finally {
             setIsProcessing(false);
+            onStateChange?.(false, false);
         }
     };
 

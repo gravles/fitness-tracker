@@ -54,9 +54,11 @@
   --shadow-glow: 0 0 20px -5px;
 }
 
-/* Dark Mode — deep navy, not slate */
+/* ── Dark mode token block (shared by media query and .dark class) ── */
+/* Using a layer so .dark and .light classes always win over the MQ */
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  html:not(.light) {
     --color-primary:       #4a8fd4;
     --color-primary-light: #6aaae0;
     --color-primary-dark:  #2d72c4;
@@ -80,6 +82,54 @@
   }
 }
 
+/* Force dark — overrides OS light preference */
+html.dark {
+  --color-primary:       #4a8fd4;
+  --color-primary-light: #6aaae0;
+  --color-primary-dark:  #2d72c4;
+
+  --color-bg:               #0d1b2a;
+  --color-bg-subtle:        #112030;
+  --color-bg-muted:         #1a2d40;
+  --color-surface:          rgba(17, 32, 48, 0.92);
+  --color-surface-elevated: #162438;
+
+  --color-text:           #e2eaf2;
+  --color-text-secondary: #9db4ca;
+  --color-text-muted:     #4d6a82;
+
+  --color-border:       #1e3347;
+  --color-border-light: #172b3c;
+
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.35), 0 2px 4px -1px rgb(0 0 0 / 0.2);
+  --shadow-lg: 0 10px 25px -4px rgb(0 0 0 / 0.45), 0 4px 8px -2px rgb(0 0 0 / 0.25);
+}
+
+/* Force light — overrides OS dark preference */
+html.light {
+  --color-primary:      #1d5fa8;
+  --color-primary-light:#2d72c4;
+  --color-primary-dark: #164d8a;
+
+  --color-bg:               #fafaf8;
+  --color-bg-subtle:        #f3f2ee;
+  --color-bg-muted:         #e8e6df;
+  --color-surface:          rgba(255, 255, 255, 0.85);
+  --color-surface-elevated: #ffffff;
+
+  --color-text:           #0d1b2a;
+  --color-text-secondary: #2d4a63;
+  --color-text-muted:     #7a96b0;
+
+  --color-border:       #d5dae2;
+  --color-border-light: #eceff4;
+
+  --shadow-sm: 0 1px 3px 0 rgb(13 27 42 / 0.08);
+  --shadow-md: 0 4px 12px -2px rgb(13 27 42 / 0.10), 0 2px 4px -1px rgb(13 27 42 / 0.06);
+  --shadow-lg: 0 10px 25px -4px rgb(13 27 42 / 0.13), 0 4px 8px -2px rgb(13 27 42 / 0.07);
+}
+
 /* =====================================================
    BASE STYLES
    ===================================================== */
@@ -93,10 +143,15 @@ body {
 }
 
 @media (prefers-color-scheme: dark) {
-  body {
+  html:not(.light) body {
     background: linear-gradient(180deg, #0a1628 0%, #0d1b2a 60%);
     min-height: 100dvh;
   }
+}
+
+html.dark body {
+  background: linear-gradient(180deg, #0a1628 0%, #0d1b2a 60%);
+  min-height: 100dvh;
 }
 
 /* Serif headings for premium feel */
