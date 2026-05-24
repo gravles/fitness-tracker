@@ -70,17 +70,17 @@ function MacroRing({ value, target, label, color, trackColor, unit }: MacroRingP
                     />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center leading-tight">
-                    <span className={`text-lg font-black ${over ? 'text-orange-500' : 'text-gray-900'}`}>{value}</span>
-                    <span className="text-[10px] text-gray-400 font-medium">{unit}</span>
+                    <span className={`text-lg font-black ${over ? 'text-orange-500' : 'text-[var(--color-text)]'}`}>{value}</span>
+                    <span className="text-[10px] text-[var(--color-text-muted)] font-medium">{unit}</span>
                 </div>
             </div>
-            <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">{label}</p>
+            <p className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">{label}</p>
             {target > 0 ? (
-                <p className={`text-[11px] font-semibold ${over ? 'text-orange-500' : 'text-gray-400'}`}>
+                <p className={`text-[11px] font-semibold ${over ? 'text-orange-500' : 'text-[var(--color-text-muted)]'}`}>
                     {over ? `${value - target} over` : `${remaining} left`}
                 </p>
             ) : (
-                <p className="text-[11px] text-gray-300">no target set</p>
+                <p className="text-[11px] text-[var(--color-text-muted)] opacity-60">no target set</p>
             )}
         </div>
     );
@@ -251,39 +251,39 @@ export function NutritionSection({
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-xs font-bold text-orange-400 uppercase mb-1">Calories (per unit)</label>
+                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: '#f97316' }}>Calories (per unit)</label>
                                     <input
                                         type="number"
                                         value={editForm.calories}
                                         onChange={e => setEditForm({ ...editForm, calories: parseFloat(e.target.value) || 0 })}
-                                        className="w-full p-3 bg-orange-50 rounded-xl border border-orange-100 text-sm font-bold text-orange-800"
+                                        className="w-full p-3 rounded-xl border text-sm font-bold text-[var(--color-text)] bg-[var(--color-bg-subtle)] border-[var(--color-border)]"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-blue-400 uppercase mb-1">Protein (g)</label>
+                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: '#3b82f6' }}>Protein (g)</label>
                                     <input
                                         type="number"
                                         value={editForm.protein}
                                         onChange={e => setEditForm({ ...editForm, protein: parseFloat(e.target.value) || 0 })}
-                                        className="w-full p-3 bg-blue-50 rounded-xl border border-blue-100 text-sm font-bold text-blue-800"
+                                        className="w-full p-3 rounded-xl border text-sm font-bold text-[var(--color-text)] bg-[var(--color-bg-subtle)] border-[var(--color-border)]"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-yellow-500 uppercase mb-1">Carbs (g)</label>
+                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: 'var(--color-warning)' }}>Carbs (g)</label>
                                     <input
                                         type="number"
                                         value={editForm.carbs}
                                         onChange={e => setEditForm({ ...editForm, carbs: parseFloat(e.target.value) || 0 })}
-                                        className="w-full p-3 bg-yellow-50 rounded-xl border border-yellow-100 text-sm font-bold text-yellow-800"
+                                        className="w-full p-3 rounded-xl border text-sm font-bold text-[var(--color-text)] bg-[var(--color-bg-subtle)] border-[var(--color-border)]"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-purple-400 uppercase mb-1">Fat (g)</label>
+                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: '#a855f7' }}>Fat (g)</label>
                                     <input
                                         type="number"
                                         value={editForm.fat}
                                         onChange={e => setEditForm({ ...editForm, fat: parseFloat(e.target.value) || 0 })}
-                                        className="w-full p-3 bg-purple-50 rounded-xl border border-purple-100 text-sm font-bold text-purple-800"
+                                        className="w-full p-3 rounded-xl border text-sm font-bold text-[var(--color-text)] bg-[var(--color-bg-subtle)] border-[var(--color-border)]"
                                     />
                                 </div>
                             </div>
@@ -395,7 +395,7 @@ export function NutritionSection({
                         onClick={() => setShowFoodSelector(true)}
                         className="flex flex-col items-center gap-1 w-full"
                     >
-                        <div className="w-full aspect-square max-w-[52px] mx-auto bg-pink-50 text-pink-600 rounded-2xl flex items-center justify-center shadow-sm border border-pink-100">
+                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'rgba(236,72,153,0.1)', color: '#ec4899', borderColor: 'rgba(236,72,153,0.2)' }}>
                             <Heart className="w-5 h-5" />
                         </div>
                         <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">Favorites</span>
@@ -487,7 +487,7 @@ export function NutritionSection({
                                 target={targets?.calories || 0}
                                 label="Calories"
                                 color="#f97316"
-                                trackColor="#fed7aa"
+                                trackColor="rgba(249,115,22,0.15)"
                                 unit="kcal"
                             />
                             <MacroRing
@@ -495,19 +495,19 @@ export function NutritionSection({
                                 target={targets?.protein || 0}
                                 label="Protein"
                                 color="#3b82f6"
-                                trackColor="#bfdbfe"
+                                trackColor="rgba(59,130,246,0.15)"
                                 unit="g"
                             />
                         </div>
                         {/* Carbs + Fat chips */}
                         <div className="grid grid-cols-2 gap-2">
-                            <div className="bg-yellow-50 rounded-xl p-2.5 text-center border border-yellow-100">
-                                <p className="text-lg font-black text-yellow-700">{nutrition.carbs}<span className="text-xs font-medium ml-0.5">g</span></p>
-                                <p className="text-[10px] font-bold text-yellow-500 uppercase tracking-wide">Carbs</p>
+                            <div className="rounded-xl p-2.5 text-center border" style={{ background: 'rgba(234,179,8,0.1)', borderColor: 'rgba(234,179,8,0.2)' }}>
+                                <p className="text-lg font-black" style={{ color: 'var(--color-warning)' }}>{nutrition.carbs}<span className="text-xs font-medium ml-0.5">g</span></p>
+                                <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--color-warning)' }}>Carbs</p>
                             </div>
-                            <div className="bg-purple-50 rounded-xl p-2.5 text-center border border-purple-100">
-                                <p className="text-lg font-black text-purple-700">{nutrition.fat}<span className="text-xs font-medium ml-0.5">g</span></p>
-                                <p className="text-[10px] font-bold text-purple-500 uppercase tracking-wide">Fat</p>
+                            <div className="rounded-xl p-2.5 text-center border" style={{ background: 'rgba(168,85,247,0.1)', borderColor: 'rgba(168,85,247,0.2)' }}>
+                                <p className="text-lg font-black" style={{ color: '#a855f7' }}>{nutrition.fat}<span className="text-xs font-medium ml-0.5">g</span></p>
+                                <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: '#a855f7' }}>Fat</p>
                             </div>
                         </div>
                     </div>
