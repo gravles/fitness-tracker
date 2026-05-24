@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getSettings, updateSettings, getUserBadges, UserBadge, getAccountabilityPartners, addAccountabilityPartner, deleteAccountabilityPartner, AccountabilityPartner, getIntegrations, upsertIntegration, deleteIntegration, Integration } from '@/lib/api';
-import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2, Users, Trash2, Send, X, Link2, RefreshCw, User, Sun, Moon, Monitor } from 'lucide-react';
+import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2, Users, Trash2, Send, X, Link2, RefreshCw, User, Sun, Moon, Monitor, CalendarDays, Copy, Check } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { GoalWizard } from '@/components/GoalWizard';
@@ -49,6 +49,8 @@ export default function SettingsPage() {
         equipment: [] as string[]
     });
     const [earnedBadges, setEarnedBadges] = useState<UserBadge[]>([]);
+    const [calendarToken, setCalendarToken] = useState<string | null>(null);
+    const [calendarCopied, setCalendarCopied] = useState(false);
 
     useEffect(() => { loadSettings(); }, []);
 
@@ -131,6 +133,13 @@ export default function SettingsPage() {
                     habits: data.custom_habits || [],
                     equipment: data.available_equipment || []
                 });
+                // Calendar token
+                if (data.calendar_token) setCalendarToken(data.calendar_token);
+                // Auto-save timezone if it differs from what's stored
+                const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                if (detectedTz && (!data.timezone || data.timezone === 'UTC')) {
+                    try { await updateSettings({ timezone: detectedTz }); } catch { /* ignore */ }
+                }
             }
         } catch (error) {
             console.error(error);
@@ -185,6 +194,18 @@ export default function SettingsPage() {
         } finally {
             setSaving(false);
         }
+    }
+
+    const calendarUrl = calendarToken
+        ? `https://fit.nathandavie.com/api/calendar/${calendarToken}`
+        : null;
+    const webcalUrl = calendarUrl?.replace('https://', 'webcal://') ?? null;
+
+    async function copyCalendarUrl() {
+        if (!calendarUrl) return;
+        await navigator.clipboard.writeText(calendarUrl);
+        setCalendarCopied(true);
+        setTimeout(() => setCalendarCopied(false), 2000);
     }
 
     if (loading) return (
@@ -712,6 +733,67 @@ export default function SettingsPage() {
                         <span className="text-xl">📚</span> User Manual
                     </button>
                 </div>
+            </section>
+
+            {/* Workout Calendar */}
+            <section className="p-6 rounded-2xl border shadow-sm space-y-4" style={sectionStyle}>
+                <div className="flex items-center gap-2">
+                    <CalendarDays className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                    <h3 className="font-bold text-xs uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
+                        Workout Calendar
+                    </h3>
+                </div>
+                <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                    Subscribe to your scheduled workouts in Google Calendar, Apple Calendar, or any calendar app.
+                </p>
+
+                {calendarUrl ? (
+                    <div className="space-y-3">
+                        {/* webcal:// subscribe link */}
+                        <a
+                            href={webcalUrl ?? '#'}
+                            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-[0.98]"
+                            style={{ background: 'var(--color-primary)', color: 'white' }}
+                        >
+                            <CalendarDays className="w-4 h-4" />
+                            Subscribe in Calendar App
+                        </a>
+
+                        {/* Manual URL copy */}
+                        <div className="flex gap-2">
+                            <div
+                                className="flex-1 px-3 py-2.5 rounded-xl text-xs font-mono truncate"
+                                style={{
+                                    background: 'var(--color-bg-subtle)',
+                                    border: '1px solid var(--color-border)',
+                                    color: 'var(--color-text-muted)',
+                                }}
+                            >
+                                {calendarUrl}
+                            </div>
+                            <button
+                                onClick={copyCalendarUrl}
+                                className="px-3 py-2.5 rounded-xl flex-shrink-0 transition-all"
+                                style={{
+                                    background: calendarCopied ? 'rgba(34,197,94,0.1)' : 'var(--color-bg-subtle)',
+                                    border: `1px solid ${calendarCopied ? 'rgba(34,197,94,0.3)' : 'var(--color-border)'}`,
+                                    color: calendarCopied ? 'var(--color-success)' : 'var(--color-text-muted)',
+                                }}
+                                title="Copy URL"
+                            >
+                                {calendarCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                            </button>
+                        </div>
+
+                        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                            In Google Calendar: use &quot;Other calendars → From URL&quot; and paste the link above.
+                        </p>
+                    </div>
+                ) : (
+                    <p className="text-sm italic" style={{ color: 'var(--color-text-muted)' }}>
+                        Loading calendar link…
+                    </p>
+                )}
             </section>
 
             {/* Health Integrations */}

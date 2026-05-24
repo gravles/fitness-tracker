@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { X, Calendar, Clock, Dumbbell, FileText, Loader2 } from 'lucide-react';
+import { X, Calendar, Clock, Dumbbell, FileText, Loader2, Bell } from 'lucide-react';
 import { toast } from 'sonner';
 import { scheduleWorkout } from '@/lib/schedule-api';
 import { haptics } from '@/lib/haptics';
@@ -31,6 +31,7 @@ export function ScheduleWorkoutModal({
     const [title, setTitle] = useState('');
     const [templateId, setTemplateId] = useState('');
     const [notes, setNotes] = useState('');
+    const [remindMinutes, setRemindMinutes] = useState<number>(15);
     const [saving, setSaving] = useState(false);
 
     async function handleSubmit(e: React.FormEvent) {
@@ -50,6 +51,7 @@ export function ScheduleWorkoutModal({
                 time: time + ':00', // Add seconds
                 title: title.trim(),
                 notes: notes.trim() || undefined,
+                remindMinutes,
             });
 
             haptics.success();
@@ -163,6 +165,26 @@ export function ScheduleWorkoutModal({
                             rows={2}
                             className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent resize-none placeholder:text-[var(--color-text-muted)]"
                         />
+                    </div>
+
+                    {/* Reminder */}
+                    <div>
+                        <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-1.5">
+                            <Bell className="w-4 h-4 inline mr-1" />
+                            Remind Me
+                        </label>
+                        <select
+                            value={remindMinutes}
+                            onChange={(e) => setRemindMinutes(Number(e.target.value))}
+                            className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                        >
+                            <option value={0}>At start time</option>
+                            <option value={5}>5 minutes before</option>
+                            <option value={15}>15 minutes before</option>
+                            <option value={30}>30 minutes before</option>
+                            <option value={60}>1 hour before</option>
+                            <option value={1440}>1 day before</option>
+                        </select>
                     </div>
 
                     {/* Submit */}

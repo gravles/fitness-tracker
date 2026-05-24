@@ -12,6 +12,7 @@ export interface ScheduledWorkout {
     status: 'scheduled' | 'completed' | 'skipped' | 'rescheduled';
     completed_workout_id: string | null;
     reminder_sent: boolean;
+    remind_minutes: number | null;
     created_at: string;
     updated_at: string;
     // Joined data
@@ -103,6 +104,7 @@ export async function scheduleWorkout(workout: {
     time: string;
     title: string;
     notes?: string;
+    remindMinutes?: number;
 }): Promise<ScheduledWorkout> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
@@ -117,6 +119,7 @@ export async function scheduleWorkout(workout: {
             title: workout.title,
             notes: workout.notes || null,
             status: 'scheduled',
+            remind_minutes: workout.remindMinutes ?? 15,
         })
         .select()
         .single();

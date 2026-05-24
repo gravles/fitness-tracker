@@ -267,6 +267,9 @@ export interface UserSettings {
     date_of_birth?: string | null;   // ISO date "YYYY-MM-DD"
     height_cm?: number | null;
     fitness_goal?: string | null;    // 'lose_weight' | 'build_muscle' | 'maintain' | 'improve_fitness'
+    // Calendar / notifications
+    timezone?: string;               // IANA timezone, e.g. "America/New_York"
+    calendar_token?: string;         // UUID for public iCal feed URL
 }
 
 export async function getSettings() {
