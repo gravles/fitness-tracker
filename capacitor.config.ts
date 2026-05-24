@@ -12,10 +12,6 @@ const config: CapacitorConfig = {
     url: 'https://fit.nathandavie.com',
     cleartext: false,
   },
-  ios: {
-    // Enable native swipe-back gesture in WKWebView
-    allowsBackForwardNavigationGestures: true,
-  },
   plugins: {
     SplashScreen: {
       launchShowDuration: 1500,
