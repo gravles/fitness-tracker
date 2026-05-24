@@ -19,29 +19,26 @@ function randomId() {
     return Math.random().toString(36).slice(2, 10);
 }
 
-/** Shows the user's local offset so they can set reminder times correctly. */
-function UtcOffsetNote() {
-    const offsetMin  = new Date().getTimezoneOffset(); // negative = ahead of UTC
-    const offsetHrs  = -(offsetMin / 60);
-    const sign       = offsetHrs >= 0 ? '+' : '';
-    const localHints: Record<string, string> = {
-        '-5': 'e.g. 8 PM local = 01:00 UTC',
-        '-4': 'e.g. 8 PM local = 00:00 UTC',
-        '-6': 'e.g. 8 PM local = 02:00 UTC',
-        '-7': 'e.g. 8 PM local = 03:00 UTC',
-    };
-    const hint = localHints[String(Math.round(offsetHrs))];
-    return (
-        <p className="text-xs text-[var(--color-text-muted)] text-center px-4">
-            Times are in UTC. Your offset: UTC{sign}{Math.round(offsetHrs)}h
-            {hint ? ` — ${hint}.` : '. Add your offset to local time.'}
-        </p>
-    );
+/** Convert a "HH:MM" UTC string to a "HH:MM" local-time string for display. */
+function utcToLocal(utcTime: string): string {
+    const [h, m] = utcTime.split(':').map(Number);
+    const d = new Date();
+    d.setUTCHours(h, m, 0, 0);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+/** Convert a "HH:MM" local-time string (from the time picker) back to UTC for storage. */
+function localToUtc(localTime: string): string {
+    const [h, m] = localTime.split(':').map(Number);
+    const d = new Date();
+    d.setHours(h, m, 0, 0);
+    return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+}
+
+// Defaults stored in UTC — displayed in the user's local time automatically.
 const DEFAULT_REMINDERS: Reminder[] = [
-    { id: randomId(), label: "Log your day 📝", time: '20:00', enabled: true },
-    { id: randomId(), label: "Time to move 💪", time: '09:00', enabled: true },
+    { id: randomId(), label: "Log your day 📝", time: '00:00', enabled: true },  // 8 PM ET
+    { id: randomId(), label: "Time to move 💪", time: '13:00', enabled: true },  // 9 AM ET
 ];
 
 // ─── Native helpers ────────────────────────────────────────────────────────
@@ -370,8 +367,8 @@ export function NotificationSettings() {
                                     <Clock className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} />
                                     <input
                                         type="time"
-                                        value={r.time}
-                                        onChange={(e) => updateReminder(r.id, { time: e.target.value })}
+                                        value={utcToLocal(r.time)}
+                                        onChange={(e) => updateReminder(r.id, { time: localToUtc(e.target.value) })}
                                         className="px-3 py-1.5 border border-[var(--color-border)] rounded-xl text-sm focus:outline-none bg-[var(--color-bg-subtle)] text-[var(--color-text)]"
                                         onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; }}
                                         onBlur={e => { e.target.style.borderColor = ''; }}
@@ -406,8 +403,6 @@ export function NotificationSettings() {
                         }
                         {testing ? 'Sending…' : 'Send test notification'}
                     </button>
-
-                    <UtcOffsetNote />
                 </div>
             )}
         </div>
