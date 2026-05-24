@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getSettings, updateSettings, getUserBadges, UserBadge, getAccountabilityPartners, addAccountabilityPartner, deleteAccountabilityPartner, AccountabilityPartner, getIntegrations, upsertIntegration, deleteIntegration, Integration } from '@/lib/api';
-import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2, Users, Trash2, Send, X, Link2, RefreshCw } from 'lucide-react';
+import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2, Users, Trash2, Send, X, Link2, RefreshCw, User } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { GoalWizard } from '@/components/GoalWizard';
 import { toast } from 'sonner';
@@ -102,6 +102,13 @@ export default function SettingsPage() {
     const [syncingIntegration, setSyncingIntegration] = useState<string | null>(null);
     const searchParams = useSearchParams();
     const router = useRouter();
+    const [profile, setProfile] = useState({
+        displayName: '',
+        dob: '',
+        heightFt: '',
+        heightIn: '',
+        fitnessGoal: '',
+    });
     const [targets, setTargets] = useState({
         weight: '',
         protein: '',
@@ -172,6 +179,19 @@ export default function SettingsPage() {
             setIntegrations(integrationList);
             setEarnedBadges(badges);
             if (data) {
+                // Profile
+                const heightCm = data.height_cm ?? 0;
+                const totalIn  = Math.round(heightCm / 2.54);
+                const ft       = Math.floor(totalIn / 12);
+                const inches   = totalIn % 12;
+                setProfile({
+                    displayName:  data.display_name ?? '',
+                    dob:          data.date_of_birth ?? '',
+                    heightFt:     ft > 0 ? String(ft) : '',
+                    heightIn:     inches > 0 ? String(inches) : '',
+                    fitnessGoal:  data.fitness_goal ?? '',
+                });
+                // Targets
                 setTargets({
                     weight: data.target_weight?.toString() || '',
                     protein: data.target_protein?.toString() || '',
@@ -188,10 +208,21 @@ export default function SettingsPage() {
         }
     }
 
+    function cmFromFtIn(ft: string, inches: string) {
+        const f = parseFloat(ft) || 0;
+        const i = parseFloat(inches) || 0;
+        const cm = Math.round(f * 30.48 + i * 2.54);
+        return cm > 0 ? cm : null;
+    }
+
     async function handleSave() {
         setSaving(true);
         try {
             await updateSettings({
+                display_name:  profile.displayName.trim() || null,
+                date_of_birth: profile.dob || null,
+                height_cm:     cmFromFtIn(profile.heightFt, profile.heightIn),
+                fitness_goal:  profile.fitnessGoal || null,
                 target_weight: parseFloat(targets.weight) || null,
                 target_protein: parseInt(targets.protein) || null,
                 target_calories: parseInt(targets.calories) || null,
@@ -228,6 +259,126 @@ export default function SettingsPage() {
             >
                 Settings
             </h1>
+
+            {/* My Profile */}
+            <section className="p-6 rounded-2xl border shadow-sm space-y-6" style={sectionStyle}>
+                <div
+                    className="flex items-center gap-2 pb-4"
+                    style={{ borderBottom: '1px solid var(--color-border-light)' }}
+                >
+                    <div className="p-1.5 rounded-lg" style={{ background: 'rgba(29,95,168,0.1)' }}>
+                        <User className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                    </div>
+                    <h2
+                        className="font-bold text-lg"
+                        style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
+                    >
+                        My Profile
+                    </h2>
+                </div>
+
+                <div className="space-y-4">
+                    {/* Display Name */}
+                    <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+                            Display Name
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="e.g. Nathan"
+                            value={profile.displayName}
+                            onChange={e => setProfile({ ...profile, displayName: e.target.value })}
+                            maxLength={40}
+                            className={inputClass}
+                            style={inputStyle}
+                            onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)'; }}
+                            onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
+                        />
+                    </div>
+
+                    {/* Date of Birth */}
+                    <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+                            Date of Birth
+                        </label>
+                        <input
+                            type="date"
+                            value={profile.dob}
+                            onChange={e => setProfile({ ...profile, dob: e.target.value })}
+                            className={inputClass}
+                            style={inputStyle}
+                            onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)'; }}
+                            onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
+                        />
+                    </div>
+
+                    {/* Height */}
+                    <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+                            Height
+                        </label>
+                        <div className="flex gap-3">
+                            <div className="relative flex-1">
+                                <input
+                                    type="number"
+                                    placeholder="5"
+                                    value={profile.heightFt}
+                                    onChange={e => setProfile({ ...profile, heightFt: e.target.value })}
+                                    min={0} max={8}
+                                    className={inputClass}
+                                    style={inputStyle}
+                                    onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)'; }}
+                                    onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--color-text-muted)' }}>ft</span>
+                            </div>
+                            <div className="relative flex-1">
+                                <input
+                                    type="number"
+                                    placeholder="10"
+                                    value={profile.heightIn}
+                                    onChange={e => setProfile({ ...profile, heightIn: e.target.value })}
+                                    min={0} max={11}
+                                    className={inputClass}
+                                    style={inputStyle}
+                                    onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)'; }}
+                                    onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--color-text-muted)' }}>in</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Fitness Goal */}
+                    <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+                            Fitness Goal
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {[
+                                { id: 'lose_weight',     label: 'Lose Weight',     emoji: '🔥' },
+                                { id: 'build_muscle',    label: 'Build Muscle',    emoji: '💪' },
+                                { id: 'maintain',        label: 'Maintain',        emoji: '⚖️'  },
+                                { id: 'improve_fitness', label: 'Improve Fitness', emoji: '🏃' },
+                            ].map(g => (
+                                <button
+                                    key={g.id}
+                                    type="button"
+                                    onClick={() => setProfile({ ...profile, fitnessGoal: g.id })}
+                                    className="p-3 rounded-xl text-left transition-all"
+                                    style={{
+                                        background: profile.fitnessGoal === g.id ? 'rgba(201,168,76,0.12)' : 'var(--color-bg-subtle)',
+                                        border: `1.5px solid ${profile.fitnessGoal === g.id ? 'var(--color-gold)' : 'var(--color-border)'}`,
+                                    }}
+                                >
+                                    <span className="mr-1.5">{g.emoji}</span>
+                                    <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{g.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </section>
 
             {/* My Targets */}
             <section className="p-6 rounded-2xl border shadow-sm space-y-6" style={sectionStyle}>

@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
         // Fetch web-push subscriptions and native device tokens in parallel
         const [{ data: webSubs }, { data: deviceTokenRows }] = await Promise.all([
             supabase.from('push_subscriptions').select('*'),
-            supabase.from('device_tokens').select('user_id, token'),
+            supabase.from('device_tokens').select('user_id, token, reminders'),
         ]);
 
         if (!webSubs?.length && !deviceTokenRows?.length) {
@@ -87,7 +87,35 @@ export async function GET(request: NextRequest) {
         const expiredEndpoints: string[] = [];
         const expiredFcmTokens: string[] = [];
 
+        // Helper: send FCM to all tokens for a user
+        async function sendFcm(userId: string, title: string, body: string, tag: string) {
+            if (!messaging) return;
+            for (const token of (tokensByUser[userId] ?? [])) {
+                try {
+                    await messaging!.send({
+                        token,
+                        notification: { title, body },
+                        data:         { url: '/log', tag },
+                        apns:    { payload: { aps: { badge: 1, sound: 'default' } } },
+                        android: { priority: 'high' },
+                    });
+                    sent++;
+                } catch (err: any) {
+                    if (
+                        err.code === 'messaging/registration-token-not-registered' ||
+                        err.code === 'messaging/invalid-registration-token'
+                    ) {
+                        expiredFcmTokens.push(token);
+                    }
+                    failed++;
+                }
+            }
+        }
+
+        // ── 1. Web-push subscribers (may also have FCM tokens) ───────────
+        const webSubUserIds = new Set<string>();
         await Promise.all((webSubs ?? []).map(async (sub) => {
+            webSubUserIds.add(sub.user_id);
             const reminders: Reminder[] = sub.reminders ?? [];
             const due = reminders.filter(r => {
                 if (!r.enabled) return false;
@@ -100,7 +128,7 @@ export async function GET(request: NextRequest) {
                 const body  = reminder.body ?? 'Tap to open your fitness tracker.';
                 const tag   = `reminder-${reminder.id}`;
 
-                // ── Web push (PWA / browser) ──────────────────────────────
+                // Web push (PWA / browser)
                 try {
                     await webpush.sendNotification(
                         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
@@ -115,30 +143,35 @@ export async function GET(request: NextRequest) {
                     failed++;
                 }
 
-                // ── FCM (native iOS / Android) ────────────────────────────
-                if (!messaging) continue;
-                for (const token of (tokensByUser[sub.user_id] ?? [])) {
-                    try {
-                        await messaging.send({
-                            token,
-                            notification: { title, body },
-                            data:         { url: '/log', tag },
-                            apns:    { payload: { aps: { badge: 1, sound: 'default' } } },
-                            android: { priority: 'high' },
-                        });
-                        sent++;
-                    } catch (err: any) {
-                        if (
-                            err.code === 'messaging/registration-token-not-registered' ||
-                            err.code === 'messaging/invalid-registration-token'
-                        ) {
-                            expiredFcmTokens.push(token);
-                        }
-                        failed++;
-                    }
-                }
+                // FCM for same user (native app companion)
+                await sendFcm(sub.user_id, title, body, tag);
             }
         }));
+
+        // ── 2. Native-only users (FCM only, no web-push subscription) ───
+        // These users saved reminders directly into device_tokens.reminders
+        const nativeRemindersByUser: Record<string, Reminder[]> = {};
+        for (const row of (deviceTokenRows ?? [])) {
+            if (webSubUserIds.has(row.user_id)) continue; // already handled above
+            const reminders: Reminder[] = row.reminders ?? [];
+            if (reminders.length > 0 && !nativeRemindersByUser[row.user_id]) {
+                nativeRemindersByUser[row.user_id] = reminders;
+            }
+        }
+
+        for (const [userId, reminders] of Object.entries(nativeRemindersByUser)) {
+            const due = reminders.filter(r => {
+                if (!r.enabled) return false;
+                const [h] = r.time.split(':').map(Number);
+                return h === currentHour;
+            });
+            for (const reminder of due) {
+                const title = reminder.label;
+                const body  = reminder.body ?? 'Tap to open your fitness tracker.';
+                const tag   = `reminder-${reminder.id}`;
+                await sendFcm(userId, title, body, tag);
+            }
+        }
 
         // ── Clean up expired subscriptions / tokens ───────────────────────
         await Promise.all([

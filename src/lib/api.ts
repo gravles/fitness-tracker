@@ -267,6 +267,11 @@ export interface UserSettings {
     current_level?: number;
     // Nutrition
     nutrition_prefs?: NutritionPrefs | null;
+    // Profile
+    display_name?: string | null;
+    date_of_birth?: string | null;   // ISO date "YYYY-MM-DD"
+    height_cm?: number | null;
+    fitness_goal?: string | null;    // 'lose_weight' | 'build_muscle' | 'maintain' | 'improve_fitness'
 }
 
 export async function getSettings() {

@@ -9,6 +9,7 @@ import { getStreak, getMonthlyLogs, getBodyMetricsHistory, DailyLog, UserSetting
 import { supabase } from '@/lib/supabase';
 import { checkReminders, checkScheduledWorkouts } from '@/lib/notifications';
 import { SmartCoach } from '@/components/SmartCoach';
+import { OnboardingModal } from '@/components/OnboardingModal';
 import { WeeklySummary } from '@/components/WeeklySummary';
 import { RecentLogs } from '@/components/RecentLogs';
 import { AIWeeklyInsightModal } from '@/components/AIWeeklyInsightModal';
@@ -44,6 +45,7 @@ export default function Dashboard() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showInsightModal, setShowInsightModal] = useState(false);
   const [showFeatureTutorial, setShowFeatureTutorial] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     if (searchParams.get('tutorial') === 'true') {
@@ -72,7 +74,8 @@ export default function Dashboard() {
 
       const hour = today.getHours();
       const timeOfDay = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-      const rawName = session?.user?.user_metadata?.full_name
+      const rawName = settings?.display_name
+        || session?.user?.user_metadata?.full_name
         || session?.user?.user_metadata?.name
         || session?.user?.email?.split('@')[0]
         || '';
@@ -80,6 +83,10 @@ export default function Dashboard() {
       const formattedName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
       setGreeting(`${timeOfDay}${formattedName ? `, ${formattedName}` : ''}`);
 
+      // Show onboarding modal for new users (no settings row yet)
+      if (!settings) {
+        setShowOnboarding(true);
+      }
 
       setStreak(streakVal);
       setLogs(recentLogs);
@@ -129,12 +136,28 @@ export default function Dashboard() {
 
     } catch (error) {
       console.error(error);
+      // Ensure SmartCoach always has a tip even when data loading fails
+      setAdvice(getSmartAdvice([], 0, undefined));
     } finally {
       setIsLoading(false);
     }
   }
 
   return (
+    <>
+    {showOnboarding && (
+      <OnboardingModal
+        onComplete={(name) => {
+          setShowOnboarding(false);
+          if (name) {
+            const hour = today.getHours();
+            const timeOfDay = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+            setGreeting(`${timeOfDay}, ${name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()}`);
+          }
+          loadData(); // refresh settings after onboarding
+        }}
+      />
+    )}
     <main className="p-6 pt-12 pb-24 space-y-6 max-w-2xl mx-auto">
       {/* Header */}
       <header className="flex justify-between items-center mb-2">
@@ -325,5 +348,6 @@ export default function Dashboard() {
         </>
       )}
     </main>
+    </>
   );
 }

@@ -44,10 +44,28 @@ async function subscribeNative(reminders: Reminder[]): Promise<boolean> {
         const result = await PushNotifications.requestPermissions();
         if (result.receive !== 'granted') return false;
         await PushNotifications.register();
-        await updateReminders(reminders);   // save reminder prefs server-side
+        await saveNativeReminders(reminders);   // save reminder prefs in device_tokens
         return true;
     } catch {
         return false;
+    }
+}
+
+async function saveNativeReminders(reminders: Reminder[]): Promise<void> {
+    try {
+        const { supabase: sb } = await import('@/lib/supabase');
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) return;
+        await fetch('/api/notifications/native-reminders', {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ reminders }),
+        });
+    } catch (e) {
+        console.error('Failed to save native reminders', e);
     }
 }
 
@@ -161,7 +179,11 @@ export function NotificationSettings() {
         if (!enabled) return;
         setSyncingReminders(true);
         try {
-            await updateReminders(newReminders);
+            if (native) {
+                await saveNativeReminders(newReminders);
+            } else {
+                await updateReminders(newReminders);
+            }
         } finally {
             setSyncingReminders(false);
         }
