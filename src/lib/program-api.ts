@@ -38,6 +38,7 @@ export interface ProgramSession {
     day_label:            string;
     session_type:         SessionType;
     scheduled_date:       string;   // YYYY-MM-DD
+    scheduled_time:       string;   // HH:MM:SS
     exercises:            ProgramExercise[];
     original_exercises?:  ProgramExercise[] | null;
     status:               SessionStatus;
@@ -295,7 +296,7 @@ export async function getProgramStats(programId: string): Promise<ProgramStats> 
 export async function updateProgramSession(
     id:      string,
     updates: Partial<Pick<ProgramSession,
-        'status' | 'scheduled_date' | 'exercises' |
+        'status' | 'scheduled_date' | 'scheduled_time' | 'exercises' |
         'notes'  | 'completed_workout_id' | 'original_exercises'>>
 ): Promise<ProgramSession> {
     const { data: { session } } = await supabase.auth.getSession();

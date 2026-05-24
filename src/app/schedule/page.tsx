@@ -75,6 +75,7 @@ export default function WorkoutHubPage() {
     const [skipConfirmSession, setSkipConfirmSession]   = useState<ProgramSession | null>(null);
     const [reschedulingSession, setReschedulingSession] = useState<ProgramSession | null>(null);
     const [rescheduleDate, setRescheduleDate]           = useState('');
+    const [rescheduleTime, setRescheduleTime]           = useState('12:00');
 
     const weekDays = eachDayOfInterval({ start: currentWeekStart, end: addDays(currentWeekStart, 6) });
 
@@ -182,10 +183,12 @@ export default function WorkoutHubPage() {
         try {
             await updateProgramSession(session.id, {
                 scheduled_date: rescheduleDate,
+                scheduled_time: rescheduleTime + ':00',
                 status: 'rescheduled',
             });
             setReschedulingSession(null);
             setRescheduleDate('');
+            setRescheduleTime('12:00');
             await loadData();
             toast.success('Session rescheduled');
         } catch {
@@ -583,11 +586,14 @@ export default function WorkoutHubPage() {
                                                                 <div className="font-medium truncate" style={{ color: 'var(--color-text)' }}>
                                                                     {session.day_label}
                                                                 </div>
-                                                                <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                                                                <div className="text-xs flex items-center gap-1.5 flex-wrap" style={{ color: 'var(--color-text-muted)' }}>
+                                                                    <Clock className="w-3 h-3" />
+                                                                    {(session.scheduled_time ?? '12:00:00').slice(0, 5)}
+                                                                    <span>·</span>
                                                                     {session.exercises?.length ?? 0} exercise{(session.exercises?.length ?? 0) !== 1 ? 's' : ''}
-                                                                    {isDone && <span className="ml-2" style={{ color: 'var(--color-success)' }}>✓ Completed</span>}
-                                                                    {isSkipped && <span className="ml-2">Skipped</span>}
-                                                                    {session.status === 'rescheduled' && <span className="ml-2" style={{ color: '#f97316' }}>Rescheduled</span>}
+                                                                    {isDone && <span className="ml-1" style={{ color: 'var(--color-success)' }}>✓ Completed</span>}
+                                                                    {isSkipped && <span className="ml-1">Skipped</span>}
+                                                                    {session.status === 'rescheduled' && <span className="ml-1" style={{ color: '#f97316' }}>Rescheduled</span>}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -602,7 +608,7 @@ export default function WorkoutHubPage() {
                                                                     <Play className="w-4 h-4" />
                                                                 </button>
                                                                 <button
-                                                                    onClick={() => { setReschedulingSession(session); setRescheduleDate(session.scheduled_date); }}
+                                                                    onClick={() => { setReschedulingSession(session); setRescheduleDate(session.scheduled_date); setRescheduleTime((session.scheduled_time ?? '12:00:00').slice(0, 5)); }}
                                                                     className="p-2 rounded-lg transition-colors"
                                                                     style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
                                                                     title="Reschedule"
@@ -1482,7 +1488,7 @@ export default function WorkoutHubPage() {
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center px-4"
                     style={{ background: 'rgba(0,0,0,0.55)' }}
-                    onClick={() => { setReschedulingSession(null); setRescheduleDate(''); }}
+                    onClick={() => { setReschedulingSession(null); setRescheduleDate(''); setRescheduleTime('12:00'); }}
                 >
                     <div
                         className="w-full max-w-sm rounded-2xl p-6 space-y-4 shadow-xl"
@@ -1497,28 +1503,49 @@ export default function WorkoutHubPage() {
                                 Week {reschedulingSession.week_number} · {reschedulingSession.day_label}
                             </p>
                         </div>
-                        <div>
-                            <label
-                                className="text-xs font-bold uppercase tracking-wider block mb-1.5"
-                                style={{ color: 'var(--color-text-muted)' }}
-                            >
-                                New Date
-                            </label>
-                            <input
-                                type="date"
-                                value={rescheduleDate}
-                                onChange={e => setRescheduleDate(e.target.value)}
-                                className="w-full p-3 rounded-xl outline-none"
-                                style={{
-                                    background: 'var(--color-bg-subtle)',
-                                    border: '1px solid var(--color-border)',
-                                    color: 'var(--color-text)',
-                                }}
-                            />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label
+                                    className="text-xs font-bold uppercase tracking-wider block mb-1.5"
+                                    style={{ color: 'var(--color-text-muted)' }}
+                                >
+                                    New Date
+                                </label>
+                                <input
+                                    type="date"
+                                    value={rescheduleDate}
+                                    onChange={e => setRescheduleDate(e.target.value)}
+                                    className="w-full p-3 rounded-xl outline-none"
+                                    style={{
+                                        background: 'var(--color-bg-subtle)',
+                                        border: '1px solid var(--color-border)',
+                                        color: 'var(--color-text)',
+                                    }}
+                                />
+                            </div>
+                            <div>
+                                <label
+                                    className="text-xs font-bold uppercase tracking-wider block mb-1.5"
+                                    style={{ color: 'var(--color-text-muted)' }}
+                                >
+                                    Time
+                                </label>
+                                <input
+                                    type="time"
+                                    value={rescheduleTime}
+                                    onChange={e => setRescheduleTime(e.target.value)}
+                                    className="w-full p-3 rounded-xl outline-none"
+                                    style={{
+                                        background: 'var(--color-bg-subtle)',
+                                        border: '1px solid var(--color-border)',
+                                        color: 'var(--color-text)',
+                                    }}
+                                />
+                            </div>
                         </div>
                         <div className="flex gap-3">
                             <button
-                                onClick={() => { setReschedulingSession(null); setRescheduleDate(''); }}
+                                onClick={() => { setReschedulingSession(null); setRescheduleDate(''); setRescheduleTime('12:00'); }}
                                 className="flex-1 py-3 rounded-xl font-bold text-sm"
                                 style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
                             >
