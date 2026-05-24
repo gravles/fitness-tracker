@@ -35,8 +35,8 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen bg-white">
-                <Loader2 className="w-8 h-8 animate-spin text-gray-300" />
+            <div className="flex items-center justify-center h-screen bg-[var(--color-bg)]">
+                <Loader2 className="w-8 h-8 animate-spin text-[var(--color-text-muted)]" />
             </div>
         );
     }

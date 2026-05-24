@@ -85,7 +85,7 @@ export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
             <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur flex flex-col items-center justify-center text-white">
                 <ChefHat className="w-16 h-16 animate-bounce mb-4" style={{ color: 'var(--color-gold)' }} />
                 <h3 className="text-xl font-bold mb-2">Analyzing Menu...</h3>
-                <p className="text-gray-400 text-sm">Finding high-protein gems 💎</p>
+                <p className="text-white/60 text-sm">Finding high-protein gems 💎</p>
             </div>
         );
     } else {

@@ -68,7 +68,7 @@ export function MuscleHeatmap({ workouts }: MuscleHeatmapProps) {
                 <div className="bg-[var(--color-surface-elevated)] p-3 rounded-lg border border-[var(--color-border-light)] shadow-sm text-xs space-y-2">
                     <div className="font-bold mb-1 text-[var(--color-text)]">Activity Level</div>
                     <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-gray-200"></div>
+                        <div className="w-3 h-3 rounded-full bg-[var(--color-border)]"></div>
                         <span className="text-[var(--color-text-muted)]">None</span>
                     </div>
                     <div className="flex items-center gap-2">

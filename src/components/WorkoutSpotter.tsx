@@ -206,11 +206,11 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-3 w-full max-w-sm px-4 animate-in slide-in-from-bottom">
             <div className="bg-black/90 backdrop-blur text-white p-4 rounded-3xl shadow-2xl w-full flex items-center justify-between border border-white/10">
                 <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${status === 'listening' ? 'bg-red-500 animate-pulse' : 'bg-gray-700'}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${status === 'listening' ? 'bg-red-500 animate-pulse' : 'bg-white/20'}`}>
                         {status === 'listening' ? <Mic className="w-5 h-5 text-white" /> :
                             status === 'processing' ? <Zap className="w-5 h-5 text-yellow-400" /> :
                                 status === 'speaking' ? <Volume2 className="w-5 h-5 text-blue-400" /> :
-                                    <MicOff className="w-5 h-5 text-gray-400" />}
+                                    <MicOff className="w-5 h-5 text-white/50" />}
                     </div>
                     <div>
                         <p className="font-bold text-sm">
@@ -218,7 +218,7 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
                                 status === 'processing' ? 'Thinking...' :
                                     status === 'speaking' ? 'Speaking...' : 'Paused'}
                         </p>
-                        <p className="text-xs text-gray-400 line-clamp-1 h-4">
+                        <p className="text-xs text-white/60 line-clamp-1 h-4">
                             {transcript || "Say '12 reps 150 lbs'"}
                         </p>
                     </div>
@@ -227,7 +227,7 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => { setIsActive(false); window.speechSynthesis.cancel(); }}
-                        className="p-2 bg-gray-800 rounded-full hover:bg-gray-700 text-red-400 border border-white/10"
+                        className="p-2 bg-white/10 rounded-full hover:bg-white/20 text-red-400 border border-white/10"
                         title="Stop Spotter"
                     >
                         <StopCircle className="w-6 h-6" />
