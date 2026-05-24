@@ -23,11 +23,13 @@ import { getSettings } from '@/lib/api';
 import { DashboardSkeleton } from '@/components/Skeleton';
 import { UpcomingWorkouts } from '@/components/UpcomingWorkouts';
 import { DailyGoalTracker } from '@/components/DailyGoalTracker';
+import { WhatsNewModal, useWhatsNew } from '@/components/WhatsNewModal';
 
 export default function Dashboard() {
   const today = new Date();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [showWhatsNew, dismissWhatsNew] = useWhatsNew();
 
   const [isLoading, setIsLoading] = useState(true);
   const [streak, setStreak] = useState(0);
@@ -157,6 +159,9 @@ export default function Dashboard() {
           loadData(); // refresh settings after onboarding
         }}
       />
+    )}
+    {!showOnboarding && showWhatsNew && (
+      <WhatsNewModal onClose={dismissWhatsNew} />
     )}
     <main className="p-6 pt-12 pb-24 space-y-6 max-w-2xl mx-auto">
       {/* Header */}
