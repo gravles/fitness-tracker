@@ -91,6 +91,7 @@ const sectionStyle = {
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [savingProfile, setSavingProfile] = useState(false);
     const [showChangelog, setShowChangelog] = useState(false);
     const [showGoalWizard, setShowGoalWizard] = useState(false);
     const [partners, setPartners] = useState<AccountabilityPartner[]>([]);
@@ -213,6 +214,24 @@ export default function SettingsPage() {
         const i = parseFloat(inches) || 0;
         const cm = Math.round(f * 30.48 + i * 2.54);
         return cm > 0 ? cm : null;
+    }
+
+    async function handleSaveProfile() {
+        setSavingProfile(true);
+        haptics.tap();
+        try {
+            await updateSettings({
+                display_name:  profile.displayName.trim() || null,
+                date_of_birth: profile.dob || null,
+                height_cm:     cmFromFtIn(profile.heightFt, profile.heightIn),
+                fitness_goal:  profile.fitnessGoal || null,
+            });
+            toast.success('Profile saved!');
+        } catch {
+            toast.error('Error saving profile');
+        } finally {
+            setSavingProfile(false);
+        }
     }
 
     async function handleSave() {
@@ -378,6 +397,15 @@ export default function SettingsPage() {
                         </div>
                     </div>
                 </div>
+
+                <button
+                    onClick={handleSaveProfile}
+                    disabled={savingProfile}
+                    className="w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
+                    style={{ background: 'var(--color-primary)', color: 'white' }}
+                >
+                    {savingProfile ? <Loader2 className="animate-spin w-5 h-5" /> : <><Save className="w-4 h-4" /> Save Profile</>}
+                </button>
             </section>
 
             {/* My Targets */}
