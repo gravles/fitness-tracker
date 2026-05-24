@@ -372,6 +372,40 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     return (
         <>
             <div className="space-y-4 pb-32 pb-safe">
+                {/* Autosave status indicator */}
+                <div className="flex justify-end h-5">
+                    {saveStatus === 'saving' && (
+                        <span className="flex items-center gap-1 text-[11px] text-[var(--color-text-muted)]">
+                            <Loader2 className="w-3 h-3 animate-spin" /> Saving…
+                        </span>
+                    )}
+                    {saveStatus === 'saved' && (
+                        <span className="flex items-center gap-1 text-[11px] text-[var(--color-success)]">
+                            <span>✓</span> Saved
+                        </span>
+                    )}
+                </div>
+
+                {/* Sticky macro summary bar */}
+                {(nutrition.calories > 0 || nutrition.protein > 0) && (
+                    <div
+                        className="flex items-center justify-around rounded-xl px-3 py-2 text-center"
+                        style={{ background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-light)' }}
+                    >
+                        {[
+                            { label: 'Cal', value: nutrition.calories, color: '#f97316' },
+                            { label: 'Protein', value: `${nutrition.protein}g`, color: '#3b82f6' },
+                            { label: 'Carbs', value: `${nutrition.carbs}g`, color: 'var(--color-warning)' },
+                            { label: 'Fat', value: `${nutrition.fat}g`, color: '#a855f7' },
+                        ].map(({ label, value, color }) => (
+                            <div key={label}>
+                                <p className="text-sm font-black" style={{ color }}>{value}</p>
+                                <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--color-text-muted)' }}>{label}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 {/* Tab Navigation */}
                 <div className="flex bg-[var(--color-bg-muted)] rounded-xl p-1">
                     <button

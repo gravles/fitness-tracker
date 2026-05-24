@@ -8,6 +8,7 @@ import {
     Activity, Wind,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { confirm } from '@/components/ConfirmDialog';
 import { getScheduledWorkouts, deleteScheduledWorkout, skipScheduledWorkout, ScheduledWorkout } from '@/lib/schedule-api';
 import { getProgramSessionsForRange, skipProgramSession, updateProgramSession, ProgramSession, SessionType } from '@/lib/program-api';
 import { getTemplates, createTemplate, deleteTemplate, updateTemplate, WorkoutTemplate } from '@/lib/workout-api';
@@ -203,7 +204,7 @@ export default function WorkoutHubPage() {
     function handleDayClick(day: Date) { haptics.tap(); setSelectedDate(day); setShowScheduleModal(true); }
 
     async function handleDeleteScheduled(id: string) {
-        if (!confirm('Delete this scheduled workout?')) return;
+        if (!await confirm({ title: 'Delete Workout', message: 'Delete this scheduled workout?', danger: true })) return;
         haptics.tap();
         try {
             await deleteScheduledWorkout(id);
@@ -266,7 +267,7 @@ export default function WorkoutHubPage() {
     }
 
     async function handleDeleteTemplate(id: string) {
-        if (!confirm('Delete this template?')) return;
+        if (!await confirm({ title: 'Delete Template', message: 'Delete this template?', danger: true })) return;
         haptics.tap();
         try { await deleteTemplate(id); setTemplates(prev => prev.filter(t => t.id !== id)); setMenuOpen(null); }
         catch (error) { console.error(error); }

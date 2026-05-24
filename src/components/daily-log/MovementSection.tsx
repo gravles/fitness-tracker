@@ -1,6 +1,7 @@
 'use client';
 
 import { Workout, addWorkout, deleteWorkout, updateWorkout } from '@/lib/api';
+import { confirm } from '@/components/ConfirmDialog';
 import { Loader2, Plus, Dumbbell, Clock, Trash2, Sparkles, Pencil, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -90,7 +91,7 @@ export function MovementSection({
     }
 
     async function handleDeleteWorkout(id: string) {
-        if (!confirm('Delete this workout?')) return;
+        if (!await confirm({ title: 'Delete Workout', message: 'Delete this workout?', danger: true })) return;
         onDeleteWorkoutStart();
         try {
             await deleteWorkout(id);

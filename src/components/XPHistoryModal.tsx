@@ -5,6 +5,7 @@ import { X, Loader2, Trophy, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, subDays, parseISO } from 'date-fns';
 import { getMonthlyLogs, getSettings, recalculateTotalXP } from '@/lib/api';
+import { confirm } from '@/components/ConfirmDialog';
 import { calculateXP, XPTargets } from '@/lib/gamification';
 
 interface XPHistoryModalProps {
@@ -74,7 +75,7 @@ export function XPHistoryModal({ isOpen, onClose, lifetimeXP, currentLevel, onSy
     }
 
     async function handleSync() {
-        if (!confirm('This will recalculate your total XP based on your complete history. Continue?')) return;
+        if (!await confirm({ title: 'Recalculate XP', message: 'This will recalculate your total XP based on your complete history. Continue?', confirmLabel: 'Recalculate' })) return;
         setSyncing(true);
         try {
             await recalculateTotalXP();

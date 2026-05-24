@@ -12,6 +12,7 @@ import {
 import { getProgramStats, getProgramSessions, ProgramSession } from '@/lib/program-api';
 import { ProgramReviewModal } from '@/components/ProgramReviewModal';
 import { toast } from 'sonner';
+import { confirm } from '@/components/ConfirmDialog';
 import { useRouter } from 'next/navigation';
 import { haptics } from '@/lib/haptics';
 
@@ -125,7 +126,7 @@ export default function ProgramsPage() {
     }
 
     async function handleDelete(progId: string) {
-        if (!confirm('Delete this program? This cannot be undone.')) return;
+        if (!await confirm({ title: 'Delete Program', message: 'Delete this program? This cannot be undone.', danger: true })) return;
         haptics.tap();
         try {
             await deleteTrainingProgram(progId);

@@ -7,6 +7,7 @@ import { Keyboard, ChefHat, Camera, X, Brain, Heart, Trash2, BookOpen, Pencil, B
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { addFavoriteFood, deleteFavoriteFood, getFavoriteFoods, FavoriteFood } from '@/lib/api';
+import { confirm } from '@/components/ConfirmDialog';
 
 interface NutritionSectionProps {
     nutrition: {
@@ -158,7 +159,7 @@ export function NutritionSection({
         try {
             if (existing) {
                 // Remove
-                if (!confirm(`Remove '${item.name}' from favorites?`)) return;
+                if (!await confirm({ title: 'Remove Favorite', message: `Remove '${item.name}' from favorites?` })) return;
                 await deleteFavoriteFood(existing.id);
                 setFavorites((prev: any[]) => prev.filter(f => f.id !== existing.id));
             } else {

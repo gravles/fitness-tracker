@@ -8,6 +8,7 @@ import {
     Camera, Mic, MicOff, X, BookMarked, PlayCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { confirm } from '@/components/ConfirmDialog';
 import { supabase } from '@/lib/supabase';
 import {
     getPantryItems, addPantryItem, deletePantryItem,
@@ -789,7 +790,7 @@ export default function NutritionPage() {
                                         </button>
                                         <button
                                             onClick={async () => {
-                                                if (!confirm(`Delete "${meal.name}"?`)) return;
+                                                if (!await confirm({ title: 'Delete Meal', message: `Delete "${meal.name}"?`, danger: true })) return;
                                                 await deleteSavedMeal(meal.id);
                                                 setSavedMeals(prev => prev.filter(m => m.id !== meal.id));
                                                 toast.success('Meal deleted');

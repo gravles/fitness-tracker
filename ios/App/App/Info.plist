@@ -51,13 +51,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>FitnessTracker uses the camera to capture progress photos.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>FitnessTracker uses the microphone for video recording of workouts.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>FitnessTracker accesses your photo library to select and save progress photos.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>FitnessTracker saves progress photos to your photo library.</string>
 </dict>
 </plist>

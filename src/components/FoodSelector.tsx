@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getFavoriteFoods, getRecentFoods, deleteFavoriteFood, createSavedMeal, FavoriteFood } from '@/lib/api';
+import { confirm } from '@/components/ConfirmDialog';
 import { Search, Check, Trash2, Loader2, X, BookMarked } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
@@ -49,7 +50,7 @@ export function FoodSelector({ onClose, onSelect }: FoodSelectorProps) {
 
     async function handleDeleteFavorite(e: React.MouseEvent, id: string) {
         e.stopPropagation();
-        if (!confirm('Remove from favorites?')) return;
+        if (!await confirm({ title: 'Remove Favorite', message: 'Remove from favorites?' })) return;
         try {
             await deleteFavoriteFood(id);
             setFavorites(favorites.filter(f => f.id !== id));

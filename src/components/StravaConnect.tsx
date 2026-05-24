@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { confirm } from '@/components/ConfirmDialog';
 import { Loader2, RefreshCw, Check, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -110,7 +111,7 @@ export function StravaConnect() {
                     </button>
                     <button
                         onClick={async () => {
-                            if (!confirm('Disconnect Strava?')) return;
+                            if (!await confirm({ title: 'Disconnect Strava', message: 'Disconnect your Strava account?', danger: true, confirmLabel: 'Disconnect' })) return;
                             const { error } = await supabase.from('integrations').delete().eq('provider', 'strava');
                             if (!error) setConnected(false);
                         }}

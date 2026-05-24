@@ -223,7 +223,7 @@ export default function TrendsPage() {
                     }))
             );
 
-            if (userSettings?.enable_cycle_tracking !== false) {
+            if (userSettings?.enable_cycle_tracking === true) {
                 const cycleStats: Record<string, { count: number; totalDuration: number }> = {
                     Light: { count: 0, totalDuration: 0 },
                     Medium: { count: 0, totalDuration: 0 },
@@ -463,7 +463,7 @@ export default function TrendsPage() {
                             </ChartCard>
 
                             {/* Cycle Chart */}
-                            {settings?.enable_cycle_tracking !== false && cycleData.length > 0 && (
+                            {settings?.enable_cycle_tracking === true && cycleData.length > 0 && (
                                 <ChartCard title="Cycle Phase vs Workout Duration" icon={<span className="text-xl">🌸</span>}>
                                     <BarChart data={cycleData}>
                                         <XAxis dataKey="flow" tick={{ fontSize: 12, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />

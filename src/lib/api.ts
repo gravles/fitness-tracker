@@ -179,40 +179,35 @@ export async function getStreak() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return 0;
 
-    // Fetch last 100 days of history to calculate streak
+    // A day counts toward the streak if the user logged anything at all:
+    // nutrition (nutrition_logged = true OR calories > 0) OR movement logged.
+    // Fetch the date of every row — filtering is done client-side.
     const { data } = await supabase
         .from('daily_logs')
-        .select('date, movement_completed')
+        .select('date, movement_completed, nutrition_logged, calories')
         .eq('user_id', session.user.id)
-        .eq('movement_completed', true)
         .order('date', { ascending: false })
         .limit(100);
 
     if (!data || data.length === 0) return 0;
 
-    let streak = 0;
     const today = new Date();
-    // Normalize today to YYYY-MM-DD to avoid time issues
     const todayStr = format(today, 'yyyy-MM-dd');
     const yesterdayStr = format(subDays(today, 1), 'yyyy-MM-dd');
 
-    // Check if the most recent log is today or yesterday. 
-    // If the most recent log is older than yesterday, streak is broken (0).
-    const lastLogDate = data[0].date;
+    // A day counts if movement OR nutrition was recorded
+    const loggedDates = new Set(
+        data
+            .filter(d => d.movement_completed || d.nutrition_logged || (d.calories && d.calories > 0))
+            .map(d => d.date)
+    );
 
-    if (lastLogDate !== todayStr && lastLogDate !== yesterdayStr) {
-        return 0;
-    }
+    if (!loggedDates.has(todayStr) && !loggedDates.has(yesterdayStr)) return 0;
 
-    // Let's create a Set of dates for easy lookup
-    const loggedDates = new Set(data.map(d => d.date));
+    const anchorDateStr = loggedDates.has(todayStr) ? todayStr : yesterdayStr;
 
-    const anchorDateStr = loggedDates.has(todayStr) ? todayStr : (loggedDates.has(yesterdayStr) ? yesterdayStr : null);
-    if (!anchorDateStr) return 0;
-
-    streak = 0;
+    let streak = 0;
     let curr = parseISO(anchorDateStr);
-
     while (loggedDates.has(format(curr, 'yyyy-MM-dd'))) {
         streak++;
         curr = subDays(curr, 1);

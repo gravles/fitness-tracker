@@ -5,6 +5,7 @@ import { Camera, Loader2, ChevronLeft, ChevronRight, Trash2, Plus, X, Scale } fr
 import { ProgressPhoto, uploadProgressPhoto, getProgressPhotos, deleteProgressPhoto } from '@/lib/features';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
+import { confirm } from '@/components/ConfirmDialog';
 import { format, parseISO } from 'date-fns';
 import Link from 'next/link';
 
@@ -65,7 +66,7 @@ export default function ProgressPage() {
     }
 
     async function handleDelete(id: string) {
-        if (!confirm('Delete this progress photo?')) return;
+        if (!await confirm({ title: 'Delete Photo', message: 'Delete this progress photo?', danger: true })) return;
 
         haptics.tap();
         try {
