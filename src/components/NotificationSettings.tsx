@@ -19,6 +19,26 @@ function randomId() {
     return Math.random().toString(36).slice(2, 10);
 }
 
+/** Shows the user's local offset so they can set reminder times correctly. */
+function UtcOffsetNote() {
+    const offsetMin  = new Date().getTimezoneOffset(); // negative = ahead of UTC
+    const offsetHrs  = -(offsetMin / 60);
+    const sign       = offsetHrs >= 0 ? '+' : '';
+    const localHints: Record<string, string> = {
+        '-5': 'e.g. 8 PM local = 01:00 UTC',
+        '-4': 'e.g. 8 PM local = 00:00 UTC',
+        '-6': 'e.g. 8 PM local = 02:00 UTC',
+        '-7': 'e.g. 8 PM local = 03:00 UTC',
+    };
+    const hint = localHints[String(Math.round(offsetHrs))];
+    return (
+        <p className="text-xs text-[var(--color-text-muted)] text-center px-4">
+            Times are in UTC. Your offset: UTC{sign}{Math.round(offsetHrs)}h
+            {hint ? ` — ${hint}.` : '. Add your offset to local time.'}
+        </p>
+    );
+}
+
 const DEFAULT_REMINDERS: Reminder[] = [
     { id: randomId(), label: "Log your day 📝", time: '20:00', enabled: true },
     { id: randomId(), label: "Time to move 💪", time: '09:00', enabled: true },
@@ -341,11 +361,7 @@ export function NotificationSettings() {
                         Add reminder
                     </button>
 
-                    <p className="text-xs text-[var(--color-text-muted)] text-center px-4">
-                        {native
-                            ? 'Reminders are delivered as native push notifications, even when the app is closed.'
-                            : 'Reminders fire at the UTC hour closest to your set time. Times shown are UTC.'}
-                    </p>
+                    <UtcOffsetNote />
                 </div>
             )}
         </div>
