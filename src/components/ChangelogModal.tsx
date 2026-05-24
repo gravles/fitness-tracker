@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain } from 'lucide-react';
+import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen } from 'lucide-react';
 
 interface ChangelogModalProps {
     isOpen: boolean;
@@ -12,36 +12,66 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
 
     const changes = [
         {
-            version: "v1.3 (Workout Builder)",
-            date: "Just Now",
+            version: "v2.0 — Native Apps & Calendar",
+            date: "May 24, 2026",
             features: [
-                { icon: <Dumbbell className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Added Workout Builder & Active Tracker." },
-                { icon: <Brain className="w-4 h-4 text-green-500" />, text: "Smart Coach can now build and save workouts." },
-                { icon: <Zap className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Integrated real-time set/rep logging." },
+                { icon: <Smartphone className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "iOS and Android native apps published to the App Store and Play Store." },
+                { icon: <Calendar className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Subscribe to your workout calendar in Apple Calendar or Google Calendar via a personal webcal:// link." },
+                { icon: <Bell className="w-4 h-4 text-green-500" />, text: "Push notifications for scheduled workouts — configurable lead time (5 min to 1 day before)." },
+                { icon: <Sun className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Light / System / Dark theme toggle in Settings." },
+                { icon: <Rocket className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Onboarding flow for new users: name, birthday, height, weight, and fitness goal." },
             ]
         },
         {
-            version: "v1.2 (AI Update)",
-            date: "Today",
+            version: "v1.5 — 12-Week Programs",
+            date: "May 22, 2026",
             features: [
-                { icon: <Sparkles className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Added AI Weekly Insights with alcohol analysis." },
-                { icon: <Rocket className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Launched 'Feature Tutorial' for new users." },
-                { icon: <Zap className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Improved AI Workout Coach speed and accuracy." },
+                { icon: <BookOpen className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "AI generates a full periodised 12-week training plan tailored to your goal and equipment." },
+                { icon: <Dumbbell className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Workout logger pre-loads target weights from your 1RM; notifies you of new PRs." },
+                { icon: <BarChart2 className="w-4 h-4 text-green-500" />, text: "Program adherence dot grid and schedule calendar with color-coded session types." },
             ]
         },
         {
-            version: "v1.1",
-            date: "Last Week",
+            version: "v1.4 — Health Integrations",
+            date: "May 21, 2026",
             features: [
-                { icon: <Rocket className="w-4 h-4 text-green-500" />, text: "Added Conversational Workout Logging." },
-                { icon: <Sparkles className="w-4 h-4 text-orange-400" />, text: "Introduced 'Smart Coach' tips on dashboard." },
+                { icon: <Dna className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Connect Strava, Withings, and Oura in Settings → Health Integrations." },
+                { icon: <Apple className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Withings body-composition data (fat %, muscle mass) shown on Trends and Body tabs." },
+                { icon: <Zap className="w-4 h-4 text-green-500" />, text: "lbs / kg unit preference saved to your profile and synced across devices." },
             ]
         },
         {
-            version: "v1.0",
-            date: "Initial Release",
+            version: "v1.3 — AI Nutrition Planner",
+            date: "May 21, 2026",
             features: [
-                { icon: <Bug className="w-4 h-4 text-[var(--color-text-muted)]" />, text: "Core tracking: Food, Workouts, and Habits." },
+                { icon: <Sparkles className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "AI-powered meal plan generation using your pantry and prep-time constraints." },
+                { icon: <Brain className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Pantry management with macro tracking; populate via photo scan or voice." },
+            ]
+        },
+        {
+            version: "v1.2 — Saved Meals & Coach Memory",
+            date: "May 21, 2026",
+            features: [
+                { icon: <Rocket className="w-4 h-4 text-green-500" />, text: "Save meals and re-log them with one tap." },
+                { icon: <Brain className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "AI Coach history persists across devices via Supabase." },
+                { icon: <Moon className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Progress photos and full body-metrics history in the new Body tab." },
+            ]
+        },
+        {
+            version: "v1.1 — Workout Builder",
+            date: "May 20, 2026",
+            features: [
+                { icon: <Dumbbell className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Workout builder with active session tracker and rest timer." },
+                { icon: <Brain className="w-4 h-4 text-green-500" />, text: "AI Coach can build and save workouts from natural language." },
+                { icon: <Sparkles className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "AI Weekly Insights with trends across nutrition, movement, and alcohol." },
+            ]
+        },
+        {
+            version: "v1.0 — Initial Release",
+            date: "May 19, 2026",
+            features: [
+                { icon: <Bug className="w-4 h-4 text-[var(--color-text-muted)]" />, text: "Core tracking: food diary, workouts, sleep, habits, and streaks." },
+                { icon: <Zap className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "XP, levels, badges, and shareable achievement cards." },
             ]
         }
     ];
@@ -53,9 +83,9 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
                 <div className="p-6 text-white flex justify-between items-center" style={{ background: 'var(--color-navy)' }}>
                     <div>
                         <h2 className="text-xl font-bold flex items-center gap-2">
-                            🚀 What's New
+                            🚀 What&apos;s New
                         </h2>
-                        <p className="text-sm mt-0.5" style={{ color: 'var(--color-gold)' }}>Changelog & Updates</p>
+                        <p className="text-sm mt-0.5" style={{ color: 'var(--color-gold)' }}>Changelog &amp; Updates</p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition">
                         <X className="w-5 h-5" />
