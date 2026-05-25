@@ -15,7 +15,7 @@ All notable changes to Life Logger are documented here.
 - Subscribable `webcal://` calendar feed of scheduled workouts
 - Works with Apple Calendar, Google Calendar, and any iCal-compatible app
 - Copy-URL button in Settings → Workout Calendar
-- Per-workout duration carried into iCal events
+- Per-workout duration carried into iCal events (30 / 45 / 60 / 75 / 90 / 120 min picker)
 - Program sessions included alongside ad-hoc workouts
 
 ### Workout Scheduling & Notifications
@@ -24,6 +24,7 @@ All notable changes to Life Logger are documented here.
 - Timezone-aware: times stored in user's local timezone and converted to UTC for delivery
 - Time picker on the reschedule modal; selected time shown on workout cards
 - Default scheduled time is noon instead of 9 am
+- Edit scheduled ad-hoc workouts in place — pencil button on workout cards opens a pre-filled edit modal (title, date, time, notes, reminder, and duration)
 
 ### Dark / Light / System Theme
 - Three-way toggle (Light / System / Dark) in Settings → Customisation

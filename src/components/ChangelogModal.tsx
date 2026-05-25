@@ -18,6 +18,7 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
                 { icon: <Smartphone className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "iOS and Android native apps published to the App Store and Play Store." },
                 { icon: <Calendar className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Subscribe to your workout calendar in Apple Calendar or Google Calendar via a personal webcal:// link." },
                 { icon: <Bell className="w-4 h-4 text-green-500" />, text: "Push notifications for scheduled workouts — configurable lead time (5 min to 1 day before)." },
+                { icon: <Dumbbell className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Edit scheduled workouts in place — tap the pencil on any workout card to update title, time, notes, reminder, or duration." },
                 { icon: <Sun className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Light / System / Dark theme toggle in Settings." },
                 { icon: <Rocket className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Onboarding flow for new users: name, birthday, height, weight, and fitness goal." },
             ]
