@@ -639,4 +639,357 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
+---
+
+---
+
+## New Feature Ideas — Brainstorm (Added 2026-05-25)
+
+These are net-new ideas that don't overlap with the six pillars above. Each is worth considering for a future sprint. They're grouped thematically and sized roughly.
+
+---
+
+### Group A — Friction Reducers (Remove effort from daily use)
+
+#### A1 — Food Photo Logging (AI Camera)
+
+**The idea:** Point your camera at a plate and let AI identify and log the food. Snap → confirm → done. No typing.
+
+**Why it matters:** Food logging friction is the #1 reason users stop using nutrition apps. Camera logging cuts the effort to ~5 seconds per meal.
+
+**How it would work:**
+- User taps a "Camera" button in the food log
+- Image uploaded to a Vercel API route
+- Pass to Claude's vision API: *"Identify all food items visible in this image and estimate portion sizes. Return JSON: [{name, estimated_grams, calories, protein, carbs, fat}]"*
+- User sees a pre-filled meal review screen — they can adjust quantities or remove items, then confirm
+- Confirmed items are added to the daily log exactly like manual entry
+
+**Complexity:** Medium. Requires a new API route and UI review screen. Accuracy depends on image quality but improves as Claude vision improves.
+
+**New data:** No schema change — same food log structure.
+
+---
+
+#### A2 — Recipe URL Import
+
+**The idea:** Paste a URL to any recipe (NYT Cooking, BBC Food, a food blog) and the app extracts nutritional data per serving and saves it as a food item or saved meal in your library.
+
+**Why it matters:** People eat recipes, not ingredients. Right now they'd have to enter each ingredient individually. URL import would populate the food library in seconds.
+
+**How it would work:**
+- New "Import Recipe" button in the food library / saved meals screen
+- User pastes URL → server-side `fetch` + HTML parsing
+- Pass extracted recipe text to Claude: *"Extract ingredients and quantities from this recipe. For each ingredient, estimate calories, protein, carbs, fat. Return JSON per serving."*
+- Saves to `saved_meals` table as a new entry, user can adjust servings before saving
+
+**Complexity:** Low–Medium. HTML parsing varies by site; Claude handles the extraction gracefully.
+
+---
+
+#### A3 — Water Intake Tracking
+
+**The idea:** The app tracks food, macros, movement, and sleep — but not water. A simple daily water tracker is table stakes for a complete health app.
+
+**Why it matters:** Hydration affects energy, focus, and athletic performance. It's also an easy daily habit to build and track.
+
+**What it looks like:**
+- A new "Water" widget in the daily log (below macros)
+- Goal: 8 cups / 2L / user-defined
+- Quick-add buttons: +250ml, +500ml, +1L
+- Progress ring on the dashboard, alongside macro rings
+- Evening nudge notification if goal not hit by 7pm
+- The Correlation Engine picks it up automatically: hydration ↔ energy, headaches, performance
+
+**New data:** Add `water_ml int` column to `daily_logs`. Zero migration complexity.
+
+**Complexity:** Very Low. 1–2 days.
+
+---
+
+#### A4 — Calendar Integration (Google Calendar / Apple Calendar)
+
+**The idea:** Export scheduled workouts to Google Calendar or Apple Calendar so they live in the user's existing workflow, not just inside the app.
+
+**Why it matters:** Most people plan their week in their calendar. If workouts are there, they're more likely to happen. It also sends reminders through the system the user already uses.
+
+**How it would work:**
+- "Add to Calendar" button on any scheduled workout
+- Generates an `.ics` file (universal, works with all calendar apps) — no OAuth needed for basic version
+- Advanced version: Google Calendar API OAuth to create/update events automatically when the schedule changes
+- Event description includes exercise list, target sets/reps, and a deep link back to the app
+
+**Complexity:** Low (`.ics` only) to Medium (live Google Calendar sync).
+
+---
+
+### Group B — Depth Features (More value for committed users)
+
+#### B1 — Supplement Stack Tracker
+
+**The idea:** Log daily supplements (creatine, vitamin D, omega-3, magnesium, caffeine, pre-workout, etc.) and use the Correlation Engine to see if they're actually making a measurable difference.
+
+**Why it matters:** Supplements are a multi-billion dollar market, but most people have no idea if what they're taking is working. This feature would be genuinely novel — no consumer app does "did my creatine actually do anything?" analysis.
+
+**What it looks like:**
+- New "Supplements" section in the daily log (a simple checklist of your stack)
+- A supplement library with common options + free text
+- After 4+ weeks of data, the Correlation Engine adds: creatine (consistent) ↔ strength gains, magnesium ↔ sleep quality, vitamin D ↔ energy/mood
+- AI insight: *"You've been consistent with creatine for 6 weeks. Your estimated 1RM on squat is up 4.5kg. That's above baseline expectation."*
+
+**New data:**
+```sql
+CREATE TABLE supplement_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  supplements jsonb NOT NULL,  -- [{name, dose_mg, taken: true}]
+  UNIQUE(user_id, date)
+);
+```
+
+**Complexity:** Low for logging, Medium to add it to the Correlation Engine.
+
+---
+
+#### B2 — Injury & Pain Log
+
+**The idea:** Let users log pain or discomfort in specific body regions. Track over time, detect patterns (e.g., knee pain every time you do more than 4 sets of squats), and flag exercises that consistently precede soreness or injury.
+
+**Why it matters:** Injury is the #1 reason people stop training. An injury-aware training system is genuinely protective and differentiating. No mainstream app does this.
+
+**What it looks like:**
+- "Body map" UI — a simplified front/back silhouette where users tap to indicate pain location (shoulder, lower back, knee, etc.) and rate severity 1–3
+- Logged as part of the morning wellness check-in
+- The Correlation Engine cross-references pain logs with workout history: *"Your lower back pain correlates with deadlift sessions over 4 sets. Consider limiting to 3 sets or checking your form."*
+- AI Coach is aware of current pain: "I see you're experiencing knee discomfort — let me suggest a modified leg day that avoids loaded knee flexion"
+- Flag: if a user logs 3+ pain days without a rest day, proactively suggest seeing a physio
+
+**New data:**
+```sql
+ALTER TABLE daily_logs
+  ADD COLUMN IF NOT EXISTS pain_areas jsonb;
+  -- [{region: 'lower_back', severity: 2, notes: 'after deadlifts'}]
+```
+
+**Complexity:** Medium. The body map UI is the main frontend work; the correlation logic reuses existing infrastructure.
+
+---
+
+#### B3 — Habit Stacking / Routine Builder
+
+**The idea:** Let users define named routines made up of smaller micro-habits — e.g., a "Morning Routine": weigh yourself, log supplements, drink 500ml water, do 5 min mobility. Track completion as a single unit.
+
+**Why it matters:** Habit stacking (anchoring new habits to existing ones) is one of the most evidence-based behaviour change techniques. The app already tracks individual behaviours; this feature makes them cohere into intentional routines.
+
+**What it looks like:**
+- Routine Builder: create a named routine with a list of steps. Steps can be: log weight, log water, complete a stretch sequence, take supplements, any custom text action
+- Routines appear as a checklist card on the dashboard at the configured time (morning / pre-workout / evening)
+- Completion earns XP and contributes to streaks
+- AI can suggest a routine based on goals: *"Based on your goals, here's a suggested morning routine: [...]"*
+
+**New data:**
+```sql
+CREATE TABLE routines (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  trigger_time text,  -- 'morning', 'pre_workout', 'evening', or a specific time
+  steps jsonb NOT NULL,  -- [{label, type, config}]
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE routine_completions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  routine_id uuid REFERENCES routines(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  steps_completed int NOT NULL,
+  steps_total int NOT NULL,
+  completed_at timestamptz DEFAULT now()
+);
+```
+
+**Complexity:** Medium. UI is the main investment; data model is straightforward.
+
+---
+
+#### B4 — Sleep Goal & Wind-Down Nudge
+
+**The idea:** Set a target bedtime and a wind-down start time. The app sends a gentle notification X minutes before bedtime with a personalised wind-down prompt — and tracks whether you actually hit your sleep goal.
+
+**Why it matters:** The app collects sleep quality scores but doesn't actively help users *improve* their sleep. Sleep is the highest-leverage intervention for recovery, performance, and mood. Closing the loop here is high value.
+
+**What it looks like:**
+- `sleep_goal_time` (e.g., 10:30pm) and `winddown_duration_min` (e.g., 30 min) added to user settings
+- Notification at 10:00pm: *"Wind-down time. Tonight: dim your screens, try the 4-7-8 breathing (tap to start), and aim for 10:30."*
+- Morning log includes: "Did you hit your sleep goal?" (yes / approx / no)
+- Tracks sleep goal adherence over time, correlates with actual sleep quality scores
+- AI Coach is aware of sleep goal: adapts advice if the user consistently misses it
+
+**New data:** `sleep_goal_bedtime time`, `winddown_duration_min int` in `user_settings`. Sleep goal adherence as a field in `daily_logs`.
+
+**Complexity:** Low. Mostly notification scheduling + a small settings UI.
+
+---
+
+#### B5 — Guided Breathing Library
+
+**The idea:** A small library of guided breathing exercises (box breathing, 4-7-8, physiological sigh, Wim Hof intro) with a timer/animation. Sessions are logged, counted toward the readiness/recovery score, and correlated with stress levels.
+
+**Why it matters:** Breathing is the fastest evidence-based stress intervention. It's also a natural fit for the Recovery pillar (Pillar 4) and complements the wind-down feature. Users who are told to "rest" need something concrete to *do*.
+
+**What it looks like:**
+- A "Breathe" button in the Recovery card on the dashboard (visible when readiness is low)
+- 4 techniques: Box Breathing (4-4-4-4), 4-7-8, Physiological Sigh (double inhale + exhale), Wim Hof Intro (30 reps)
+- Animated circle expands/contracts on screen with audio cues (optional)
+- Session logged to `recovery_activities` (new table or extended from readiness)
+- After 5+ sessions, the Correlation Engine checks: breathing sessions ↔ next-day stress score
+
+**Complexity:** Low. Mostly UI + a timer. No external dependencies.
+
+---
+
+### Group C — Engagement & Retention
+
+#### C1 — Year in Review (Annual Wrapped)
+
+**The idea:** A visually striking end-of-year summary — like Spotify Wrapped — showing the user's biggest stats, most impressive streaks, personal records, and AI-generated highlights from their year. Shareable as a card or story.
+
+**Why it matters:** This is pure engagement and virality. Users love seeing their year quantified. Shareable cards are word-of-mouth acquisition at zero cost.
+
+**What it looks like:**
+- Triggered on Dec 31 (and available to view any time in the past year's stats)
+- Animated slide deck: *Your Year in Numbers*
+  - Total workouts: 147
+  - Total XP earned: 8,420
+  - Longest streak: 34 days
+  - Best bench press 1RM: 97.5kg (↑12.5kg from last year)
+  - Protein goal hit: 214 days
+  - Months you trained most: March, July
+  - AI-written "chapter" summary: *"2026 was the year you built your base. You showed up consistently, set 3 PRs, and developed the daily log habit that will compound for years."*
+- Shareable as a PNG card (no sensitive data exposed)
+
+**Complexity:** Medium. Mostly a query + a nicely designed display component. Shareable card requires canvas rendering or a server-side image generation route.
+
+---
+
+#### C2 — Coach Personas / Specialisations
+
+**The idea:** Let the user choose between distinct AI coach personas or "modes" — each with a different expertise, tone, and focus.
+
+**Why it matters:** The current coach is a generalist. Some users want a tough strength coach; others want a gentle nutritionist; others want a sports psychologist. Personas increase perceived relevance and give users agency.
+
+**Proposed personas:**
+- **The Strength Coach** — data-driven, direct, focused on PRs and progressive overload. Quotes powerlifting cues.
+- **The Nutritionist** — warm and educational, macro-focused, meal suggestions, food science explanations.
+- **The Sports Psychologist** — empathetic, mindset-focused, handles burnout, fear of failure, motivation dips.
+- **The Endurance Coach** — running/cycling/swimming focused, zone 2 training, periodisation for cardio.
+
+**How it works:** `coach_persona` field in user settings. Injected into the system prompt at the start of every coach conversation. Persona switching should feel instant — just update the next conversation's system prompt.
+
+**Complexity:** Very Low. One setting, one system prompt modification. High perceived value relative to effort.
+
+---
+
+#### C3 — Personal Records & Trophy Case
+
+**The idea:** Automatically detect when a user sets a personal record (heaviest lift, longest run, most protein in a day, longest streak, most XP in a week, etc.) and celebrate it prominently, adding it to a "Trophy Case" page.
+
+**Why it matters:** PR detection is built into the Periodisation pillar for 1RM, but it should be broader. The Trophy Case gives users a tangible sense of progress beyond XP levels. It's also highly shareable.
+
+**What it tracks:**
+- Strength PRs (1RM per exercise) — already planned in Pillar 3
+- Nutrition PRs: highest single-day protein, longest streak of hitting protein goal
+- Consistency PRs: longest log streak, longest workout streak
+- Cardio PRs: fastest 5K, longest run, highest weekly step count (once integrations exist)
+- Composite PRs: best readiness score, highest XP week
+
+**What it looks like:**
+- A "Records" tab on the Profile/Progress page
+- Each record: the value, the date it was set, a mini chart showing the history
+- Notifications: *"New PR! You just hit your heaviest bench press ever — 102.5kg. That's 5kg up from your previous best."*
+- Shareable record card
+
+**Complexity:** Low–Medium. Mostly queries and a display component; detection logic runs in the nightly cron.
+
+---
+
+#### C4 — Data Export & Portability
+
+**The idea:** Let users export all their data as CSV or PDF. This is a trust and transparency feature, not a growth feature.
+
+**Why it matters:** Users are increasingly data-privacy-conscious. Knowing they can export and own their data reduces the psychological barrier to committing to the app. It's also table stakes for GDPR compliance.
+
+**What gets exported:**
+- Daily logs (all fields, date range picker)
+- Workout history (all exercises, sets, weights)
+- Body metrics history
+- Goal history
+- AI coaching conversations (optional, with warning about size)
+
+**Format options:**
+- CSV (per data type, zipped)
+- JSON (full export, for power users)
+- PDF summary (charts + highlights, for sharing with a coach or doctor)
+
+**Complexity:** Low (CSV/JSON). Medium for the PDF summary with charts.
+
+---
+
+### Group D — Niche but High-Ceiling
+
+#### D1 — Training Age & Adaptive Difficulty
+
+**The idea:** Automatically assess a user's "training age" (beginner / intermediate / advanced) from their workout history and adjust all recommendations accordingly — beginner programs, progressive overload pace, expected recovery time.
+
+**Why it matters:** Beginners and advanced athletes need completely different advice. A beginner who can add weight every session doesn't need complex periodisation. An advanced lifter who stalls needs deload weeks and programme variation. Right now the app gives everyone the same feedback.
+
+**How it works:**
+- Computed from: months of workout history, average weekly frequency, rate of strength progress, exercise variety
+- Displayed as a label ("Intermediate Lifter — ~18 months training age") with an explanation
+- Feeds into: progressive overload algorithm (beginners progress faster), AI coach system prompt, readiness thresholds (beginners need more recovery), programme recommendations
+
+**Complexity:** Medium. Mostly algorithmic classification + system prompt adjustment.
+
+---
+
+#### D2 — Workout Warmup & Cooldown Generator
+
+**The idea:** Before any workout, AI generates a 5–10 minute warmup based on the muscle groups being trained. After a workout, generates a cooldown/stretch routine. Both are trackable and shown as a checklist.
+
+**Why it matters:** Most people skip warmups because they don't know what to do. A tailored warmup reduces injury risk, improves performance, and makes the workout feel more professional. This is the kind of feature a PT provides; automating it is high value.
+
+**How it works:**
+- When user starts a workout in the active workout view, a "Generate Warmup" button appears
+- Pass workout exercise list to Claude: *"Generate a 5-min warmup for a workout containing [exercises]. Include 3–5 movements with sets/reps/duration. Return JSON."*
+- Warmup displayed as a checklist before the main workout begins
+- Cooldown generated at the end of the session from the same data
+
+**Complexity:** Low. One API call + a simple checklist UI. Reuses the existing exercise/set display patterns.
+
+---
+
+### New Features Prioritisation
+
+| Feature | Impact | Effort | Priority |
+|---|---|---|---|
+| Water Tracking (A3) | High | Very Low | ★★★★★ |
+| Coach Personas (C2) | High | Very Low | ★★★★★ |
+| Guided Breathing Library (B5) | Medium | Low | ★★★★☆ |
+| Warmup/Cooldown Generator (D2) | High | Low | ★★★★☆ |
+| Personal Records & Trophy Case (C3) | High | Low–Medium | ★★★★☆ |
+| Sleep Goal & Wind-Down Nudge (B4) | High | Low | ★★★★☆ |
+| Recipe URL Import (A2) | High | Low–Medium | ★★★☆☆ |
+| Supplement Stack Tracker (B1) | Medium | Medium | ★★★☆☆ |
+| Calendar Integration (A4) | Medium | Low–Medium | ★★★☆☆ |
+| Food Photo Logging (A1) | Very High | Medium | ★★★☆☆ |
+| Habit Stacking / Routine Builder (B3) | High | Medium | ★★★☆☆ |
+| Injury & Pain Log (B2) | High | Medium | ★★★☆☆ |
+| Data Export & Portability (C4) | Medium | Low–Medium | ★★★☆☆ |
+| Year in Review (C1) | Medium | Medium | ★★☆☆☆ |
+| Training Age & Adaptive Difficulty (D1) | High | Medium–High | ★★☆☆☆ |
+
+---
+
 *Document ends. Questions, pushback, or additions — flag them and I'll revise.*
