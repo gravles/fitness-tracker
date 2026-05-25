@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
+import http2 from 'http2';
 
 // ─── Web Push (VAPID) ────────────────────────────────────────────────────────
 webpush.setVapidDetails(
@@ -9,7 +11,65 @@ webpush.setVapidDetails(
     process.env.VAPID_PRIVATE_KEY!
 );
 
-// ─── Firebase Admin (FCM) ────────────────────────────────────────────────────
+// ─── Apple Push Notification service (APNs) ─────────────────────────────────
+// Required env vars: APNS_KEY_ID, APNS_TEAM_ID, APNS_BUNDLE_ID, APNS_PRIVATE_KEY
+// APNS_PRIVATE_KEY is the full contents of the .p8 file (newlines as \n or literal)
+
+function makeApnsJwt(): string {
+    const keyId  = process.env.APNS_KEY_ID!;
+    const teamId = process.env.APNS_TEAM_ID!;
+    const p8     = (process.env.APNS_PRIVATE_KEY ?? '').replace(/\\n/g, '\n');
+
+    const header  = Buffer.from(JSON.stringify({ alg: 'ES256', kid: keyId })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify({ iss: teamId, iat: Math.floor(Date.now() / 1000) })).toString('base64url');
+    const unsigned = `${header}.${payload}`;
+
+    const sig = crypto.sign('SHA256', Buffer.from(unsigned), { key: p8, dsaEncoding: 'ieee-p1363' });
+    return `${unsigned}.${sig.toString('base64url')}`;
+}
+
+function sendApnsMessage(
+    deviceToken: string,
+    title: string,
+    body: string,
+    data: Record<string, string>,
+): Promise<{ ok: boolean; expired: boolean }> {
+    return new Promise((resolve) => {
+        const bundleId = process.env.APNS_BUNDLE_ID ?? 'com.nathandavie.fitnesstracker';
+        const apnsJwt  = makeApnsJwt();
+        const payload  = JSON.stringify({
+            aps: { alert: { title, body }, badge: 1, sound: 'default' },
+            ...data,
+        });
+
+        const client = http2.connect('https://api.push.apple.com');
+        client.on('error', () => resolve({ ok: false, expired: false }));
+
+        const req = client.request({
+            ':method': 'POST',
+            ':path':   `/3/device/${deviceToken}`,
+            'authorization':    `bearer ${apnsJwt}`,
+            'apns-topic':       bundleId,
+            'apns-push-type':   'alert',
+            'apns-priority':    '10',
+            'content-type':     'application/json',
+            'content-length':   String(Buffer.byteLength(payload)),
+        });
+
+        req.write(payload);
+        req.end();
+
+        let statusCode = 0;
+        req.on('response', (headers) => { statusCode = Number(headers[':status']); });
+        req.on('end', () => {
+            client.close();
+            resolve({ ok: statusCode === 200, expired: statusCode === 410 });
+        });
+        req.on('error', () => { client.close(); resolve({ ok: false, expired: false }); });
+    });
+}
+
+// ─── Firebase Admin (FCM) — Android only ────────────────────────────────────
 let firebaseMessaging: import('firebase-admin/messaging').Messaging | null = null;
 
 async function getMessaging() {
@@ -87,7 +147,7 @@ export async function GET(request: NextRequest) {
         // Fetch push subscriptions, device tokens, AND today's log entries in parallel
         const [{ data: webSubs }, { data: deviceTokenRows }, { data: todayLogs }] = await Promise.all([
             supabase.from('push_subscriptions').select('*'),
-            supabase.from('device_tokens').select('user_id, token, reminders'),
+            supabase.from('device_tokens').select('user_id, token, platform, reminders'),
             // Smart-skip: find users who have already logged anything today
             supabase
                 .from('daily_logs')
@@ -101,29 +161,39 @@ export async function GET(request: NextRequest) {
             (todayLogs ?? []).map((r: { user_id: string }) => r.user_id)
         );
 
-        // Build lookup: user_id → [fcm_token, ...]
-        const tokensByUser: Record<string, string[]> = {};
+        // Build lookup: user_id → [{ token, platform }, ...]
+        type TokenEntry = { token: string; platform: string };
+        const tokensByUser: Record<string, TokenEntry[]> = {};
         for (const row of (deviceTokenRows ?? [])) {
-            (tokensByUser[row.user_id] ??= []).push(row.token);
+            (tokensByUser[row.user_id] ??= []).push({
+                token:    row.token,
+                platform: (row.platform as string) ?? 'android',
+            });
         }
 
         let sent = 0, failed = 0;
         const expiredEndpoints: string[] = [];
         const expiredFcmTokens: string[] = [];
 
-        // Helper: send FCM to all tokens for a user
-        async function sendFcm(userId: string, title: string, body: string, tag: string, url = '/schedule') {
-            if (!messaging) return;
-            for (const token of (tokensByUser[userId] ?? [])) {
+        // Helper: send a native push to all tokens for a user
+        // iOS → direct APNs (HTTP/2 + JWT)
+        // Android → Firebase Cloud Messaging
+        async function sendNative(userId: string, title: string, body: string, tag: string, url = '/schedule') {
+            for (const { token, platform } of (tokensByUser[userId] ?? [])) {
                 try {
-                    await messaging!.send({
-                        token,
-                        notification: { title, body },
-                        data:         { url, tag },
-                        apns:    { payload: { aps: { badge: 1, sound: 'default' } } },
-                        android: { priority: 'high' },
-                    });
-                    sent++;
+                    if (platform === 'ios') {
+                        const { ok, expired } = await sendApnsMessage(token, title, body, { url, tag });
+                        if (expired) expiredFcmTokens.push(token);
+                        if (ok) sent++; else failed++;
+                    } else if (messaging) {
+                        await messaging.send({
+                            token,
+                            notification: { title, body },
+                            data:         { url, tag },
+                            android: { priority: 'high' },
+                        });
+                        sent++;
+                    }
                 } catch (err: any) {
                     if (
                         err.code === 'messaging/registration-token-not-registered' ||
@@ -166,7 +236,7 @@ export async function GET(request: NextRequest) {
                     failed++;
                 }
 
-                await sendFcm(sub.user_id, title, body, tag, '/log');
+                await sendNative(sub.user_id, title, body, tag, '/log');
             }
         }));
 
@@ -189,7 +259,7 @@ export async function GET(request: NextRequest) {
                 return h === currentHour && m === currentMinute;
             });
             for (const reminder of due) {
-                await sendFcm(userId, reminder.label, reminder.body ?? 'Tap to open your fitness tracker.', `reminder-${reminder.id}`, '/log');
+                await sendNative(userId, reminder.label, reminder.body ?? 'Tap to open your fitness tracker.', `reminder-${reminder.id}`, '/log');
             }
         }
 
@@ -237,7 +307,7 @@ export async function GET(request: NextRequest) {
                                      : minsBefore === 1440 ? 'tomorrow'
                                      : `in ${minsBefore / 60} hours`;
 
-                    await sendFcm(
+                    await sendNative(
                         workout.user_id,
                         `🏋️ ${workout.title}`,
                         `${timeLabel} — time to get moving!`,
