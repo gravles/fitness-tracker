@@ -56,9 +56,13 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
 
         let recognition: any = null;
 
-        if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-            // @ts-ignore
-            recognition = new window.webkitSpeechRecognition();
+        const SpeechRecognitionAPI =
+            typeof window !== 'undefined'
+                ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+                : null;
+
+        if (SpeechRecognitionAPI) {
+            recognition = new SpeechRecognitionAPI();
             recognition.continuous = true;
             recognition.interimResults = false;
             recognition.lang = 'en-US';

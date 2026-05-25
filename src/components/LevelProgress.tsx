@@ -15,11 +15,19 @@ const DAY_LABELS = Array.from({ length: 7 }, (_, i) =>
     format(subDays(new Date(), 6 - i), 'EEE')[0]
 );
 
+/** Mirror of xpForLevel in api.ts — inlined to avoid importing supabase in a client component */
+function xpForLevel(level: number): number {
+    if (level <= 1) return 0;
+    return Math.round(100 * (Math.pow(1.15, level - 1) - 1) / 0.15);
+}
+
 export function LevelProgress({ level, xp, weeklyXP, onClick }: LevelProgressProps) {
-    const startXP = (level - 1) * 100;
-    const progressXP = xp - startXP;
-    const percent = Math.min(100, Math.max(0, (progressXP / 100) * 100));
-    const toNext = 100 - progressXP;
+    const currentLevelXP  = xpForLevel(level);
+    const nextLevelXP     = xpForLevel(level + 1);
+    const neededForLevel  = nextLevelXP - currentLevelXP;
+    const progressXP      = xp - currentLevelXP;
+    const percent         = Math.min(100, Math.max(0, (progressXP / neededForLevel) * 100));
+    const toNext          = nextLevelXP - xp;
 
     const maxWeekly = weeklyXP ? Math.max(...weeklyXP, 1) : 1;
 

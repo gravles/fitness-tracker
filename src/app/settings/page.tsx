@@ -46,6 +46,7 @@ export default function SettingsPage() {
         protein: '',
         calories: '',
         enableCycle: false,
+        streakType: 'any' as 'any' | 'workout' | 'nutrition',
         habits: [] as string[],
         equipment: [] as string[]
     });
@@ -132,6 +133,7 @@ export default function SettingsPage() {
                     protein: data.target_protein?.toString() || '',
                     calories: data.target_calories?.toString() || '',
                     enableCycle: data.enable_cycle_tracking ?? false,
+                    streakType: (data.streak_type ?? 'any') as 'any' | 'workout' | 'nutrition',
                     habits: data.custom_habits || [],
                     equipment: data.available_equipment || []
                 });
@@ -187,6 +189,7 @@ export default function SettingsPage() {
                 target_protein: parseInt(targets.protein) || null,
                 target_calories: parseInt(targets.calories) || null,
                 enable_cycle_tracking: targets.enableCycle,
+                streak_type: targets.streakType,
                 custom_habits: targets.habits,
                 available_equipment: targets.equipment
             });
@@ -486,6 +489,35 @@ export default function SettingsPage() {
                 </div>
 
                 <NotificationSettings />
+
+                {/* Streak Type Selector */}
+                <div>
+                    <h3 className="font-medium mb-1" style={{ color: 'var(--color-text)' }}>Streak Counts As</h3>
+                    <p className="text-sm mb-3" style={{ color: 'var(--color-text-muted)' }}>
+                        What activity keeps your streak alive?
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                        {([
+                            { value: 'any',       label: 'Anything',  desc: 'Workout or nutrition' },
+                            { value: 'workout',   label: 'Workouts',  desc: 'Movement only' },
+                            { value: 'nutrition', label: 'Nutrition', desc: 'Food logging only' },
+                        ] as const).map(opt => (
+                            <button
+                                key={opt.value}
+                                onClick={() => setTargets(t => ({ ...t, streakType: opt.value }))}
+                                className="p-3 rounded-xl text-left transition-all"
+                                style={{
+                                    background: targets.streakType === opt.value ? 'var(--color-primary)' : 'var(--color-bg-subtle)',
+                                    border: `1px solid ${targets.streakType === opt.value ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                                    color: targets.streakType === opt.value ? 'white' : 'var(--color-text)',
+                                }}
+                            >
+                                <p className="font-bold text-sm">{opt.label}</p>
+                                <p className="text-[11px] opacity-75 mt-0.5">{opt.desc}</p>
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
                 {/* Cycle Tracking Toggle */}
                 <div className="flex items-center justify-between">

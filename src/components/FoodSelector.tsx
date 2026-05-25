@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getFavoriteFoods, getRecentFoods, deleteFavoriteFood, createSavedMeal, FavoriteFood } from '@/lib/api';
+import { getFavoriteFoods, getRecentFoods, deleteFavoriteFood, createSavedMeal, getSavedMeals, deleteSavedMeal, incrementSavedMealUseCount, FavoriteFood, SavedMeal } from '@/lib/api';
 import { confirm } from '@/components/ConfirmDialog';
-import { Search, Check, Trash2, Loader2, X, BookMarked } from 'lucide-react';
+import { Search, Check, Trash2, Loader2, X, BookMarked, UtensilsCrossed } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 interface FoodSelectorProps {
@@ -12,13 +12,14 @@ interface FoodSelectorProps {
 }
 
 export function FoodSelector({ onClose, onSelect }: FoodSelectorProps) {
-    const [tab, setTab] = useState<'favorites' | 'recent'>('favorites');
+    const [tab, setTab] = useState<'favorites' | 'recent' | 'meals'>('favorites');
     const [loading, setLoading] = useState(true);
     const [savingMeal, setSavingMeal] = useState(false);
     const [mealNamePrompt, setMealNamePrompt] = useState(false);
     const [mealName, setMealName] = useState('');
     const [favorites, setFavorites] = useState<FavoriteFood[]>([]);
     const [recent, setRecent] = useState<any[]>([]);
+    const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
     const [search, setSearch] = useState('');
     const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -37,9 +38,12 @@ export function FoodSelector({ onClose, onSelect }: FoodSelectorProps) {
             if (tab === 'favorites') {
                 const data = await getFavoriteFoods();
                 setFavorites(data || []);
-            } else {
+            } else if (tab === 'recent') {
                 const data = await getRecentFoods();
                 setRecent(data || []);
+            } else {
+                const data = await getSavedMeals();
+                setSavedMeals(data || []);
             }
         } catch (e) {
             console.error('Error loading food data', e);
@@ -77,6 +81,7 @@ export function FoodSelector({ onClose, onSelect }: FoodSelectorProps) {
 
     const items = tab === 'favorites' ? favorites : recent;
     const filtered = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
+    const filteredMeals = savedMeals.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
 
     const [mounted, setMounted] = useState(false);
     useEffect(() => {
@@ -97,16 +102,23 @@ export function FoodSelector({ onClose, onSelect }: FoodSelectorProps) {
                     <div className="flex bg-[var(--color-bg-muted)] p-1 rounded-lg">
                         <button
                             onClick={() => setTab('favorites')}
-                            className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${tab === 'favorites' ? 'bg-[var(--color-surface-elevated)] shadow-sm text-red-500' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+                            className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${tab === 'favorites' ? 'bg-[var(--color-surface-elevated)] shadow-sm text-red-500' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
                         >
                             Favorites
                         </button>
                         <button
                             onClick={() => setTab('recent')}
-                            className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${tab === 'recent' ? 'bg-[var(--color-surface-elevated)] shadow-sm' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+                            className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${tab === 'recent' ? 'bg-[var(--color-surface-elevated)] shadow-sm' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
                             style={tab === 'recent' ? { color: 'var(--color-primary)' } : undefined}
                         >
                             Recent
+                        </button>
+                        <button
+                            onClick={() => setTab('meals')}
+                            className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${tab === 'meals' ? 'bg-[var(--color-surface-elevated)] shadow-sm' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+                            style={tab === 'meals' ? { color: 'var(--color-success)' } : undefined}
+                        >
+                            Meals
                         </button>
                     </div>
                     <button onClick={onClose}>
@@ -137,6 +149,55 @@ export function FoodSelector({ onClose, onSelect }: FoodSelectorProps) {
                         <div className="py-10 flex justify-center text-[var(--color-text-muted)]">
                             <Loader2 className="w-8 h-8 animate-spin" />
                         </div>
+                    ) : tab === 'meals' ? (
+                        filteredMeals.length === 0 ? (
+                            <div className="py-10 text-center text-[var(--color-text-muted)] text-sm">
+                                {search ? 'No matches found.' : 'No saved meals yet. Select foods and tap "Save as Meal"!'}
+                            </div>
+                        ) : filteredMeals.map(meal => (
+                            <div
+                                key={meal.id}
+                                className="group flex justify-between items-center p-3 rounded-xl border transition-all"
+                                style={{ background: 'var(--color-bg-subtle)', borderColor: 'var(--color-border-light)' }}
+                            >
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(34,197,94,0.1)' }}>
+                                        <UtensilsCrossed className="w-4 h-4" style={{ color: 'var(--color-success)' }} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-bold text-sm text-[var(--color-text)] truncate">{meal.name}</p>
+                                        <p className="text-xs text-[var(--color-text-muted)]">
+                                            {meal.total_calories} kcal · {meal.total_protein}g P · {meal.food_items.length} items
+                                            {meal.use_count > 0 && <span className="ml-1 opacity-60">· used {meal.use_count}×</span>}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    <button
+                                        onClick={async () => {
+                                            await incrementSavedMealUseCount(meal.id);
+                                            onSelect(meal.food_items);
+                                            onClose();
+                                        }}
+                                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-opacity hover:opacity-80"
+                                        style={{ background: 'var(--color-success)' }}
+                                    >
+                                        Log
+                                    </button>
+                                    <button
+                                        onClick={async e => {
+                                            e.stopPropagation();
+                                            if (!await confirm({ title: 'Delete Meal', message: `Delete "${meal.name}"?` })) return;
+                                            await deleteSavedMeal(meal.id);
+                                            setSavedMeals(prev => prev.filter(m => m.id !== meal.id));
+                                        }}
+                                        className="w-7 h-7 rounded-full bg-red-50 text-red-400 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))
                     ) : filtered.length === 0 ? (
                         <div className="py-10 text-center text-[var(--color-text-muted)] text-sm">
                             {search ? 'No matches found.' : tab === 'favorites' ? 'No favorites yet. Star items in your daily log!' : 'No recent history found.'}
@@ -201,8 +262,8 @@ export function FoodSelector({ onClose, onSelect }: FoodSelectorProps) {
                     )}
                 </div>
 
-                {/* Footer */}
-                <div className="p-4 border-t border-[var(--color-border-light)] bg-[var(--color-surface-elevated)] flex-shrink-0 space-y-2">
+                {/* Footer — hidden on the Meals tab since each meal has its own Log button */}
+                {tab !== 'meals' && <div className="p-4 border-t border-[var(--color-border-light)] bg-[var(--color-surface-elevated)] flex-shrink-0 space-y-2">
                     {/* Save as meal name prompt */}
                     {mealNamePrompt && (
                         <div className="flex gap-2 animate-in slide-in-from-bottom">
@@ -274,7 +335,7 @@ export function FoodSelector({ onClose, onSelect }: FoodSelectorProps) {
                             </button>
                         )}
                     </div>
-                </div>
+                </div>}
             </div>
         </div>
     );

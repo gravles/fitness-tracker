@@ -82,11 +82,24 @@ export async function GET(request: NextRequest) {
         const currentHour   = now.getUTCHours();
         const currentMinute = now.getUTCMinutes();
 
-        // Fetch push subscriptions and device tokens in parallel
-        const [{ data: webSubs }, { data: deviceTokenRows }] = await Promise.all([
+        const todayDateStr = now.toISOString().slice(0, 10); // YYYY-MM-DD UTC
+
+        // Fetch push subscriptions, device tokens, AND today's log entries in parallel
+        const [{ data: webSubs }, { data: deviceTokenRows }, { data: todayLogs }] = await Promise.all([
             supabase.from('push_subscriptions').select('*'),
             supabase.from('device_tokens').select('user_id, token, reminders'),
+            // Smart-skip: find users who have already logged anything today
+            supabase
+                .from('daily_logs')
+                .select('user_id')
+                .eq('date', todayDateStr)
+                .or('nutrition_logged.eq.true,movement_completed.eq.true,calories.gt.0'),
         ]);
+
+        // Users who have already logged today — skip daily reminders for them
+        const alreadyLoggedToday = new Set<string>(
+            (todayLogs ?? []).map((r: { user_id: string }) => r.user_id)
+        );
 
         // Build lookup: user_id → [fcm_token, ...]
         const tokensByUser: Record<string, string[]> = {};
@@ -127,6 +140,8 @@ export async function GET(request: NextRequest) {
         const webSubUserIds = new Set<string>();
         await Promise.all((webSubs ?? []).map(async (sub) => {
             webSubUserIds.add(sub.user_id);
+            // Smart-skip: user already logged today, no need to remind them
+            if (alreadyLoggedToday.has(sub.user_id)) return;
             const reminders: Reminder[] = sub.reminders ?? [];
             const due = reminders.filter(r => {
                 if (!r.enabled) return false;
@@ -166,6 +181,8 @@ export async function GET(request: NextRequest) {
         }
 
         for (const [userId, reminders] of Object.entries(nativeRemindersByUser)) {
+            // Smart-skip: user already logged today
+            if (alreadyLoggedToday.has(userId)) continue;
             const due = reminders.filter(r => {
                 if (!r.enabled) return false;
                 const [h, m] = r.time.split(':').map(Number);

@@ -175,13 +175,21 @@ export async function getMonthlyLogs(startDate: string, endDate: string) {
     return data as DailyLog[];
 }
 
-export async function getStreak() {
+export async function getStreak(streakType?: 'any' | 'workout' | 'nutrition') {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return 0;
 
-    // A day counts toward the streak if the user logged anything at all:
-    // nutrition (nutrition_logged = true OR calories > 0) OR movement logged.
-    // Fetch the date of every row — filtering is done client-side.
+    // Resolve streakType from user settings if not provided
+    let resolvedType: 'any' | 'workout' | 'nutrition' = streakType ?? 'any';
+    if (!streakType) {
+        const { data: settingsRow } = await supabase
+            .from('user_settings')
+            .select('streak_type')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+        resolvedType = (settingsRow?.streak_type as 'any' | 'workout' | 'nutrition') || 'any';
+    }
+
     const { data } = await supabase
         .from('daily_logs')
         .select('date, movement_completed, nutrition_logged, calories')
@@ -195,10 +203,15 @@ export async function getStreak() {
     const todayStr = format(today, 'yyyy-MM-dd');
     const yesterdayStr = format(subDays(today, 1), 'yyyy-MM-dd');
 
-    // A day counts if movement OR nutrition was recorded
+    // Filter dates according to the user's chosen streak type
     const loggedDates = new Set(
         data
-            .filter(d => d.movement_completed || d.nutrition_logged || (d.calories && d.calories > 0))
+            .filter(d => {
+                if (resolvedType === 'workout')   return !!d.movement_completed;
+                if (resolvedType === 'nutrition') return d.nutrition_logged || (d.calories && d.calories > 0);
+                // 'any' — either counts
+                return d.movement_completed || d.nutrition_logged || (d.calories && d.calories > 0);
+            })
             .map(d => d.date)
     );
 
@@ -272,6 +285,8 @@ export interface UserSettings {
     calendar_token?: string;         // UUID for public iCal feed URL
     // Units
     weight_unit?: 'imperial' | 'metric'; // 'imperial' = lbs, 'metric' = kg
+    // Streak
+    streak_type?: 'any' | 'workout' | 'nutrition'; // what counts toward the streak
 }
 
 export async function getSettings() {
@@ -521,7 +536,7 @@ export async function recalculateTotalXP() {
     });
 
     // 3. Update Settings
-    const newLevel = Math.floor(totalXP / 100) + 1;
+    const newLevel = levelFromXP(totalXP);
 
     await updateSettings({
         ...settings,

@@ -102,9 +102,10 @@ export async function GET(request: NextRequest) {
                     .eq('user_id', userId);
 
                 const totalXP = xpData?.reduce((acc: number, e: { xp_amount: number }) => acc + e.xp_amount, 0) || 0;
-                const level = Math.floor(Math.sqrt(totalXP / 100)) + 1;
-                const xpForNextLevel = Math.pow(level, 2) * 100;
-                const xpForCurrentLevel = Math.pow(level - 1, 2) * 100;
+                // Exponential curve: each level requires 15% more XP than the last
+                const level = totalXP <= 0 ? 1 : Math.floor(Math.log(1 + totalXP * 0.15 / 100) / Math.log(1.15)) + 1;
+                const xpForCurrentLevel = level <= 1 ? 0 : Math.round(100 * (Math.pow(1.15, level - 1) - 1) / 0.15);
+                const xpForNextLevel    = Math.round(100 * (Math.pow(1.15, level) - 1) / 0.15);
                 const progress = ((totalXP - xpForCurrentLevel) / (xpForNextLevel - xpForCurrentLevel)) * 100;
 
                 return NextResponse.json({
