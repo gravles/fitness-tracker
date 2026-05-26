@@ -17,8 +17,6 @@ import { ScheduleWorkoutModal } from '@/components/ScheduleWorkoutModal';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { haptics } from '@/lib/haptics';
-import { useCarMode } from '@/lib/useCarMode';
-import { DriveModeSchedule } from '@/components/DriveMode';
 
 type Tab = 'schedule' | 'templates' | 'discover' | 'programs';
 type WorkoutCategoryFilter = WorkoutCategory | 'all';
@@ -48,7 +46,6 @@ interface AIRecommendation { title: string; exercises: { name: string; sets: num
 
 export default function WorkoutHubPage() {
     const router = useRouter();
-    const { carMode, toggle: toggleCarMode } = useCarMode();
     const [activeTab, setActiveTab] = useState<Tab>('schedule');
     const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
     const [scheduledWorkouts, setScheduledWorkouts] = useState<ScheduledWorkout[]>([]);
@@ -388,19 +385,7 @@ export default function WorkoutHubPage() {
 
     return (
         <>
-        {/* DriveMode overlay — rendered when car mode is active */}
-        {carMode && (
-            <DriveModeSchedule
-                workouts={scheduledWorkouts}
-                sessions={programSessions}
-                onStart={handleStartWorkout}
-                onStartSession={handleStartProgramSession}
-                onExit={toggleCarMode}
-            />
-        )}
-
-        <main className={`p-6 pt-12 pb-24 space-y-6 mx-auto ${carMode ? 'hidden' : ''}`}
-            style={{ maxWidth: 'min(900px, 100%)' }}>
+        <main className="p-6 pt-12 pb-24 space-y-6 max-w-2xl mx-auto">
             {/* Header */}
             <header className="flex items-center justify-between">
                 <h1
@@ -411,19 +396,6 @@ export default function WorkoutHubPage() {
                 </h1>
                 {activeTab === 'schedule' && (
                     <div className="flex items-center gap-2">
-                        {/* Car Mode toggle */}
-                        <button
-                            onClick={toggleCarMode}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-medium transition-all active:scale-[0.98]"
-                            style={{
-                                background: carMode ? 'rgba(201,168,76,0.15)' : 'var(--color-bg-subtle)',
-                                color: carMode ? 'var(--color-gold)' : 'var(--color-text-muted)',
-                                border: `1px solid ${carMode ? 'rgba(201,168,76,0.4)' : 'var(--color-border)'}`,
-                            }}
-                            title="Toggle Car Mode"
-                        >
-                            🚗 <span className="text-sm">Car</span>
-                        </button>
                         <button
                             onClick={handleSyncStrava}
                             disabled={syncingStrava}
@@ -566,20 +538,17 @@ export default function WorkoutHubPage() {
                                 <button
                                     key={day.toString()}
                                     onClick={() => handleDayClick(day)}
-                                    className="py-3 px-1 text-center border-r last:border-r-0 transition-colors"
+                                    className="p-3 text-center border-r last:border-r-0 transition-colors"
                                     style={{
                                         borderColor: 'var(--color-border-light)',
                                         background: isToday(day) ? 'rgba(29,95,168,0.08)' : 'transparent',
-                                        minHeight: 72,
                                     }}
                                 >
-                                    {/* Single initial on narrow / automotive screens, 3-letter abbr on wide */}
                                     <div
                                         className="text-xs font-bold uppercase"
                                         style={{ color: isToday(day) ? 'var(--color-primary)' : 'var(--color-text-muted)' }}
                                     >
-                                        <span className="hidden sm:inline">{format(day, 'EEE')}</span>
-                                        <span className="sm:hidden">{format(day, 'EEEEE')}</span>
+                                        {format(day, 'EEE')}
                                     </div>
                                     <div
                                         className="text-lg font-bold mt-1"
