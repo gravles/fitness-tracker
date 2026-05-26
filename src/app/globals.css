@@ -307,3 +307,80 @@ textarea {
     flex-direction: row;
   }
 }
+
+/* =====================================================
+   AUTOMOTIVE / HEAD-UNIT LAYOUT
+   Targets landscape screens ≥ 600 px wide — typical of
+   in-dash Android Automotive head units.
+   ===================================================== */
+
+/* Wide layout: lift max-width cap and use available space */
+@media (min-width: 600px) and (orientation: landscape) {
+  .auto-wide {
+    max-width: 100% !important;
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+
+  /* Expand page containers on automotive screens */
+  .auto-container {
+    max-width: min(1200px, 100%);
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* ── .car-mode: body-level class applied when car mode is active ── */
+/* Enlarges interactive elements to meet AAOS 76dp minimum tap target */
+.car-mode button,
+.car-mode a[role="button"] {
+  min-height: 56px;
+  min-width: 56px;
+}
+
+.car-mode input,
+.car-mode select,
+.car-mode textarea {
+  min-height: 56px;
+  font-size: 18px !important;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.car-mode label,
+.car-mode p,
+.car-mode span {
+  font-size: max(1rem, 1em);
+}
+
+/* Tighten long lists in car mode so content doesn't overflow */
+.car-mode .scrollbar-hide {
+  overflow: hidden;
+}
+
+/* Drive-mode overlay — shown when actively driving */
+.drive-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overflow-y: auto;
+  background: var(--color-bg);
+}
+
+.drive-tap {
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  border-radius: 1.25rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  padding: 0 1.5rem;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.drive-tap:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
