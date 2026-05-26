@@ -639,4 +639,432 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
+---
+
+## Current State Update — as of 2026-05-26
+
+Since the original PRD was written, significant work has shipped. The table below reflects actual implementation status.
+
+| Area | Original Status | Updated Status |
+|---|---|---|
+| Daily log (food, activity, wellness) | ✅ Solid | ✅ Unchanged |
+| Workout tracking (exercises, sets, reps) | ✅ Full | ✅ + Rest timer, ExerciseHistory modal |
+| Streaks & XP gamification | ✅ 15 badges | ✅ Unchanged |
+| Trends & analytics | ✅ Charts | ✅ Unchanged |
+| AI coaching chat | ✅ 30-day window | ✅ Unchanged |
+| Push notifications | ✅ Server-side | ✅ + iOS APNs, auto workout notifications, iCal feed |
+| Strava sync | ✅ Manual sync | ✅ Unchanged |
+| Goal Wizard | ⚠️ No entry point | ⚠️ Still needs a dashboard/settings entry point |
+| Progress photos | ✅ Upload + compare | ✅ Unchanged |
+| Body metrics | ⚠️ No photo upload | ⚠️ Still URL text field |
+| Social / sharing | 🔴 Stub only | ⚠️ ShareModal shipped; accountability API exists |
+| Nutrition planning | 🔴 Not started | ✅ Full meal planner, pantry, saved meals, AI generation |
+| Recovery / readiness | 🔴 Not started | ⚠️ Oura/Withings sync exists; no standalone readiness score card |
+| Wearable integrations | 🔴 Strava only | ✅ Oura Ring + Withings OAuth + sync routes live |
+| 12-Week AI Programs | 🔴 Not started | ✅ Programs page with AI generation + schedule integration |
+| Food photo logging | 🔴 Not started | ✅ FoodCamera + MenuScanner + BarcodeScanner shipped |
+| Voice input | 🔴 Not started | ✅ VoiceInput component exists |
+| Correlation engine | 🔴 Not started | ⚠️ AIWeeklyInsightModal exists; nightly cron not wired up |
+| Progressive overload alerts | 🔴 Not started | ⚠️ ExerciseHistoryModal shipped; proactive in-workout suggestion not done |
+
+**Highest priority outstanding items from existing pillars:**
+1. Readiness Score card on the dashboard (Pillar 4) — Oura sync exists, just needs the UI
+2. Correlation Engine cron job + `insights_cache` (Pillar 1) — the weekly insight modal is there, the automated generation behind it is not
+3. Progressive overload suggestion in the active workout view (Pillar 3)
+4. Accountability Partners management UI (Pillar 5) — API endpoint exists, UI not confirmed
+
+---
+
+---
+
+## Feature Brainstorm — New Ideas
+
+*These are candidate features not in the original six pillars. Each is described with the problem it solves, what it does, rough effort, and dependencies. None are committed — they're here for review and prioritisation.*
+
+---
+
+### Idea 1 — Water Intake Tracker
+
+**Problem:** Hydration affects energy, cognitive performance, workout output, and hunger. It's one of the most commonly tracked health metrics in standalone apps (WaterMinder, Hydro Coach) — but users have to context-switch to log it. Bringing it in-app closes a gap that currently keeps a meaningful user segment split across tools.
+
+**What it does:**
+- A water intake field in the daily log (just below food), with a configurable daily goal (default: 2,000 ml)
+- Quick-add tap buttons: 250 ml (glass), 330 ml (can), 500 ml (bottle), 750 ml (large bottle)
+- A visual fill gauge on the daily log showing progress toward goal
+- Correlates with the correlation engine: does hitting the hydration goal predict higher energy the next day?
+- Optional mid-day notification: "You've logged 600 ml — you're at 30% of your goal."
+
+**Schema change:** Add `water_ml int DEFAULT 0` to `daily_logs`.
+
+**Effort:** 1–2 days. Pure UI + one column addition. No new tables, no new AI calls.
+
+**Priority:** High. Low effort, high perceived completeness, directly feeds the correlation engine.
+
+---
+
+### Idea 2 — Supplement Tracker
+
+**Problem:** Many users take supplements (creatine, vitamin D, omega-3, magnesium, protein powder, pre-workout) and want to track consistency. More importantly, supplement adherence data is meaningful for the correlation engine: *"Does creatine affect your workout output? Does vitamin D affect your mood?"* Currently there's no way to capture this.
+
+**What it does:**
+- Users define their supplement stack once in Settings (name, dose, timing: morning/pre-workout/evening)
+- Each day's log includes a quick checkbox strip at the top: "✓ Creatine ✓ Vit D ☐ Omega-3"
+- The correlation engine runs supplement consistency against energy, performance, and mood
+- Optional reminder: "Have you taken your morning supplements?"
+
+**Schema:**
+```sql
+CREATE TABLE user_supplements (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  dose text,                   -- '5g', '2000 IU', '1 capsule'
+  timing text,                 -- 'morning', 'pre_workout', 'evening', 'with_meals'
+  sort_order int DEFAULT 0,
+  active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Daily supplement log stored as jsonb in daily_logs.supplement_log
+-- { "creatine": true, "vitamin_d": false, "omega3": true }
+-- (avoids a separate table for the simple case)
+```
+
+**Effort:** 2–3 days. Simple data model, light UI, no AI calls needed.
+
+**Priority:** Medium. Niche but highly valued by health-conscious users.
+
+---
+
+### Idea 3 — Injury & Discomfort Log
+
+**Problem:** The app has no way to record pain or injury. A user who tweaks their knee, has shoulder impingement, or wakes up with lower back tightness has no way to communicate this to the system. The AI coach gives generic advice because it doesn't know about the injury. Worse, the user keeps tracking their program without any flag that certain exercises should be avoided.
+
+**What it does:**
+- A simple body-region discomfort tracker in the daily log (or as part of the wellness section): tap a body region (shoulders, lower back, knees, hips, neck, wrists, ankles), rate discomfort 1–3 (mild/moderate/significant)
+- Stored in `daily_logs.pain_log jsonb` — no new table needed
+- The AI coach is given the active pain log context: "User has reported 2/3 knee discomfort for 3 consecutive days. Avoid squats, lunges, running. Suggest upper-body or seated work."
+- The active workout view can flag exercises that are contraindicated for active discomfort areas
+- The correlation engine can surface patterns: *"Your lower back discomfort correlates with days you skip hip mobility work."*
+
+**Schema change:** Add `pain_log jsonb DEFAULT '{}'` to `daily_logs`. Format: `{ "lower_back": 2, "left_knee": 1 }`.
+
+**Effort:** 2–3 days. Body-map UI is the interesting part; data plumbing is simple.
+
+**Priority:** Medium-High. Safety-critical and differentiating. No other consumer fitness app does this well.
+
+---
+
+### Idea 4 — Goal Progress Projections
+
+**Problem:** Users have goals (reach 80 kg, bench 100 kg, run a 5K) but the app never tells them *when* they'll get there. Looking at a weight trend chart and deciding "I'm on track" requires mental effort the user shouldn't have to do. An explicit projection — "you'll hit your goal by mid-August at this pace" — is motivating when on track and a gentle nudge when not.
+
+**What it does:**
+- On the Progress page and Goals section, each active goal shows a projected completion date calculated from a linear regression on the last 30 days of relevant data
+- Visual: a goal-progress timeline with a dashed projection line extending to the target, current pace vs. required pace to hit the goal by the user's stated deadline
+- Status labels: "On track", "Slightly behind", "Significantly behind", "Ahead of schedule"
+- For strength goals: uses the 1RM estimates from `exercise_records`; for weight goals: uses `body_metrics`
+- If no deadline is set, shows: "At this pace, ~14 weeks until you reach your goal"
+- The AI coach can reference these projections in its advice
+
+**Schema:** No new tables. Uses existing `body_metrics`, `exercise_records`, and `user_settings.goals`.
+
+**Effort:** 2–3 days. The regression is ~20 lines of math; the UI is the bulk of the work.
+
+**Priority:** High. Pure intelligence on top of existing data. Transforms passive charts into forward-looking guidance.
+
+---
+
+### Idea 5 — Voice Daily Check-in
+
+**Problem:** The daily log form has 10+ fields. On tired evenings, many users either skip it or rush through it. The `VoiceInput` component already exists for workout logging — applying the same pattern to the full daily check-in would dramatically reduce evening friction. Speaking for 30 seconds is faster and easier than tapping through a form.
+
+**What it does:**
+- A microphone button at the top of the Daily Log page (and on the dashboard as a shortcut)
+- User speaks naturally: *"I slept about 7 hours, maybe a 3 out of 5 on quality. Had a stressful day at work, energy was low. Skipped the gym. Had 3 drinks last night which probably didn't help. Protein was decent, I'd say about 120 grams."*
+- Claude parses the transcription into structured fields: `sleep_hours`, `sleep_quality`, `stress_level`, `energy_level`, `movement_completed`, `alcohol_drinks`, `protein_grams`
+- Shows a review screen: "Here's what I parsed — does this look right?" with editable fields before saving
+- Falls back gracefully if speech recognition isn't available
+
+**Implementation:** Web Speech API for transcription (already used in `VoiceInput`), Claude Haiku for parsing (cheap — ~$0.001 per check-in). The parsing prompt is simple structured extraction.
+
+**Effort:** 2–3 days. The VoiceInput component already handles the hard parts.
+
+**Priority:** High. Could meaningfully improve daily retention among users who find the form tedious.
+
+---
+
+### Idea 6 — Coach Persistent Memory
+
+**Problem:** The AI coach has a 30-day rolling window of logs, but it has no explicit memory of who the user is: their long-term goals, dietary restrictions, current injuries, preferred training style, equipment limitations, or past coaching conversations that resulted in commitments ("I'll try cutting out alcohol for 2 weeks"). Each conversation starts fresh beyond the log data.
+
+**What it does:**
+- A "My Coach Profile" section in Settings (or as an intro card when first visiting /coach): a plain-text area where users write their context in natural language — "I'm vegetarian, training for a half-marathon in October, currently dealing with mild IT band pain in my right knee, have a barbell and pull-up bar at home, want to prioritise sleep improvement this month"
+- This context is prepended to every coaching system prompt, making all advice more personal from day one
+- The AI coach can also suggest updating the profile: "You mentioned a knee issue — should I add that to your coach profile so I always remember it?"
+- An optional AI-generated profile summary after 30 days of use: "Based on your logs, here's what I know about you…" — user can edit/approve
+
+**Schema:** Add `coach_context text` column to `user_settings`.
+
+**Effort:** 1 day. Mostly a text field and a prompt change.
+
+**Priority:** Very High. Small change, significant coaching quality improvement. Makes long-term users feel genuinely known.
+
+---
+
+### Idea 7 — Data Export & Personal Health Report
+
+**Problem:** Health-conscious users are increasingly data-savvy and privacy-aware. They want to own their data, share it with a doctor, bring it to a nutritionist, or simply have a backup. Currently there's no way to export anything from the app. This is also a trust-builder: the app signals "we're not holding your data hostage."
+
+**What it does:**
+- **Raw CSV Export** (Settings → Data → Export): downloads all `daily_logs`, `workout_sessions`, `body_metrics`, and `food_items` as a zip of CSVs. One-click, no processing needed.
+- **Monthly Health Report PDF**: a single-page (or multi-page) generated report covering the past 30 days:
+  - Summary stats: logging streak, avg protein, avg sleep quality, workouts completed, weight trend
+  - Top 3 personal records set this month
+  - Correlation insight (from `insights_cache` if available)
+  - A brief AI-generated narrative paragraph: "This was a strong month for consistency…"
+  - Shareable / printable for a coach or GP appointment
+- **Share Link** (already partially built): a public-facing URL showing a trimmed summary for an accountability partner
+
+**Implementation:** CSV export is trivial. PDF report uses `@react-pdf/renderer` (already available as an npm package, MIT licensed). AI narrative via Claude Haiku.
+
+**Effort:** 3–4 days (CSV: 0.5 days; PDF template: 2–3 days).
+
+**Priority:** Medium. Important for trust and power users; doesn't affect daily engagement.
+
+---
+
+### Idea 8 — Breathing & Mindfulness Library
+
+**Problem:** Stress is one of the tracked variables in the daily log and a key input to the readiness score. But when the user logs high stress or low readiness, the app currently has no *response* — it can tell you you're stressed but can't do anything about it. A built-in 2–5 minute breathing or mindfulness exercise gives the app an active recovery tool.
+
+**What it does:**
+- A small library of guided exercises (pure UI, no external API):
+  - **Box breathing** (4-4-4-4): animated square that guides the inhale/hold/exhale/hold cycle. 4 minutes.
+  - **4-7-8 breathing**: calming, ideal before sleep
+  - **Body scan**: a timed text-guided sequence through body regions (2–5 min)
+  - **Cold shower prep**: Wim Hof-style breathing pattern for cold exposure enthusiasts
+- Entry points:
+  - Readiness score card (score < 50): "Your readiness is low — try a 4-minute breathing reset"
+  - Daily log (stress ≥ 4): "High stress day — a 2-minute reset before bed can help"
+  - Direct link from the bottom nav / More menu
+- Completion is optionally logged to the daily log as a wellness activity (adds a small XP reward)
+
+**Effort:** 1–2 days. Pure UI — animated timers and text sequences. Zero backend changes.
+
+**Priority:** Medium. Differentiates from pure tracking apps. Low effort, high perceived polish.
+
+---
+
+### Idea 9 — Barbell Warm-up Calculator
+
+**Problem:** Every serious lifter Googles "bench press warm-up calculator" regularly. It's a simple but genuinely useful tool that the workout tracker is perfectly positioned to provide — especially because it knows the user's working weight from the last session.
+
+**What it does:**
+- When starting a strength exercise, a small "Warm-up" button (or it's automatic) calculates a plate-loading warm-up progression:
+  - Example for 100 kg working weight: `Bar × 10 → 40 kg × 8 → 60 kg × 5 → 80 kg × 3 → 92.5 kg × 1 → Work set`
+  - Algorithm: ~50%, 60%, 80%, 92.5% of working weight, rounding to nearest available plate combination
+- Shows the plate math: "20+20 each side", "20+10+5+2.5 each side" — so the user doesn't have to calculate
+- User can set their available plates in Settings (currently equipment is already configurable)
+- The warm-up sets appear in the active workout as non-scored pre-sets (not counted in volume, but optionally loggable)
+
+**Effort:** 0.5–1 day. Pure calculation logic + small UI addition.
+
+**Priority:** Medium. Beloved by strength users, zero backend cost.
+
+---
+
+### Idea 10 — Habit Stacking / Daily Routine Builder
+
+**Problem:** Individual reminders (log your food, do your workout) are less effective than a coherent morning or evening routine. Research on habit formation consistently shows that "habit stacking" — linking new habits to existing anchors — produces higher adherence than standalone reminders. The app sends individual notifications but has no concept of a routine.
+
+**What it does:**
+- Users build a simple morning/evening routine: an ordered list of habits with optional durations
+  - Example morning routine: Wake → drink 500ml water → 5-min stretch → log breakfast → take supplements
+  - Example evening routine: Dinner → 30-min walk → log day → breathing exercise → no screens
+- Each habit has a checkbox. Completing the full routine awards bonus XP and contributes to a separate "Routine Streak"
+- One notification triggers the whole routine: "Time for your morning routine (5 habits, ~20 mins)"
+- Tapping the notification deep-links to a focused routine view that walks through each habit sequentially
+
+**Schema:**
+```sql
+CREATE TABLE routines (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,            -- 'Morning Routine', 'Evening Wind-Down'
+  time_of_day text,              -- 'morning', 'evening', 'custom'
+  notify_at time,                -- when to send the routine reminder
+  habits jsonb NOT NULL,         -- [{ name, duration_min, linked_action }]
+  active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE routine_completions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  routine_id uuid REFERENCES routines(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  habits_completed jsonb NOT NULL,  -- { "drink_water": true, "stretch": false, ... }
+  fully_completed boolean DEFAULT false,
+  completed_at timestamptz,
+  UNIQUE(routine_id, date)
+);
+```
+
+**Effort:** 3–5 days. New feature area with its own UI. Moderate complexity.
+
+**Priority:** Medium. Meaningful for long-term habit formation but not a quick win.
+
+---
+
+### Idea 11 — Customisable Dashboard
+
+**Problem:** The dashboard has a fixed layout that assumes one user profile (balanced across nutrition, movement, and recovery). A user whose primary goal is strength training doesn't need the macro rings front-and-centre. A nutrition-focused user doesn't need the upcoming workouts widget prominently placed. Fixed layouts become friction over time.
+
+**What it does:**
+- A dashboard edit mode (long-press or "Edit Dashboard" button in settings) that shows the current widgets as draggable/toggleable cards
+- Available widgets: Smart Coach tip, Readiness Score, Daily macro rings, Streak & XP bar, Upcoming workouts, Recent PRs, Weekly summary, Correlation insight card, Water intake gauge
+- Users can reorder, show, or hide any widget. Layout persists to `user_settings.dashboard_layout jsonb`
+- Default layout is unchanged for new users
+
+**Effort:** 3–4 days. Drag-and-drop with `@dnd-kit` (already likely in the project or easy to add); state management for layout.
+
+**Priority:** Medium. High polish, medium effort. Best implemented once the widget set is more complete.
+
+---
+
+### Idea 12 — "Why Am I Not Progressing?" AI Diagnostic
+
+**Problem:** Plateaus are the most demoralising experience in fitness. A user who has been stuck at the same bench press weight for 6 weeks, or whose weight loss has stalled for 3 weeks, needs a specific explanation and a concrete plan — not just charts. The app has all the data needed to diagnose most common plateaus.
+
+**What it does:**
+- A "Diagnose my plateau" button on the Progress page or Trends page (visible when the system detects a plateau: <5% change in a key metric over 3+ weeks)
+- The AI analyses the last 6 weeks of relevant data and produces a structured report:
+  - **What the data shows** (e.g., "Weight has been within ±0.4 kg for 4 weeks")
+  - **Most likely causes** ranked by data evidence (e.g., "You're eating at maintenance, not a deficit — avg 2,340 kcal vs your ~2,200 kcal target")
+  - **One specific change to try** (e.g., "Reduce dinner portion by ~200 kcal for 2 weeks, or add a 20-min walk on rest days")
+- Plateau detection is automatic — the system flags it on the dashboard with a gentle card: "Your [metric] has been flat for 3 weeks. Want a diagnosis?"
+
+**Implementation:** Claude Sonnet for the diagnostic (needs nuance). The plateau detection is a simple rolling variance calculation, run nightly alongside the correlation engine.
+
+**Effort:** 2–3 days. Plateau detection is simple maths; the diagnostic prompt is the interesting part.
+
+**Priority:** High. Directly addresses the single most common reason people quit fitness apps.
+
+---
+
+### Idea 13 — Micro-Challenges (App-Curated, Time-Limited)
+
+**Problem:** The gamification system (XP, streaks, badges) rewards consistent behaviour but not specific behavioural changes. A user stuck in a rut benefits from a short, focused challenge — but creating their own challenge requires self-knowledge they may not have. App-curated challenges remove the decision cost.
+
+**What it does:**
+- A rolling "Challenge of the Week" card on the dashboard (above or below the coach tip)
+- Challenges are short (5–7 days), specific, and attainable:
+  - "Hit 150g protein 5 days this week"
+  - "Log 3 workouts before Friday"
+  - "No alcohol for 5 days"
+  - "Log your sleep quality every night this week"
+  - "Beat your bench press from last month"
+- Completing a challenge awards a unique badge + bonus XP
+- Challenges are seeded from a curated list (no AI needed) but could be personalised: "Based on your logs, you've been inconsistent with protein this week — try the Protein Challenge"
+- Optional: user-created challenges (set a target, pick a duration, invite friends)
+
+**Schema:**
+```sql
+CREATE TABLE micro_challenges (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug text UNIQUE NOT NULL,         -- 'protein-5-days', 'no-alcohol-week'
+  name text NOT NULL,
+  description text NOT NULL,
+  challenge_type text NOT NULL,      -- 'protein_days', 'workout_count', 'no_alcohol', 'sleep_log'
+  target_value int NOT NULL,
+  duration_days int NOT NULL,
+  badge_id text,
+  xp_reward int DEFAULT 100
+);
+
+CREATE TABLE user_challenges (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  challenge_id uuid REFERENCES micro_challenges(id),
+  started_at timestamptz DEFAULT now(),
+  ends_at timestamptz NOT NULL,
+  progress int DEFAULT 0,
+  completed boolean DEFAULT false,
+  completed_at timestamptz
+);
+```
+
+**Effort:** 2–3 days for the core system. Seeding a good challenge library is 0.5 days.
+
+**Priority:** Medium-High. Feeds the gamification loop and gives users short-term targets between long-term goals.
+
+---
+
+### Idea 14 — Smart Grocery List (Standalone, No Meal Plan Required)
+
+**Problem:** The meal planner can generate a grocery list from a full weekly plan. But many users won't use the full meal planner — they just want help buying the right foods to hit their macros this week. A standalone "Build my grocery list" flow that works without a complete meal plan has much lower friction.
+
+**What it does:**
+- A "Grocery List" tab or button in the Nutrition section
+- User inputs (or the app pre-fills from settings): protein target, calorie target, dietary restrictions, number of people, budget preference
+- AI generates a shopping list grouped by category (Protein, Produce, Dairy, Carbs, Fats, Snacks) with quantities scaled to hit their weekly macro targets
+- The list draws from their favourite foods (used frequently in logs) to maximise compliance
+- Exportable as plain text, or shareable via share sheet
+- Bonus: optional "pantry mode" — user marks what they already have, list shows only what they need to buy
+
+**Implementation:** Claude Haiku for list generation. Simple structured prompt. Results cached per week.
+
+**Effort:** 1–2 days (without pantry mode). Pantry mode adds another day.
+
+**Priority:** Medium. Complements the existing meal planner. Practical daily utility.
+
+---
+
+### Additional Quick Wins
+
+These extend the existing Quick Wins appendix with items identified during the post-implementation review.
+
+| Feature | Description | Effort |
+|---|---|---|
+| Readiness score card on dashboard | Wire the Oura sync data (or the calculated score algorithm from Pillar 4) into a visible dashboard card | 1 day |
+| Correlation cron job | The `AIWeeklyInsightModal` UI exists — wire up the nightly cron job to generate `insights_cache` entries | 1–2 days |
+| Progressive overload in-workout tip | Show "Last session: 3×10 @ 60kg → Suggest: 3×10 @ 62.5kg" when starting a previously logged exercise | 1 day |
+| Accountability partners UI | The `/api/accountability/send-summary` route exists — add a UI in Settings to invite and manage partners | 1 day |
+| Goal Wizard entry point | Add a prominent "Set Goals with AI" card to the Settings page that opens GoalWizard | 1h |
+| Water intake field | Add `water_ml` column to `daily_logs` and a quick-log strip in the Daily Log form | 1 day |
+| Voice daily check-in | Extend `VoiceInput` to parse full log fields (sleep, stress, energy, alcohol, protein) via Claude | 2 days |
+| Coach persistent context | Add `coach_context text` to `user_settings` and prepend it to every coaching system prompt | 1 day |
+| Warm-up calculator | Show plate-by-plate warm-up progression when starting a strength exercise | 1 day |
+| Plateau detection banner | Detect flat metrics over 3+ weeks and surface a "Diagnose" CTA on the Progress page | 1 day |
+
+---
+
+## Updated Prioritisation — Full Feature Backlog
+
+| Feature | Impact | Effort | Score | Notes |
+|---|---|---|---|---|
+| Readiness score card (wire-up) | Very High | Very Low | ★★★★★ | Oura sync already exists |
+| Correlation cron job (wire-up) | Very High | Low | ★★★★★ | UI already exists |
+| Progressive overload in-workout | High | Low | ★★★★★ | ExerciseHistory already exists |
+| Coach persistent context | High | Very Low | ★★★★★ | One text field + prompt change |
+| Water intake tracker | High | Low | ★★★★☆ | One column, clean UI |
+| Voice daily check-in | High | Low | ★★★★☆ | VoiceInput already exists |
+| Goal progress projections | High | Low | ★★★★☆ | Regression on existing data |
+| Plateau detection + AI diagnostic | High | Low | ★★★★☆ | Reuses coach infrastructure |
+| Accountability partners UI | High | Low | ★★★★☆ | API route already exists |
+| Warm-up calculator | Medium | Very Low | ★★★★☆ | Pure maths, no backend |
+| Injury & discomfort log | High | Medium | ★★★☆☆ | Body-map UI is the hard part |
+| Supplement tracker | Medium | Low | ★★★☆☆ | Niche but high-value segment |
+| Micro-challenges | Medium | Medium | ★★★☆☆ | Feeds gamification loop |
+| Smart grocery list (standalone) | Medium | Low | ★★★☆☆ | Complements meal planner |
+| Breathing & mindfulness library | Medium | Low | ★★★☆☆ | Pure UI, no backend |
+| Data export + health report PDF | Medium | Medium | ★★★☆☆ | Trust-builder |
+| Habit stacking / routines | Medium | Medium | ★★☆☆☆ | New feature area |
+| Customisable dashboard | Medium | High | ★★☆☆☆ | Best deferred until widget set is stable |
+| Group challenges | Medium | High | ★★☆☆☆ | Needs social infrastructure |
+| Apple Health / Google Fit | Very High | Very High | ★★☆☆☆ | Requires native app shell |
+
+---
+
 *Document ends. Questions, pushback, or additions — flag them and I'll revise.*
