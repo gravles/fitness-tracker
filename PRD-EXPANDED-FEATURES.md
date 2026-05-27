@@ -1,8 +1,8 @@
 # Fitness Tracker — Expanded Features PRD
 
 **Author:** Claude  
-**Date:** 2026-05-20  
-**Status:** Proposal — for review
+**Date:** 2026-05-20 (updated 2026-05-27)  
+**Status:** Living document — v2.0 shipped; outstanding items and new ideas below
 
 ---
 
@@ -14,37 +14,53 @@ This document proposes six major feature pillars, each with full specifications,
 
 ---
 
-## Current State (What Exists)
+## Current State (as of v2.0.0 — 2026-05-24)
 
 | Area | Status |
 |---|---|
-| Daily log (food, activity, wellness) | ✅ Solid, AI-assisted entry |
-| Workout tracking (exercises, sets, reps) | ✅ Full, with voice spotter |
+| Daily log (food, activity, wellness) | ✅ AI-assisted, voice, camera, barcode |
+| Workout tracking (exercises, sets, reps) | ✅ Full session tracker, PR toasts |
+| 12-week AI training programs | ✅ Phases, calendar, session auto-load |
+| Progressive overload | ✅ 1RM estimates, session targets |
 | Streaks & XP gamification | ✅ 15 badges, level system |
 | Trends & analytics | ✅ Charts across 5 dimensions |
-| AI coaching chat | ✅ Context-aware, 30-day window |
-| Push notifications | ✅ Server-side, custom reminders |
-| Strava sync | ✅ Manual sync |
-| Goal Wizard | ⚠️ Built but no entry point |
+| AI coaching chat | ✅ Context-aware, Supabase-persisted history |
+| Push notifications | ✅ VAPID + APNs + FCM; workout reminders |
+| Strava sync | ✅ OAuth, automatic sync |
+| Withings sync | ✅ OAuth, body composition auto-sync |
+| Oura sync | ✅ OAuth, readiness + sleep data pulled |
+| Goal Wizard | ✅ Entry point via Settings |
 | Progress photos | ✅ Upload + compare |
-| Body metrics | ⚠️ Measurements but no photo upload |
-| Social / sharing | 🔴 Stub only |
-| Nutrition planning | 🔴 Not started |
-| Recovery / readiness | 🔴 Not started |
-| Wearable integrations | 🔴 Strava only |
+| Body metrics | ✅ Weight history, body comp, imperial/metric |
+| Nutrition planning | ✅ Pantry, AI meal plans, saved meals |
+| Accountability partners | ✅ Email invites + weekly summary email |
+| Native iOS & Android apps | ✅ Capacitor, App Store + Play Store |
+| Calendar feed | ✅ iCal / webcal |
+| Dark / light / system theme | ✅ |
+| Onboarding flow | ✅ Name, DOB, height, weight, goal |
+| AI weekly insights | ✅ Modal with narrative analysis |
+| **Correlation engine** | 🔴 **Not started — highest priority gap** |
+| **Readiness score** | 🔴 **Oura data syncs, but no calculated score or UI** |
+| **Group challenges** | 🔴 Not started (partners-only accountability) |
+| Apple HealthKit read/write | ⚠️ Native shell exists; HealthKit not yet wired |
+| Social workout sharing | 🔴 Not started |
 
 ---
 
-## The Six Pillars
+## The Six Pillars — Status Update
 
-1. **Correlation Engine & Insight Feed** — surface *why* you feel good or bad
-2. **Intelligent Nutrition Planning** — close the loop from tracking to planning
-3. **Periodisation & Progressive Overload** — turn workout history into a training program
-4. **Recovery & Readiness Score** — a daily signal that answers "should I train hard today?"
-5. **Accountability Layer** — gentle social pressure without the social media toxicity
-6. **Health Platform Integrations** — Apple Health, Google Fit, Oura, Withings
+| Pillar | Status |
+|---|---|
+| 1. Correlation Engine & Insight Feed | 🔴 Not built |
+| 2. Intelligent Nutrition Planning | ✅ Shipped in v1.3 |
+| 3. Periodisation & Progressive Overload | ✅ Shipped in v1.5 |
+| 4. Recovery & Readiness Score | ⚠️ Oura sync done; calculated score not built |
+| 5. Accountability Layer | ⚠️ Partners done; Group Challenges not built |
+| 6. Health Platform Integrations | ⚠️ Withings + Oura + Strava done; HealthKit pending |
 
 Plus an **appendix of quick wins** — bugs and small features that could ship in a day each.
+
+**The single most important outstanding item from the original PRD is Pillar 1 (Correlation Engine).** It is the feature that makes users feel *understood* rather than just *tracked*, and all the data it needs already exists.
 
 ---
 
@@ -636,6 +652,392 @@ The highest-ROI work is features that require **no new infrastructure** — they
 Total estimated effort: 7–11 days of development.
 
 This sprint alone would make the app feel dramatically more intelligent without requiring any new data collection from the user.
+
+---
+
+---
+
+## Post-v2.0 Feature Ideas — Brainstorm
+
+The app is now genuinely strong across tracking, planning, and training. The next phase is about **depth, delight, and defensibility** — features that are hard to copy, create daily habits, and make the app feel irreplaceable. Ideas below are grouped by theme, with rough effort and strategic value noted for each.
+
+---
+
+### Theme A — Complete the Outstanding Gaps First
+
+#### A1. Correlation Engine & Insight Feed *(Critical — Pillar 1)*
+
+Still the highest-priority unbuilt feature. Full spec in Pillar 1 above. Quick summary of the ask:
+- Nightly cron runs Pearson correlation across ~8 variable pairs (alcohol↔sleep, protein↔energy, etc.)
+- Results cached in `insights_cache` table with Claude Haiku descriptions
+- One insight card on the dashboard that refreshes weekly
+- "Why was my energy low Tuesday?" quick-ask button that grounds AI answers in the user's actual data
+
+**Effort:** 3–4 days. **Data:** Already captured. **Impact:** Transforms the app from logbook to coach.
+
+---
+
+#### A2. Readiness Score *(High Priority — Pillar 4)*
+
+Oura data syncs but there's no daily score card showing on the dashboard. The algorithm in Pillar 4 requires no new data — just reads from last night's `daily_logs` entry and recent workout history.
+
+**Minimal v1:**
+- Calculate score server-side on first dashboard load (or nightly cron + cache)
+- Show a large score badge (0–100, colour-coded) on the dashboard home screen above the Smart Coach card
+- One-line recommendation: "Peak — great day to train hard" / "Rest — active recovery only"
+- If Oura data is present, blend it in (replace the sleep component with Oura's sleep score)
+
+**Effort:** 2 days. **Data:** Already captured. **Impact:** Best daily hook in the app.
+
+---
+
+#### A3. Group Challenges *(Medium Priority — Pillar 5)*
+
+Accountability partners exist but the social layer stops there. Group Challenges extend the same infrastructure:
+- Create a challenge (type: streak / protein days / workout count; duration; target)
+- Invite 2–7 people via email or share link
+- Anonymous-by-default leaderboard (same weekly cron that runs reminder emails)
+- Push notification when anyone in your group hits the target
+- Badge awarded to all members who complete it
+
+Full data model in Pillar 5. Start with the simplest challenge type (streak) and generalise.
+
+**Effort:** 3–4 days. **Impact:** Strongest retention mechanism in consumer apps.
+
+---
+
+#### A4. Apple HealthKit Read *(Now Feasible — Pillar 6)*
+
+The native Capacitor app ships to the App Store. HealthKit read access just needs to be wired up. Priority reads:
+
+1. **Steps** → auto-populate `daily_logs.movement_duration` (or a dedicated steps field)  
+2. **Resting heart rate + HRV** → feed into Readiness Score (replaces estimated components)  
+3. **Body weight** → auto-sync to `body_metrics` (eliminates manual weighing for Apple Watch users)  
+4. **Active energy burned** → show alongside logged workouts
+
+Write: log completed workouts back to HealthKit as HKWorkout objects.
+
+Requires: Capacitor Health plugin (e.g., `@capacitor-community/health`) + HealthKit entitlement in the iOS project. The Android equivalent (Health Connect) follows the same plugin pattern.
+
+**Effort:** 3–5 days (mostly iOS entitlements + permission UX). **Impact:** Removes the biggest daily friction for Apple Watch users.
+
+---
+
+### Theme B — Depth on Existing Features
+
+#### B1. Video Form Analysis
+
+**The idea:** During a workout session, the user can record a short video (5–10s) of a set and get AI form feedback via Claude Vision.
+
+**How it works:**
+- "Analyse my form" button in the active exercise card
+- User records with phone camera (already available in native app)
+- Video is sent as frames (3–5 key frames extracted client-side) to Claude with a structured prompt: "This is a [exercise name]. Analyse form and give 2–3 specific cues."
+- Response shown as a coaching card attached to that set's log entry
+- Stored in Supabase Storage alongside the workout record
+
+**What it catches:** Depth on squats, bar path on bench press, back rounding on deadlifts, knee cave, elbow flare.
+
+**What it can't do:** Precise bar-path tracking or frame-by-frame biomechanics. Position it as "form cues from a knowledgeable training partner", not "biomechanics analysis". That expectation is accurate and still very useful.
+
+**Data model:**
+```sql
+ALTER TABLE workout_sets ADD COLUMN IF NOT EXISTS form_video_url text;
+ALTER TABLE workout_sets ADD COLUMN IF NOT EXISTS form_feedback text;
+```
+
+**Effort:** 2–3 days. **Defensibility:** Very high — requires both native camera and AI integration. **Risk:** Claude Vision accuracy varies by lighting and angle; manage expectations in UI.
+
+---
+
+#### B2. AI Workout Debrief
+
+**The idea:** After saving a completed workout, a one-question prompt appears: *"How did that feel? (Energy, effort, any soreness)"* The user can speak or type a free-text response. Claude processes it and adds structured tags to the workout record.
+
+**Value:** Creates a richer signal than just sets/reps. "Felt strong but left knee aching a bit" becomes a data point that:
+- Flags to the AI Coach when recommending the next session
+- Surfaces in the correlation engine (perceived effort vs. next-day energy)
+- Contributes to Readiness Score when a muscle group feels sore
+
+**Data model:**
+```sql
+ALTER TABLE workouts ADD COLUMN IF NOT EXISTS debrief_text text;
+ALTER TABLE workouts ADD COLUMN IF NOT EXISTS debrief_tags jsonb;
+-- e.g. { "perceived_effort": 8, "soreness": ["left_knee"], "mood": "good" }
+```
+
+**Effort:** 1 day. **Impact:** Medium individually, high compounding — this data enriches three other features.
+
+---
+
+#### B3. Running & Cardio Analytics
+
+**The problem:** The app is implicitly strength-focused. Strava pulls in runs and rides, but there's no analysis beyond "activity logged". For the significant subset of users who run, cycle, or row, the app gives them nothing useful.
+
+**What to build:**
+
+1. **Pace trend chart** — weekly average pace per km for runs, visible on the Trends page
+2. **Estimated VO2 max** — calculated from Strava run HR + pace data using the standard formula. Shown on the Body Metrics page alongside weight.
+3. **Race time predictor** — given current VO2 max estimate, predict 5K / 10K / half marathon finish times
+4. **Weekly mileage widget** — total run/ride distance this week vs. target (user-set in Settings)
+5. **Training zones** — based on estimated max HR (220 − age), show which zone each Strava activity landed in
+
+**Effort:** 3–4 days (most data already in Strava sync). **Impact:** High for cardio-primary users who currently get very little value from the app beyond basic logging.
+
+---
+
+#### B4. Sleep Optimization Module
+
+**The problem:** Sleep quality is logged every day. The app has scheduled workouts. These two facts should talk to each other — but currently don't.
+
+**What to build:**
+
+1. **Bedtime calculator** — if tomorrow's workout is at 7am (from schedule), calculate a recommended bedtime to get the user's average sleep need (derived from their own data)
+2. **Wind-down routine** — a customisable 10-minute pre-sleep sequence: 2-min breathing exercise, 5-min stretching from a built-in library, 3-min journaling prompt. Triggered by a push notification 45 min before bedtime.
+3. **Sleep debt tracker** — running tally of sleep deficit vs. the user's average. Shown on dashboard when deficit > 2h. Feeds directly into Readiness Score.
+4. **Trigger alerts** — when sleep quality drops below the user's average for 3+ nights, AI Coach proactively surfaces it: *"You've averaged 2/5 sleep this week. Your energy and workout performance tend to drop when this happens. Want to talk about what's going on?"*
+
+**No new data needed.** Everything builds on `daily_logs.sleep_quality` and scheduled workouts.
+
+**Effort:** 2–3 days. **Impact:** High — sleep is the highest-leverage health behaviour and the app already has the data.
+
+---
+
+### Theme C — New Tracking Dimensions
+
+#### C1. Hydration Tracker
+
+**The idea:** Simple daily water intake logging. One of the most-requested features in any health app, conspicuously absent here.
+
+**How it works:**
+- A water counter on the daily log (below food): tap to add 250ml / 500ml / custom
+- Daily target based on body weight (35ml/kg/day, adjusted for exercise intensity)
+- Smart reminders: if it's 3pm and you've only had 500ml, a push notification fires
+- Hydration appears on the Trends page and feeds into the correlation engine (dehydration ↔ energy/headaches)
+- On workout days, target auto-increases by 500–750ml
+
+**Data model:**
+```sql
+ALTER TABLE daily_logs ADD COLUMN IF NOT EXISTS water_ml int DEFAULT 0;
+```
+
+**Effort:** 1 day. **Impact:** Medium individual, high for user expectations (feels like a glaring omission).
+
+---
+
+#### C2. Supplement Stack Tracker
+
+**The idea:** Users log which supplements they take (creatine, protein powder, vitamins, fish oil, etc.) with AI suggesting optimal timing relative to workouts.
+
+**Features:**
+- Add supplements to a personal stack (name, dose, frequency, category)
+- Morning / pre-workout / post-workout / evening timing buckets — user sets where each supplement belongs
+- Daily checklist on the log page: check off each supplement as you take it
+- Streak tracking for supplement adherence (separate from main streak)
+- AI Coach can see supplement stack and reference it: *"You've been consistent with creatine for 3 weeks — you're likely past the loading phase now"*
+- Reminders at the configured timing
+
+**Data model:**
+```sql
+CREATE TABLE supplements (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  dose_amount numeric,
+  dose_unit text,   -- 'g', 'mg', 'ml', 'capsule', 'scoop'
+  timing text NOT NULL,  -- 'morning', 'pre_workout', 'post_workout', 'evening', 'with_meals'
+  is_active boolean DEFAULT true,
+  notes text,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE daily_logs ADD COLUMN IF NOT EXISTS supplements_taken jsonb DEFAULT '[]';
+-- Array of supplement IDs taken that day
+```
+
+**Effort:** 2 days. **Impact:** Medium — niche but loyal user segment (supplement users are often the most engaged fitness app users).
+
+---
+
+#### C3. Injury & Pain Log
+
+**The idea:** Track injuries with affected muscle group, pain level, and onset date. AI adjusts workout suggestions to avoid aggravating injuries.
+
+**Features:**
+- Log an injury: body part (from a body map), pain level (1–10), type (acute / chronic / soreness), date of onset
+- "Injury active" badge shown on relevant exercises in the workout builder: *"You logged left knee pain — skip this exercise?"*
+- AI Coach aware of active injuries: avoids recommending loaded squats when knee is flagged
+- Recovery timeline estimated by injury type (standard physiotherapy estimates)
+- Daily check-in: pain level logged alongside the morning wellness log
+- Auto-clears when user marks it resolved
+
+**Data model:**
+```sql
+CREATE TABLE injuries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  body_part text NOT NULL,
+  muscle_groups text[],   -- for exercise filtering
+  pain_level int NOT NULL CHECK (pain_level BETWEEN 1 AND 10),
+  injury_type text NOT NULL,  -- 'acute', 'chronic', 'doms'
+  onset_date date NOT NULL,
+  resolved_date date,
+  notes text,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+**Effort:** 2–3 days. **Impact:** High for injury-prone users (a common and underserved segment). Prevents the "I hurt myself because the app told me to keep going" churn trigger.
+
+---
+
+### Theme D — Retention & Virality
+
+#### D1. Streak Protection System (Streak Shields)
+
+**The idea:** Extend the gamification layer with a mechanic that protects streaks during life disruptions (travel, illness, genuine emergencies) — without undermining the streak's meaning.
+
+**Rules:**
+- Earn one Streak Shield every time you hit a 30-day streak milestone
+- Maximum 2 shields banked at any time
+- On a day you don't log, the shield auto-deploys and preserves the streak (with a notification: *"Streak Shield used — you're protected"*)
+- Shield used streaks are shown with a small shield icon in the streak history, for transparency
+- Shields cannot be purchased or gifted — only earned
+
+**Why this matters:** Streaks are the app's strongest engagement mechanic, but they also cause "rage quit" churn when broken. This gives high-streak users a safety net without devaluing the metric.
+
+**Effort:** 1 day. **Impact:** High retention for users with 30+ day streaks (highest-value cohort).
+
+---
+
+#### D2. Shareable Workout Cards
+
+**The idea:** After completing a workout, generate a beautiful shareable image card (like Strava's segment cards or Spotify Wrapped). User can save to camera roll or share directly to Instagram, WhatsApp, etc.
+
+**Card contents:**
+- Workout name + date
+- Key stats: total volume (kg), sets completed, PRs hit, duration
+- XP earned + current level badge
+- Current streak
+- A motivational line generated by Claude based on the session
+
+**Technical approach:** Render a canvas element in the app at fixed 1080×1080 and convert to PNG (using `html2canvas` or a Canvas API approach). No server-side image generation needed.
+
+**Effort:** 2 days. **Virality:** High — every shared card is an organic ad. This is how Strava and Duolingo grow.
+
+---
+
+#### D3. Goal Timeline & Progress Projection
+
+**The idea:** Based on historical progress rate, AI projects when the user will hit their stated goal — and whether they're ahead of or behind their implied pace.
+
+**Examples:**
+- *"At your current rate of −0.3kg/week, you'll reach 80kg in approximately 8 weeks (around 22 July)."*
+- *"Your protein adherence improved from 55% → 72% over the last month — you're ahead of pace."*
+- *"You haven't lost weight in 3 weeks — your current intake might be at maintenance. Want to review your targets?"*
+
+**Implementation:**
+- Shown as a projection bar on the Goals section of the Settings or Dashboard
+- Updated weekly by the cron job (same job as insights generation)
+- Claude generates the natural-language framing; the underlying calculation is a simple linear regression on body weight or a rolling average of habit adherence
+
+**Effort:** 2 days. **Impact:** High — makes goals feel concrete and time-bound rather than vague aspirations. Drives the behaviour loop: see you're behind → adjust → see it working.
+
+---
+
+### Theme E — AI Depth
+
+#### E1. Coach Personas
+
+**The idea:** Let users choose an AI coaching style that best matches their personality and needs.
+
+**Personas:**
+
+| Persona | Style | Best for |
+|---|---|---|
+| **Performance Coach** | Direct, data-heavy, no fluff | Competitive athletes |
+| **Supportive Friend** | Warm, encouraging, checks in on mood | Beginners, people prone to all-or-nothing thinking |
+| **Nutritionist** | Food-first, macro-obsessive, recipe-happy | Users primarily focused on diet |
+| **Movement Coach** | Exercise science, biomechanics, program nerd | Gym-focused, technical users |
+| **Mindset Coach** | Habit psychology, identity-based coaching, journaling | Users who struggle with motivation/consistency |
+
+**Implementation:** Each persona is a system-prompt variation stored in the database. User selects in Settings → AI Coach → Coaching Style. Current conversation history is preserved when switching personas.
+
+**Effort:** 1 day (the infrastructure already exists). **Impact:** Medium individually, but high on perceived personalisation — users who feel the coach "gets them" are more likely to engage daily.
+
+---
+
+#### E2. AI Recipe Generator
+
+**The idea:** The Nutrition Planner has a pantry and a meal plan, but doesn't generate cooking *recipes*. The gap: a meal plan says "salmon + rice + broccoli" but doesn't tell you how to cook it or how to hit exactly 45g protein from that combination.
+
+**Features:**
+- "Generate a recipe" button on any meal plan slot
+- AI generates full cooking instructions (ingredients with exact quantities, method, cook time) calibrated to the user's macro targets for that meal
+- Macro breakdown shown per serving
+- "Missing from pantry" diff — highlights ingredients not in the user's pantry as a shopping list addition
+- Save recipe to a Recipe Library for future use
+- One-tap to log the recipe as eaten (pre-fills food log with macro values)
+
+**Data model:**
+```sql
+CREATE TABLE recipes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  ingredients jsonb NOT NULL,  -- [{ name, amount, unit, calories, protein, carbs, fat }]
+  instructions text[] NOT NULL,
+  servings int DEFAULT 1,
+  total_calories int,
+  total_protein int,
+  total_carbs int,
+  total_fat int,
+  prep_time_min int,
+  cook_time_min int,
+  tags text[],
+  source text DEFAULT 'ai_generated',
+  created_at timestamptz DEFAULT now()
+);
+```
+
+**Effort:** 2–3 days. **Impact:** High — closes the gap between "I know what to eat" and "I know how to cook it". Moves the app into territory no other fitness tracker occupies.
+
+---
+
+## Updated Prioritisation Matrix (Post-v2.0)
+
+| Feature | Impact | Effort | Score | Recommended Sprint |
+|---|---|---|---|---|
+| Correlation Engine (A1) | Very High | Medium | ★★★★★ | Sprint 1 — highest ROI, data exists |
+| Readiness Score (A2) | Very High | Low | ★★★★★ | Sprint 1 — 2 days, huge daily hook |
+| Apple HealthKit (A4) | Very High | Medium | ★★★★☆ | Sprint 1 — native app makes this feasible now |
+| Streak Shields (D1) | High | Very Low | ★★★★☆ | Sprint 1 — 1 day, protects top-cohort retention |
+| Goal Projection (D3) | High | Low | ★★★★☆ | Sprint 1 — builds on cron job already needed for A1 |
+| Group Challenges (A3) | Very High | Medium | ★★★★☆ | Sprint 2 |
+| Shareable Workout Cards (D2) | High | Low | ★★★★☆ | Sprint 2 — virality flywheel |
+| AI Workout Debrief (B2) | Medium | Very Low | ★★★☆☆ | Sprint 2 — 1 day, enriches 3 other features |
+| Hydration Tracker (C1) | Medium | Very Low | ★★★☆☆ | Sprint 2 — table stakes, 1 day |
+| Sleep Optimization Module (B4) | High | Medium | ★★★☆☆ | Sprint 2 |
+| Running & Cardio Analytics (B3) | High | Medium | ★★★☆☆ | Sprint 3 — big win for cardio users |
+| AI Recipe Generator (E2) | High | Medium | ★★★☆☆ | Sprint 3 |
+| Coach Personas (E1) | Medium | Very Low | ★★★☆☆ | Sprint 3 — 1 day |
+| Supplement Tracker (C2) | Medium | Medium | ★★☆☆☆ | Sprint 4 |
+| Injury & Pain Log (C3) | Medium | Medium | ★★☆☆☆ | Sprint 4 |
+| Video Form Analysis (B1) | High | Medium | ★★☆☆☆ | Sprint 4 — high wow factor, moderate accuracy risk |
+
+---
+
+## Recommended Sprint 1 (Post-v2.0)
+
+**Theme: Intelligence + Native**
+
+1. **Readiness Score v1** (2 days) — score card on dashboard, feeds from existing daily log data + Oura
+2. **Correlation Engine v1** (3 days) — nightly cron, top 3 correlations, insight card on dashboard
+3. **Apple HealthKit read** (3 days) — steps + HRV + body weight auto-sync (native app now supports this)
+4. **Streak Shields** (1 day) — earn at 30-day milestones, auto-deploy on missed day
+5. **Goal Timeline Projection** (1–2 days) — weekly update, "on track" / "behind" signal on dashboard
+
+Total: ~10–11 days. Result: the app gains a daily reason to open it (readiness score) + a compelling intelligence layer (correlations + projections) + the auto-sync that removes the biggest logging friction.
 
 ---
 
