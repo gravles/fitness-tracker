@@ -476,17 +476,22 @@ export function NutritionSection({
                             onCapture={async (img) => {
                                 setShowCamera(false);
                                 setLoadingAI(true);
+                                const controller = new AbortController();
+                                const timeoutId = setTimeout(() => controller.abort(), 30000);
                                 try {
                                     const res = await fetch('/api/ai/analyze-food', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ image: img })
+                                        body: JSON.stringify({ image: img }),
+                                        signal: controller.signal,
                                     });
-                                    const data = await res.json();
+                                    clearTimeout(timeoutId);
 
-                                    // Add as a specific food item
+                                    const data = await res.json();
+                                    if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+
                                     onAddFoodItems([{
-                                        name: data.name || "Scanned  Meal",
+                                        name: data.name || 'Scanned Meal',
                                         calories: data.calories,
                                         protein: data.protein,
                                         carbs: data.carbs,
@@ -499,8 +504,13 @@ export function NutritionSection({
                                     }
 
                                 } catch (e: any) {
+                                    clearTimeout(timeoutId);
                                     console.error(e);
-                                    toast.error('AI Error: ' + (e.message || 'Failed to analyze food. Check usage limits.'));
+                                    if (e.name === 'AbortError') {
+                                        toast.error('Analysis timed out. Please try again.');
+                                    } else {
+                                        toast.error('AI Error: ' + (e.message || 'Failed to analyze food.'));
+                                    }
                                 } finally {
                                     setLoadingAI(false);
                                 }

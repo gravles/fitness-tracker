@@ -79,8 +79,14 @@ Return ONLY a valid JSON object with this exact structure, no markdown:
     });
 
     const content = stripFences((response.content[0] as Anthropic.TextBlock).text);
-    if (!content) throw new Error("No analysis received");
-    return JSON.parse(content) as FoodAnalysis;
+    if (!content) throw new Error("No analysis received from AI");
+
+    try {
+        return JSON.parse(content) as FoodAnalysis;
+    } catch {
+        console.error('Food analysis JSON parse failed:', content);
+        throw new Error("AI returned an unexpected format. Please try again.");
+    }
 }
 
 export async function processVoiceIntent(transcript: string) {
