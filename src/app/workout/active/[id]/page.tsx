@@ -341,6 +341,27 @@ export default function ActiveWorkoutPage() {
         setExercises(copy);
     };
 
+    const deleteSet = (exIndex: number, setIndex: number) => {
+        const copy = exercises.map(e => ({ ...e, sets: [...e.sets] }));
+        copy[exIndex].sets.splice(setIndex, 1);
+        setExercises(copy);
+
+        // Re-index savedSetIdsRef for this exercise: drop the removed key,
+        // shift all later set indices down by one
+        const newSetIds: Record<string, string> = {};
+        Object.entries(savedSetIdsRef.current).forEach(([k, v]) => {
+            const [ei, si] = k.split('-').map(Number);
+            if (ei === exIndex) {
+                if (si < setIndex)  newSetIds[k] = v;           // before: keep as-is
+                // si === setIndex: removed — discard
+                if (si > setIndex)  newSetIds[`${ei}-${si - 1}`] = v; // after: shift down
+            } else {
+                newSetIds[k] = v; // different exercise: unchanged
+            }
+        });
+        savedSetIdsRef.current = newSetIds;
+    };
+
     const deleteExercise = (index: number) => {
         setConfirmModal({
             message: 'Remove this exercise?',
@@ -731,13 +752,14 @@ export default function ActiveWorkoutPage() {
 
                             <div className="space-y-2">
                                 <div
-                                    className="grid grid-cols-10 gap-2 text-xs font-bold uppercase tracking-wider text-center mb-1 px-1"
+                                    className="grid grid-cols-12 gap-2 text-xs font-bold uppercase tracking-wider text-center mb-1 px-1"
                                     style={{ color: 'var(--color-text-muted)' }}
                                 >
                                     <div className="col-span-1">Set</div>
                                     <div className="col-span-3">Lbs</div>
                                     <div className="col-span-3">Reps</div>
                                     <div className="col-span-3">Done</div>
+                                    <div className="col-span-2" />
                                 </div>
 
                                 {ex.sets.map((set, si) => {
@@ -745,7 +767,7 @@ export default function ActiveWorkoutPage() {
                                     return (
                                         <div
                                             key={si}
-                                            className="grid grid-cols-10 gap-2 items-center p-1 rounded-lg transition-colors"
+                                            className="grid grid-cols-12 gap-2 items-center p-1 rounded-lg transition-colors"
                                             style={{
                                                 background: set.completed
                                                     ? 'rgba(29,95,168,0.08)'
@@ -804,6 +826,16 @@ export default function ActiveWorkoutPage() {
                                                     }
                                                 >
                                                     <Check className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                            <div className="col-span-2 flex justify-center">
+                                                <button
+                                                    onClick={() => deleteSet(i, si)}
+                                                    className="w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90"
+                                                    style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171' }}
+                                                    title="Remove set"
+                                                >
+                                                    <X className="w-3.5 h-3.5" />
                                                 </button>
                                             </div>
                                         </div>
