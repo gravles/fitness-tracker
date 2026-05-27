@@ -2,7 +2,7 @@
 
 import { Workout, addWorkout, deleteWorkout, updateWorkout } from '@/lib/api';
 import { confirm } from '@/components/ConfirmDialog';
-import { Loader2, Plus, Dumbbell, Clock, Trash2, Sparkles, Pencil, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
+import { Loader2, Plus, Dumbbell, Clock, Trash2, Sparkles, Pencil, ChevronDown, ChevronUp, Check, X, BarChart2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -250,9 +250,16 @@ export function MovementSection({
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <button
+                                                    onClick={() => router.push(`/workout/active/${workout.id}`)}
+                                                    className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-lg transition-colors"
+                                                    title="Edit Sets"
+                                                >
+                                                    <BarChart2 className="w-4 h-4" />
+                                                </button>
+                                                <button
                                                     onClick={() => handleEditWorkout(workout)}
                                                     className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-lg transition-colors"
-                                                    title="Edit"
+                                                    title="Edit Details"
                                                 >
                                                     <Pencil className="w-4 h-4" />
                                                 </button>

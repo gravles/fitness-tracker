@@ -112,6 +112,57 @@ export async function logSet(exerciseId: string, setNumber: number, weight: numb
     return data;
 }
 
+/**
+ * Insert or update a set. Uses existingId if provided; otherwise checks for
+ * an existing row with the same (exercise_id, set_number) before inserting.
+ */
+export async function upsertWorkoutSet(
+    exerciseId: string,
+    setNumber: number,
+    weight: number,
+    reps: number,
+    completed: boolean,
+    existingId?: string
+): Promise<WorkoutSet> {
+    if (existingId) {
+        const { data, error } = await supabase
+            .from('workout_sets')
+            .update({ weight, reps, completed })
+            .eq('id', existingId)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    }
+
+    // Check for an existing row with the same exercise + set number
+    const { data: existing } = await supabase
+        .from('workout_sets')
+        .select('id')
+        .eq('exercise_id', exerciseId)
+        .eq('set_number', setNumber)
+        .maybeSingle();
+
+    if (existing) {
+        const { data, error } = await supabase
+            .from('workout_sets')
+            .update({ weight, reps, completed })
+            .eq('id', existing.id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    }
+
+    const { data, error } = await supabase
+        .from('workout_sets')
+        .insert({ exercise_id: exerciseId, set_number: setNumber, weight, reps, completed })
+        .select()
+        .single();
+    if (error) throw error;
+    return data;
+}
+
 export async function getWorkoutDetails(workoutId: string) {
     const { data, error } = await supabase
         .from('workouts') // The parent logs table

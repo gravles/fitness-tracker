@@ -5,9 +5,9 @@ import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { Loader2, Plus, Check, Clock, Play, Pause, Trash2, History, X, Dumbbell, Activity, Wind } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { getTemplates, getWorkoutDetails, createWorkoutExercise, logSet, getLastSetsForExercise, WorkoutTemplate } from '@/lib/workout-api';
+import { getTemplates, getWorkoutDetails, createWorkoutExercise, logSet, upsertWorkoutSet, deleteWorkoutExercises, getLastSetsForExercise, WorkoutTemplate } from '@/lib/workout-api';
 import { useTemplate as useTemplateAction, WorkoutTemplate as FeaturesTemplate } from '@/lib/features';
-import { upsertDailyLog, addWorkout, deleteWorkout } from '@/lib/api';
+import { upsertDailyLog, addWorkout, updateWorkout, deleteWorkout } from '@/lib/api';
 import {
     getProgramSession, completeProgramSession, saveExercise1RM,
     getAll1RMs, epley1RM, pctToWeight, ProgramSession,
@@ -51,6 +51,17 @@ export default function ActiveWorkoutPage() {
     const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null);
     const prevOneRMsRef = useRef<Record<string, number>>({});
 
+    // ── Autosave state ────────────────────────────────────────────────────────
+    // liveWorkoutId: null = not yet created in DB; uuid = workout record exists
+    const [liveWorkoutId, setLiveWorkoutId] = useState<string | null>(
+        params.id !== 'new' ? params.id as string : null
+    );
+    const savedExerciseIdsRef = useRef<Record<number, string>>({}); // exIndex → DB exercise id
+    const savedSetIdsRef      = useRef<Record<string, string>>({}); // `${exIdx}-${setIdx}` → DB set id
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+    const saveStatusTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // ── Timer ─────────────────────────────────────────────────────────────────
     useEffect(() => {
         const interval = setInterval(() => {
             if (!isPaused) setElapsedSeconds(s => s + 1);
@@ -58,6 +69,7 @@ export default function ActiveWorkoutPage() {
         return () => clearInterval(interval);
     }, [isPaused]);
 
+    // ── Last sets for exercise history hints ──────────────────────────────────
     useEffect(() => {
         if (loading) return;
         for (const ex of exercises) {
@@ -69,42 +81,45 @@ export default function ActiveWorkoutPage() {
         }
     }, [exercises, loading]);
 
+    // ── Persist draft to localStorage (new workouts only) ────────────────────
     useEffect(() => {
         if (loading) return;
+        if (params.id !== 'new') return; // editing sessions always reload from DB
         localStorage.setItem(DRAFT_KEY, JSON.stringify({
-            workoutId: params.id,
+            workoutId: 'new',
+            liveWorkoutId,          // store so crash-resume can reload from DB
             title,
             exercises,
             elapsedSeconds,
             savedAt: Date.now()
         }));
-    }, [exercises, title, elapsedSeconds, loading]);
+    }, [exercises, title, elapsedSeconds, loading, liveWorkoutId, params.id]);
 
+    // ── Init ──────────────────────────────────────────────────────────────────
     useEffect(() => {
         async function init() {
             setLoading(true);
+
+            // Reset refs on each init (important for navigation)
+            savedExerciseIdsRef.current = {};
+            savedSetIdsRef.current      = {};
+
             try {
-                // ── Program session: fetch session → pre-load exercises with target weights
+                // ── 1. Program session ────────────────────────────────────────
                 if (programSessionId) {
                     const sess = await getProgramSession(programSessionId);
                     if (sess) {
                         setActiveProgramSession(sess);
                         setTitle(`Wk ${sess.week_number} · ${sess.day_label}`);
 
-                        // Pull 1RM data so we can compute kg targets for strength exercises
                         const oneRMs = await getAll1RMs();
                         prevOneRMsRef.current = oneRMs;
 
                         const exs: ActiveExercise[] = (sess.exercises || []).map((ex: any) => {
-                            // Cardio exercise: has duration_min instead of sets/reps
                             if ('duration_min' in ex) {
                                 const label = ex.zone ? `${ex.duration_min} min · Zone ${ex.zone}` : `${ex.duration_min} min`;
-                                return {
-                                    name: ex.name,
-                                    sets: [{ weight: '', reps: label, completed: false }],
-                                };
+                                return { name: ex.name, sets: [{ weight: '', reps: label, completed: false }] };
                             }
-                            // Strength exercise: compute target weight from 1RM
                             const oneRM = oneRMs[ex.name];
                             const targetWeight = oneRM && ex.load_pct
                                 ? pctToWeight(oneRM, ex.load_pct).toString()
@@ -124,25 +139,90 @@ export default function ActiveWorkoutPage() {
                     return;
                 }
 
-                // ── Resume from draft (no template)
+                // ── 2. Editing an existing workout (always load from DB) ──────
+                if (params.id !== 'new') {
+                    const workout = await getWorkoutDetails(params.id as string);
+                    if (workout) {
+                        setTitle(workout.activity_type);
+                        setElapsedSeconds(workout.duration * 60);
+                        setIsPaused(true);
+                        if (workout.exercises) {
+                            setExercises(
+                                workout.exercises.map((e: any, idx: number) => {
+                                    savedExerciseIdsRef.current[idx] = e.id;
+                                    return {
+                                        id: e.id,
+                                        name: e.exercise_name,
+                                        sets: (e.sets ?? []).map((s: any, si: number) => {
+                                            savedSetIdsRef.current[`${idx}-${si}`] = s.id;
+                                            return {
+                                                id:        s.id,
+                                                weight:    s.weight?.toString() ?? '',
+                                                reps:      s.reps?.toString()   ?? '',
+                                                completed: s.completed,
+                                            };
+                                        }),
+                                    };
+                                })
+                            );
+                        }
+                    }
+                    setLoading(false);
+                    return;
+                }
+
+                // ── 3. New workout — check draft (only when no template) ──────
                 if (!templateId) {
                     try {
                         const raw = localStorage.getItem(DRAFT_KEY);
                         if (raw) {
                             const draft = JSON.parse(raw);
                             const isRecent = Date.now() - draft.savedAt < 24 * 60 * 60 * 1000;
-                            if (isRecent && draft.workoutId === params.id) {
-                                setTitle(draft.title);
-                                setExercises(draft.exercises);
-                                setElapsedSeconds(draft.elapsedSeconds);
-                                setLoading(false);
-                                return;
+                            if (isRecent && draft.workoutId === 'new') {
+                                if (draft.liveWorkoutId) {
+                                    // Workout was autosaved to DB — load fresh from DB
+                                    const workout = await getWorkoutDetails(draft.liveWorkoutId);
+                                    if (workout) {
+                                        setLiveWorkoutId(draft.liveWorkoutId);
+                                        setTitle(workout.activity_type);
+                                        setElapsedSeconds(draft.elapsedSeconds ?? 0);
+                                        if (workout.exercises) {
+                                            setExercises(
+                                                workout.exercises.map((e: any, idx: number) => {
+                                                    savedExerciseIdsRef.current[idx] = e.id;
+                                                    return {
+                                                        id: e.id,
+                                                        name: e.exercise_name,
+                                                        sets: (e.sets ?? []).map((s: any, si: number) => {
+                                                            savedSetIdsRef.current[`${idx}-${si}`] = s.id;
+                                                            return {
+                                                                id:        s.id,
+                                                                weight:    s.weight?.toString() ?? '',
+                                                                reps:      s.reps?.toString()   ?? '',
+                                                                completed: s.completed,
+                                                            };
+                                                        }),
+                                                    };
+                                                })
+                                            );
+                                        }
+                                        setLoading(false);
+                                        return;
+                                    }
+                                } else {
+                                    // Pure localStorage draft (no DB record yet)
+                                    setTitle(draft.title);
+                                    setExercises(draft.exercises);
+                                    setElapsedSeconds(draft.elapsedSeconds);
+                                    setLoading(false);
+                                    return;
+                                }
                             }
                         }
                     } catch { /* ignore malformed draft */ }
                 }
 
-                // ── Template-based init
+                // ── 4. Template-based init ────────────────────────────────────
                 if (templateId) {
                     try {
                         const template = await useTemplateAction(templateId);
@@ -168,27 +248,8 @@ export default function ActiveWorkoutPage() {
                             })) || []);
                         }
                     }
-                } else if (params.id && params.id !== 'new') {
-                    // ── Resume existing workout by ID
-                    const workout = await getWorkoutDetails(params.id as string);
-                    if (workout) {
-                        setTitle(workout.activity_type);
-                        setElapsedSeconds(workout.duration * 60);
-                        setIsPaused(true);
-                        if (workout.exercises) {
-                            setExercises(workout.exercises.map((e: any) => ({
-                                id: e.id,
-                                name: e.exercise_name,
-                                sets: e.sets?.map((s: any) => ({
-                                    id: s.id,
-                                    weight: s.weight?.toString() || '',
-                                    reps: s.reps?.toString() || '',
-                                    completed: s.completed
-                                })) || []
-                            })));
-                        }
-                    }
                 }
+                // else: start empty new workout
             } catch (e) {
                 console.error('Failed to load workout', e);
             } finally {
@@ -204,10 +265,74 @@ export default function ActiveWorkoutPage() {
         return `${mins}:${s.toString().padStart(2, '0')}`;
     };
 
+    // ── Autosave a single set to the DB ───────────────────────────────────────
+    const autosaveSet = async (exIndex: number, setIndex: number, snapshot: ActiveExercise[]) => {
+        const set = snapshot[exIndex]?.sets[setIndex];
+        if (!set) return;
+
+        if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+        setSaveStatus('saving');
+
+        try {
+            let workoutId = liveWorkoutId;
+
+            // Lazy-create the workout record on the first completed set
+            if (!workoutId) {
+                const settings = await import('@/lib/api').then(m => m.getSettings());
+                const weightLbs = settings?.target_weight ?? 160;
+                const weightKg  = weightLbs * 0.453592;
+                const durationHrs = elapsedSeconds / 3600;
+                const caloriesBurned = Math.round(5.0 * weightKg * durationHrs);
+
+                const savedWorkout = await addWorkout({
+                    date:          format(new Date(), 'yyyy-MM-dd'),
+                    activity_type: title,
+                    duration:      Math.max(1, Math.floor(elapsedSeconds / 60)),
+                    intensity:     'Moderate',
+                    calories:      caloriesBurned,
+                    notes:         'In progress…',
+                });
+                if (!savedWorkout?.id) throw new Error('Failed to create workout record');
+                workoutId = savedWorkout.id;
+                setLiveWorkoutId(workoutId);
+            }
+
+            // Lazy-create the exercise row
+            let exerciseId = savedExerciseIdsRef.current[exIndex];
+            if (!exerciseId) {
+                const savedEx = await createWorkoutExercise(workoutId, snapshot[exIndex].name, exIndex);
+                exerciseId = savedEx.id;
+                savedExerciseIdsRef.current[exIndex] = exerciseId;
+            }
+
+            // Upsert the set row
+            const setKey      = `${exIndex}-${setIndex}`;
+            const existingId  = savedSetIdsRef.current[setKey];
+            const savedSet    = await upsertWorkoutSet(
+                exerciseId,
+                setIndex + 1,                       // set_number is 1-based
+                parseFloat(set.weight)  || 0,
+                parseFloat(set.reps)    || 0,
+                set.completed,
+                existingId
+            );
+            savedSetIdsRef.current[setKey] = savedSet.id;
+
+            setSaveStatus('saved');
+            saveStatusTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
+        } catch (err) {
+            console.error('Autosave error:', err);
+            setSaveStatus('error');
+            saveStatusTimerRef.current = setTimeout(() => setSaveStatus('idle'), 3000);
+        }
+    };
+
     const toggleSet = (exIndex: number, setIndex: number) => {
         const copy = [...exercises];
         copy[exIndex].sets[setIndex].completed = !copy[exIndex].sets[setIndex].completed;
         setExercises(copy);
+        // Autosave on every toggle (completing or uncompleting)
+        autosaveSet(exIndex, setIndex, copy);
     };
 
     const updateSet = (exIndex: number, setIndex: number, field: 'weight' | 'reps', val: string) => {
@@ -223,6 +348,24 @@ export default function ActiveWorkoutPage() {
                 const copy = [...exercises];
                 copy.splice(index, 1);
                 setExercises(copy);
+
+                // Re-index the saved exercise/set refs after removal
+                const newExIds: Record<number, string> = {};
+                const newSetIds: Record<string, string> = {};
+                Object.entries(savedExerciseIdsRef.current).forEach(([k, v]) => {
+                    const i = parseInt(k);
+                    if (i !== index) newExIds[i > index ? i - 1 : i] = v;
+                });
+                Object.entries(savedSetIdsRef.current).forEach(([k, v]) => {
+                    const [ei, si] = k.split('-').map(Number);
+                    if (ei !== index) {
+                        const newEi = ei > index ? ei - 1 : ei;
+                        newSetIds[`${newEi}-${si}`] = v;
+                    }
+                });
+                savedExerciseIdsRef.current = newExIds;
+                savedSetIdsRef.current      = newSetIds;
+
                 setConfirmModal(null);
             }
         });
@@ -234,18 +377,17 @@ export default function ActiveWorkoutPage() {
             toast.error('No exercises completed. Mark at least one set as done.');
             return;
         }
-        const isUpdate = params.id && params.id !== 'new';
-        const actionLabel = isUpdate ? 'Update' : 'Finish and log';
+        const actionLabel = liveWorkoutId ? 'Update' : 'Finish and log';
         setConfirmModal({
             message: `${actionLabel} this workout?`,
             onConfirm: async () => {
                 setConfirmModal(null);
-                await _doFinishWorkout(isUpdate as boolean, completedExercises);
+                await _doFinishWorkout(completedExercises);
             }
         });
     };
 
-    const _doFinishWorkout = async (isUpdate: boolean, completedExercises: ActiveExercise[]) => {
+    const _doFinishWorkout = async (completedExercises: ActiveExercise[]) => {
         if (isPaused) setIsPaused(false);
         setLoading(true);
 
@@ -267,12 +409,12 @@ export default function ActiveWorkoutPage() {
                 ).join('\n')}`
             };
 
-            let workoutId = params.id as string;
+            // If a workout record already exists (autosaved or editing), update it.
+            // Otherwise create a new one.
+            let workoutId = liveWorkoutId;
 
-            if (isUpdate) {
-                const { updateWorkout } = await import('@/lib/api');
+            if (workoutId) {
                 await updateWorkout(workoutId, workoutData);
-                const { deleteWorkoutExercises } = await import('@/lib/workout-api');
                 await deleteWorkoutExercises(workoutId);
             } else {
                 const savedWorkout = await addWorkout(workoutData);
@@ -297,7 +439,6 @@ export default function ActiveWorkoutPage() {
             if (activeProgramSession && programSessionId && workoutId) {
                 await completeProgramSession(programSessionId, workoutId);
 
-                // Identify strength exercises from this session (skip cardio)
                 const strengthExNames = new Set(
                     (activeProgramSession.exercises || [])
                         .filter((ex: any) => !('duration_min' in ex))
@@ -415,25 +556,45 @@ export default function ActiveWorkoutPage() {
                     borderColor: 'var(--color-border)',
                 }}
             >
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                     <input
                         value={title}
                         onChange={e => setTitle(e.target.value)}
                         className="font-bold text-xl bg-transparent outline-none w-full"
                         style={{ color: 'var(--color-text)' }}
                     />
-                    <div
-                        className="flex items-center gap-2 font-mono text-sm transition-colors"
-                        style={{ color: isPaused ? '#f97316' : 'var(--color-primary)' }}
-                    >
-                        <Clock className="w-3 h-3" />
-                        {formatTime(elapsedSeconds)}
-                        {isPaused && (
-                            <span
-                                className="text-xs font-bold uppercase border px-1 rounded"
-                                style={{ borderColor: '#fed7aa', background: '#fff7ed', color: '#f97316' }}
-                            >
-                                Paused
+                    <div className="flex items-center gap-2">
+                        <div
+                            className="flex items-center gap-2 font-mono text-sm transition-colors"
+                            style={{ color: isPaused ? '#f97316' : 'var(--color-primary)' }}
+                        >
+                            <Clock className="w-3 h-3" />
+                            {formatTime(elapsedSeconds)}
+                            {isPaused && (
+                                <span
+                                    className="text-xs font-bold uppercase border px-1 rounded"
+                                    style={{ borderColor: '#fed7aa', background: '#fff7ed', color: '#f97316' }}
+                                >
+                                    Paused
+                                </span>
+                            )}
+                        </div>
+                        {/* Autosave status chip */}
+                        {saveStatus === 'saving' && (
+                            <span className="text-xs flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <span>Saving…</span>
+                            </span>
+                        )}
+                        {saveStatus === 'saved' && (
+                            <span className="text-xs flex items-center gap-1" style={{ color: 'var(--color-success)' }}>
+                                <Check className="w-3 h-3" />
+                                <span>Saved</span>
+                            </span>
+                        )}
+                        {saveStatus === 'error' && (
+                            <span className="text-xs font-medium" style={{ color: 'var(--color-danger)' }}>
+                                Save failed
                             </span>
                         )}
                     </div>
