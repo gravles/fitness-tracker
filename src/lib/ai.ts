@@ -353,14 +353,15 @@ Return ONLY valid JSON, no markdown:
     });
 
     const content = stripFences((response.content[0] as Anthropic.TextBlock).text);
-    return content ? JSON.parse(content) : {
-        summary: "Could not generate analysis.",
-        wins: [],
-        improvements: [],
-        alcohol_analysis: "N/A",
-        nutrition_tip: "N/A",
-        workout_tip: "N/A"
-    };
+    if (!content) {
+        throw new Error("No analysis received from AI");
+    }
+    try {
+        return JSON.parse(content) as WeeklyInsight;
+    } catch {
+        console.error('Weekly insights JSON parse failed:', content);
+        throw new Error("AI returned an unexpected format. Please try again.");
+    }
 }
 
 // --- Smart Coach Logic ---

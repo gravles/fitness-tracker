@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from 'sonner';
-import { Brain, X, TrendingUp, AlertTriangle, Wine, Dumbbell, Utensils, CheckCircle2 } from "lucide-react";
+import { Brain, X, TrendingUp, AlertTriangle, Wine, Dumbbell, Utensils, CheckCircle2, RefreshCw } from "lucide-react";
 import { WeeklyInsight } from "@/lib/ai";
 
 interface AIWeeklyInsightModalProps {
@@ -14,32 +14,64 @@ interface AIWeeklyInsightModalProps {
 export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightModalProps) {
     const [loading, setLoading] = useState(false);
     const [insight, setInsight] = useState<WeeklyInsight | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    // Track whether we've already triggered a fetch for this "open" session
+    const hasGeneratedRef = useRef(false);
 
     useEffect(() => {
-        if (isOpen && logs.length > 0 && !insight) {
+        if (isOpen) {
+            // Reset state every time the modal opens so it always fetches fresh data
+            hasGeneratedRef.current = false;
+            setInsight(null);
+            setError(null);
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (isOpen && !hasGeneratedRef.current && logs.length > 0) {
+            hasGeneratedRef.current = true;
             generateReport();
         }
-    }, [isOpen, logs]);
+    }, [isOpen, logs.length]); // depend on .length (primitive) not the array reference
 
     async function generateReport() {
         setLoading(true);
+        setError(null);
+        setInsight(null);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 55000); // 55s client-side timeout
+
         try {
             const res = await fetch('/api/ai/weekly-insights', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ logs })
+                body: JSON.stringify({ logs }),
+                signal: controller.signal,
             });
+
             const data = await res.json();
+
             if (!res.ok || data.error) {
                 throw new Error(data.error || 'Failed to generate report');
             }
             setInsight(data);
-        } catch (e) {
-            console.error(e);
-            toast.error("Failed to generate report");
+        } catch (e: any) {
+            const msg = e.name === 'AbortError'
+                ? 'Request timed out. Try again.'
+                : (e.message || 'Failed to generate report');
+            console.error('Weekly insights error:', e);
+            setError(msg);
+            toast.error(msg);
         } finally {
+            clearTimeout(timeoutId);
             setLoading(false);
         }
+    }
+
+    function handleRegenerate() {
+        hasGeneratedRef.current = true; // prevent the effect from double-firing
+        generateReport();
     }
 
     if (!isOpen) return null;
@@ -57,9 +89,20 @@ export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightM
                         </div>
                         <p className="text-sm" style={{ color: 'var(--color-gold)' }}>Deep dive into your last 7 days of performance.</p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition">
-                        <X className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {!loading && (
+                            <button
+                                onClick={handleRegenerate}
+                                className="p-2 hover:bg-white/10 rounded-full transition"
+                                title="Refresh analysis"
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                            </button>
+                        )}
+                        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="p-6 overflow-y-auto space-y-6 bg-[var(--color-bg)]">
@@ -72,6 +115,24 @@ export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightM
                                 </div>
                             </div>
                             <p className="font-medium animate-pulse">Crunching your numbers...</p>
+                            <p className="text-xs text-[var(--color-text-muted)]">This can take up to 30 seconds</p>
+                        </div>
+                    ) : error ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+                            <AlertTriangle className="w-10 h-10 text-orange-500" />
+                            <p className="font-medium text-[var(--color-text)]">Analysis failed</p>
+                            <p className="text-sm text-[var(--color-text-muted)]">{error}</p>
+                            <button
+                                onClick={handleRegenerate}
+                                className="mt-2 px-5 py-2 rounded-xl font-bold text-sm text-white flex items-center gap-2"
+                                style={{ background: 'var(--color-primary)' }}
+                            >
+                                <RefreshCw className="w-4 h-4" /> Try Again
+                            </button>
+                        </div>
+                    ) : logs.length === 0 ? (
+                        <div className="text-center py-10 text-[var(--color-text-muted)] italic">
+                            No log data found. Start logging your days to unlock weekly analysis!
                         </div>
                     ) : insight ? (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
