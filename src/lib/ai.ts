@@ -326,7 +326,7 @@ export async function generateWeeklyInsights(logs: any[]): Promise<WeeklyInsight
 
     const response = await anthropic.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 600,
+        max_tokens: 1024,
         system: `You are an expert fitness coach and data analyst. Analyze the user's last 7 days of logs.
 
 Data items per day: date, movement_duration (mins), intensity, calories, protein_grams, etc., alcohol_drinks, sleep_quality (1-5), energy_level (1-5), subjective notes.
@@ -338,28 +338,24 @@ Your analysis MUST include:
 4. Alcohol Analysis: Comment on alcohol consumption patterns and its potential impact on reported sleep/energy. Be direct but non-judgmental.
 5. Tips: One actionable tip for nutrition and one for workouts.
 
-Return ONLY valid JSON, no markdown:
-{
-    "summary": "...",
-    "wins": ["...", "..."],
-    "improvements": ["...", "..."],
-    "alcohol_analysis": "...",
-    "nutrition_tip": "...",
-    "workout_tip": "..."
-}`,
+Return ONLY a valid JSON object, no markdown, no code fences, no explanation text:
+{"summary":"...","wins":["...","..."],"improvements":["...","..."],"alcohol_analysis":"...","nutrition_tip":"...","workout_tip":"..."}`,
         messages: [
             { role: "user", content: JSON.stringify(logs) },
         ],
     });
 
-    const content = stripFences((response.content[0] as Anthropic.TextBlock).text);
-    if (!content) {
-        throw new Error("No analysis received from AI");
+    const raw = (response.content[0] as Anthropic.TextBlock).text ?? '';
+    // Extract the JSON object even if the model added preamble/postamble text
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+        console.error('Weekly insights — no JSON object found in response:', raw);
+        throw new Error("AI returned an unexpected format. Please try again.");
     }
     try {
-        return JSON.parse(content) as WeeklyInsight;
+        return JSON.parse(jsonMatch[0]) as WeeklyInsight;
     } catch {
-        console.error('Weekly insights JSON parse failed:', content);
+        console.error('Weekly insights JSON parse failed:', jsonMatch[0]);
         throw new Error("AI returned an unexpected format. Please try again.");
     }
 }
