@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getSettings, updateSettings, getUserBadges, UserBadge, getAccountabilityPartners, addAccountabilityPartner, deleteAccountabilityPartner, AccountabilityPartner, getIntegrations, upsertIntegration, deleteIntegration, Integration } from '@/lib/api';
-import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2, Users, Trash2, Send, X, Link2, RefreshCw, User, Sun, Moon, Monitor, CalendarDays, Copy, Check } from 'lucide-react';
+import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2, Users, Trash2, Send, X, Link2, RefreshCw, User, Sun, Moon, Monitor, CalendarDays, Copy, Check, Bot } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { GoalWizard } from '@/components/GoalWizard';
@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { TrophyCase } from '@/components/TrophyCase';
 import { ChangelogModal } from '@/components/ChangelogModal';
 import { NotificationSettings } from '@/components/NotificationSettings';
+import { ClaudeConnectorSection } from '@/components/ClaudeConnectorSection';
 import { haptics } from '@/lib/haptics';
 
 const sectionStyle = {
@@ -931,6 +932,20 @@ export default function SettingsPage() {
                         </div>
                     );
                 })}
+            </section>
+
+            {/* Claude AI Connector */}
+            <section className="p-6 rounded-2xl border shadow-sm space-y-4" style={sectionStyle}>
+                <div className="flex items-center gap-2">
+                    <Bot className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                    <h3 className="font-bold text-xs uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
+                        Claude AI Connector
+                    </h3>
+                </div>
+                <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                    Connect your fitness data directly to Claude. Generate a key, then add the URL as a remote MCP server in Claude&apos;s settings.
+                </p>
+                <ClaudeConnectorSection />
             </section>
 
             {/* Accountability Partners */}
