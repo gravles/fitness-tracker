@@ -45,6 +45,7 @@ import { AuthWrapper } from "@/components/AuthWrapper";
 import { SyncManager } from "@/components/SyncManager";
 import { CapacitorProvider } from "@/components/CapacitorProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { LanguageProvider } from "@/components/LanguageProvider";
 import { ConfirmProvider } from "@/components/ConfirmDialog";
 import { Toaster } from "sonner";
 
@@ -62,6 +63,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${playfair.variable} antialiased`}>
         <SWRegister />
         <ThemeProvider>
+        <LanguageProvider>
         <ConfirmProvider>
         <AuthWrapper>
           <CapacitorProvider>
@@ -84,6 +86,7 @@ export default function RootLayout({
           </CapacitorProvider>
         </AuthWrapper>
         </ConfirmProvider>
+        </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

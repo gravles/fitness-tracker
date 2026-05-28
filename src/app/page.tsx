@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowRight, Flame, Trophy, Mic, Camera, Settings } from 'lucide-react';
+import { ArrowRight, Flame, Mic, Camera, Settings } from 'lucide-react';
+import { useLanguage } from '@/components/LanguageProvider';
 import { format, subDays } from 'date-fns';
 import { getStreak, getMonthlyLogs, getBodyMetricsHistory, DailyLog, UserSettings } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
@@ -48,6 +49,7 @@ export default function Dashboard() {
   const [showInsightModal, setShowInsightModal] = useState(false);
   const [showFeatureTutorial, setShowFeatureTutorial] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (searchParams.get('tutorial') === 'true') {
@@ -75,7 +77,7 @@ export default function Dashboard() {
       ]);
 
       const hour = today.getHours();
-      const timeOfDay = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+      const timeOfDay = hour < 12 ? t.dashboard.greeting.morning : hour < 17 ? t.dashboard.greeting.afternoon : t.dashboard.greeting.evening;
       const rawName = settings?.display_name
         || session?.user?.user_metadata?.full_name
         || session?.user?.user_metadata?.name
@@ -153,7 +155,7 @@ export default function Dashboard() {
           setShowOnboarding(false);
           if (name) {
             const hour = today.getHours();
-            const timeOfDay = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+            const timeOfDay = hour < 12 ? t.dashboard.greeting.morning : hour < 17 ? t.dashboard.greeting.afternoon : t.dashboard.greeting.evening;
             setGreeting(`${timeOfDay}, ${name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()}`);
           }
           loadData(); // refresh settings after onboarding
@@ -236,7 +238,7 @@ export default function Dashboard() {
               aria-label="View AI Weekly Analysis"
             >
               <span className="text-base" aria-hidden="true">📊</span>
-              AI Weekly Analysis
+              {t.dashboard.weeklyAnalysis}
             </button>
           </div>
 
@@ -252,7 +254,7 @@ export default function Dashboard() {
                     <Flame className="w-4 h-4" style={{ color: 'var(--color-gold)' }} aria-hidden="true" />
                   </div>
                   <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(201,168,76,0.6)' }}>
-                    Current Streak
+                    {t.dashboard.streak.label}
                   </span>
                 </div>
                 <div className="flex items-baseline gap-2">
@@ -262,10 +264,10 @@ export default function Dashboard() {
                   >
                     {streak}
                   </span>
-                  <span className="text-xl font-semibold" style={{ color: 'rgba(228,234,242,0.5)' }}>days</span>
+                  <span className="text-xl font-semibold" style={{ color: 'rgba(228,234,242,0.5)' }}>{t.dashboard.streak.days}</span>
                 </div>
                 <p className="text-sm mt-2" style={{ color: 'rgba(228,234,242,0.45)' }}>
-                  {streak === 0 ? 'Start your streak today' : streak < 7 ? 'Building momentum' : streak < 30 ? 'On a roll — keep it up' : 'Unstoppable'}
+                  {streak === 0 ? t.dashboard.streak.zero : streak < 7 ? t.dashboard.streak.low : streak < 30 ? t.dashboard.streak.mid : t.dashboard.streak.high}
                 </p>
               </div>
               <div style={{ opacity: 0.04 }} aria-hidden="true">
@@ -282,7 +284,7 @@ export default function Dashboard() {
 
           {/* Quick Actions - Enhanced */}
           <section aria-labelledby="quick-add-heading">
-            <h3 id="quick-add-heading" className="font-bold text-[var(--color-text)] mb-3 px-1">Quick Add</h3>
+            <h3 id="quick-add-heading" className="font-bold text-[var(--color-text)] mb-3 px-1">{t.dashboard.quickAdd}</h3>
             <div className="grid grid-cols-2 gap-3 mb-4">
               {/* Voice Log Card */}
               <Link
@@ -300,7 +302,7 @@ export default function Dashboard() {
                 >
                   <Mic className="w-6 h-6" aria-hidden="true" />
                 </div>
-                <span className="font-bold text-sm" style={{ color: 'var(--color-gold)' }}>Voice Log</span>
+                <span className="font-bold text-sm" style={{ color: 'var(--color-gold)' }}>{t.dashboard.voiceLog}</span>
               </Link>
 
               {/* Snap Meal Card */}
@@ -319,7 +321,7 @@ export default function Dashboard() {
                 >
                   <Camera className="w-6 h-6" aria-hidden="true" />
                 </div>
-                <span className="font-bold text-sm" style={{ color: 'var(--color-primary)' }}>Snap Meal</span>
+                <span className="font-bold text-sm" style={{ color: 'var(--color-primary)' }}>{t.dashboard.snapMeal}</span>
               </Link>
             </div>
           </section>
@@ -328,8 +330,8 @@ export default function Dashboard() {
           <Link href="/log" className="block group focus-ring rounded-2xl">
             <div className="bg-[var(--color-primary)] p-5 rounded-2xl flex items-center justify-between shadow-lg shadow-[var(--color-primary)]/25 group-active:scale-[0.98] group-hover:shadow-[var(--color-primary)]/40 transition-all duration-200">
               <div>
-                <h3 className="font-bold text-lg text-white mb-0.5">Log Today</h3>
-                <p className="text-sm text-white/70 font-medium">Full daily log & details</p>
+                <h3 className="font-bold text-lg text-white mb-0.5">{t.dashboard.logToday}</h3>
+                <p className="text-sm text-white/70 font-medium">{t.dashboard.logTodaySubtitle}</p>
               </div>
               <div className="w-10 h-10 bg-white/15 text-white rounded-full flex items-center justify-center group-hover:bg-white/25 transition-colors" aria-hidden="true">
                 <ArrowRight className="w-5 h-5" />

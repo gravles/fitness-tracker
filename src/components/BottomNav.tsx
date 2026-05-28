@@ -3,18 +3,20 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, PlusCircle, Scale, Dumbbell, UtensilsCrossed } from 'lucide-react';
+import { useLanguage } from '@/components/LanguageProvider';
 
 export function BottomNav() {
     const pathname = usePathname();
+    const { t } = useLanguage();
 
     const isActive = (path: string) => pathname === path || pathname.startsWith(path + '/');
 
     const navItems = [
-        { href: '/',          icon: Home,            label: 'Home'    },
-        { href: '/log',       icon: PlusCircle,      label: 'Log'     },
-        { href: '/schedule',  icon: Dumbbell,        label: 'Workout' },
-        { href: '/nutrition', icon: UtensilsCrossed, label: 'Eat'     },
-        { href: '/metrics',   icon: Scale,           label: 'Metrics' },
+        { href: '/',          icon: Home,            label: t.nav.home    },
+        { href: '/log',       icon: PlusCircle,      label: t.nav.log     },
+        { href: '/schedule',  icon: Dumbbell,        label: t.nav.workout },
+        { href: '/nutrition', icon: UtensilsCrossed, label: t.nav.eat     },
+        { href: '/metrics',   icon: Scale,           label: t.nav.metrics },
     ];
 
     return (
@@ -39,7 +41,6 @@ export function BottomNav() {
                         aria-current={active ? 'page' : undefined}
                         aria-label={label}
                     >
-                        {/* Gold indicator bar */}
                         {active && (
                             <span
                                 className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full"

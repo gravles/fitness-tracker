@@ -2,6 +2,7 @@
 
 import { Zap } from 'lucide-react';
 import { format, subDays } from 'date-fns';
+import { useLanguage } from '@/components/LanguageProvider';
 
 interface LevelProgressProps {
     level: number;
@@ -11,17 +12,18 @@ interface LevelProgressProps {
     onClick?: () => void;
 }
 
-const DAY_LABELS = Array.from({ length: 7 }, (_, i) =>
-    format(subDays(new Date(), 6 - i), 'EEE')[0]
-);
-
-/** Mirror of xpForLevel in api.ts — inlined to avoid importing supabase in a client component */
 function xpForLevel(level: number): number {
     if (level <= 1) return 0;
     return Math.round(100 * (Math.pow(1.15, level - 1) - 1) / 0.15);
 }
 
 export function LevelProgress({ level, xp, weeklyXP, onClick }: LevelProgressProps) {
+    const { t } = useLanguage();
+
+    const dayLabels = Array.from({ length: 7 }, (_, i) =>
+        format(subDays(new Date(), 6 - i), 'EEE')[0]
+    );
+
     const currentLevelXP  = xpForLevel(level);
     const nextLevelXP     = xpForLevel(level + 1);
     const neededForLevel  = nextLevelXP - currentLevelXP;
@@ -40,7 +42,6 @@ export function LevelProgress({ level, xp, weeklyXP, onClick }: LevelProgressPro
             aria-label={onClick ? `Level ${level} XP progress. Click to view history.` : undefined}
             className={`bg-[var(--color-surface-elevated)] p-4 rounded-xl border border-[var(--color-border-light)] shadow-sm transition-all ${onClick ? 'cursor-pointer hover:border-[var(--color-primary)]/30 hover:shadow-md focus-ring tap-target' : ''}`}
         >
-            {/* Level header */}
             <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-3">
                     <div
@@ -51,16 +52,15 @@ export function LevelProgress({ level, xp, weeklyXP, onClick }: LevelProgressPro
                     </div>
                     <div>
                         <h4 className="font-bold text-[var(--color-text)] text-sm">Level {level}</h4>
-                        <p className="text-xs text-[var(--color-text-muted)]">{xp.toLocaleString()} Lifetime XP</p>
+                        <p className="text-xs text-[var(--color-text-muted)]">{xp.toLocaleString()} {t.levelProgress.lifetimeXP}</p>
                     </div>
                 </div>
                 <div className="text-right">
                     <span className="text-sm font-bold text-[var(--color-primary)]">{toNext}</span>
-                    <span className="text-xs text-[var(--color-text-muted)]"> XP to next</span>
+                    <span className="text-xs text-[var(--color-text-muted)]"> {t.levelProgress.xpToNext}</span>
                 </div>
             </div>
 
-            {/* XP progress bar */}
             <div className="h-2 w-full bg-[var(--color-bg-muted)] rounded-full overflow-hidden">
                 <div
                     className="h-full rounded-full transition-all duration-500 ease-out"
@@ -72,7 +72,6 @@ export function LevelProgress({ level, xp, weeklyXP, onClick }: LevelProgressPro
                 />
             </div>
 
-            {/* Weekly XP mini bars */}
             {weeklyXP && weeklyXP.length === 7 && (
                 <div className="mt-3">
                     <div className="flex items-end gap-1 h-8">
@@ -96,7 +95,7 @@ export function LevelProgress({ level, xp, weeklyXP, onClick }: LevelProgressPro
                         })}
                     </div>
                     <div className="flex gap-1 mt-1">
-                        {DAY_LABELS.map((d, i) => (
+                        {dayLabels.map((d, i) => (
                             <div
                                 key={i}
                                 className="flex-1 text-center"

@@ -1,31 +1,25 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronRight, User, Cake, Ruler, Target, CheckCircle } from 'lucide-react';
+import { ChevronRight, CheckCircle } from 'lucide-react';
 import { updateSettings, upsertBodyMetrics } from '@/lib/api';
-
-const FITNESS_GOALS = [
-    { id: 'lose_weight',       label: 'Lose Weight',       emoji: '🔥', desc: 'Burn fat and slim down' },
-    { id: 'build_muscle',      label: 'Build Muscle',      emoji: '💪', desc: 'Get stronger and bigger' },
-    { id: 'maintain',          label: 'Maintain',          emoji: '⚖️',  desc: 'Stay fit and healthy' },
-    { id: 'improve_fitness',   label: 'Improve Fitness',   emoji: '🏃', desc: 'Boost endurance and stamina' },
-];
+import { useLanguage } from '@/components/LanguageProvider';
 
 interface OnboardingModalProps {
     onComplete: (name: string) => void;
 }
 
 export function OnboardingModal({ onComplete }: OnboardingModalProps) {
-    const [step, setStep]               = useState(1);
-    const [saving, setSaving]           = useState(false);
+    const { t } = useLanguage();
+    const [step, setStep]           = useState(1);
+    const [saving, setSaving]       = useState(false);
 
-    // Form fields
-    const [name, setName]               = useState('');
-    const [dob, setDob]                 = useState('');
-    const [heightFt, setHeightFt]       = useState('');
-    const [heightIn, setHeightIn]       = useState('');
-    const [weightLbs, setWeightLbs]     = useState('');
-    const [goal, setGoal]               = useState('');
+    const [name, setName]           = useState('');
+    const [dob, setDob]             = useState('');
+    const [heightFt, setHeightFt]   = useState('');
+    const [heightIn, setHeightIn]   = useState('');
+    const [weightLbs, setWeightLbs] = useState('');
+    const [goal, setGoal]           = useState('');
 
     const TOTAL_STEPS = 4;
 
@@ -35,7 +29,6 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
         border: '1.5px solid rgba(255,255,255,0.12)',
         color: '#fff',
     };
-
     const focusStyle = {
         borderColor: 'var(--color-gold)',
         boxShadow: '0 0 0 3px rgba(201,168,76,0.15)',
@@ -66,7 +59,6 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                 target_weight: weightLbs ? parseFloat(weightLbs) : null,
             });
 
-            // Log initial body weight if provided
             if (weightKg) {
                 try {
                     const today = new Date().toISOString().slice(0, 10);
@@ -77,7 +69,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
             onComplete(name.trim());
         } catch (e) {
             console.error('Onboarding save failed', e);
-            onComplete(name.trim()); // proceed anyway
+            onComplete(name.trim());
         } finally {
             setSaving(false);
         }
@@ -86,10 +78,17 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
     const canProceed = step === 1
         ? name.trim().length >= 2
         : step === 2
-        ? true   // birthday + height are optional
+        ? true
         : step === 3
-        ? true   // weight is optional
+        ? true
         : !!goal;
+
+    const fitnessGoals = [
+        { id: 'lose_weight',     ...t.onboarding.step4.goals.loseWeight,     emoji: '🔥' },
+        { id: 'build_muscle',    ...t.onboarding.step4.goals.buildMuscle,    emoji: '💪' },
+        { id: 'maintain',        ...t.onboarding.step4.goals.maintain,        emoji: '⚖️' },
+        { id: 'improve_fitness', ...t.onboarding.step4.goals.improveFitness, emoji: '🏃' },
+    ];
 
     const stepContent = () => {
         switch (step) {
@@ -98,14 +97,14 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                     <>
                         <div className="text-6xl mb-4" aria-hidden="true">👋</div>
                         <h2 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-display)' }}>
-                            Welcome!
+                            {t.onboarding.step1.title}
                         </h2>
                         <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                            Let's personalise FitnessTracker for you. First, what should we call you?
+                            {t.onboarding.step1.desc}
                         </p>
                         <input
                             type="text"
-                            placeholder="Your first name"
+                            placeholder={t.onboarding.step1.placeholder}
                             value={name}
                             onChange={e => setName(e.target.value)}
                             autoFocus
@@ -123,14 +122,14 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                     <>
                         <div className="text-6xl mb-4" aria-hidden="true">🎂</div>
                         <h2 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-display)' }}>
-                            Birthday &amp; Height
+                            {t.onboarding.step2.title}
                         </h2>
                         <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                            This helps calibrate your AI coach. Both are optional.
+                            {t.onboarding.step2.desc}
                         </p>
 
                         <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                            Date of Birth
+                            {t.onboarding.step2.dob}
                         </label>
                         <input
                             type="date"
@@ -143,7 +142,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                         />
 
                         <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                            Height
+                            {t.onboarding.step2.height}
                         </label>
                         <div className="flex gap-3">
                             <div className="relative flex-1">
@@ -182,10 +181,10 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                     <>
                         <div className="text-6xl mb-4" aria-hidden="true">⚖️</div>
                         <h2 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-display)' }}>
-                            Current Weight
+                            {t.onboarding.step3.title}
                         </h2>
                         <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                            We'll log this as your starting point. You can skip this.
+                            {t.onboarding.step3.desc}
                         </p>
                         <div className="relative">
                             <input
@@ -208,13 +207,13 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                     <>
                         <div className="text-6xl mb-4" aria-hidden="true">🎯</div>
                         <h2 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-display)' }}>
-                            What&apos;s your goal?
+                            {t.onboarding.step4.title}
                         </h2>
                         <p className="text-sm mb-6" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                            This shapes your AI coaching and recommendations.
+                            {t.onboarding.step4.desc}
                         </p>
                         <div className="grid grid-cols-2 gap-3">
-                            {FITNESS_GOALS.map(g => (
+                            {fitnessGoals.map(g => (
                                 <button
                                     key={g.id}
                                     onClick={() => setGoal(g.id)}
@@ -245,7 +244,6 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                 className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl"
                 style={{ background: 'var(--color-navy)' }}
             >
-                {/* Progress bar */}
                 <div className="h-1 w-full" style={{ background: 'rgba(255,255,255,0.08)' }}>
                     <div
                         className="h-full transition-all duration-500"
@@ -254,10 +252,9 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                 </div>
 
                 <div className="p-8">
-                    {/* Step indicator */}
                     <div className="flex items-center justify-between mb-8">
                         <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(201,168,76,0.6)' }}>
-                            Step {step} of {TOTAL_STEPS}
+                            {t.onboarding.stepOf(step, TOTAL_STEPS)}
                         </span>
                         <div className="flex gap-1.5">
                             {Array.from({ length: TOTAL_STEPS }, (_, i) => (
@@ -274,10 +271,8 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                         </div>
                     </div>
 
-                    {/* Step content */}
                     {stepContent()}
 
-                    {/* Buttons */}
                     <div className="flex gap-3 mt-8">
                         {step > 1 && (
                             <button
@@ -285,7 +280,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                                 className="flex-1 py-4 rounded-2xl font-bold text-sm transition-all"
                                 style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)' }}
                             >
-                                Back
+                                {t.onboarding.back}
                             </button>
                         )}
                         <button
@@ -301,23 +296,22 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                             style={{ background: 'var(--color-gold)', color: 'var(--color-navy)' }}
                         >
                             {saving ? (
-                                <span>Saving…</span>
+                                <span>{t.onboarding.saving}</span>
                             ) : step < TOTAL_STEPS ? (
-                                <><span>Continue</span><ChevronRight className="w-5 h-5" /></>
+                                <><span>{t.onboarding.continue}</span><ChevronRight className="w-5 h-5" /></>
                             ) : (
-                                <><CheckCircle className="w-5 h-5" /><span>Let&apos;s Go!</span></>
+                                <><CheckCircle className="w-5 h-5" /><span>{t.onboarding.letsGo}</span></>
                             )}
                         </button>
                     </div>
 
-                    {/* Skip for optional steps */}
                     {(step === 2 || step === 3) && (
                         <button
                             onClick={() => setStep(s => s + 1)}
                             className="w-full mt-3 text-sm font-medium"
                             style={{ color: 'rgba(255,255,255,0.35)' }}
                         >
-                            Skip for now
+                            {t.onboarding.skip}
                         </button>
                     )}
                 </div>

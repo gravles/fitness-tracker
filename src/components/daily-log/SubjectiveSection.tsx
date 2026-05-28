@@ -1,6 +1,7 @@
 'use client';
 
 import { Brain, Moon, Zap, Activity, AlertCircle } from 'lucide-react';
+import { useLanguage } from '@/components/LanguageProvider';
 
 interface SubjectiveSectionProps {
     subjective: {
@@ -14,31 +15,32 @@ interface SubjectiveSectionProps {
 }
 
 export function SubjectiveSection({ subjective, setSubjective }: SubjectiveSectionProps) {
+    const { t } = useLanguage();
 
     const metrics = [
         {
-            label: 'Sleep Quality',
+            label: t.subjective.metrics.sleep,
             icon: <Moon className="w-4 h-4" />,
             key: 'sleep',
-            emojis: ['😴', '😐', '🙂', '😊', '🌟']
+            emojis: ['😴', '😐', '🙂', '😊', '🌟'],
         },
         {
-            label: 'Energy',
+            label: t.subjective.metrics.energy,
             icon: <Zap className="w-4 h-4" />,
             key: 'energy',
-            emojis: ['🔋', '😑', '🙂', '😃', '⚡']
+            emojis: ['🔋', '😑', '🙂', '😃', '⚡'],
         },
         {
-            label: 'Motivation',
+            label: t.subjective.metrics.motivation,
             icon: <Activity className="w-4 h-4" />,
             key: 'motivation',
-            emojis: ['😩', '😕', '🙂', '💪', '🔥']
+            emojis: ['😩', '😕', '🙂', '💪', '🔥'],
         },
         {
-            label: 'Stress',
+            label: t.subjective.metrics.stress,
             icon: <AlertCircle className="w-4 h-4" />,
             key: 'stress',
-            emojis: ['😌', '🙂', '😐', '😟', '😤']
+            emojis: ['😌', '🙂', '😐', '😟', '😤'],
         },
     ];
 
@@ -49,7 +51,7 @@ export function SubjectiveSection({ subjective, setSubjective }: SubjectiveSecti
     return (
         <section className="bg-[var(--color-surface-elevated)] p-6 rounded-2xl border border-[var(--color-border-light)] shadow-sm">
             <h3 className="text-lg font-bold mb-5 flex items-center gap-2 text-[var(--color-text)]">
-                <Brain className="w-5 h-5" style={{ color: 'var(--color-primary)' }} /> How did you feel?
+                <Brain className="w-5 h-5" style={{ color: 'var(--color-primary)' }} /> {t.subjective.title}
             </h3>
 
             <div className="space-y-6">
@@ -89,11 +91,11 @@ export function SubjectiveSection({ subjective, setSubjective }: SubjectiveSecti
                 })}
 
                 <div>
-                    <label className="text-sm font-medium text-[var(--color-text-muted)] mb-2 block">Daily Notes</label>
+                    <label className="text-sm font-medium text-[var(--color-text-muted)] mb-2 block">{t.subjective.dailyNotes}</label>
                     <textarea
                         value={subjective.note}
                         onChange={(e) => setSubjective({ ...subjective, note: e.target.value })}
-                        placeholder="What went well? What didn't?"
+                        placeholder={t.subjective.notesPlaceholder}
                         className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] rounded-xl border border-[var(--color-border-light)] outline-none h-24 resize-none placeholder:text-[var(--color-text-muted)]"
                         onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; }}
                         onBlur={e => { e.target.style.borderColor = ''; }}

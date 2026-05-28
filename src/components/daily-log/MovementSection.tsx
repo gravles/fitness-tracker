@@ -6,6 +6,7 @@ import { Loader2, Plus, Dumbbell, Clock, Trash2, Sparkles, Pencil, ChevronDown, 
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/components/LanguageProvider';
 
 interface MovementSectionProps {
     movementCompleted: boolean | null;
@@ -28,23 +29,24 @@ export function MovementSection({
     onOpenAiCoach,
     onAddWorkoutStart,
     addingWorkout,
-    onDeleteWorkoutStart // Pass callback to notify parent if needed, effectively just state update wrappers in parent
+    onDeleteWorkoutStart,
 }: MovementSectionProps) {
-
     const router = useRouter();
-    const [newWorkout, setNewWorkout] = useState<{ activity_type: string, duration: number, intensity: 'Moderate' | 'Light' | 'Hard' }>({ activity_type: '', duration: 30, intensity: 'Moderate' });
+    const { t } = useLanguage();
+
+    const [newWorkout, setNewWorkout] = useState<{ activity_type: string; duration: number; intensity: 'Moderate' | 'Light' | 'Hard' }>({ activity_type: '', duration: 30, intensity: 'Moderate' });
     const [localAdding, setLocalAdding] = useState(false);
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editForm, setEditForm] = useState<{ activity_type: string, duration: number, intensity: 'Moderate' | 'Light' | 'Hard' }>({ activity_type: '', duration: 30, intensity: 'Moderate' });
+    const [editForm, setEditForm] = useState<{ activity_type: string; duration: number; intensity: 'Moderate' | 'Light' | 'Hard' }>({ activity_type: '', duration: 30, intensity: 'Moderate' });
 
     const workoutPresets = [
-        { emoji: '🏃', label: 'Run', activity: 'Running', duration: 30 },
-        { emoji: '🚴', label: 'Cycle', activity: 'Cycling', duration: 45 },
-        { emoji: '🏋️', label: 'Gym', activity: 'Gym', duration: 60 },
-        { emoji: '🧘', label: 'Yoga', activity: 'Yoga', duration: 30 },
-        { emoji: '🏊', label: 'Swim', activity: 'Swimming', duration: 30 },
-        { emoji: '🚶', label: 'Walk', activity: 'Walking', duration: 30 },
+        { emoji: '🏃', label: t.movement.presets.run,   activity: 'Running',  duration: 30 },
+        { emoji: '🚴', label: t.movement.presets.cycle,  activity: 'Cycling',  duration: 45 },
+        { emoji: '🏋️', label: t.movement.presets.gym,    activity: 'Gym',      duration: 60 },
+        { emoji: '🧘', label: t.movement.presets.yoga,   activity: 'Yoga',     duration: 30 },
+        { emoji: '🏊', label: t.movement.presets.swim,   activity: 'Swimming', duration: 30 },
+        { emoji: '🚶', label: t.movement.presets.walk,   activity: 'Walking',  duration: 30 },
     ];
 
     const totalDuration = workouts.reduce((acc, w) => acc + w.duration, 0);
@@ -52,7 +54,7 @@ export function MovementSection({
     async function handleAddWorkout() {
         if (!newWorkout.activity_type) return;
         setLocalAdding(true);
-        onAddWorkoutStart(); // Notify parent useful for autosave triggers? Parent handles autosave via useEffect on workouts state.
+        onAddWorkoutStart();
 
         try {
             const added = await addWorkout({
@@ -63,7 +65,7 @@ export function MovementSection({
             });
             setWorkouts([...workouts, added]);
             setNewWorkout({ activity_type: '', duration: 30, intensity: 'Moderate' });
-            setShowAddForm(false); // Collapse after adding
+            setShowAddForm(false);
         } catch (error) {
             console.error('Error adding workout', error);
             toast.error('Failed to add workout');
@@ -106,7 +108,7 @@ export function MovementSection({
         setEditForm({
             activity_type: workout.activity_type,
             duration: workout.duration,
-            intensity: workout.intensity as 'Light' | 'Moderate' | 'Hard'
+            intensity: workout.intensity as 'Light' | 'Moderate' | 'Hard',
         });
     }
 
@@ -116,7 +118,7 @@ export function MovementSection({
             await updateWorkout(editingId, {
                 activity_type: editForm.activity_type,
                 duration: editForm.duration,
-                intensity: editForm.intensity
+                intensity: editForm.intensity,
             });
             setWorkouts(workouts.map(w =>
                 w.id === editingId
@@ -133,10 +135,9 @@ export function MovementSection({
     return (
         <section className="bg-[var(--color-surface-elevated)] p-6 rounded-2xl border border-[var(--color-border-light)] shadow-sm">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-[var(--color-text)]">
-                <span className="text-xl">🔥</span> Movement
+                <span className="text-xl">🔥</span> {t.movement.title}
             </h3>
 
-            {/* Did you move? Toggle */}
             <div className="flex gap-3 mb-6">
                 <button
                     onClick={() => setMovementCompleted(true)}
@@ -144,7 +145,7 @@ export function MovementSection({
                         ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary)]/20 scale-[1.02]'
                         : 'bg-transparent border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-primary)]/40 hover:text-[var(--color-text)]'}`}
                 >
-                    Yes, I moved!
+                    {t.movement.yesIMoved}
                 </button>
                 <button
                     onClick={() => setMovementCompleted(false)}
@@ -152,31 +153,29 @@ export function MovementSection({
                         ? 'bg-[var(--color-text)] border-[var(--color-text)] text-[var(--color-bg)] shadow-lg scale-[1.02]'
                         : 'bg-transparent border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-border)] hover:text-[var(--color-text)]'}`}
                 >
-                    Rest Day
+                    {t.movement.restDay}
                 </button>
             </div>
 
             {movementCompleted && (
                 <div className="animate-in fade-in slide-in-from-top-4 space-y-6">
 
-                    {/* List of Today's Workouts */}
                     {workouts.length > 0 && (
                         <div className="space-y-3">
                             {workouts.map(workout => (
                                 <div key={workout.id} className="p-4 bg-[var(--color-bg-subtle)] rounded-xl border border-[var(--color-border-light)]">
                                     {editingId === workout.id ? (
-                                        /* Inline Edit Form */
                                         <div className="space-y-3">
                                             <input
                                                 type="text"
                                                 value={editForm.activity_type}
                                                 onChange={e => setEditForm({ ...editForm, activity_type: e.target.value })}
                                                 className="w-full p-2 bg-[var(--color-surface-elevated)] text-[var(--color-text)] rounded-lg border border-[var(--color-border)] font-medium focus:outline-none focus:border-[var(--color-primary)]"
-                                                placeholder="Activity type"
+                                                placeholder={t.movement.activity}
                                             />
                                             <div className="flex gap-3">
                                                 <div className="flex-1">
-                                                    <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">Duration (min)</label>
+                                                    <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">{t.movement.duration}</label>
                                                     <input
                                                         type="number"
                                                         value={editForm.duration}
@@ -185,15 +184,15 @@ export function MovementSection({
                                                     />
                                                 </div>
                                                 <div className="flex-1">
-                                                    <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">Intensity</label>
+                                                    <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">{t.movement.intensity}</label>
                                                     <select
                                                         value={editForm.intensity}
                                                         onChange={e => setEditForm({ ...editForm, intensity: e.target.value as any })}
                                                         className="w-full p-2 bg-[var(--color-surface-elevated)] text-[var(--color-text)] rounded-lg border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-primary)]"
                                                     >
-                                                        <option>Light</option>
-                                                        <option>Moderate</option>
-                                                        <option>Hard</option>
+                                                        <option value="Light">{t.movement.intensityOptions.light}</option>
+                                                        <option value="Moderate">{t.movement.intensityOptions.moderate}</option>
+                                                        <option value="Hard">{t.movement.intensityOptions.hard}</option>
                                                     </select>
                                                 </div>
                                             </div>
@@ -202,18 +201,17 @@ export function MovementSection({
                                                     onClick={() => setEditingId(null)}
                                                     className="px-3 py-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)] rounded-lg transition-colors flex items-center gap-1"
                                                 >
-                                                    <X className="w-4 h-4" /> Cancel
+                                                    <X className="w-4 h-4" /> {t.common.cancel}
                                                 </button>
                                                 <button
                                                     onClick={handleSaveEdit}
                                                     className="px-3 py-1.5 bg-[var(--color-primary)] text-white rounded-lg transition-colors flex items-center gap-1"
                                                 >
-                                                    <Check className="w-4 h-4" /> Save
+                                                    <Check className="w-4 h-4" /> {t.common.save}
                                                 </button>
                                             </div>
                                         </div>
                                     ) : (
-                                        /* Normal Display */
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 bg-[var(--color-primary)]/10 rounded-full flex items-center justify-center">
@@ -252,14 +250,14 @@ export function MovementSection({
                                                 <button
                                                     onClick={() => router.push(`/workout/active/${workout.id}`)}
                                                     className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-lg transition-colors"
-                                                    title="Edit Sets"
+                                                    title={t.movement.editSets}
                                                 >
                                                     <BarChart2 className="w-4 h-4" />
                                                 </button>
                                                 <button
                                                     onClick={() => handleEditWorkout(workout)}
                                                     className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-lg transition-colors"
-                                                    title="Edit Details"
+                                                    title={t.movement.editDetails}
                                                 >
                                                     <Pencil className="w-4 h-4" />
                                                 </button>
@@ -275,14 +273,13 @@ export function MovementSection({
                                 </div>
                             ))}
                             <div className="text-right text-sm text-[var(--color-text-muted)] font-medium pt-2 border-t border-[var(--color-border-light)]">
-                                Total: <span className="text-[var(--color-primary)] font-bold">{totalDuration} min</span>
+                                {t.movement.total}: <span className="text-[var(--color-primary)] font-bold">{totalDuration} min</span>
                             </div>
                         </div>
                     )}
 
-                    {/* Quick Add Presets */}
                     <div className="space-y-3">
-                        <h4 className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Quick Add</h4>
+                        <h4 className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">{t.movement.quickAdd}</h4>
                         <div className="grid grid-cols-2 xs:grid-cols-3 gap-2">
                             {workoutPresets.map((preset) => (
                                 <div key={preset.label} className="contents">
@@ -299,16 +296,15 @@ export function MovementSection({
                         </div>
                     </div>
 
-                    {/* Custom Workout Actions */}
                     <div className="flex gap-2">
                         <button
                             onClick={() => setShowAddForm(!showAddForm)}
                             className="flex-1 flex items-center justify-center gap-2 p-3 text-sm font-bold text-[var(--color-primary)] bg-[var(--color-primary)]/10 rounded-xl hover:bg-[var(--color-primary)]/15 transition-colors tap-target"
                         >
                             {showAddForm ? (
-                                <>Close Form <ChevronUp className="w-4 h-4" /></>
+                                <>{t.movement.closeForm} <ChevronUp className="w-4 h-4" /></>
                             ) : (
-                                <>Custom Workout <ChevronDown className="w-4 h-4" /></>
+                                <>{t.movement.customWorkout} <ChevronDown className="w-4 h-4" /></>
                             )}
                         </button>
                         <button
@@ -316,17 +312,17 @@ export function MovementSection({
                             className="px-4 text-white rounded-xl font-bold shadow-md active:scale-95 transition-all flex items-center gap-2 tap-target"
                             style={{ background: 'var(--color-navy)' }}
                         >
-                            <Sparkles className="w-4 h-4" /> AI Coach
+                            <Sparkles className="w-4 h-4" /> {t.movement.aiCoach}
                         </button>
                     </div>
 
                     {showAddForm && (
                         <div className="bg-[var(--color-bg-subtle)] rounded-xl border border-[var(--color-border-light)] overflow-hidden p-5 space-y-4 animate-in slide-in-from-top-2">
                             <div>
-                                <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">Activity</label>
+                                <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">{t.movement.activity}</label>
                                 <input
                                     type="text"
-                                    placeholder="e.g. Cycling, Lifting, Yoga"
+                                    placeholder={t.movement.activityPlaceholder}
                                     value={newWorkout.activity_type}
                                     onChange={e => setNewWorkout({ ...newWorkout, activity_type: e.target.value })}
                                     className="w-full mt-1 p-3 bg-[var(--color-surface-elevated)] text-[var(--color-text)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent outline-none transition-all"
@@ -334,7 +330,7 @@ export function MovementSection({
                             </div>
                             <div className="flex gap-4">
                                 <div className="flex-1">
-                                    <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">Mins</label>
+                                    <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">{t.movement.durationShort}</label>
                                     <input
                                         type="number"
                                         value={newWorkout.duration}
@@ -343,15 +339,15 @@ export function MovementSection({
                                     />
                                 </div>
                                 <div className="flex-1">
-                                    <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">Intensity</label>
+                                    <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">{t.movement.intensity}</label>
                                     <select
                                         value={newWorkout.intensity}
                                         onChange={e => setNewWorkout({ ...newWorkout, intensity: e.target.value as any })}
                                         className="w-full mt-1 p-3 bg-[var(--color-surface-elevated)] text-[var(--color-text)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
                                     >
-                                        <option>Light</option>
-                                        <option>Moderate</option>
-                                        <option>Hard</option>
+                                        <option value="Light">{t.movement.intensityOptions.light}</option>
+                                        <option value="Moderate">{t.movement.intensityOptions.moderate}</option>
+                                        <option value="Hard">{t.movement.intensityOptions.hard}</option>
                                     </select>
                                 </div>
                             </div>
@@ -360,7 +356,7 @@ export function MovementSection({
                                 disabled={!newWorkout.activity_type || localAdding}
                                 className="w-full py-3 bg-[var(--color-primary)] text-white rounded-xl font-bold shadow-lg shadow-[var(--color-primary)]/20 active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none tap-target"
                             >
-                                {localAdding ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Add Workout'}
+                                {localAdding ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : t.movement.addWorkout}
                             </button>
                         </div>
                     )}
@@ -370,7 +366,7 @@ export function MovementSection({
                             className="w-full py-4 bg-[var(--color-text)] text-[var(--color-bg)] rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
                         >
                             <span>🏋️‍♀️</span>
-                            Open Workout Hub
+                            {t.movement.openWorkoutHub}
                         </button>
                     </div>
                 </div>

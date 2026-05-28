@@ -6,9 +6,11 @@ import { Calendar, Clock, Dumbbell, ChevronRight, Play } from 'lucide-react';
 import { getUpcomingWorkouts, ScheduledWorkout } from '@/lib/schedule-api';
 import { useRouter } from 'next/navigation';
 import { haptics } from '@/lib/haptics';
+import { useLanguage } from '@/components/LanguageProvider';
 
 export function UpcomingWorkouts() {
     const router = useRouter();
+    const { t } = useLanguage();
     const [workouts, setWorkouts] = useState<ScheduledWorkout[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -29,8 +31,8 @@ export function UpcomingWorkouts() {
 
     function formatDate(dateStr: string) {
         const date = new Date(dateStr + 'T00:00:00');
-        if (isToday(date)) return 'Today';
-        if (isTomorrow(date)) return 'Tomorrow';
+        if (isToday(date)) return t.upcoming.today;
+        if (isTomorrow(date)) return t.upcoming.tomorrow;
         return format(date, 'EEE, MMM d');
     }
 
@@ -67,8 +69,8 @@ export function UpcomingWorkouts() {
                             <Calendar className="w-5 h-5 text-[var(--color-primary)]" />
                         </div>
                         <div>
-                            <p className="font-bold text-[var(--color-text)]">Schedule Your Workouts</p>
-                            <p className="text-sm text-[var(--color-text-muted)]">Plan ahead and stay consistent</p>
+                            <p className="font-bold text-[var(--color-text)]">{t.upcoming.schedule}</p>
+                            <p className="text-sm text-[var(--color-text-muted)]">{t.upcoming.scheduleDesc}</p>
                         </div>
                     </div>
                     <ChevronRight className="w-5 h-5 text-[var(--color-text-muted)]" />
@@ -80,12 +82,12 @@ export function UpcomingWorkouts() {
     return (
         <div className="bg-[var(--color-surface-elevated)] rounded-2xl border border-[var(--color-border-light)] shadow-sm overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-light)]">
-                <h3 className="font-bold text-[var(--color-text)]">Upcoming Workouts</h3>
+                <h3 className="font-bold text-[var(--color-text)]">{t.upcoming.title}</h3>
                 <button
                     onClick={() => { haptics.tap(); router.push('/schedule'); }}
                     className="text-sm font-semibold text-[var(--color-primary)] hover:opacity-80 transition-opacity"
                 >
-                    View All
+                    {t.upcoming.viewAll}
                 </button>
             </div>
 
@@ -117,7 +119,7 @@ export function UpcomingWorkouts() {
                                 style={{ background: 'var(--color-primary)' }}
                             >
                                 <Play className="w-3 h-3" />
-                                Start
+                                {t.upcoming.start}
                             </button>
                         )}
                     </div>
