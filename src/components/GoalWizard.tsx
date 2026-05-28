@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { createGoal, GoalType, UserGoal } from '@/lib/features';
 import { haptics } from '@/lib/haptics';
 import { Confetti } from './Confetti';
+import { useLanguage } from '@/components/LanguageProvider';
 
 interface GoalWizardProps {
     isOpen: boolean;
@@ -24,6 +25,7 @@ const GOAL_OPTIONS: { type: GoalType; title: string; description: string; icon: 
 ];
 
 export function GoalWizard({ isOpen, onClose, onComplete, currentWeight, currentBodyFat }: GoalWizardProps) {
+    const { lang } = useLanguage();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [showConfetti, setShowConfetti] = useState(false);
@@ -47,7 +49,7 @@ export function GoalWizard({ isOpen, onClose, onComplete, currentWeight, current
                 const response = await fetch('/api/ai/generate-goals', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ goalType, currentWeight, currentBodyFat, targetValue, targetDate }),
+                    body: JSON.stringify({ goalType, currentWeight, currentBodyFat, targetValue, targetDate, lang }),
                 });
                 const data = await response.json();
                 setAiRecommendations(data.recommendations);

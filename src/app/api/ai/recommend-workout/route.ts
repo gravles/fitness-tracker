@@ -9,6 +9,12 @@ const supabase = createClient(
 
 export async function POST(req: NextRequest) {
     try {
+        let lang: string | undefined;
+        try {
+            const body = await req.clone().json();
+            lang = body?.lang;
+        } catch { /* body may be empty */ }
+
         // Get user from auth header or cookie
         const authHeader = req.headers.get('authorization');
         let userId: string | null = null;
@@ -60,7 +66,8 @@ export async function POST(req: NextRequest) {
 3. Explain briefly why this workout would be good for me
 
 Focus on variety - suggest workouts that are different from what I've been doing recently.`,
-            context
+            context,
+            lang
         );
 
         // Parse the response to extract structured recommendations

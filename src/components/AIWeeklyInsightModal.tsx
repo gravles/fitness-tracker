@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { toast } from 'sonner';
 import { Brain, X, TrendingUp, AlertTriangle, Wine, Dumbbell, Utensils, CheckCircle2, RefreshCw } from "lucide-react";
 import { WeeklyInsight } from "@/lib/ai";
+import { useLanguage } from '@/components/LanguageProvider';
 
 interface AIWeeklyInsightModalProps {
     isOpen: boolean;
@@ -12,6 +13,7 @@ interface AIWeeklyInsightModalProps {
 }
 
 export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightModalProps) {
+    const { lang } = useLanguage();
     const [loading, setLoading] = useState(false);
     const [insight, setInsight] = useState<WeeklyInsight | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightM
             const res = await fetch('/api/ai/weekly-insights', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ logs }),
+                body: JSON.stringify({ logs, lang }),
                 signal: controller.signal,
             });
 

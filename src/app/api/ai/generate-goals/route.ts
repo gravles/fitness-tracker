@@ -5,7 +5,7 @@ const anthropic = new Anthropic();
 
 export async function POST(request: NextRequest) {
     try {
-        const { goalType, currentWeight, currentBodyFat, targetValue, targetDate } = await request.json();
+        const { goalType, currentWeight, currentBodyFat, targetValue, targetDate, lang } = await request.json();
 
         const weeksUntilTarget = Math.max(1, Math.ceil(
             (new Date(targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 7)
@@ -35,7 +35,7 @@ Consider:
 - Protein should be 0.8-1g per pound of body weight for muscle building
 - Be realistic and sustainable
 
-Return ONLY valid JSON, no markdown or explanation.`;
+Return ONLY valid JSON, no markdown or explanation.${lang && lang !== 'en' ? `\n\nIMPORTANT: The "advice" field must be written in ${lang === 'fr' ? 'French (français)' : lang}. All other fields are numeric and must remain unchanged.` : ''}`;
 
         const response = await anthropic.messages.create({
             model: 'claude-haiku-4-5',

@@ -4,6 +4,12 @@ const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+function langInstruction(lang?: string): string {
+    if (!lang || lang === 'en') return '';
+    if (lang === 'fr') return '\n\nIMPORTANT: All human-readable text in your response must be written in French (français). Numeric values and JSON keys must remain unchanged.';
+    return `\n\nIMPORTANT: All human-readable text in your response must be written in ${lang}. Numeric values and JSON keys must remain unchanged.`;
+}
+
 function stripFences(raw: string): string {
     return raw?.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim() ?? '';
 }
@@ -246,7 +252,7 @@ export interface WorkoutChatState {
     };
 }
 
-export async function chatWithTrainer(state: WorkoutChatState, newUserInput: string): Promise<WorkoutChatState> {
+export async function chatWithTrainer(state: WorkoutChatState, newUserInput: string, lang?: string): Promise<WorkoutChatState> {
     if (!process.env.ANTHROPIC_API_KEY) {
         return {
             history: [...state.history, { role: 'user', content: newUserInput }, { role: 'assistant', content: "[DEV] I'm in mock mode because no API key is set. I'll just log a generic run." }],
@@ -267,7 +273,7 @@ Your goal is to help the user log a workout by extracting: Activity Type, Durati
 2. Estimation: Once you have the core details, ESTIMATE the calories burned and primary muscle groups worked based on the activity and average user stats.
 3. Final Output: When you have all 3 core fields (activity, duration, intensity), set status to "completed" and output the final JSON.
 
-Current known data: ${JSON.stringify(state.workoutData || {})}
+Current known data: ${JSON.stringify(state.workoutData || {})}${langInstruction(lang)}
 
 Return ONLY valid JSON, no markdown:
 {
@@ -312,7 +318,7 @@ export interface WeeklyInsight {
     workout_tip: string;
 }
 
-export async function generateWeeklyInsights(logs: any[]): Promise<WeeklyInsight> {
+export async function generateWeeklyInsights(logs: any[], lang?: string): Promise<WeeklyInsight> {
     if (!process.env.ANTHROPIC_API_KEY) {
         return new Promise(resolve => setTimeout(() => resolve({
             summary: "You had a solid week of consistency! Your protein intake is improving.",
@@ -339,7 +345,7 @@ Your analysis MUST include:
 5. Tips: One actionable tip for nutrition and one for workouts.
 
 Return ONLY a valid JSON object, no markdown, no code fences, no explanation text:
-{"summary":"...","wins":["...","..."],"improvements":["...","..."],"alcohol_analysis":"...","nutrition_tip":"...","workout_tip":"..."}`,
+{"summary":"...","wins":["...","..."],"improvements":["...","..."],"alcohol_analysis":"...","nutrition_tip":"...","workout_tip":"..."}${langInstruction(lang)}`,
         messages: [
             { role: "user", content: JSON.stringify(logs) },
         ],
@@ -369,7 +375,7 @@ export interface CoachContext {
     templates: any[];
 }
 
-export async function chatWithCoach(history: any[], newMessage: string, context: CoachContext) {
+export async function chatWithCoach(history: any[], newMessage: string, context: CoachContext, lang?: string) {
     if (!process.env.ANTHROPIC_API_KEY) {
         return {
             role: 'assistant',
@@ -422,7 +428,7 @@ You MUST return a JSON object with this EXACT structure:
 }
 
 The "suggested_workout" field is OPTIONAL — only include it if proposing or saving a workout.
-`;
+${langInstruction(lang)}`;
 
     const response = await anthropic.messages.create({
         model: "claude-sonnet-4-6",

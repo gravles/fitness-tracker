@@ -6,7 +6,7 @@ import { subDays, format } from 'date-fns';
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { messages, context } = body;
+        const { messages, context, lang } = body;
 
         // 2. Call AI with provided context
         // Ensure context exists to avoid crashes
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
         const lastUserMessage = messages[messages.length - 1].content;
         const history = messages.slice(0, -1);
 
-        const reply = await chatWithCoach(history, lastUserMessage, safeContext);
+        const reply = await chatWithCoach(history, lastUserMessage, safeContext, lang);
 
         return NextResponse.json(reply);
 

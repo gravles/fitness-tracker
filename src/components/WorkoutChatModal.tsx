@@ -5,6 +5,7 @@ import { Mic, MicOff, Send, X, Dumbbell, Sparkles, Loader2 } from 'lucide-react'
 import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import { WorkoutChatState } from '@/lib/ai';
+import { useLanguage } from '@/components/LanguageProvider';
 
 interface WorkoutChatModalProps {
     isOpen: boolean;
@@ -14,6 +15,7 @@ interface WorkoutChatModalProps {
 }
 
 export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: WorkoutChatModalProps) {
+    const { lang } = useLanguage();
     const [messages, setMessages] = useState<{ role: string, content: string }[]>([]);
     const [input, setInput] = useState('');
     const [isListening, setIsListening] = useState(false);
@@ -80,7 +82,7 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
             const res = await fetch('/api/ai/workout-chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ state: chatState, message: text })
+                body: JSON.stringify({ state: chatState, message: text, lang })
             });
             const newState: WorkoutChatState = await res.json();
             setChatState(newState);

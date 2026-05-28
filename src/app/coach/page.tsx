@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { getMonthlyLogs, getSettings, getWorkoutsRange, getCoachMessages, saveCoachMessage, clearCoachMessages } from '@/lib/api';
 import { getTemplates, createTemplate } from '@/lib/workout-api';
 import { subDays, format } from 'date-fns';
+import { useLanguage } from '@/components/LanguageProvider';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -17,6 +18,7 @@ interface Message {
 }
 
 export default function CoachPage() {
+    const { lang } = useLanguage();
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -93,7 +95,7 @@ export default function CoachPage() {
             const res = await fetch('/api/ai/coach', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messages: [...messages, newMsg], context })
+                body: JSON.stringify({ messages: [...messages, newMsg], context, lang })
             });
 
             const data = await res.json();

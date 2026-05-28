@@ -8,7 +8,7 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { logs } = body;
+        const { logs, lang } = body;
 
         if (!logs || !Array.isArray(logs)) {
             return NextResponse.json({ error: "Invalid logs data" }, { status: 400 });
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "No log data available for analysis" }, { status: 400 });
         }
 
-        const insights = await generateWeeklyInsights(recentLogs);
+        const insights = await generateWeeklyInsights(recentLogs, lang);
         return NextResponse.json(insights);
 
     } catch (error: any) {

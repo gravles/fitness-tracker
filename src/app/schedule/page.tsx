@@ -17,6 +17,7 @@ import { ScheduleWorkoutModal } from '@/components/ScheduleWorkoutModal';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { haptics } from '@/lib/haptics';
+import { useLanguage } from '@/components/LanguageProvider';
 
 type Tab = 'schedule' | 'templates' | 'discover' | 'programs';
 type WorkoutCategoryFilter = WorkoutCategory | 'all';
@@ -45,6 +46,7 @@ interface ExerciseItem { name: string; sets: number; reps: string; }
 interface AIRecommendation { title: string; exercises: { name: string; sets: number; reps: string }[]; reason: string; }
 
 export default function WorkoutHubPage() {
+    const { lang } = useLanguage();
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<Tab>('schedule');
     const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
@@ -136,7 +138,7 @@ export default function WorkoutHubPage() {
     async function loadAIRecommendations() {
         setAiLoading(true); setAiError(null);
         try {
-            const res = await fetch('/api/ai/recommend-workout', { method: 'POST' });
+            const res = await fetch('/api/ai/recommend-workout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lang }) });
             if (!res.ok) throw new Error('Failed to get recommendations');
             const data = await res.json();
             setAiRecommendations(data.recommendations || []);
