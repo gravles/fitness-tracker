@@ -1,6 +1,7 @@
 'use client';
 
 import { Plus, Minus } from 'lucide-react';
+import { useLanguage } from '@/components/LanguageProvider';
 
 interface AlcoholSectionProps {
     alcohol: number;
@@ -8,13 +9,15 @@ interface AlcoholSectionProps {
 }
 
 export function AlcoholSection({ alcohol, setAlcohol }: AlcoholSectionProps) {
+    const { t } = useLanguage();
+
     return (
         <section className="bg-[var(--color-surface-elevated)] p-6 rounded-2xl border border-[var(--color-border-light)] shadow-sm">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-[var(--color-text)]">
-                <span className="text-xl">🍺</span> Alcohol
+                <span className="text-xl">🍺</span> {t.alcohol.title}
             </h3>
             <div className="flex items-center justify-between">
-                <span className="text-[var(--color-text-muted)] font-medium">Standard Drinks</span>
+                <span className="text-[var(--color-text-muted)] font-medium">{t.alcohol.standardDrinks}</span>
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => setAlcohol(Math.max(0, alcohol - 1))}

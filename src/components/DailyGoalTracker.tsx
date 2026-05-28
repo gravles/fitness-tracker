@@ -3,37 +3,35 @@
 import Link from 'next/link';
 import { CheckCircle2, Circle, AlertCircle, Zap } from 'lucide-react';
 import { DailyLog, UserSettings } from '@/lib/api';
+import { useLanguage } from '@/components/LanguageProvider';
 
 interface Props {
   todayLog: DailyLog | null;
   settings: UserSettings | null;
 }
 
-function getTimeNudge(todayLog: DailyLog | null): { message: string; urgent: boolean } {
+function getNudgeKey(todayLog: DailyLog | null): { key: keyof ReturnType<typeof useLanguage>['t']['goalTracker']['nudges']; urgent: boolean } {
   const hour = new Date().getHours();
   const hasLogged = !!(todayLog?.nutrition_logged || todayLog?.protein_grams);
   const hasMovement = !!(todayLog?.movement_completed);
 
-  if (hour < 9) {
-    return { message: "Morning! Log your weight and plan your meals for today.", urgent: false };
-  }
+  if (hour < 9) return { key: 'earlyMorning', urgent: false };
   if (hour < 12) {
-    if (!hasLogged) return { message: "Log breakfast now while it's fresh.", urgent: false };
-    return { message: "Good start — keep logging meals as you go.", urgent: false };
+    if (!hasLogged) return { key: 'morningNotLogged', urgent: false };
+    return { key: 'morningLogged', urgent: false };
   }
   if (hour < 15) {
-    if (!hasLogged) return { message: "It's noon — you haven't logged yet today. Don't let the day slip.", urgent: true };
-    return { message: "Midday check-in. Log lunch if you haven't.", urgent: false };
+    if (!hasLogged) return { key: 'noonNotLogged', urgent: true };
+    return { key: 'noonLogged', urgent: false };
   }
   if (hour < 19) {
-    if (!hasLogged) return { message: "Afternoon and no logs yet — quick, log your meals before you forget.", urgent: true };
-    if (!hasMovement) return { message: "Good on nutrition. Still time to get movement in today.", urgent: false };
-    return { message: "You're on track — keep it up through dinner.", urgent: false };
+    if (!hasLogged) return { key: 'afternoonNotLogged', urgent: true };
+    if (!hasMovement) return { key: 'afternoonNoMovement', urgent: false };
+    return { key: 'afternoonOnTrack', urgent: false };
   }
-  // Evening
-  if (!hasLogged) return { message: "Evening — streak at risk. Log today before midnight.", urgent: true };
-  if (!hasMovement) return { message: "Almost done. Log your activity if you moved today.", urgent: false };
-  return { message: "Strong day. Log dinner and wrap up.", urgent: false };
+  if (!hasLogged) return { key: 'eveningNotLogged', urgent: true };
+  if (!hasMovement) return { key: 'eveningNoMovement', urgent: false };
+  return { key: 'eveningGood', urgent: false };
 }
 
 interface GoalBarProps {
@@ -86,7 +84,8 @@ function CheckItem({ done, label }: CheckItemProps) {
 }
 
 export function DailyGoalTracker({ todayLog, settings }: Props) {
-  const nudge = getTimeNudge(todayLog);
+  const { t } = useLanguage();
+  const nudge = getNudgeKey(todayLog);
 
   const protein = todayLog?.protein_grams ?? 0;
   const calories = todayLog?.calories ?? 0;
@@ -101,36 +100,33 @@ export function DailyGoalTracker({ todayLog, settings }: Props) {
   return (
     <section aria-label="Today's goal tracker">
       <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-light)] rounded-2xl p-5 space-y-4 shadow-sm">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-yellow-500" />
-            <h3 className="font-bold text-sm text-[var(--color-text)] uppercase tracking-wide">On Track Today?</h3>
+            <h3 className="font-bold text-sm text-[var(--color-text)] uppercase tracking-wide">{t.goalTracker.title}</h3>
           </div>
           <Link
             href="/log"
             className="text-xs font-semibold text-[var(--color-primary)] hover:underline"
           >
-            Log now →
+            {t.goalTracker.logNow}
           </Link>
         </div>
 
-        {/* Time-aware nudge */}
         <div className={`flex items-start gap-2 text-sm rounded-xl px-3 py-2.5 ${
           nudge.urgent
             ? 'bg-orange-500/10 text-orange-700 dark:text-orange-400'
             : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)]'
         }`}>
           {nudge.urgent && <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />}
-          <span>{nudge.message}</span>
+          <span>{t.goalTracker.nudges[nudge.key]}</span>
         </div>
 
-        {/* Progress bars (only when targets are set) */}
         {hasBars && (
           <div className="space-y-3">
             {targetProtein > 0 && (
               <GoalBar
-                label="Protein"
+                label={t.nutrition.protein}
                 current={protein}
                 target={targetProtein}
                 unit="g"
@@ -139,7 +135,7 @@ export function DailyGoalTracker({ todayLog, settings }: Props) {
             )}
             {targetCalories > 0 && (
               <GoalBar
-                label="Calories"
+                label={t.nutrition.calories}
                 current={calories}
                 target={targetCalories}
                 unit=" kcal"
@@ -149,11 +145,10 @@ export function DailyGoalTracker({ todayLog, settings }: Props) {
           </div>
         )}
 
-        {/* Checklist */}
         <div className="space-y-2 pt-1 border-t border-[var(--color-border-light)]">
-          <CheckItem done={hasNutrition} label="Nutrition logged" />
-          <CheckItem done={hasMovement} label="Movement logged" />
-          <CheckItem done={hasWellness} label="Wellness check-in" />
+          <CheckItem done={hasNutrition} label={t.goalTracker.checklist.nutrition} />
+          <CheckItem done={hasMovement} label={t.goalTracker.checklist.movement} />
+          <CheckItem done={hasWellness} label={t.goalTracker.checklist.wellness} />
         </div>
       </div>
     </section>

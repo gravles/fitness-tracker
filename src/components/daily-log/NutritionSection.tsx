@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { useState } from 'react';
 import { addFavoriteFood, deleteFavoriteFood, getFavoriteFoods, FavoriteFood } from '@/lib/api';
 import { confirm } from '@/components/ConfirmDialog';
+import { useLanguage } from '@/components/LanguageProvider';
 
 interface NutritionSectionProps {
     nutrition: {
@@ -48,6 +49,7 @@ interface MacroRingProps {
 }
 
 function MacroRing({ value, target, label, color, trackColor, unit }: MacroRingProps) {
+    const { t } = useLanguage();
     const r = 36;
     const circ = 2 * Math.PI * r;
     const pct = target > 0 ? Math.min(1, value / target) : 0;
@@ -78,10 +80,10 @@ function MacroRing({ value, target, label, color, trackColor, unit }: MacroRingP
             <p className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">{label}</p>
             {target > 0 ? (
                 <p className={`text-[11px] font-semibold ${over ? 'text-orange-500' : 'text-[var(--color-text-muted)]'}`}>
-                    {over ? `${value - target} over` : `${remaining} left`}
+                    {over ? `${value - target} ${t.nutrition.over}` : `${remaining} ${t.nutrition.left}`}
                 </p>
             ) : (
-                <p className="text-[11px] text-[var(--color-text-muted)] opacity-60">no target set</p>
+                <p className="text-[11px] text-[var(--color-text-muted)] opacity-60">{t.nutrition.noTarget}</p>
             )}
         </div>
     );
@@ -107,6 +109,7 @@ export function NutritionSection({
     setFavorites,
     targets
 }: NutritionSectionProps) {
+    const { t } = useLanguage();
     const [loadingAI, setLoadingAI] = useState(false);
     const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
     const [voiceListening, setVoiceListening] = useState(false);
@@ -206,7 +209,7 @@ export function NutritionSection({
                 <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-[var(--color-surface-elevated)] rounded-3xl w-full max-w-sm shadow-2xl p-6 animate-in zoom-in-95">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-bold text-[var(--color-text)]">Edit Food Item</h3>
+                            <h3 className="text-lg font-bold text-[var(--color-text)]">{t.nutrition.editFoodItem}</h3>
                             <button onClick={() => setEditingIndex(null)} className="p-2 hover:bg-[var(--color-bg-subtle)] rounded-full">
                                 <X className="w-5 h-5 text-[var(--color-text-muted)]" />
                             </button>
@@ -214,7 +217,7 @@ export function NutritionSection({
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase mb-1">Name</label>
+                                <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase mb-1">{t.nutrition.name}</label>
                                 <input
                                     type="text"
                                     value={editForm.name}
@@ -227,7 +230,7 @@ export function NutritionSection({
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase mb-1">Portion Unit</label>
+                                    <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase mb-1">{t.nutrition.portionUnit}</label>
                                     <input
                                         type="text"
                                         value={editForm.portion_estimate || ''}
@@ -239,7 +242,7 @@ export function NutritionSection({
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase mb-1">Quantity</label>
+                                    <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase mb-1">{t.nutrition.quantity}</label>
                                     <input
                                         type="number"
                                         step="0.1"
@@ -254,7 +257,7 @@ export function NutritionSection({
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: '#f97316' }}>Calories (per unit)</label>
+                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: '#f97316' }}>{t.nutrition.calPerUnit}</label>
                                     <input
                                         type="number"
                                         value={editForm.calories}
@@ -263,7 +266,7 @@ export function NutritionSection({
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: '#3b82f6' }}>Protein (g)</label>
+                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: '#3b82f6' }}>{t.nutrition.proteinG}</label>
                                     <input
                                         type="number"
                                         value={editForm.protein}
@@ -272,7 +275,7 @@ export function NutritionSection({
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: 'var(--color-warning)' }}>Carbs (g)</label>
+                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: 'var(--color-warning)' }}>{t.nutrition.carbsG}</label>
                                     <input
                                         type="number"
                                         value={editForm.carbs}
@@ -281,7 +284,7 @@ export function NutritionSection({
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: '#a855f7' }}>Fat (g)</label>
+                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: '#a855f7' }}>{t.nutrition.fatG}</label>
                                     <input
                                         type="number"
                                         value={editForm.fat}
@@ -296,7 +299,7 @@ export function NutritionSection({
                                 className="w-full py-4 text-white rounded-xl font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-lg mt-2"
                                 style={{ background: 'var(--color-navy)' }}
                             >
-                                Save Changes
+                                {t.nutrition.saveChanges}
                             </button>
                         </div>
                     </div>
@@ -306,7 +309,7 @@ export function NutritionSection({
             <section className="bg-[var(--color-surface-elevated)] p-6 rounded-2xl border border-[var(--color-border-light)] shadow-sm relative overflow-hidden">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-bold flex items-center gap-2 text-[var(--color-text)]">
-                        <span className="text-xl">🥗</span> Nutrition
+                        <span className="text-xl">🥗</span> {t.nutrition.title}
                     </h3>
                 </div>
 
@@ -324,12 +327,12 @@ export function NutritionSection({
                                     <div className="w-3 h-3 rounded-full bg-red-500 animate-ping absolute" />
                                     <div className="w-3 h-3 rounded-full bg-red-500 relative" />
                                 </div>
-                                <span className="text-sm font-bold text-red-500">Listening… speak now</span>
+                                <span className="text-sm font-bold text-red-500">{t.nutrition.listening}</span>
                             </>
                         ) : (
                             <>
                                 <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" style={{ color: 'var(--color-primary)' }} />
-                                <span className="text-sm font-bold" style={{ color: 'var(--color-primary)' }}>Processing your voice…</span>
+                                <span className="text-sm font-bold" style={{ color: 'var(--color-primary)' }}>{t.nutrition.processing}</span>
                             </>
                         )}
                     </div>
@@ -407,7 +410,7 @@ export function NutritionSection({
                                     isProcessing ? 'text-[var(--color-primary)]' :
                                     'text-[var(--color-text-muted)]'
                                 }`}>
-                                    {isProcessing ? 'Thinking…' : isListening ? 'Listening' : 'Voice'}
+                                    {isProcessing ? '…' : isListening ? t.nutrition.actions.voice : t.nutrition.actions.voice}
                                 </span>
                             </button>
                         )}
@@ -420,7 +423,7 @@ export function NutritionSection({
                         <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'rgba(29,95,168,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(29,95,168,0.2)' }}>
                             <Camera className="w-5 h-5" />
                         </div>
-                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">Camera</span>
+                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">{t.nutrition.actions.camera}</span>
                     </button>
 
                     <button
@@ -430,7 +433,7 @@ export function NutritionSection({
                         <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'rgba(29,95,168,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(29,95,168,0.2)' }}>
                             <Keyboard className="w-5 h-5" />
                         </div>
-                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">Type</span>
+                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">{t.nutrition.actions.type}</span>
                     </button>
 
                     <button
@@ -440,7 +443,7 @@ export function NutritionSection({
                         <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'var(--color-gold-muted)', color: 'var(--color-gold)', borderColor: 'rgba(201,168,76,0.3)' }}>
                             <ChefHat className="w-5 h-5" />
                         </div>
-                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">Scanner</span>
+                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">{t.nutrition.actions.scanner}</span>
                     </button>
 
                     <button
@@ -450,7 +453,7 @@ export function NutritionSection({
                         <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'rgba(236,72,153,0.1)', color: '#ec4899', borderColor: 'rgba(236,72,153,0.2)' }}>
                             <Heart className="w-5 h-5" />
                         </div>
-                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">Favorites</span>
+                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">{t.nutrition.actions.favorites}</span>
                     </button>
 
                     <button
@@ -460,14 +463,14 @@ export function NutritionSection({
                         <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'rgba(29,95,168,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(29,95,168,0.2)' }}>
                             <Barcode className="w-5 h-5" />
                         </div>
-                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">Barcode</span>
+                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">{t.nutrition.actions.barcode}</span>
                     </button>
                 </div>
 
                 {showCamera && (
                     <div className="mb-6 animate-in slide-in-from-top-4">
                         <div className="flex justify-between items-center mb-2">
-                            <h4 className="text-sm font-bold text-[var(--color-text-muted)]">Scan Meal</h4>
+                            <h4 className="text-sm font-bold text-[var(--color-text-muted)]">{t.nutrition.scanMeal}</h4>
                             <button onClick={() => setShowCamera(false)}><X className="w-4 h-4 text-[var(--color-text-muted)]" /></button>
                         </div>
                         <FoodCamera
@@ -522,7 +525,7 @@ export function NutritionSection({
                 {loadingAI && (
                     <div className="absolute inset-0 bg-[var(--color-surface-elevated)]/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center" style={{ color: 'var(--color-primary)' }}>
                         <Brain className="w-8 h-8 animate-pulse mb-2" />
-                        <p className="text-sm font-bold animate-pulse">Analyzing Food...</p>
+                        <p className="text-sm font-bold animate-pulse">{t.nutrition.analyzingFood}</p>
                     </div>
                 )}
 
@@ -565,11 +568,11 @@ export function NutritionSection({
                         <div className="grid grid-cols-2 gap-2">
                             <div className="rounded-xl p-2.5 text-center border" style={{ background: 'rgba(234,179,8,0.1)', borderColor: 'rgba(234,179,8,0.2)' }}>
                                 <p className="text-lg font-black" style={{ color: 'var(--color-warning)' }}>{nutrition.carbs}<span className="text-xs font-medium ml-0.5">g</span></p>
-                                <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--color-warning)' }}>Carbs</p>
+                                <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--color-warning)' }}>{t.nutrition.carbs}</p>
                             </div>
                             <div className="rounded-xl p-2.5 text-center border" style={{ background: 'rgba(168,85,247,0.1)', borderColor: 'rgba(168,85,247,0.2)' }}>
                                 <p className="text-lg font-black" style={{ color: '#a855f7' }}>{nutrition.fat}<span className="text-xs font-medium ml-0.5">g</span></p>
-                                <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: '#a855f7' }}>Fat</p>
+                                <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: '#a855f7' }}>{t.nutrition.fat}</p>
                             </div>
                         </div>
                     </div>
@@ -581,7 +584,7 @@ export function NutritionSection({
                                 <div key={index} className="flex justify-between items-center p-3 bg-[var(--color-bg-subtle)] rounded-lg border border-[var(--color-border-light)] text-sm">
                                     <div className="flex-1">
                                         <span className="font-bold text-[var(--color-text)] block">{item.name}</span>
-                                        {item.portion_estimate && <span className="text-xs text-[var(--color-text-muted)] block mb-0.5">Unit: {item.portion_estimate}</span>}
+                                        {item.portion_estimate && <span className="text-xs text-[var(--color-text-muted)] block mb-0.5">{t.nutrition.unit}: {item.portion_estimate}</span>}
                                         <span className="text-xs text-[var(--color-text-muted)]">
                                             {Math.round(item.calories * (item.quantity || 1))} kcal • {Math.round(item.protein * (item.quantity || 1))}g P • {Math.round(item.carbs * (item.quantity || 1))}g C
                                         </span>
@@ -589,7 +592,7 @@ export function NutritionSection({
 
                                     <div className="flex items-center gap-3">
                                         <div className="flex flex-col items-center">
-                                            <label className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">Qty</label>
+                                            <label className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">{t.nutrition.qty}</label>
                                             <input
                                                 type="number"
                                                 min="0"
@@ -634,7 +637,7 @@ export function NutritionSection({
 
                     {/* Eating Window */}
                     <div>
-                        <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">Eating Window</label>
+                        <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider block mb-1">{t.nutrition.eatingWindow}</label>
                         <div className="flex items-center gap-2">
                             <input
                                 type="time"
@@ -665,10 +668,10 @@ export function NutritionSection({
                 }`}>
                     <div>
                         <h4 className={`font-bold text-sm ${nutrition.logged ? 'text-green-700 dark:text-green-400' : 'text-[var(--color-text)]'}`}>
-                            All food logged for today?
+                            {t.nutrition.allLogged}
                         </h4>
                         <p className={`text-xs mt-0.5 ${nutrition.logged ? 'text-green-600 dark:text-green-500' : 'text-[var(--color-text-muted)]'}`}>
-                            {nutrition.logged ? 'Day marked complete — counts toward your streak.' : 'Toggle on when you\'ve finished logging.'}
+                            {nutrition.logged ? t.nutrition.markedComplete : t.nutrition.toggleWhenDone}
                         </p>
                     </div>
                     <button

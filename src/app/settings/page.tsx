@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { getSettings, updateSettings, getUserBadges, UserBadge, getAccountabilityPartners, addAccountabilityPartner, deleteAccountabilityPartner, AccountabilityPartner, getIntegrations, upsertIntegration, deleteIntegration, Integration } from '@/lib/api';
 import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2, Users, Trash2, Send, X, Link2, RefreshCw, User, Sun, Moon, Monitor, CalendarDays, Copy, Check, Bot } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
+import { useLanguage } from '@/components/LanguageProvider';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { GoalWizard } from '@/components/GoalWizard';
 import { toast } from 'sonner';
@@ -34,6 +35,7 @@ export default function SettingsPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { theme, setTheme } = useTheme();
+    const { t, lang, setLang } = useLanguage();
     const [profile, setProfile] = useState({
         displayName: '',
         dob: '',
@@ -233,7 +235,7 @@ export default function SettingsPage() {
                 className="text-3xl font-bold"
                 style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
             >
-                Settings
+                {t.settings.title}
             </h1>
 
             {/* My Profile */}
@@ -249,7 +251,7 @@ export default function SettingsPage() {
                         className="font-bold text-lg"
                         style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
                     >
-                        My Profile
+                        {t.settings.profile.title}
                     </h2>
                 </div>
 
@@ -257,11 +259,11 @@ export default function SettingsPage() {
                     {/* Display Name */}
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
-                            Display Name
+                            {t.settings.profile.displayName}
                         </label>
                         <input
                             type="text"
-                            placeholder="e.g. Nathan"
+                            placeholder={t.settings.profile.displayNamePlaceholder}
                             value={profile.displayName}
                             onChange={e => setProfile({ ...profile, displayName: e.target.value })}
                             maxLength={40}
@@ -275,7 +277,7 @@ export default function SettingsPage() {
                     {/* Date of Birth */}
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
-                            Date of Birth
+                            {t.settings.profile.dob}
                         </label>
                         <input
                             type="date"
@@ -291,7 +293,7 @@ export default function SettingsPage() {
                     {/* Height */}
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
-                            Height
+                            {t.settings.profile.height}
                         </label>
                         <div className="flex gap-3">
                             <div className="relative flex-1">
@@ -328,14 +330,14 @@ export default function SettingsPage() {
                     {/* Fitness Goal */}
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
-                            Fitness Goal
+                            {t.settings.profile.fitnessGoal}
                         </label>
                         <div className="grid grid-cols-2 gap-2">
                             {[
-                                { id: 'lose_weight',     label: 'Lose Weight',     emoji: '🔥' },
-                                { id: 'build_muscle',    label: 'Build Muscle',    emoji: '💪' },
-                                { id: 'maintain',        label: 'Maintain',        emoji: '⚖️'  },
-                                { id: 'improve_fitness', label: 'Improve Fitness', emoji: '🏃' },
+                                { id: 'lose_weight',     label: t.settings.profile.goals.loseWeight,     emoji: '🔥' },
+                                { id: 'build_muscle',    label: t.settings.profile.goals.buildMuscle,    emoji: '💪' },
+                                { id: 'maintain',        label: t.settings.profile.goals.maintain,        emoji: '⚖️'  },
+                                { id: 'improve_fitness', label: t.settings.profile.goals.improveFitness, emoji: '🏃' },
                             ].map(g => (
                                 <button
                                     key={g.id}
@@ -357,7 +359,7 @@ export default function SettingsPage() {
                     {/* Weight Unit */}
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-text-muted)' }}>
-                            Weight Unit
+                            {t.settings.profile.weightUnit}
                         </label>
                         <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
                             {(['imperial', 'metric'] as const).map(u => (
@@ -389,7 +391,7 @@ export default function SettingsPage() {
                     className="w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
                     style={{ background: 'var(--color-primary)', color: 'white' }}
                 >
-                    {savingProfile ? <Loader2 className="animate-spin w-5 h-5" /> : <><Save className="w-4 h-4" /> Save Profile</>}
+                    {savingProfile ? <Loader2 className="animate-spin w-5 h-5" /> : <><Save className="w-4 h-4" /> {t.settings.profile.saveProfile}</>}
                 </button>
             </section>
 
@@ -409,15 +411,15 @@ export default function SettingsPage() {
                         className="font-bold text-lg"
                         style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
                     >
-                        My Targets
+                        {t.settings.targets.title}
                     </h2>
                 </div>
 
                 <div className="space-y-4">
                     {[
-                        { key: 'weight', label: 'Goal Weight (lbs)', placeholder: 'e.g. 175' },
-                        { key: 'protein', label: 'Daily Protein (g)', placeholder: 'e.g. 180' },
-                        { key: 'calories', label: 'Daily Calories (kcal)', placeholder: 'e.g. 2500' },
+                        { key: 'weight', label: t.settings.targets.goalWeight, placeholder: 'e.g. 175' },
+                        { key: 'protein', label: t.settings.targets.dailyProtein, placeholder: 'e.g. 180' },
+                        { key: 'calories', label: t.settings.targets.dailyCalories, placeholder: 'e.g. 2500' },
                     ].map(({ key, label, placeholder }) => (
                         <div key={key}>
                             <label
@@ -458,19 +460,19 @@ export default function SettingsPage() {
                         className="font-bold text-lg"
                         style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
                     >
-                        Customization
+                        {t.settings.customization.title}
                     </h2>
                 </div>
 
                 {/* Theme toggle */}
                 <div>
-                    <h3 className="font-medium mb-1" style={{ color: 'var(--color-text)' }}>Appearance</h3>
-                    <p className="text-sm mb-3" style={{ color: 'var(--color-text-muted)' }}>Choose light, dark, or follow your device setting.</p>
+                    <h3 className="font-medium mb-1" style={{ color: 'var(--color-text)' }}>{t.settings.customization.appearance}</h3>
+                    <p className="text-sm mb-3" style={{ color: 'var(--color-text-muted)' }}>{t.settings.customization.appearanceDesc}</p>
                     <div className="grid grid-cols-3 gap-2">
                         {([
-                            { value: 'light',  label: 'Light',  Icon: Sun },
-                            { value: 'system', label: 'System', Icon: Monitor },
-                            { value: 'dark',   label: 'Dark',   Icon: Moon },
+                            { value: 'light',  label: t.settings.customization.themeLight,  Icon: Sun },
+                            { value: 'system', label: t.settings.customization.themeSystem, Icon: Monitor },
+                            { value: 'dark',   label: t.settings.customization.themeDark,   Icon: Moon },
                         ] as const).map(({ value, label, Icon }) => (
                             <button
                                 key={value}
@@ -491,17 +493,43 @@ export default function SettingsPage() {
 
                 <NotificationSettings />
 
+                {/* Language Toggle */}
+                <div>
+                    <h3 className="font-medium mb-1" style={{ color: 'var(--color-text)' }}>{t.settings.customization.language}</h3>
+                    <p className="text-sm mb-3" style={{ color: 'var(--color-text-muted)' }}>{t.settings.customization.languageDesc}</p>
+                    <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+                        {([
+                            { value: 'en' as const, label: '🇬🇧 English' },
+                            { value: 'fr' as const, label: '🇫🇷 Français' },
+                        ]).map(({ value, label }) => (
+                            <button
+                                key={value}
+                                type="button"
+                                onClick={() => setLang(value)}
+                                className="flex-1 py-2.5 text-sm font-bold transition-all"
+                                style={
+                                    lang === value
+                                        ? { background: 'var(--color-navy)', color: 'var(--color-gold)' }
+                                        : { background: 'transparent', color: 'var(--color-text-muted)' }
+                                }
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 {/* Streak Type Selector */}
                 <div>
-                    <h3 className="font-medium mb-1" style={{ color: 'var(--color-text)' }}>Streak Counts As</h3>
+                    <h3 className="font-medium mb-1" style={{ color: 'var(--color-text)' }}>{t.settings.customization.streakCountsAs}</h3>
                     <p className="text-sm mb-3" style={{ color: 'var(--color-text-muted)' }}>
-                        What activity keeps your streak alive?
+                        {t.settings.customization.streakDesc}
                     </p>
                     <div className="grid grid-cols-3 gap-2">
                         {([
-                            { value: 'any',       label: 'Anything',  desc: 'Workout or nutrition' },
-                            { value: 'workout',   label: 'Workouts',  desc: 'Movement only' },
-                            { value: 'nutrition', label: 'Nutrition', desc: 'Food logging only' },
+                            { value: 'any',       label: t.settings.customization.streakOptions.any,       desc: t.settings.customization.streakOptions.anyDesc },
+                            { value: 'workout',   label: t.settings.customization.streakOptions.workout,   desc: t.settings.customization.streakOptions.workoutDesc },
+                            { value: 'nutrition', label: t.settings.customization.streakOptions.nutrition, desc: t.settings.customization.streakOptions.nutritionDesc },
                         ] as const).map(opt => (
                             <button
                                 key={opt.value}
@@ -523,9 +551,9 @@ export default function SettingsPage() {
                 {/* Cycle Tracking Toggle */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h3 className="font-medium" style={{ color: 'var(--color-text)' }}>Cycle Tracking</h3>
+                        <h3 className="font-medium" style={{ color: 'var(--color-text)' }}>{t.settings.customization.cycleTracking}</h3>
                         <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                            Show menstrual flow in daily logs
+                            {t.settings.customization.cycleTrackingDesc}
                         </p>
                     </div>
                     <button
@@ -550,9 +578,9 @@ export default function SettingsPage() {
 
                 {/* Habit Manager */}
                 <div>
-                    <h3 className="font-medium mb-1" style={{ color: 'var(--color-text)' }}>My Habits</h3>
+                    <h3 className="font-medium mb-1" style={{ color: 'var(--color-text)' }}>{t.settings.customization.myHabits}</h3>
                     <p className="text-sm mb-4" style={{ color: 'var(--color-text-muted)' }}>
-                        Customize the habits you want to track daily.
+                        {t.settings.customization.myHabitsDesc}
                     </p>
                     <div className="flex flex-wrap gap-2 mb-3">
                         {targets.habits.map(habit => (
@@ -581,7 +609,7 @@ export default function SettingsPage() {
                     <div className="flex gap-2">
                         <input
                             type="text"
-                            placeholder="Add new habit..."
+                            placeholder={t.settings.customization.addHabitPlaceholder}
                             className="flex-1 p-3 rounded-xl outline-none transition-all"
                             style={inputStyle}
                             onFocus={e => {
@@ -621,10 +649,10 @@ export default function SettingsPage() {
                 <div>
                     <div className="flex items-center gap-2 mb-1">
                         <span className="text-lg">🏋️‍♂️</span>
-                        <h3 className="font-medium" style={{ color: 'var(--color-text)' }}>Home Equipment</h3>
+                        <h3 className="font-medium" style={{ color: 'var(--color-text)' }}>{t.settings.customization.homeEquipment}</h3>
                     </div>
                     <p className="text-sm mb-4" style={{ color: 'var(--color-text-muted)' }}>
-                        Select what you have at home for the AI Coach to suggest appropriate workouts.
+                        {t.settings.customization.homeEquipmentDesc}
                     </p>
                     <div className="flex flex-wrap gap-2 mb-3">
                         {targets.equipment.map(item => (
@@ -651,7 +679,7 @@ export default function SettingsPage() {
                     <div className="flex gap-2 mb-3">
                         <input
                             type="text"
-                            placeholder="Add equipment (e.g. Dumbbells, Pull-up Bar)..."
+                            placeholder={t.settings.customization.addEquipmentPlaceholder}
                             className="flex-1 p-3 rounded-xl outline-none transition-all"
                             style={inputStyle}
                             onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; }}
@@ -717,7 +745,7 @@ export default function SettingsPage() {
                     className="w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
                     style={{ background: 'var(--color-navy)', color: 'var(--color-gold)' }}
                 >
-                    {saving ? <Loader2 className="animate-spin w-5 h-5" /> : <><Save className="w-4 h-4" /> Save All Settings</>}
+                    {saving ? <Loader2 className="animate-spin w-5 h-5" /> : <><Save className="w-4 h-4" /> {t.settings.customization.saveAll}</>}
                 </button>
             </section>
 
@@ -728,15 +756,15 @@ export default function SettingsPage() {
                         <Wand2 className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="font-bold" style={{ color: 'var(--color-gold)' }}>Set Goals with AI</p>
-                        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>Answer a few quick questions and get personalised targets</p>
+                        <p className="font-bold" style={{ color: 'var(--color-gold)' }}>{t.settings.goals.setWithAI}</p>
+                        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>{t.settings.goals.setWithAIDesc}</p>
                     </div>
                     <button
                         onClick={() => setShowGoalWizard(true)}
                         className="px-4 py-2 rounded-xl font-bold text-sm flex-shrink-0 transition-all active:scale-95"
                         style={{ background: 'var(--color-gold)', color: 'var(--color-navy)' }}
                     >
-                        Start
+                        {t.common.start}
                     </button>
                 </div>
             </section>
@@ -757,7 +785,7 @@ export default function SettingsPage() {
                         className="font-bold text-lg"
                         style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
                     >
-                        Help &amp; Updates
+                        {t.settings.help.title}
                     </h2>
                 </div>
 
@@ -771,7 +799,7 @@ export default function SettingsPage() {
                             borderColor: 'rgba(29,95,168,0.15)',
                         }}
                     >
-                        <Sparkles className="w-5 h-5" /> Re-run Onboarding
+                        <Sparkles className="w-5 h-5" /> {t.settings.help.rerunOnboarding}
                     </button>
                     <button
                         onClick={() => setShowChangelog(true)}
@@ -782,7 +810,7 @@ export default function SettingsPage() {
                             borderColor: 'rgba(201,168,76,0.2)',
                         }}
                     >
-                        <Rocket className="w-5 h-5" /> What&apos;s New?
+                        <Rocket className="w-5 h-5" /> {t.settings.help.whatsNew}
                     </button>
                     <button
                         onClick={() => window.location.href = '/help'}
@@ -793,7 +821,7 @@ export default function SettingsPage() {
                             borderColor: 'rgba(34,197,94,0.15)',
                         }}
                     >
-                        <span className="text-xl">📚</span> User Manual
+                        <span className="text-xl">📚</span> {t.settings.help.userManual}
                     </button>
                 </div>
             </section>
@@ -803,11 +831,11 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-2">
                     <CalendarDays className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
                     <h3 className="font-bold text-xs uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
-                        Workout Calendar
+                        {t.settings.calendar.title}
                     </h3>
                 </div>
                 <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                    Subscribe to your scheduled workouts in Google Calendar, Apple Calendar, or any calendar app.
+                    {t.settings.calendar.desc}
                 </p>
 
                 {calendarUrl ? (
@@ -819,7 +847,7 @@ export default function SettingsPage() {
                             style={{ background: 'var(--color-primary)', color: 'white' }}
                         >
                             <CalendarDays className="w-4 h-4" />
-                            Subscribe in Calendar App
+                            {t.settings.calendar.subscribe}
                         </a>
 
                         {/* Manual URL copy */}
@@ -849,12 +877,12 @@ export default function SettingsPage() {
                         </div>
 
                         <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                            In Google Calendar: use &quot;Other calendars → From URL&quot; and paste the link above.
+                            {t.settings.calendar.googleDesc}
                         </p>
                     </div>
                 ) : (
                     <p className="text-sm italic" style={{ color: 'var(--color-text-muted)' }}>
-                        Loading calendar link…
+                        {t.settings.calendar.loadingLink}
                     </p>
                 )}
             </section>
@@ -864,14 +892,14 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-2">
                     <Link2 className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
                     <h3 className="font-bold text-xs uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
-                        Health Integrations
+                        {t.settings.integrations.title}
                     </h3>
                 </div>
 
                 {[
-                    { id: 'strava',   name: 'Strava',     icon: '🏃', desc: 'Auto-sync runs, rides & workouts',       authUrl: '/api/strava/auth',                 syncUrl: '/api/strava/sync' },
-                    { id: 'withings', name: 'Withings',   icon: '⚖️', desc: 'Auto-sync weight from your smart scale', authUrl: '/api/integrations/withings/auth',  syncUrl: '/api/integrations/withings/sync' },
-                    { id: 'oura',     name: 'Oura Ring',  icon: '💍', desc: 'Sync readiness score, sleep & HRV',      authUrl: '/api/integrations/oura/auth',      syncUrl: '/api/integrations/oura/sync' },
+                    { id: 'strava',   name: 'Strava',     icon: '🏃', desc: t.settings.integrations.providers.strava,   authUrl: '/api/strava/auth',                 syncUrl: '/api/strava/sync' },
+                    { id: 'withings', name: 'Withings',   icon: '⚖️', desc: t.settings.integrations.providers.withings, authUrl: '/api/integrations/withings/auth',  syncUrl: '/api/integrations/withings/sync' },
+                    { id: 'oura',     name: 'Oura Ring',  icon: '💍', desc: t.settings.integrations.providers.oura,     authUrl: '/api/integrations/oura/auth',      syncUrl: '/api/integrations/oura/sync' },
                 ].map(provider => {
                     const connected = integrations.find(i => i.provider === provider.id);
                     return (
@@ -881,7 +909,7 @@ export default function SettingsPage() {
                                 <div>
                                     <p className="font-bold text-sm text-[var(--color-text)]">{provider.name}</p>
                                     <p className="text-xs" style={{ color: connected ? 'var(--color-success)' : 'var(--color-text-muted)' }}>
-                                        {connected ? '● Connected' : provider.desc}
+                                        {connected ? t.settings.integrations.connected : provider.desc}
                                     </p>
                                 </div>
                             </div>
@@ -902,7 +930,7 @@ export default function SettingsPage() {
                                         }}
                                         className="p-2 rounded-lg transition-all"
                                         style={{ color: 'var(--color-primary)', background: 'rgba(29,95,168,0.08)' }}
-                                        title="Sync now"
+                                        title={t.settings.integrations.syncNow}
                                     >
                                         {syncingIntegration === provider.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                                     </button>
@@ -917,7 +945,7 @@ export default function SettingsPage() {
                                         className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
                                         style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}
                                     >
-                                        Disconnect
+                                        {t.settings.integrations.disconnect}
                                     </button>
                                 ) : (
                                     <a
@@ -925,7 +953,7 @@ export default function SettingsPage() {
                                         className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
                                         style={{ background: 'var(--color-primary)', color: 'white' }}
                                     >
-                                        Connect
+                                        {t.settings.integrations.connect}
                                     </a>
                                 )}
                             </div>
@@ -939,11 +967,11 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-2">
                     <Bot className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
                     <h3 className="font-bold text-xs uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
-                        Claude AI Connector
+                        {t.settings.claude.title}
                     </h3>
                 </div>
                 <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                    Connect your fitness data directly to Claude. Generate a key, then add the URL as a remote MCP server in Claude&apos;s settings.
+                    {t.settings.claude.desc}
                 </p>
                 <ClaudeConnectorSection />
             </section>
@@ -953,11 +981,11 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-2">
                     <Users className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
                     <h3 className="font-bold text-xs uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
-                        Accountability Partners
+                        {t.settings.partners.title}
                     </h3>
                 </div>
                 <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                    Add up to 3 people to receive a weekly summary of your progress.
+                    {t.settings.partners.desc}
                 </p>
 
                 {/* Existing partners */}
@@ -982,7 +1010,7 @@ export default function SettingsPage() {
                                 }}
                                 className="p-2 rounded-lg transition-all"
                                 style={{ color: 'var(--color-primary)', background: 'rgba(29,95,168,0.08)' }}
-                                title="Send weekly summary now"
+                                title={t.settings.partners.sendSummaryTitle}
                             >
                                 {sendingSummary === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                             </button>
@@ -1006,7 +1034,7 @@ export default function SettingsPage() {
                     <div className="space-y-2">
                         <input
                             type="text"
-                            placeholder="Partner's name (optional)"
+                            placeholder={t.settings.partners.namePlaceholder}
                             value={newPartnerName}
                             onChange={e => setNewPartnerName(e.target.value)}
                             className="w-full p-3 rounded-xl outline-none text-sm"
@@ -1015,7 +1043,7 @@ export default function SettingsPage() {
                         <div className="flex gap-2">
                             <input
                                 type="email"
-                                placeholder="their@email.com"
+                                placeholder={t.settings.partners.emailPlaceholder}
                                 value={newPartnerEmail}
                                 onChange={e => setNewPartnerEmail(e.target.value)}
                                 className="flex-1 p-3 rounded-xl outline-none text-sm"
@@ -1059,11 +1087,11 @@ export default function SettingsPage() {
                     className="font-bold text-xs uppercase tracking-widest mb-4"
                     style={{ color: 'var(--color-text-muted)' }}
                 >
-                    About
+                    {t.settings.about.title}
                 </h3>
                 <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                    Fitness Tracker v1.2 (AI Edition)<br />
-                    Built with Next.js &amp; Supabase
+                    {t.settings.about.version}<br />
+                    {t.settings.about.builtWith}
                 </p>
             </section>
 

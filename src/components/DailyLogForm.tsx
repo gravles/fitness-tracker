@@ -7,6 +7,7 @@ import { getNewlyEarnedBadges } from '@/lib/gamification';
 import { format, subDays } from 'date-fns';
 import { Loader2, Utensils, Activity, Heart } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLanguage } from '@/components/LanguageProvider';
 import { MenuScanner } from './MenuScanner';
 import { WorkoutChatModal } from './WorkoutChatModal';
 import { FoodSelector } from './FoodSelector';
@@ -26,6 +27,7 @@ interface DailyLogFormProps {
 
 export function DailyLogForm({ date }: DailyLogFormProps) {
     const searchParams = useSearchParams();
+    const { t } = useLanguage();
 
     // Tab state
     const [activeTab, setActiveTab] = useState<LogTab>('nutrition');
@@ -376,12 +378,12 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 <div className="flex justify-end h-5">
                     {saveStatus === 'saving' && (
                         <span className="flex items-center gap-1 text-[11px] text-[var(--color-text-muted)]">
-                            <Loader2 className="w-3 h-3 animate-spin" /> Saving…
+                            <Loader2 className="w-3 h-3 animate-spin" /> {t.log.saveStatus.saving}
                         </span>
                     )}
                     {saveStatus === 'saved' && (
                         <span className="flex items-center gap-1 text-[11px] text-[var(--color-success)]">
-                            <span>✓</span> Saved
+                            <span>✓</span> {t.log.saveStatus.saved}
                         </span>
                     )}
                 </div>
@@ -414,7 +416,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     >
                         <div className="flex items-center gap-1.5">
                             <Utensils className="w-4 h-4" />
-                            <span className="text-sm font-bold">Nutrition</span>
+                            <span className="text-sm font-bold">{t.log.tabs.nutrition}</span>
                         </div>
                         <span className="text-[10px] mt-0.5 text-[var(--color-text-muted)] max-[320px]:hidden">
                             {nutrition.calories > 0 ? `${nutrition.calories} cal` : '—'}
@@ -426,7 +428,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     >
                         <div className="flex items-center gap-1.5">
                             <Activity className="w-4 h-4" />
-                            <span className="text-sm font-bold">Activity</span>
+                            <span className="text-sm font-bold">{t.log.tabs.activity}</span>
                         </div>
                         <span className="text-[10px] mt-0.5 text-[var(--color-text-muted)] max-[320px]:hidden">
                             {workouts.length > 0 ? `${workouts.length} workout` : '—'}
@@ -438,7 +440,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     >
                         <div className="flex items-center gap-1.5">
                             <Heart className="w-4 h-4" />
-                            <span className="text-sm font-bold">Wellness</span>
+                            <span className="text-sm font-bold">{t.log.tabs.wellness}</span>
                         </div>
                         <span className="text-[10px] mt-0.5 text-[var(--color-text-muted)] max-[320px]:hidden">
                             {habits.length > 0 ? `${habits.length} habits` : '—'}
