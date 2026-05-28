@@ -185,7 +185,7 @@ async function getDailyLogs(userId: string, args: Record<string, unknown>) {
             'protein_grams,carbs_grams,fat_grams,calories,' +
             'alcohol_drinks,sleep_quality,energy_level,' +
             'motivation_level,stress_level,daily_note,' +
-            'habits_completed,food_items'
+            'habits,food_items'
         )
         .eq('user_id', userId)
         .gte('date', start)
