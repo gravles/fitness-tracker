@@ -1,8 +1,8 @@
 # Fitness Tracker — Expanded Features PRD
 
 **Author:** Claude  
-**Date:** 2026-05-20  
-**Status:** Proposal — for review
+**Date:** 2026-05-20 (updated 2026-05-29)  
+**Status:** Living document — updated with implementation status and second-generation ideas
 
 ---
 
@@ -16,22 +16,29 @@ This document proposes six major feature pillars, each with full specifications,
 
 ## Current State (What Exists)
 
+*Updated 2026-05-29 to reflect actual build state.*
+
 | Area | Status |
 |---|---|
-| Daily log (food, activity, wellness) | ✅ Solid, AI-assisted entry |
+| Daily log (food, activity, wellness) | ✅ Solid, AI-assisted entry, barcode + photo + menu scan |
 | Workout tracking (exercises, sets, reps) | ✅ Full, with voice spotter |
 | Streaks & XP gamification | ✅ 15 badges, level system |
-| Trends & analytics | ✅ Charts across 5 dimensions |
-| AI coaching chat | ✅ Context-aware, 30-day window |
+| Trends & analytics | ✅ Charts across 5 dimensions, muscle heatmap |
+| AI coaching chat | ✅ Context-aware, history synced to Supabase |
 | Push notifications | ✅ Server-side, custom reminders |
-| Strava sync | ✅ Manual sync |
-| Goal Wizard | ⚠️ Built but no entry point |
+| Strava sync | ✅ OAuth + sync |
+| Goal Wizard | ✅ Built with AI recommendations + Settings entry point |
 | Progress photos | ✅ Upload + compare |
-| Body metrics | ⚠️ Measurements but no photo upload |
-| Social / sharing | 🔴 Stub only |
-| Nutrition planning | 🔴 Not started |
-| Recovery / readiness | 🔴 Not started |
-| Wearable integrations | 🔴 Strava only |
+| Social / sharing | ✅ Shareable achievement links, Twitter share |
+| Nutrition planning | ✅ Weekly meal planner, pantry, saved meals, AI generation |
+| Saved meals | ✅ Named bundles, one-tap log, use-count tracking |
+| Recovery / readiness | ✅ Oura readiness + sleep data synced to daily log |
+| Withings integration | ✅ OAuth, body weight + full body composition sync |
+| Oura integration | ✅ OAuth, readiness + sleep staging sync |
+| Periodisation & progressive overload | ✅ 12-week AI programs, deload weeks, volume modifiers |
+| Accountability partners | ✅ Weekly summary emails via Resend, partner invites |
+| Apple Health / Google Fit | 🔴 Not started (requires native shell) |
+| Correlation Engine | 🔴 Not started — only major remaining pillar |
 
 ---
 
@@ -639,4 +646,511 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
-*Document ends. Questions, pushback, or additions — flag them and I'll revise.*
+---
+
+---
+
+# Second-Generation Feature Ideas
+
+*Brainstormed 2026-05-29. These build on the now-solid foundation. None are implemented yet — listed for review and prioritisation.*
+
+---
+
+## Idea 1 — Injury Prevention Engine (Acute:Chronic Workload Ratio)
+
+### The Problem
+
+The app tracks training volume week by week, but it doesn't know when you're increasing load too fast. Sports science has a well-validated signal for injury risk: the **Acute:Chronic Workload Ratio (ACWR)**. When your training load in the past 7 days (acute) is more than 1.5× your average over the past 28 days (chronic), injury risk rises sharply. Right now the app can't tell a user that they're heading toward an overuse injury — it just lets them train into the ground.
+
+### What It Does
+
+**Weekly Load Score**
+Calculate a "load unit" per session: `sets × reps × weight` summed across all exercises. Normalise by adding cardio from Strava (distance × 10 as a proxy load unit).
+
+**ACWR Warning Banner**
+When the ratio crosses 1.3, show a yellow callout at the top of the workout page:
+- *"Your training load this week is 40% higher than your recent average. Consider a lighter session or an extra rest day."*
+
+At 1.5+, the banner turns red with a more direct warning.
+
+**Muscle Group Frequency Flags**
+Separately, flag if any muscle group has been trained 3+ days in a row with no rest day in between (using the existing exercise → muscle group mapping already in the codebase).
+
+**Recovery Recommendation**
+Pair with the readiness score (already built): if ACWR > 1.3 AND readiness < 60, recommend a rest day proactively on the dashboard.
+
+### Data Requirements
+
+No new tables needed. Load scores are computed on-the-fly from `workout_exercises` + `workout_sets`. A `training_load_cache` could speed up the trend calculation.
+
+```sql
+CREATE TABLE training_load_cache (
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  week_start date NOT NULL,
+  total_load numeric NOT NULL,         -- sum of sets×reps×weight for the week
+  cardio_load numeric DEFAULT 0,       -- from Strava distance proxy
+  acwr numeric,                        -- acute / chronic ratio
+  PRIMARY KEY(user_id, week_start)
+);
+```
+
+### Why This Matters
+
+Injury is the number-one reason people fall off fitness programmes. A feature that proactively prevents injury is rare and extremely sticky — users will credit the app every time they dodge a setback. It also differentiates from every consumer app on the market.
+
+---
+
+---
+
+## Idea 2 — Micronutrient Gap Analysis
+
+### The Problem
+
+The app tracks calories, protein, carbs, and fat excellently. But nutrition research is clear: micronutrient deficiencies — particularly vitamin D, iron, magnesium, omega-3s, and zinc — are rampant in active people and directly impact training performance, sleep quality, and recovery. No food logging app currently surfaces this in a meaningful way.
+
+### What It Does
+
+**Micronutrient Estimator**
+For each logged food, estimate key micronutrients using a static lookup table mapped to common food items (augmented by AI when exact data isn't available). Prioritise the 8 most performance-relevant nutrients:
+1. Vitamin D (fatigue, bone health, mood)
+2. Iron (energy, endurance)
+3. Magnesium (sleep quality, muscle function)
+4. Omega-3 (inflammation, recovery)
+5. Zinc (testosterone, immunity)
+6. Calcium (bone density, muscle contraction)
+7. B12 (energy metabolism)
+8. Potassium (hydration, muscle cramping)
+
+**Weekly Micronutrient Report**
+A card in the Nutrition page showing a mini-bar chart of estimated intake vs. recommended daily intake for each tracked nutrient. Not a medical claim — clearly labelled "estimate."
+
+**AI Dietary Suggestions**
+When a user is consistently low in a nutrient (e.g. 3+ weeks below 50% RDI for vitamin D), the AI Coach proactively surfaces a recommendation: *"Your logged foods suggest you may not be getting enough vitamin D — fatty fish, eggs, and fortified milk are easy ways to boost it."*
+
+**Correlation Hook**
+Feed this into the Correlation Engine (Pillar 1): does low iron correlate with poor energy scores? Does low magnesium correlate with poor sleep quality? These are established relationships that would feel genuinely insightful.
+
+### Data Requirements
+
+A new `micronutrient_profiles` table to store estimates per food item (seeded from a public database like USDA FoodData Central or Open Food Facts):
+
+```sql
+CREATE TABLE micronutrient_profiles (
+  food_name_hash text PRIMARY KEY,  -- normalized hash of food name
+  food_name text NOT NULL,
+  vitamin_d_mcg numeric,
+  iron_mg numeric,
+  magnesium_mg numeric,
+  omega3_mg numeric,
+  zinc_mg numeric,
+  calcium_mg numeric,
+  b12_mcg numeric,
+  potassium_mg numeric,
+  source text DEFAULT 'estimated',  -- 'usda', 'openfoodfacts', 'estimated'
+  created_at timestamptz DEFAULT now()
+);
+```
+
+A weekly aggregate view to avoid per-day recalculation.
+
+### Why This Matters
+
+This is a rare intersection of "data nobody else shows" and "actually medically relevant." It creates a new reason for nutritionally conscious users to keep logging every day — not just for macros but to watch their micronutrient profile. It also creates a natural upsell narrative (detailed reports, personalised supplement suggestions).
+
+---
+
+---
+
+## Idea 3 — Fitness Age Score
+
+### The Problem
+
+Abstract metrics like VO2 max, HRV, and training consistency are hard for users to relate to. A single, compelling number — *"your body is performing like a 28-year-old"* — is concrete, emotionally motivating, and highly shareable. It gives users a clear answer to "is all this effort actually working?"
+
+### What It Does
+
+**Fitness Age Calculation**
+Compute a Fitness Age score (years younger or older than chronological age) from available signals:
+
+| Signal | Source | Impact |
+|---|---|---|
+| Resting heart rate | Oura sync (if connected) | High |
+| HRV trend | Oura sync (if connected) | High |
+| Cardio consistency (workouts/week avg over 90 days) | Workout logs | High |
+| VO2 max proxy (pace × effort from Strava runs) | Strava | Medium |
+| Sleep quality 90-day average | Daily log | Medium |
+| BMI / body fat trend | Withings or weight log | Medium |
+| Strength trend (estimated 1RM trajectory) | Workout sets | Medium |
+
+Algorithm based on published fitness age research (e.g. Nes et al., NTNU), adapted to available data points. When data is sparse, widen the confidence interval and show a range rather than a single number.
+
+**Dashboard Widget**
+A small card on the dashboard: *"Fitness Age: 27 ↓ 3 years younger than last month."* Tapping it opens a breakdown of what's helping and what's holding the score back.
+
+**Progress Tracking**
+Plot Fitness Age over time (monthly). The trend line is the motivating element — users want to see it drop.
+
+**Shareable Result**
+One-tap share card: *"My fitness age is 27 — 4 years younger than I am. Tracking with [app name]."*
+
+### Why This Matters
+
+This is the answer to the user's most fundamental question: *"Is what I'm doing actually working?"* It packages complex data into one emotionally resonant number. It's also the app's best marketing hook — shareable, memorable, and impossible to fake without actually putting in the work.
+
+---
+
+---
+
+## Idea 4 — AI Meal Photo Logging
+
+### The Problem
+
+The biggest friction in food logging is describing and searching for individual ingredients. A home-cooked meal might have 8 components; restaurant meals are often mystery combinations. The app already has a menu scanner and food camera — but those require text input or structured menu text. Taking a photo of your actual plate and having AI estimate the macros would remove the last major logging friction point.
+
+### What It Does
+
+**Plate Photo → Macro Estimate**
+User taps "Log with Photo" in the food section, takes a picture of their meal. Claude's vision API:
+1. Identifies each visible food item and estimates portion size (using plate/utensils/hands as size reference)
+2. Returns a list of estimated items with quantities and macros
+3. User confirms or adjusts each item before saving
+
+**Confidence Indicators**
+Each item is shown with a confidence level (High / Medium / Estimated). User can tap any item to adjust. The AI is instructed to *under-estimate* calorie-dense sauces and dressings (where users consistently under-report) and flag this explicitly.
+
+**Learning from Corrections**
+When the user adjusts an AI estimate (e.g. changes "pasta, 200g" to "pasta, 350g"), that correction is stored. Over time, the user's common portion sizes are learned and used as priors in future estimates.
+
+### Technical Approach
+
+Uses Claude's multimodal API (already integrated in the codebase). The key prompt engineering challenge is portion estimation from a 2D image — leverage plate size and known object sizes (fork = ~18cm, fist = ~1 cup) as reference points.
+
+```
+System: You are a sports nutritionist estimating macros from a meal photo. 
+Identify each food, estimate portion by comparing to visible reference objects 
+(plate diameter ~25cm, fork ~18cm). For mixed dishes (curry, stew), estimate 
+as the most likely combination of standard ingredients.
+
+Return JSON: [{name, quantity_g, calories, protein_g, carbs_g, fat_g, confidence: 'high'|'medium'|'low'}]
+
+If you see sauce or dressing, flag it and bias toward over-estimating it — 
+people always under-log dressings.
+```
+
+### Why This Matters
+
+Every reduction in logging friction improves data quality and retention. This is the feature that makes food logging feel effortless for non-obsessive users — the people who would benefit most from better nutrition data but find manual logging too tedious. It's also a natural showcase for the app's AI capabilities.
+
+---
+
+---
+
+## Idea 5 — Supplement Tracker
+
+### The Problem
+
+Supplement use is near-universal among active people (protein powder, creatine, pre-workout, vitamins), but no fitness app tracks it seriously. Supplements affect performance, recovery, and body composition in measurable ways — but users have no way to correlate their creatine loading phase with strength gains, or their magnesium supplementation with sleep quality improvements.
+
+### What It Does
+
+**Supplement Log**
+A new section in the daily log (alongside food, movement, subjective). Users log supplements with a simple name + dose. A pre-populated list covers the most common (Creatine, Whey Protein, Vitamin D, Magnesium, Omega-3, Pre-Workout, Caffeine, Zinc, B12, Collagen, Melatonin, Ashwagandha).
+
+**Supplement Reminders**
+Push reminders for supplements that work best at specific times (e.g. "Take creatine after your workout" if a workout just ended, "Take magnesium before bed").
+
+**Correlation with Correlation Engine**
+When Pillar 1 (Correlation Engine) is built, supplements become another variable in the analysis:
+- *"Your sleep quality is 0.6 points higher on nights you log magnesium."*
+- *"Your estimated 1RM has increased 8% over your 4-week creatine loading phase."*
+
+**Stack Builder**
+AI suggests a personalised supplement stack based on the user's goals, diet gaps (from Idea 2 — Micronutrient Analysis), and training style. Always includes a caveat to consult a healthcare provider.
+
+### New Data Model
+
+```sql
+CREATE TABLE supplement_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  supplement_name text NOT NULL,
+  dose_mg numeric,
+  dose_unit text DEFAULT 'mg',  -- 'mg', 'g', 'serving', 'capsule'
+  logged_at time,
+  notes text
+);
+
+CREATE TABLE supplement_reminders (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  supplement_name text NOT NULL,
+  reminder_time time NOT NULL,
+  trigger text DEFAULT 'daily',  -- 'daily', 'post_workout', 'pre_sleep'
+  is_active boolean DEFAULT true
+);
+```
+
+### Why This Matters
+
+Supplement tracking occupies an underserved gap between nutrition logging apps and biohacking journals. It gives the correlation engine a new class of variables to work with, and it creates a natural, low-friction daily interaction that doesn't require a workout or a full meal log.
+
+---
+
+---
+
+## Idea 6 — Running & Cardio Intelligence
+
+### The Problem
+
+The app handles strength training excellently but treats cardio as a single binary — "did movement today: yes/no." For users who run, cycle, swim, or row, there's a wealth of performance data (pace, distance, heart rate zones) that could be surfaced intelligently. Strava sync brings in the raw data but the app doesn't analyse it.
+
+### What It Does
+
+**Training Zone Analysis**
+For each Strava activity, estimate which heart rate zone the session was primarily in (using estimated max HR from age if no HR data, or actual HR from Strava if available):
+- Zone 1–2 (aerobic base, fat-burning)
+- Zone 3 (threshold)
+- Zone 4–5 (VO2 max, anaerobic)
+
+Show a weekly zone distribution bar — most coaches recommend 80% easy, 20% hard.
+
+**VO2 Max Trend**
+Estimate VO2 max from run pace + distance using the Daniels/Gilbert formula. Track this over time and plot as a trend. Even a rough estimate is motivating to watch improve.
+
+**Aerobic Fitness Score**
+A running-specific version of the Fitness Age idea: how does your pace, consistency, and endurance compare to age-group norms?
+
+**Cardio Periodization**
+Integrate with the training programs feature: allow programs to include cardio days with specific zone targets. *"Tuesday: 30-minute Zone 2 run — easy effort, conversational pace."*
+
+**Personal Bests for Cardio**
+PR tracking for distance milestones (5K, 10K, half, full marathon) alongside the existing strength PR wall.
+
+### Data Requirements
+
+Primarily computed from existing Strava data. A new `cardio_sessions` view or table normalising Strava + manually logged cardio with zone annotations.
+
+```sql
+CREATE TABLE cardio_sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  source text NOT NULL,           -- 'strava', 'manual'
+  activity_type text NOT NULL,    -- 'run', 'cycle', 'swim', 'row', 'other'
+  date date NOT NULL,
+  duration_min int NOT NULL,
+  distance_km numeric,
+  avg_pace_sec_per_km numeric,
+  estimated_vo2max numeric,       -- calculated
+  primary_zone int,               -- 1-5
+  zone_distribution jsonb,        -- {z1_pct, z2_pct, z3_pct, z4_pct, z5_pct}
+  source_activity_id text,        -- Strava activity ID for dedup
+  UNIQUE(user_id, source, source_activity_id)
+);
+```
+
+### Why This Matters
+
+Running is the most popular form of exercise globally. Many users will use the app primarily as runners, with strength training secondary. Deepening cardio intelligence — pace zones, VO2 max trends, training load balance — gives these users a reason to keep the app as their primary fitness tool rather than deferring to Strava or Garmin Connect.
+
+---
+
+---
+
+## Idea 7 — Adaptive Goal Engine
+
+### The Problem
+
+Goals are set once in the Goal Wizard and then mostly ignored. The app tracks progress but doesn't update the goal when life changes — when a user starts missing weekly targets for 3 weeks running, they feel like they're failing but nobody adjusts the plan. Goals need to be living documents, not a one-time setup.
+
+### What It Does
+
+**Progress Projection**
+For each active goal (weight target, workout frequency, protein consistency), compute the actual trajectory and project it forward. If the user is on track, show a green "on pace" indicator. If they're behind, show the adjusted timeline: *"At your current pace, you'll reach your goal in January — 6 weeks later than planned."*
+
+**Adaptive Suggestions**
+When a goal is consistently missed for 2+ weeks, the AI Coach proactively opens a check-in: *"You've been hitting protein 3/7 days lately vs. your 5/7 target. Would you like to adjust your target, or should we look at what's getting in the way?"*
+
+**Goal Micro-Milestones**
+Break long-term goals (lose 10kg over 6 months) into 2-week micro-milestones. Celebrate micro-milestone achievement with XP + a badge. When a micro-milestone is missed, the system recalculates rather than letting the main goal feel permanently off-track.
+
+**Contextual Goal Pausing**
+Let users "pause" a goal for a defined period (holiday, illness, life event) without breaking their streak or resetting their progress. The paused period is excluded from trend calculations.
+
+**Seasonal / Phased Goals**
+Support multi-phase goals: bulk phase (12 weeks, calorie surplus, strength focus) → cut phase (8 weeks, calorie deficit, maintain strength) → maintenance. The system transitions automatically at the week boundary.
+
+### Why This Matters
+
+Static goals create shame spirals when life intervenes. Adaptive goals create resilience. This feature changes the app's relationship with users from "judge" to "coach" — always adjusting, never punishing, always looking for a path forward. It also dramatically reduces churn caused by goal-failure discouragement.
+
+---
+
+---
+
+## Idea 8 — Health Report Export
+
+### The Problem
+
+Users increasingly share fitness data with doctors, dietitians, personal trainers, and sports coaches. Right now there's no way to export the app's data in a format that's useful for a professional. A user meeting with a dietitian can't say "here's my food log" — they'd have to manually describe their habits. This is a missed opportunity and a growing user need.
+
+### What It Does
+
+**PDF Health Report**
+A one-tap export generating a multi-page PDF containing:
+- 30-day summary: average calories, protein, sleep quality, energy, stress, workout frequency
+- Macro compliance charts
+- Weight / body composition trend
+- Exercise list with volume trends
+- Micronutrient gaps (if Idea 2 is built)
+- Notable correlations (if Correlation Engine is built)
+- A plain-English AI summary written specifically for a healthcare professional audience (objective, no superlatives)
+
+**CSV Data Export**
+Raw export of all daily logs as CSV — for users who want to do their own analysis or move to another app.
+
+**Shareable Link (Time-Limited)**
+Generate a view-only link to a summary dashboard that a trainer or dietitian can access for 30 days without requiring an account.
+
+**Apple Health / Google Fit Handshake**
+When the native integration exists, export workouts and body weight back to Health so the data appears in medical apps like MyFitnessPal, Health Records, or doctor-facing platforms.
+
+### Technical Approach
+
+Use a PDF generation library (e.g. `@react-pdf/renderer` which is React-based and can reuse existing chart components) for the PDF. The AI summary prompt should explicitly instruct the model to use clinical language and avoid motivational tone.
+
+### Why This Matters
+
+Data portability is both a user right and a powerful trust signal. Users who share their data with professionals have a reason to log more carefully — which improves data quality. The professional-facing report also positions the app as a tool that healthcare providers recommend, opening a different acquisition channel.
+
+---
+
+---
+
+## Idea 9 — Habit Streaks & Per-Habit Gamification
+
+### The Problem
+
+The current streak system tracks a single "did I log today?" signal. But users have multiple fitness habits they're trying to build — protein consistency, workout frequency, sleep consistency, alcohol limits — each deserving its own streak, celebration, and history. Collapsing everything into one streak undersells the gamification opportunity and misses users who are killing it on nutrition but inconsistent with movement.
+
+### What It Does
+
+**Per-Habit Streaks**
+Track independent streaks for:
+- Protein goal hit (≥ target protein logged)
+- Workout completed
+- Sleep quality logged ≥ 3/5
+- Alcohol ≤ user-defined limit
+- Daily log completed
+- Custom habits (user-defined, e.g. "meditated", "cold shower", "no sugar")
+
+Each habit shows its own current streak and best-ever streak.
+
+**Habit Dashboard**
+A new tab or card on the dashboard showing all active habit streaks as a row of icons with streak counts. Tapping one shows the full history (GitHub-style contribution heatmap, 12 weeks).
+
+**Habit Badges**
+New badge tier for habit streaks: bronze (7 days), silver (30 days), gold (90 days), platinum (365 days) for each habit category. These award XP on achievement.
+
+**Habit Challenges**
+Build on the Group Challenges system (Pillar 5): add habit-based challenges. *"Protein Week — hit your protein goal every day for 7 days."* Can be personal or shared with accountability partners.
+
+**Smart Habit Suggestions**
+Based on the Correlation Engine results, AI suggests which habit to prioritise: *"Your data shows hitting your protein goal is your strongest lever for energy. What if you focused on that one habit this month?"*
+
+### Why This Matters
+
+Habit streaks are one of the most powerful engagement mechanics in consumer apps. Duolingo's success is largely attributable to single-streak psychology. By giving each fitness habit its own streak, users have multiple "lives" — missing a workout doesn't kill the protein streak, maintaining interest even on rest days. It also personalises the gamification to what each user actually cares about.
+
+---
+
+---
+
+## Idea 10 — Coach / Trainer Mode
+
+### The Problem
+
+Personal trainers and coaches currently have no way to work with their clients through the app. A coach wants to see client progress, assign workouts, and leave notes — but the app has no multi-account or professional view. This limits the app to self-coached users and excludes an entire professional use case.
+
+### What It Does
+
+**Coach Account Type**
+A new account role: `coach`. Coaches can:
+- View a read-only summary dashboard for each linked client (same data as the accountability partner view, but richer)
+- Create and assign workout programs directly to clients (using the existing AI program generation)
+- Leave coaching notes on specific workouts or weekly summaries
+- View client readiness scores, recent workout performance, and trend data
+
+**Client Linking**
+Clients invite their coach by email (same flow as accountability partners). Coach accepts and gains read access. Client controls what data is visible (full log vs. summary vs. workouts only).
+
+**Coach Inbox**
+Coaches see a multi-client inbox: a scrollable list of clients with their most recent activity, readiness score, and any flagged issues (missed consecutive workouts, ACWR spike, streak break).
+
+**Program Assignment**
+Coach generates a 12-week program via the AI (already built), assigns it to the client. Client sees it in their Programs page as a "Coach-assigned" program with the coach's name.
+
+**Monetisation Angle**
+This is the app's clearest B2B opportunity. Personal trainers who use the app with 10+ clients become high-value retention anchors. Consider a "Coach plan" at a higher subscription tier.
+
+### Data Requirements
+
+```sql
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS account_type text DEFAULT 'user';
+  -- 'user', 'coach'
+
+CREATE TABLE coach_client_relationships (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  coach_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  client_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  status text DEFAULT 'pending',        -- 'pending', 'active', 'ended'
+  data_access_level text DEFAULT 'summary',  -- 'summary', 'workouts', 'full'
+  invited_at timestamptz DEFAULT now(),
+  accepted_at timestamptz,
+  UNIQUE(coach_id, client_id)
+);
+
+CREATE TABLE coach_notes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  coach_id uuid REFERENCES auth.users(id),
+  client_id uuid REFERENCES auth.users(id),
+  note_type text NOT NULL,              -- 'weekly', 'workout', 'general'
+  reference_id uuid,                    -- workout_id or weekly date
+  content text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+### Why This Matters
+
+Every personal trainer who adopts the app brings their entire client roster with them. It's a classic B2B2C acquisition lever. It also solves a genuine problem — personal trainers currently manage client programmes across Google Sheets, WhatsApp, and paper — and replaces all of it with one place.
+
+---
+
+---
+
+## Second-Generation Prioritisation Matrix
+
+| Idea | Impact | Feasibility | Score | Notes |
+|---|---|---|---|---|
+| AI Meal Photo Logging | Very High | High | ★★★★★ | Claude vision already integrated — mostly prompt engineering |
+| Habit Streaks & Per-Habit Gamification | High | Very High | ★★★★★ | Builds on existing streak/XP system, no new infra |
+| Injury Prevention (ACWR) | Very High | High | ★★★★☆ | Data already exists in workout_sets; calculation is straightforward |
+| Adaptive Goal Engine | High | High | ★★★★☆ | Goal Wizard already built; this adds intelligence on top |
+| Micronutrient Analysis | High | Medium | ★★★☆☆ | Needs food-to-nutrient lookup table; AI can fill gaps |
+| Supplement Tracker | Medium | High | ★★★☆☆ | Simple new log section; high correlation engine value |
+| Health Report Export | Medium | Medium | ★★★☆☆ | Good trust signal; PDF generation library needed |
+| Running & Cardio Intelligence | High | Medium | ★★★☆☆ | Strava data already available; zone calc is straightforward |
+| Fitness Age Score | High | Medium | ★★★☆☆ | Compelling hook; needs careful algorithm calibration |
+| Coach / Trainer Mode | Very High | Low | ★★☆☆☆ | High strategic value; significant auth/permission complexity |
+
+### Recommended Next Sprint (after Correlation Engine ships)
+
+1. **Habit Streaks** — high impact, fits directly into existing gamification, could ship in 2–3 days
+2. **AI Meal Photo Logging** — removes the biggest logging friction, uses existing Claude vision
+3. **Injury Prevention (ACWR)** — all data already exists; adds proactive, safety-focused intelligence
+4. **Adaptive Goal Engine** — makes goals feel alive rather than abandoned
+
+---
+
+*Document last updated 2026-05-29. Standing items: Correlation Engine (Pillar 1) and Apple Health integration remain the outstanding original pillars.*
