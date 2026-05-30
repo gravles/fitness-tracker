@@ -1,8 +1,8 @@
 # Fitness Tracker — Expanded Features PRD
 
 **Author:** Claude  
-**Date:** 2026-05-20  
-**Status:** Proposal — for review
+**Date:** 2026-05-20 (updated 2026-05-30)  
+**Status:** Living document — continuously updated
 
 ---
 
@@ -16,6 +16,8 @@ This document proposes six major feature pillars, each with full specifications,
 
 ## Current State (What Exists)
 
+> Last audited: 2026-05-30. Several features from the original pillars have shipped since this PRD was first written — updated below.
+
 | Area | Status |
 |---|---|
 | Daily log (food, activity, wellness) | ✅ Solid, AI-assisted entry |
@@ -25,13 +27,21 @@ This document proposes six major feature pillars, each with full specifications,
 | AI coaching chat | ✅ Context-aware, 30-day window |
 | Push notifications | ✅ Server-side, custom reminders |
 | Strava sync | ✅ Manual sync |
-| Goal Wizard | ⚠️ Built but no entry point |
+| Goal Wizard | ⚠️ Built but no entry point in main nav |
 | Progress photos | ✅ Upload + compare |
 | Body metrics | ⚠️ Measurements but no photo upload |
 | Social / sharing | 🔴 Stub only |
-| Nutrition planning | 🔴 Not started |
-| Recovery / readiness | 🔴 Not started |
-| Wearable integrations | 🔴 Strava only |
+| Nutrition planning — `/nutrition` page | ✅ Page exists with meal plan generation |
+| Pantry & barcode scanning | ✅ `BarcodeScanner`, `FoodCamera`, `MenuScanner` components + pantry scan API |
+| Training Programs — `/programs` page | ✅ AI-generated programs + `ProgramReviewModal` |
+| Recovery / readiness score | 🔴 Not started (logic not built) |
+| Correlation Engine / Insight Feed | 🔴 Not started (weekly AI insights exist but no correlation logic) |
+| Progressive overload alerts | 🔴 Not started |
+| Accountability partner summary email | ✅ `send-summary` API route built |
+| Group Challenges | 🔴 Not started |
+| Oura Ring integration | ✅ OAuth + sync routes built |
+| Withings Scale integration | ✅ OAuth + sync routes built |
+| Apple Health / Google Fit | 🔴 Not started (requires native shell) |
 
 ---
 
@@ -569,6 +579,302 @@ Every extra data source makes the correlation engine, readiness score, and AI co
 
 ---
 
+---
+
+## New Feature Brainstorm — Added 2026-05-30
+
+These ideas extend beyond the original six pillars. None are built yet. They are rough proposals for review — some will make the cut, some won't. They are grouped by theme and rough effort level.
+
+---
+
+### Brainstorm Pillar A — Injury & Soreness Management
+
+#### The Problem
+
+The app helps users train harder. It doesn't yet help them train *safely*. There is no concept of injury, pain, or soreness in the data model. Users who tweak a muscle, pull a hamstring, or just have DOMS have no way to express that, and the AI coaching has no way to account for it. This is a gap that causes the app to give bad advice at exactly the wrong moment.
+
+#### What It Could Do
+
+**Body Map — Soreness Logger**
+A silhouette UI (front + back) where users tap muscle groups and rate soreness 1–5. Takes 10 seconds to complete, lives at the top of the workout log flow. Data stored in `soreness_log` alongside the daily log.
+
+**Auto-Adjusted Workout Recommendations**
+When a user logs soreness in a muscle group (e.g., hamstrings = 4/5), the workout suggestion for that day automatically swaps or de-prioritises exercises that hit that group. The AI coaching context gets a `[SORENESS: hamstrings 4/5]` injection.
+
+**Injury Log**
+A formal "I'm injured" flow: body part, severity (minor / moderate / serious), date of onset. Creates a `user_injuries` record. The app enters a "modified training" mode: filters out contraindicated exercises, reminds the user to rest the area, and tracks recovery day by day.
+
+**Return-to-Training Protocol**
+After an injury is marked resolved, the app generates a 2–4 week gradual return protocol for that body part (starting at 40% load, progressing week by week). This uses the same program generation infrastructure already built.
+
+**Soreness Timeline Chart**
+A heatmap in the Trends section showing soreness by muscle group over time. Instantly reveals overuse patterns (e.g., "I've had shoulder soreness every week for 6 weeks") that the user may not consciously notice.
+
+#### New Data Model
+
+```sql
+CREATE TABLE soreness_log (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  muscle_group text NOT NULL,  -- 'hamstrings', 'lower_back', 'shoulders', etc.
+  level int NOT NULL,          -- 1 (none) to 5 (severe)
+  notes text,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE user_injuries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  body_part text NOT NULL,
+  severity text NOT NULL,       -- 'minor', 'moderate', 'serious'
+  onset_date date NOT NULL,
+  resolved_date date,
+  notes text,
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+#### Why This Matters
+
+Injuries are the number one reason people quit fitness programmes. An app that actively helps manage and prevent injury becomes a trusted safety net — not just a tracker. This also reduces the liability concern of an AI telling someone with a back injury to squat heavy.
+
+---
+
+### Brainstorm Pillar B — Intermittent Fasting & Meal Timing Optimiser
+
+#### The Problem
+
+A significant portion of fitness-conscious users practise intermittent fasting (IF) in some form — 16:8, 5:2, OMAD, or custom windows. None of this is trackable in the app today. More broadly, *when* you eat relative to workouts matters for performance and body composition, but the app treats all meals as equal. Closing this gap would make the app more useful for a large user segment and unlock a genuinely novel insight category.
+
+#### What It Could Do
+
+**Fasting Timer**
+A persistent, minimalist timer widget on the dashboard showing time elapsed in the current fast and time until the eating window opens. Users select their protocol (16:8, 18:6, 5:2, OMAD, custom), and the timer anchors to their last logged meal. Stores each fast as a `fasting_sessions` record with start/end times and whether the target was met.
+
+**Eating Window Visualisation**
+A daily timeline view (like a Gantt bar) showing the fasting window, eating window, meals logged, and workout timing on the same axis. Makes it instantly visible if the user is eating at the right time relative to training.
+
+**Meal Timing Recommendations**
+Based on the user's logged workout schedule, the AI suggests when to break their fast for optimal performance:
+- "You have a workout at 6pm. Break your fast at 3pm with a carb-forward meal for best energy."
+- "Your workout was at 7am. Prioritise protein in your first meal within 30 minutes."
+
+**Correlation: Fasting Adherence vs. Metrics**
+The correlation engine (Pillar 1) gains two new variables: `fasting_hours_completed` and `fasting_target_met`. These become first-class inputs alongside sleep, stress, and energy for correlation analysis.
+
+**5:2 / Calorie Restriction Day Mode**
+On designated low-calorie days (e.g., 5:2 protocol), the app switches the calorie target automatically and shows a simplified food log focused on staying under the restriction target. A badge for completing a 5:2 week.
+
+#### New Data Model
+
+```sql
+CREATE TABLE fasting_sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  protocol text NOT NULL,         -- '16:8', '18:6', '5:2', 'omad', 'custom'
+  target_hours numeric NOT NULL,
+  start_time timestamptz NOT NULL,
+  end_time timestamptz,           -- null while active
+  actual_hours numeric,           -- calculated on end
+  target_met boolean,
+  notes text,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Add to user_settings:
+-- fasting_protocol text
+-- fasting_window_start time   (e.g., '12:00' for 16:8 noon start)
+-- fasting_window_end time
+-- fasting_enabled boolean DEFAULT false
+```
+
+#### Why This Matters
+
+Intermittent fasting is one of the most popular dietary approaches and completely absent from the app. Adding it is a differentiator against generic calorie trackers. The fasting timer alone would be a compelling feature for a large subset of users and a natural hook for daily app opens.
+
+---
+
+### Brainstorm Pillar C — AI Coach Personas & Communication Style
+
+#### The Problem
+
+The AI coaching voice is currently one-size-fits-all. A 22-year-old competitive athlete and a 45-year-old getting back into exercise after a decade off need radically different coaching voices. Tone, language, level of scientific detail, degree of pushback, and motivational style all vary enormously by user preference. Right now there's no way to personalise this.
+
+#### What It Could Do
+
+**Persona Selection at Onboarding (and in Settings)**
+Users choose their preferred coaching style. Four archetypes (names are illustrative):
+
+| Persona | Voice | Style |
+|---|---|---|
+| **The Scientist** | Evidence-based, precise, data-heavy | Cites mechanisms ("cortisol suppresses protein synthesis..."), gives ranges not fixed targets, challenges assumptions |
+| **The Drill Sergeant** | Direct, no excuses, high standards | Short sentences, minimal praise, holds the line on goals, calls out skipped sessions |
+| **The Supporter** | Warm, encouraging, non-judgmental | Celebrates small wins, never shames, focuses on progress over perfection |
+| **The Athlete's Coach** | Sport-specific, performance-oriented | Talks in training phases, periodisation terms, RPE, VO2 max — assumes knowledge |
+
+**Cross-feature Effect**
+The selected persona propagates to *all* AI-generated content:
+- Daily Smart Coach message
+- Weekly insight card copy
+- Readiness score explanation
+- Workout suggestions
+- Nutrition commentary
+- Push notification text
+
+**Dynamic Tone Calibration**
+Over time, track whether users "like" (tap thumbs up) or dismiss AI messages. Use this signal to subtly adjust within a persona — e.g., a Supporter persona can dial up or down the effusiveness based on engagement.
+
+**Persona Switching**
+Let users switch persona at any time. A/B some users on a "surprise me" setting that randomly selects a different voice each week.
+
+#### Implementation Notes
+
+This is almost entirely a prompt engineering change. The system prompt for every AI call gets a `[COACHING_PERSONA: ...]` block prepended. No new tables required beyond adding `coaching_persona text` to `user_settings`. Estimated effort: 2–3 days to write all prompt variants and propagate through all AI call sites.
+
+#### Why This Matters
+
+Personalisation of communication style is a highly leveraged improvement — it changes how *every other feature* feels. The Drill Sergeant and Supporter personas serve completely different user segments; offering both dramatically widens the addressable audience. It's also a differentiator that's hard to copy without the underlying data richness.
+
+---
+
+### Brainstorm Pillar D — Smart Hydration Tracking
+
+#### The Problem
+
+Hydration is one of the most consistently under-tracked fitness variables, yet it's closely correlated with energy, cognitive performance, exercise capacity, and recovery. Every user knows they should drink more water. None of them do it reliably. The app tracks food in fine detail but ignores water entirely.
+
+#### What It Could Do
+
+**Hydration Log**
+A quick-tap UI on the daily log — single tap to log 250ml / 8oz, or enter a custom amount. Supports cups, ml, oz. Shows a daily progress ring alongside the macro rings. Takes under 2 seconds to log.
+
+**Smart Daily Target**
+Calculated from: body weight × activity level factor + estimated sweat loss from workouts. Adjusts up on workout days. Accounts for caffeinated drinks (counts 50% toward hydration due to mild diuretic effect). Uses the same workout schedule data already in the app.
+
+**Hydration Reminders**
+Intelligent reminders that space out through the day: "9am — start the day with water", "2pm — afternoon slump? Drink water first", "pre-workout reminder — drink 500ml in the next hour". These use the existing push notification infrastructure.
+
+**Correlation with Performance**
+The correlation engine gains `daily_water_ml` and `hydration_target_met` as inputs. Expected correlations: hydration → energy level, hydration → workout performance rating.
+
+**Hydration Streak**
+A separate streak type: hit your hydration goal X days in a row. New badge: "Hydrated" (7-day hydration streak), "Well-Watered" (30-day).
+
+#### New Data Model
+
+```sql
+-- Add to daily_logs (simplest approach — single daily total)
+-- ALTER TABLE daily_logs ADD COLUMN water_ml int DEFAULT 0;
+
+-- OR a separate table for timestamped entries (richer, enables time-of-day analysis)
+CREATE TABLE hydration_log (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  logged_at timestamptz DEFAULT now(),
+  amount_ml int NOT NULL,
+  drink_type text DEFAULT 'water',  -- 'water', 'coffee', 'tea', 'sports_drink'
+  date date NOT NULL
+);
+```
+
+#### Why This Matters
+
+Water tracking is the single most-requested missing feature in comparable apps. It's low-effort to build, high-frequency to use (multiple times per day), and drives daily app opens. The quick-tap UX makes it genuinely frictionless. The correlation with energy levels creates a persuasive, personalised "your data shows you feel better when you drink more water" nudge that's far more powerful than generic health advice.
+
+---
+
+### Brainstorm Pillar E — Supplement & Medication Tracker
+
+#### The Problem
+
+Many users take supplements (creatine, protein, vitamins, omega-3, pre-workout, magnesium) or medications with exercise relevance (e.g., thyroid medication timing relative to food). There's no place to track this in the app, and it creates a data blindspot: if someone is inconsistent with creatine, any plateau in their strength data is unexplained.
+
+#### What It Could Do
+
+**Supplement Stack**
+A simple list in Settings or in the Log: add supplements with name, dose, and timing (morning, pre-workout, post-workout, evening, with food). Each daily log gets a "Supplements" section — one-tap checkboxes to mark each as taken.
+
+**Consistency Tracking**
+Show a heatmap or streak for each supplement — days taken vs. days missed. This surfaces patterns the user doesn't consciously track ("I only take creatine 4/7 days on average, which explains why I'm not seeing results").
+
+**Timing Reminders**
+Optional push notifications for time-sensitive supplements: "Time for your pre-workout — your workout is in 45 minutes."
+
+**AI Integration**
+The supplement stack becomes part of the AI coaching context. If a user asks "why aren't I getting stronger?" the coach can factor in inconsistent creatine adherence. The correlation engine can test `creatine_taken` ↔ `workout_performance_rating`.
+
+**Supplement Library**
+A small built-in library of common supplements with standard doses, timing recommendations, and a one-line evidence summary (e.g., "Creatine — strong evidence for strength and power. Take 3–5g daily, timing flexible after loading phase.").
+
+#### New Data Model
+
+```sql
+CREATE TABLE user_supplements (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  dose_amount numeric,
+  dose_unit text,           -- 'g', 'mg', 'ml', 'capsule', 'scoop'
+  timing text NOT NULL,     -- 'morning', 'pre_workout', 'post_workout', 'evening', 'with_food'
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Add to daily_logs:
+-- supplements_taken text[]  -- array of supplement ids taken that day
+-- OR a separate join table for timestamped entries
+```
+
+#### Why This Matters
+
+Supplement tracking adds a new data dimension that's invisible in every other fitness app. For users who take supplements seriously, this is a strong reason to switch from a general log to this app. It also completes the "total picture" of a user's health behaviour — food, exercise, sleep, supplements — making the AI coaching more accurate and differentiated.
+
+---
+
+### Brainstorm Pillar F — Data Export & Health Report Generator
+
+#### The Problem
+
+Users accumulate months or years of valuable health data in the app. Currently there's no way to get it out. A user who wants to share their progress with a doctor, nutritionist, or personal trainer has no mechanism. A user who wants a year-in-review or to migrate to another platform is stuck. Data portability builds trust; data lock-in destroys it.
+
+#### What It Could Do
+
+**PDF Health Report**
+A generated report covering a selectable date range (e.g., "last 3 months", "last year", custom). Contents:
+- Executive summary: key stats at a glance (average calories, protein adherence %, workouts/week, average sleep score, weight change)
+- Body metrics chart (weight + body comp over time)
+- Nutrition adherence chart (days at/above/below targets)
+- Workout frequency and volume chart
+- Key milestones and personal records
+- Top 3 insights from the correlation engine
+- Generated by Claude — a 1–2 paragraph narrative summary in the user's chosen coaching persona
+
+**CSV / JSON Raw Export**
+Full raw export of all user data: daily logs, workouts, body metrics, trends. Privacy-forward: this is *your* data, you can take it anywhere.
+
+**Shareable Summary Card**
+A designed image (like Spotify Wrapped / Strava Year in Review) showing: days tracked, total workouts, best lift, weight change, longest streak. Shareable to Instagram, WhatsApp. Different from the existing share feature — this is a designed summary, not a live view.
+
+**"Year in Review" Annual Report**
+Triggered at year-end (or whenever the user wants): a narrative + visual recap of the last 12 months. Most improved metric, best month, total volume lifted, total protein logged, biggest personal record.
+
+#### Implementation Notes
+
+- PDF generation: `react-pdf` or `puppeteer` screenshot of a styled Next.js route
+- Image card: `@vercel/og` (already available, zero new deps)
+- Raw export: a new API route that dumps all user tables to JSON/CSV and offers a download
+- The shareable card reuses existing design tokens — low effort relative to impact
+
+#### Why This Matters
+
+Data portability is a trust signal. Users who know they can export their data are more willing to invest in tracking thoroughly. The shareable annual report is a viral growth mechanism — every user who posts their Fitness Year in Review is an unpaid advertisement. And the PDF report for clinicians/coaches unlocks a professional use case that most consumer fitness apps ignore entirely.
+
+---
+
+---
+
 ## Quick Wins Appendix
 
 These are bugs or small features that could each ship in a day or less. Not a pillar, but worth doing.
@@ -600,6 +906,14 @@ These are bugs or small features that could each ship in a day or less. Not a pi
 | Autosave indicator | Show a small "Saved ✓" or pulsing dot in DailyLogForm header when saving | 1h |
 | Persistent macro summary bar | Sticky mini macro bar (P/C/F/Cal) visible across all log tabs | 2h |
 | Coach chat history sync | Move coach chat history from localStorage to Supabase for cross-device persistence | 1 day |
+| Water intake quick-tap | Single button on dashboard to log 250ml; show daily total. No full hydration pillar needed yet | 2h |
+| RPE per set | Add a 1–10 Rate of Perceived Exertion field to each workout set; feeds progressive overload algorithm | 2h |
+| Supplement quick-log | Checkbox list in daily log for user-defined supplements; no reminder logic needed yet | 1 day |
+| Shareable summary card | `@vercel/og` image showing: streak, workouts this month, best lift, weight change. Share button on dashboard | 1 day |
+| Year-in-Review trigger | Manual "generate my year in review" button in Settings. Uses existing data + `@vercel/og` | 1 day |
+| Injury flag on workout | A "skip — body part bothering me" option on any exercise that tags it in the log; no full injury pillar needed | 2h |
+| Coaching persona picker | `coaching_persona` setting in Settings (4 options); inject into existing AI system prompts | 2–3 days |
+| Raw data export | "Export my data" button in Settings — downloads JSON of all user tables via `/api/export` | 1 day |
 
 ---
 
@@ -607,20 +921,25 @@ These are bugs or small features that could each ship in a day or less. Not a pi
 
 Scored on Impact (user value) × Feasibility (time + complexity) for a solo developer.
 
-| Pillar | Impact | Feasibility | Score | Recommended Sequencing |
+| Pillar | Impact | Feasibility | Score | Status / Recommended Sequencing |
 |---|---|---|---|---|
-| Quick Wins | Medium | Very High | ★★★★★ | Ship first (continuous) |
-| Readiness Score | Very High | High | ★★★★☆ | Sprint 1 — no new tables, just logic |
-| Correlation Engine | Very High | High | ★★★★☆ | Sprint 1 — data already exists |
-| Nutrition Planning (Saved Meals only) | High | High | ★★★☆☆ | Sprint 2 — start with saved meals |
-| Periodisation (Overload Alerts only) | High | High | ★★★☆☆ | Sprint 2 — active workout is already there |
-| Accountability (Partner only, no challenges) | Very High | Medium | ★★★☆☆ | Sprint 3 |
-| Withings Integration | High | Medium | ★★★☆☆ | Sprint 3 |
-| Oura Integration | High | Medium | ★★★☆☆ | Sprint 3 |
-| Nutrition Planning (Full Meal Planner) | High | Low | ★★☆☆☆ | Sprint 4 |
-| Group Challenges | Medium | Medium | ★★☆☆☆ | Sprint 4 |
-| 12-Week Programs | High | Low | ★★☆☆☆ | Sprint 4 |
-| Apple Health / Google Fit | Very High | Very Low | ★★☆☆☆ | Future (requires native app) |
+| Quick Wins (original) | Medium | Very High | ★★★★★ | Ongoing — ship continuously |
+| Quick Wins (new additions above) | Medium–High | Very High | ★★★★★ | Ongoing — pick off one at a time |
+| Readiness Score | Very High | High | ★★★★☆ | **Outstanding** — highest priority unbuilt feature |
+| Correlation Engine | Very High | High | ★★★★☆ | **Outstanding** — data already exists |
+| Progressive Overload Alerts | High | High | ★★★★☆ | **Outstanding** — workout infra is there |
+| AI Coach Personas (Pillar C) | High | Very High | ★★★★☆ | New — prompt-only change, fast to ship |
+| Hydration Tracking (Pillar D) | High | Very High | ★★★★☆ | New — quick-tap UI + simple data model |
+| Nutrition Planning (full meal planner) | High | Medium | ★★★☆☆ | Partially built (`/nutrition` page exists) |
+| Accountability (Group Challenges) | Very High | Medium | ★★★☆☆ | Partially built (summary email exists) |
+| Fasting & Meal Timing (Pillar B) | High | Medium | ★★★☆☆ | New — new data model required |
+| Injury & Soreness Management (Pillar A) | Very High | Medium | ★★★☆☆ | New — differentiator, reduces churn |
+| Supplement Tracker (Pillar E) | Medium | High | ★★★☆☆ | New — low effort, unlocks new correlation data |
+| Data Export & Health Report (Pillar F) | High | Medium | ★★★☆☆ | New — trust + viral growth |
+| 12-Week Programs (full) | High | Medium | ★★★☆☆ | Partially built (`/programs` page exists) |
+| Withings Integration | High | Low | ★★★☆☆ | Partially built (auth routes exist — needs UI wiring) |
+| Oura Integration | High | Low | ★★★☆☆ | Partially built (auth routes exist — needs UI wiring) |
+| Apple Health / Google Fit | Very High | Very Low | ★★☆☆☆ | Future (requires native shell) |
 
 ---
 
@@ -639,4 +958,24 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
-*Document ends. Questions, pushback, or additions — flag them and I'll revise.*
+## Recommended Next Sprint — New Features Priority Order
+
+Given the brainstorm additions above, here is a suggested sequence for the new pillars, ordered by value-vs-effort:
+
+1. **AI Coach Personas (Pillar C)** — 2–3 days. Pure prompt engineering, no new data model. Affects every existing AI touchpoint. Highest leverage per hour of work.
+
+2. **Hydration Tracking (Pillar D)** — 2–3 days. Simple data model, quick-tap UX, drives daily opens. More correlations for the engine. Users expect it.
+
+3. **Supplement Tracker (Pillar E) — quick version** — 1 day. Just the log checkbox + a `user_supplements` table. No reminders or library needed yet. Unlocks a new input for the correlation engine.
+
+4. **Injury Flag (quick win)** — 2 hours. A single "flag as skipped — body hurting" option on exercises. No full injury pillar needed. Adds signal that the AI can use immediately.
+
+5. **Fasting Timer (Pillar B) — v1 only** — 3–4 days. A simple timer widget + eating window display. No meal timing optimisation yet. High discovery value — many users are already fasting with no app support.
+
+6. **Data Export (Pillar F) — quick version** — 1 day. Raw JSON/CSV dump. Small feature, large trust signal.
+
+7. **Injury & Soreness Management (Pillar A)** — 5–7 days. Full body map + injury log + workout auto-adjustment. Higher effort but a genuine differentiator. Schedule for a focused sprint.
+
+---
+
+*Document last updated 2026-05-30. Questions, pushback, or additions — flag them and I'll revise.*
