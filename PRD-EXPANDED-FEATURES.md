@@ -1,8 +1,8 @@
 # Fitness Tracker — Expanded Features PRD
 
 **Author:** Claude  
-**Date:** 2026-05-20  
-**Status:** Proposal — for review
+**Date:** 2026-05-20 (updated 2026-05-31)  
+**Status:** Living document — original pillars partially shipped; new ideas added for review
 
 ---
 
@@ -16,9 +16,13 @@ This document proposes six major feature pillars, each with full specifications,
 
 ## Current State (What Exists)
 
+*Updated 2026-05-31 to reflect codebase reality — the app has shipped several features since the original PRD was written.*
+
 | Area | Status |
 |---|---|
 | Daily log (food, activity, wellness) | ✅ Solid, AI-assisted entry |
+| Food barcode scanner | ✅ Shipped — `BarcodeScanner` component |
+| Food photo recognition | ✅ Shipped — `FoodCamera` + `/api/ai/analyze-food` |
 | Workout tracking (exercises, sets, reps) | ✅ Full, with voice spotter |
 | Streaks & XP gamification | ✅ 15 badges, level system |
 | Trends & analytics | ✅ Charts across 5 dimensions |
@@ -28,10 +32,40 @@ This document proposes six major feature pillars, each with full specifications,
 | Goal Wizard | ⚠️ Built but no entry point |
 | Progress photos | ✅ Upload + compare |
 | Body metrics | ⚠️ Measurements but no photo upload |
-| Social / sharing | 🔴 Stub only |
-| Nutrition planning | 🔴 Not started |
+| Social / sharing | ⚠️ `ShareModal` exists, `/share/[token]` route live |
+| Nutrition planning | ⚠️ `/nutrition` page + meal-plan API exist; pantry stub present |
+| Training programs | ⚠️ `/programs` page + generate-program API exist; UI polish needed |
+| Accountability partners | ⚠️ `send-summary` API exists; partner management UI missing |
 | Recovery / readiness | 🔴 Not started |
-| Wearable integrations | 🔴 Strava only |
+| Correlation / insight engine | 🔴 Not started |
+| Group challenges | 🔴 Not started |
+| Withings integration | ⚠️ OAuth + sync route scaffolded; not yet live |
+| Oura integration | ⚠️ OAuth + sync route scaffolded; not yet live |
+| Supplement tracking | 🔴 Not started |
+| Hydration tracking | 🔴 Not started |
+| Injury / soreness log | 🔴 Not started |
+
+---
+
+## Outstanding Work — Original Six Pillars
+
+A quick checklist of what remains unbuilt from the original proposal, in priority order:
+
+| Item | Status | Notes |
+|---|---|---|
+| Correlation Engine (`insights_cache` table + nightly cron) | 🔴 | Highest ROI — data already exists |
+| Recovery & Readiness Score (dashboard widget + algorithm) | 🔴 | Second-highest ROI — no new data needed |
+| Accountability Partner management UI (invite, view, accept) | 🔴 | `send-summary` API exists but no UI |
+| Group Challenges | 🔴 | Lower priority than partner feature |
+| Goal Wizard entry point | ⚠️ | 1-hour fix — add Settings banner |
+| Progressive Overload alerts in active workout | 🔴 | Algorithm straightforward, workout history exists |
+| Volume tracking / Gains dashboard | 🔴 | Muscle-group mapping needed |
+| Body metrics photo upload (Supabase Storage) | ⚠️ | Same pattern as Progress Photos |
+| Withings OAuth end-to-end flow | ⚠️ | Routes exist; needs testing + settings page |
+| Oura OAuth end-to-end flow | ⚠️ | Routes exist; needs testing + settings page |
+| Coach chat history — Supabase sync | ⚠️ | Currently localStorage only |
+| Nutrition planning — Pantry / Saved Meals | ⚠️ | API stub exists, no UI |
+| Macro cycling recommendations | 🔴 | Depends on meal planner being complete |
 
 ---
 
@@ -639,4 +673,347 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
-*Document ends. Questions, pushback, or additions — flag them and I'll revise.*
+---
+
+## New Feature Ideas — Brainstorm (2026-05-31)
+
+These are net-new ideas not covered by the original six pillars. They are grouped by theme and ordered within each group by estimated impact. None are currently in the codebase.
+
+---
+
+### Theme A — Training Intelligence (extend Pillar 3)
+
+#### A1 — Training Load Monitoring (ACWR)
+
+**What it does:** Calculate the Acute:Chronic Workload Ratio from workout history. Acute load = last 7 days of training volume (sets × reps × weight). Chronic load = rolling 28-day average. ACWR > 1.5 = spike zone (injury risk). ACWR < 0.8 = detraining.
+
+Display a simple traffic-light badge on the schedule page and workout start screen: "Workload: Normal / Spike Risk / Detrained."
+
+**Why it matters:** ACWR is the most evidence-backed injury prediction signal in sports science. It requires no new data — only the `workout_sets` table, which already has everything needed. This is the natural complement to the readiness score: readiness = how recovered are you today; ACWR = is your training trajectory safe over time.
+
+**Data requirements:** No new tables. Computed on demand from `workout_exercises` and `workout_sets`.
+
+**Effort:** ~2 days. Algorithm is simple; the main work is the UI indicator and the calculation service.
+
+---
+
+#### A2 — Injury & Soreness Tracker
+
+**What it does:** A simple body map (front/back silhouette SVG) where users tap a muscle group to log soreness or pain (1–5 scale, optional note). Logged as part of the daily check-in or as a standalone entry.
+
+Downstream effects:
+- Sore muscles appear highlighted in the workout builder — exercises that stress them are flagged with a warning
+- Soreness feeds into the Readiness Score (Pillar 4): sore quads = lower leg day readiness
+- The Correlation Engine can track whether soreness follows high-volume sessions for specific muscle groups
+
+**New data model:**
+```sql
+CREATE TABLE soreness_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  muscle_group text NOT NULL,  -- 'quads', 'chest', 'lower_back', etc.
+  severity int NOT NULL,       -- 1-5
+  note text,
+  logged_at timestamptz DEFAULT now()
+);
+```
+
+**Effort:** 3–4 days (body map SVG is the hardest part; everything else is CRUD).
+
+---
+
+#### A3 — Cardio Zone Training
+
+**What it does:** For cardio sessions (runs, cycles, rows), add structured zone tracking alongside the existing duration field:
+- User sets max heart rate (or we estimate via 220 − age)
+- Five HR zones automatically calculated (Zone 1: 50–60% max HR … Zone 5: 90–100%)
+- When logging a cardio workout, user can log time-in-zone or just average HR
+- A "Zone Distribution" chart shows % of cardio time in each zone over the past month
+
+**Why it matters:** "45-minute run" is useless data. "Zone 2 aerobic: 30min, Zone 4 threshold: 15min" tells you everything about training quality. This is what Garmin and Polar users expect and what makes the app useful for runners and cyclists.
+
+**Effort:** 2–3 days. HR zone model is a simple calculation. Needs a new optional field on the workout record and a new chart component.
+
+---
+
+### Theme B — Nutrition Intelligence (extend Pillar 2)
+
+#### B1 — Smart Plate Balancing
+
+**What it does:** After a user logs a meal, show a contextual prompt if the macros are significantly off-target:
+- *"You've logged 750 kcal for dinner but only 18g protein. Adding 150g chicken breast would take you to 41g — 5g from your daily target."*
+- Triggered only when: (a) protein is >15g below daily goal after dinner, or (b) calories are >300 below goal by 8pm
+
+The suggestion pulls from their Favourite Foods and recently logged foods to keep it relevant.
+
+**Why it matters:** This is the difference between passive tracking and active guidance. It doesn't require the meal planner to be complete — it works on top of the existing daily log.
+
+**Effort:** 1–2 days. Logic lives in the daily log save handler; the prompt is a small banner component.
+
+---
+
+#### B2 — Pantry / Ingredients Tracker
+
+**What it does:** A simple list of ingredients the user has at home, with quantities and expiry dates. Two uses:
+1. Meal plan suggestions are filtered to "use pantry items first" — reduces waste and saves money
+2. "What can I make tonight?" — AI generates a recipe from pantry ingredients that hits macro targets
+
+**New data model:**
+```sql
+CREATE TABLE pantry_items (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  food_name text NOT NULL,
+  quantity_g numeric,
+  expires_on date,
+  added_at timestamptz DEFAULT now()
+);
+```
+
+*Note: `/api/nutrition/pantry` is already stubbed in the codebase — this would be completing it.*
+
+**Effort:** 2–3 days (the stub exists; needs UI and the AI recipe generation endpoint).
+
+---
+
+#### B3 — Supplement Tracker
+
+**What it does:** A daily supplement checklist (user defines their stack: creatine, vitamin D, omega-3, protein powder, etc.) checked off as part of the morning or daily log. 
+
+Supplements appear as a tab in the daily log. Compliance logged as a boolean per supplement per day.
+
+Downstream effects:
+- The Correlation Engine gets new variable pairs: `creatine_taken` ↔ `workout_volume`, `vitamin_D_taken` ↔ `energy_level`
+- AI Coach can ask "Are you taking your creatine consistently?" when reviewing performance
+
+**New data model:**
+```sql
+CREATE TABLE user_supplements (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  dose_mg numeric,
+  timing text,  -- 'morning', 'pre-workout', 'evening'
+  is_active boolean DEFAULT true
+);
+
+-- logged in daily_logs.supplement_log jsonb column (no new table needed)
+```
+
+**Effort:** 1–2 days. Most of the work is the settings UI for managing the stack.
+
+---
+
+#### B4 — Hydration Tracker
+
+**What it does:** A simple daily water intake counter with a target (default 2.5L, customisable). Quick-add buttons: +250ml, +500ml, +1L. A small progress ring visible on the dashboard.
+
+The hydration log is part of the daily check-in. Correlates with energy level and workout performance in the Correlation Engine.
+
+**Why it matters:** Hydration is one of the most requested features in fitness apps, and it's trivially cheap to build. It gives users another daily engagement touchpoint without requiring any real thought.
+
+**Effort:** Half a day — one new field in `daily_logs`, a tiny counter component.
+
+---
+
+### Theme C — Habit & Mindfulness (new territory)
+
+#### C1 — Habit Stacking Module
+
+**What it does:** Users define up to 10 daily micro-habits beyond the existing movement/nutrition goals. Examples: *meditate 10 min, read 20 pages, cold shower, no phone before 8am, take supplements, 10 min stretching.*
+
+Each habit has:
+- A name and optional cue ("after morning coffee")
+- A completion checkbox in the daily log
+- XP reward on completion (5 XP per habit, capped so it doesn't break the levelling curve)
+- A 30-day habit completion chart in Trends
+
+Habits can be grouped as a "Morning Stack" or "Evening Stack" and completed as a block.
+
+**Why it matters:** James Clear's *Atomic Habits* has sold 15M+ copies. The target user for this app is exactly the person who read it. Habit tracking is the #1 feature request in fitness app reviews. The daily log already has `movement_completed` — this generalises that to any habit.
+
+**Data model:**
+```sql
+CREATE TABLE user_habits (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  cue text,
+  stack text,     -- 'morning', 'evening', 'custom'
+  sort_order int DEFAULT 0,
+  xp_value int DEFAULT 5,
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
+-- habit completions stored in daily_logs.habit_completions jsonb  { [habit_id]: true/false }
+```
+
+**Effort:** 2–3 days.
+
+---
+
+#### C2 — Mindful Eating Check-ins
+
+**What it does:** Optional before/after prompts when logging a meal:
+- **Before eating:** Hunger level (1–5) + *"Are you eating out of hunger or habit?"*
+- **After eating:** Satisfaction level (1–5) + *"Did you eat mindfully or distracted?"*
+
+These fields are optional and can be disabled entirely in Settings. When enabled:
+- A "Mindful Eating Score" appears in the weekly summary
+- The Correlation Engine can find: `eating_distracted` ↔ `calorie_overshoot`
+- The AI Coach can reference these when discussing eating patterns
+
+**Why it matters:** Mindful eating is one of the most evidence-based interventions for portion control and emotional eating. It requires zero new infrastructure — just two optional fields per meal.
+
+**Effort:** Half a day. Two optional fields in the meal log form, exposed in the Correlation Engine.
+
+---
+
+#### C3 — Evening Wind-Down Routine
+
+**What it does:** An optional evening routine flow, triggered by a customisable reminder at a user-set bedtime:
+1. **3-step reflection** (1 min): Three things that went well today; one thing to improve tomorrow
+2. **Pre-sleep intention**: *"Tomorrow's priority is ___"* — this surfaces in the morning dashboard
+3. **Breathing exercise** (optional, 2 min): A simple 4-7-8 breathing animation
+4. After completion, the evening check-in prompts sleep timing — *"What time are you going to bed?"*
+
+This directly improves tomorrow's Readiness Score by improving sleep quality (users who set an intention sleep faster and report better quality).
+
+**Effort:** 2–3 days. The reflection journal needs a new `evening_reflections` table; the breathing exercise is a pure CSS animation.
+
+---
+
+### Theme D — Personalisation & Sharing
+
+#### D1 — AI Coach Persona Selection
+
+**What it does:** In Settings → Coaching, the user chooses one of four coaching tones:
+
+| Persona | Style | Sample message |
+|---|---|---|
+| **Drill Sergeant** | Tough, direct, no excuses | "You missed your protein by 30g. That's a choice. Fix it tomorrow." |
+| **Supportive Friend** | Warm, encouraging, empathetic | "You're doing amazing — even logging on a hard day is a win." |
+| **Data Nerd** | Numbers-focused, analytical | "Your 7-day protein average is 142g vs your 160g target — 89% compliance." |
+| **Zen Coach** | Mindfulness-oriented, holistic | "Your body asked for rest today. That's not failure — that's wisdom." |
+
+The persona is injected into the system prompt for every AI Coach interaction. One field in `user_settings`: `coach_persona text DEFAULT 'supportive'`.
+
+**Why it matters:** Coaching style fit is a huge factor in adherence. Some users want to be pushed hard; others shut down when they feel criticised. This costs almost nothing to implement — it's literally one system prompt variable.
+
+**Effort:** Half a day.
+
+---
+
+#### D2 — Shareable Workout Cards
+
+**What it does:** After completing a workout, a "Share" button generates a beautiful branded card image showing:
+- Workout name, duration, date
+- Key stats: total volume, top lift (e.g. "Bench Press 80kg × 5"), exercises completed
+- XP earned, current streak
+- App branding + optional user display name
+
+The card is generated server-side as a PNG using Vercel's `@vercel/og` (edge rendering). Can be downloaded or shared directly to Instagram/WhatsApp.
+
+**Why it matters:** Workout sharing is one of the primary organic growth drivers for fitness apps. Unlike a full social network, this is one-directional — users share outward to their existing social circles. The card functions as an ad for the app. It also rewards users with a satisfying deliverable at the end of a hard session.
+
+**Effort:** 1–2 days. `@vercel/og` is already in many Next.js stacks; the route generates an OG image on the fly. The `ShareModal` component already exists.
+
+---
+
+#### D3 — Monthly Health Report PDF
+
+**What it does:** On the first of each month, generate a shareable PDF health summary:
+- Key metrics for the month: avg calories, avg protein, workouts completed, total volume
+- Best streak, badges earned
+- Top correlations found (from the Correlation Engine)
+- Body metrics trend (weight, body fat if available)
+- AI-written 3-sentence monthly reflection
+
+The PDF is generated server-side and emailed to the user (opt-in). Also accessible via Settings → "Download Health Reports."
+
+**Why it matters:** This is the "show your doctor" feature. Users with fitness trackers often want to share progress with a GP, dietitian, or PT — and currently there's no way to do that. It's also a powerful retention hook: the monthly email is a reason to open the app and celebrate progress.
+
+**Effort:** 2–3 days. PDF generation via `react-pdf` or `puppeteer`; the data aggregation uses the same queries as the Trends page.
+
+---
+
+### Theme E — Infrastructure & UX
+
+#### E1 — Offline Mode (Full PWA)
+
+**What it does:** The app already has a service worker (`sw.ts`). Extend it to:
+- Cache the daily log form shell so it loads instantly without network
+- Queue log saves to IndexedDB when offline, sync when connection returns
+- Show a small "Offline — changes will sync" banner when disconnected
+- Ensure the workout tracker works fully offline (record sets locally, sync after)
+
+**Why it matters:** Gyms have terrible WiFi. The #1 complaint in fitness app reviews is "it doesn't work at the gym." Offline support turns a nice app into a reliable tool. It's also a PWA quality signal that helps with installability.
+
+**Effort:** 3–4 days. The service worker shell exists; the main work is IndexedDB queue management and conflict resolution on sync.
+
+---
+
+#### E2 — Adaptive Smart Notifications
+
+**What it does:** Replace the current static reminder times with a learning system:
+
+1. **Optimal log time learning:** Track when the user typically logs. If they always log at 8pm, move the reminder to 7:50pm. If they log in the morning, skip the evening reminder.
+2. **Streak save alerts:** 2 hours before midnight, if the user hasn't logged, send a low-friction "Quick Log" deep-link notification that opens a minimal "just check in" form (3 taps: energy, protein hit y/n, movement y/n).
+3. **Notification fatigue detection:** If the user dismisses the same notification type 5 days in a row without acting on it, suppress that type for 2 weeks and then ask if they want to re-enable it.
+
+**Why it matters:** Push notification engagement declines sharply when reminders are predictably ignored. Adaptive timing is one of the simplest ways to maintain notification open rates long-term.
+
+**Effort:** 2–3 days. Requires tracking notification tap events (currently untracked) and a small ML-free timing model stored in `user_settings`.
+
+---
+
+#### E3 — Calendar Sync (Google / Apple)
+
+**What it does:** Export scheduled workouts to Google Calendar or Apple Calendar as events. Two modes:
+- **One-shot export:** "Add this week's workouts to my calendar" — generates an `.ics` file download
+- **Live sync:** OAuth connection that pushes new scheduled workouts automatically and removes cancelled ones
+
+Show a "Synced to Calendar" indicator on the schedule page when connected.
+
+**Why it matters:** Workouts that are in the calendar get done. This is a simple behavioural nudge — the workout sits next to meetings and becomes a real appointment rather than a vague intention.
+
+**Effort:** 1 day for `.ics` export; 3–4 days for live OAuth sync. Start with `.ics`.
+
+---
+
+## Updated Prioritisation Matrix
+
+All items, including new ideas, ordered by Impact × Feasibility for a solo developer:
+
+| Feature | Impact | Feasibility | Score | Notes |
+|---|---|---|---|---|
+| Quick Wins (original list) | Medium | Very High | ★★★★★ | Ongoing |
+| Hydration Tracker (B4) | Medium | Very High | ★★★★★ | Half a day |
+| Coach Persona (D1) | High | Very High | ★★★★★ | Half a day |
+| Smart Plate Balancing (B1) | High | High | ★★★★☆ | 1–2 days |
+| Shareable Workout Cards (D2) | High | High | ★★★★☆ | 1–2 days; growth driver |
+| Readiness Score (Pillar 4) | Very High | High | ★★★★☆ | Sprint 1 — original |
+| Correlation Engine (Pillar 1) | Very High | High | ★★★★☆ | Sprint 1 — original |
+| Supplement Tracker (B3) | Medium | High | ★★★★☆ | 1–2 days; feeds correlation |
+| Mindful Eating Check-ins (C2) | Medium | Very High | ★★★★☆ | Half a day |
+| Progressive Overload Alerts (Pillar 3) | High | High | ★★★★☆ | Sprint 2 — original |
+| Training Load / ACWR (A1) | High | High | ★★★☆☆ | 2 days; no new tables |
+| Habit Stacking (C1) | Very High | Medium | ★★★☆☆ | 2–3 days |
+| Adaptive Notifications (E2) | High | Medium | ★★★☆☆ | 2–3 days |
+| Accountability Partner UI (Pillar 5) | Very High | Medium | ★★★☆☆ | Sprint 3 — original |
+| Evening Wind-Down (C3) | Medium | Medium | ★★★☆☆ | 2–3 days |
+| Monthly Health Report (D3) | High | Medium | ★★★☆☆ | 2–3 days; retention + sharing |
+| Cardio Zone Training (A3) | High | Medium | ★★★☆☆ | 2–3 days |
+| Pantry Tracker (B2) | Medium | Medium | ★★★☆☆ | Stub exists |
+| Injury & Soreness Tracker (A2) | High | Medium | ★★★☆☆ | 3–4 days |
+| Offline Mode (E1) | High | Medium | ★★★☆☆ | 3–4 days |
+| Calendar Sync — .ics (E3) | Medium | High | ★★★☆☆ | 1 day |
+| Withings / Oura end-to-end (Pillar 6) | High | Medium | ★★★☆☆ | Routes exist |
+| Group Challenges (Pillar 5) | Medium | Medium | ★★☆☆☆ | Sprint 4 — original |
+| Apple Health / Google Fit (Pillar 6) | Very High | Very Low | ★★☆☆☆ | Needs native shell |
+
+---
+
+*Document updated 2026-05-31. New ideas added in Themes A–E for review. Questions, pushback, or additions — flag them and I'll revise.*
