@@ -15,9 +15,18 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - AI Weekly Analysis: narrative breakdown of nutrition, movement, and trends
 - AI-generated and editable 12-week training programs
 - AI Nutrition Planner: generates meal plans from your pantry
+- AI responses respect your selected display language (EN / FR)
+
+**Claude AI Connector (MCP)**
+- Connect Claude.ai directly to your fitness data via a per-account MCP endpoint
+- Read tools: daily logs, workouts, body metrics, profile
+- Write tools: log food, log workout, update daily log
+- Secure API key management in Settings → Claude AI Connector
 
 **Workout Tracking**
 - Active workout logger with real-time set / rep tracking and rest timer
+- Autosave per set — progress survives crashes and navigation
+- Edit any completed workout's sets from the daily log
 - AI Coach builds and saves workouts from natural language
 - Schedule workouts on a calendar with per-session reminders
 - 1RM estimation (Epley), PR notifications, and progress analytics
@@ -48,6 +57,7 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 
 **Customisation**
 - Light / System / Dark theme
+- English / French language toggle (Settings → Customisation)
 - Custom nutrition targets, habits list, available equipment
 - Accountability partners with weekly email summaries
 

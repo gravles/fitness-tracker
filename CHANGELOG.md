@@ -2,6 +2,38 @@
 
 All notable changes to Life Logger are documented here.
 
+## [2.1.0] — 2026-06-01
+
+### English / French Language Toggle
+- Full EN/FR i18n system via a custom React context (`LanguageProvider`) with `localStorage` persistence
+- Covers all core UI: navigation, dashboard, daily log, settings, onboarding, and all section components
+- Language switchable from Settings → Customisation — no app restart required
+- All Claude AI responses (coach, weekly insights, goal wizard, workout chat, recommendations) also respect the selected language
+
+### Claude AI Connector (MCP)
+- Per-account MCP server endpoint (`/api/mcp`) compatible with Claude.ai's MCP integration
+- 7 tools exposed: `get_daily_logs`, `get_workouts`, `get_body_metrics`, `get_user_profile` (read) and `log_food`, `log_workout`, `update_daily_log` (write)
+- Secure API key management: keys are hashed server-side (RLS-enabled `mcp_api_keys` table)
+- Generate, copy, and revoke keys from Settings → Claude AI Connector
+- Lets you ask Claude questions like "How did my protein intake look this week?" directly in Claude.ai
+
+### Workout Autosave & Edit Completed Workouts
+- Every set toggle (complete / uncomplete) writes to the database immediately — progress survives navigation and crashes
+- Autosave status chip ("Saving…" / "Saved" / "Save failed") shown next to the workout timer
+- Lazy workout creation: the DB record is created on the first completed set; crash-resume reloads from DB
+- "Edit Sets" button on any completed workout card re-opens it in the full logger for set-level editing
+- Delete individual sets with the red ✕ button on each set row
+
+### Bug Fixes
+- Fixed food camera: restored direct camera capture; added a separate "Gallery" button for picking from the photo library
+- Fixed food photo scan inconsistency (canvas compressor path unified)
+- Fixed iOS push notifications: switched APNs entitlement to `production` and added direct APNs HTTP/2 delivery for iOS tokens (Android continues via FCM)
+- Fixed iOS black screen on launch: registered `ViewController` in Xcode project
+- Fixed AI weekly analysis returning no results (query and JSON parsing both hardened)
+- Fixed habits column name in MCP daily logs query
+
+---
+
 ## [2.0.0] — 2026-05-24
 
 ### Native iOS & Android Apps

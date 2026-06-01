@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronRight, Smartphone, Calendar, BookOpen, Dna, Sparkles } from 'lucide-react';
+import { ChevronRight, Globe, Plug, Dumbbell } from 'lucide-react';
 
-const APP_VERSION = '2.0';
+const APP_VERSION = '2.1';
 const STORAGE_KEY = 'lifelogger_seen_version';
 
 interface Slide {
@@ -16,39 +16,25 @@ interface Slide {
 
 const SLIDES: Slide[] = [
     {
-        emoji: '📱',
-        icon: <Smartphone className="w-6 h-6" />,
-        title: 'Now on iOS & Android',
-        body: 'Download the native app for push notifications, haptic feedback, and swipe-back navigation.',
+        emoji: '🌐',
+        icon: <Globe className="w-6 h-6" />,
+        title: 'English & French',
+        body: 'Switch the entire app between English and French in Settings → Customisation. Your AI coach responds in the same language too.',
         accent: 'var(--color-primary)',
     },
     {
-        emoji: '📅',
-        icon: <Calendar className="w-6 h-6" />,
-        title: 'Workout Calendar Feed',
-        body: 'Subscribe to your personal webcal:// link and see every scheduled workout in Apple Calendar or Google Calendar.',
+        emoji: '🔌',
+        icon: <Plug className="w-6 h-6" />,
+        title: 'Claude AI Connector',
+        body: 'Connect Claude.ai directly to your fitness data. Ask questions, log food, and record workouts — all from a Claude conversation.',
         accent: 'var(--color-gold)',
     },
     {
-        emoji: '🏋️',
-        icon: <BookOpen className="w-6 h-6" />,
-        title: '12-Week Training Programs',
-        body: 'AI builds a periodised program for your goal. Target weights, 1RM tracking, PR notifications, and a full adherence calendar.',
+        emoji: '💪',
+        icon: <Dumbbell className="w-6 h-6" />,
+        title: 'Workout Autosave & Edit',
+        body: 'Every set is saved instantly — crashes can\'t erase your progress. Tap "Edit Sets" on any past workout to update reps and weights.',
         accent: '#22c55e',
-    },
-    {
-        emoji: '🔗',
-        icon: <Dna className="w-6 h-6" />,
-        title: 'Health Integrations',
-        body: 'Connect Strava, Withings, and Oura under Settings → Health Integrations to sync activities and body composition automatically.',
-        accent: 'var(--color-primary)',
-    },
-    {
-        emoji: '🥗',
-        icon: <Sparkles className="w-6 h-6" />,
-        title: 'AI Nutrition Planner',
-        body: 'Build a pantry, set prep-time limits, and let AI generate a weekly meal plan. Log meals straight to your diary.',
-        accent: 'var(--color-gold)',
     },
 ];
 
