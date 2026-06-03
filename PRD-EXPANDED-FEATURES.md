@@ -639,4 +639,372 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
-*Document ends. Questions, pushback, or additions — flag them and I'll revise.*
+---
+
+## New Feature Ideas — Brainstorm (Added 2026-06-03)
+
+These are net-new ideas that don't overlap with the six pillars above. Organised by theme. None are specced to implementation depth — they're candidate features for prioritisation.
+
+---
+
+### Category A — Logging Friction Reducers
+
+The single biggest reason users abandon fitness apps is the tedium of logging. Every idea here attacks that friction.
+
+---
+
+#### A1 — Food Photo Logging
+
+**The problem:** Typing "grilled chicken breast, 180g" is slow and error-prone. Most people eat meals they can't easily describe or search for. The camera is right there.
+
+**What it does:**
+- User taps a camera icon in the food log, takes a photo of their meal
+- Claude Vision (or a vision-capable model) analyses the image and returns:
+  - Identified food items with portion estimates
+  - Estimated macro breakdown per item
+  - A confidence indicator ("I can see rice, broccoli, and what looks like salmon — does that look right?")
+- User confirms or edits, then logs with one tap
+- Works for restaurant meals, home cooking, and packaged food
+
+**Edge cases to handle:**
+- Low-confidence results should surface the items for manual correction, not silently log wrong data
+- Multi-item meals (plates) vs. single items (a banana) need different prompt strategies
+- Dark/blurry photos degrade badly — fail gracefully with a "try again in better light" prompt
+
+**Why it matters:** Eliminates the highest-friction step in food logging. Even a ~70% accurate photo guess that the user corrects is faster than searching from scratch. Particularly powerful for restaurant meals where the existing food search returns poor results.
+
+**Effort estimate:** Medium — requires a multimodal API call with a structured food-extraction prompt, a confirmation UI, and integration with the existing food item schema. No new data model needed.
+
+---
+
+#### A2 — Barcode & Nutrition Label Scanner
+
+**The problem:** Packaged food already has all the nutritional data — it's printed on the box. But users still have to search for it by name, often matching to incorrect entries.
+
+**What it does:**
+- In the food log, a barcode icon opens the camera for scanning
+- Scans standard barcodes (EAN-13, UPC-A) and looks up via Open Food Facts API (free, 3M+ products)
+- Optionally: a second mode uses Claude Vision to read a nutrition facts label directly and extract values — useful for local/store-brand products not in Open Food Facts
+- On match: populates name, calories, protein, carbs, fat per serving with serving-size selector
+
+**Why it matters:** Fastest possible food entry for packaged products. Pairs with A1 (photo logging) for a complete "zero-type" logging experience — scan what you're eating, photograph what you can't scan.
+
+**Effort estimate:** Low-Medium — Open Food Facts has a clean REST API. The native camera scan requires a JS barcode library (e.g. `quagga2` or `zxing-js`). The label-reading fallback is an extra API call.
+
+---
+
+#### A3 — Water Intake Tracker
+
+**The problem:** Hydration directly affects energy, performance, and recovery — all things the app already tracks — but water is not logged anywhere. It's consistently one of the most-requested features in fitness apps.
+
+**What it does:**
+- A simple water log panel in the daily log: tap to add glasses/ml (customisable unit)
+- Daily target derived from user weight (standard formula: 35ml × kg bodyweight)
+- Smart reminders: push notification if user hasn't logged water by 11am, again at 3pm — skipped automatically if the daily target is already met
+- Hydration level shown as a simple bar in the wellness summary
+- On high-workout or high-temperature days (derivable from activity data), daily target auto-adjusts upward by 15%
+- Included in the correlation engine: alcohol_drinks ↔ hydration, hydration ↔ energy_level
+
+**Why it matters:** Low-effort to build, immediately useful, completes the "whole day" picture of wellness that the app is going for. Users who log water stay longer — it creates an additional daily touch point.
+
+**Effort estimate:** Low — a counter in `daily_logs.jsonb` + a UI element. No new table required unless water logging needs its own history.
+
+---
+
+#### A4 — Voice-First Daily Log
+
+**The problem:** The workout spotter already uses voice. But the daily food and wellness log still requires tapping through forms. For busy users (commuting, cooking), talking is faster than tapping.
+
+**What it does:**
+- A "Log by voice" button on the daily log page opens a continuous speech capture session
+- User speaks naturally: *"I had oatmeal with a banana for breakfast, two coffees, and I'm feeling about a 7 out of 10 on energy today"*
+- Claude parses the transcript into structured log entries: food items with portion estimates, wellness scores, mood notes
+- User reviews a summary card before confirming
+- Supports corrections mid-session: "actually make that 3 coffees"
+
+**Why it matters:** The existing voice spotter proves the tech works for this app. Extending it to the full daily log removes the biggest remaining manual effort. Particularly valuable for the wellness/mood fields, which users consistently skip because they require navigating menus.
+
+**Effort estimate:** Medium — the Web Speech API is already in use. The main work is a Claude prompt that parses unstructured audio transcripts into food/wellness structured data, plus a review-and-confirm UI.
+
+---
+
+### Category B — Smarter Workout UX
+
+---
+
+#### B1 — Adaptive Rest Timer
+
+**The problem:** Rest periods are a key variable in training — too short undermines strength performance, too long wastes time and kills the pump. Currently there's no rest timer at all in the active workout UI.
+
+**What it does:**
+- After logging a set, an automatic rest timer starts (countdown visible, non-blocking)
+- Default rest duration based on exercise type and rep range:
+  - Compound lifts (squat, deadlift, bench), heavy (≤5 reps): 3–5 min
+  - Compound lifts, hypertrophy (6–12 reps): 90–120s
+  - Isolation exercises: 60–90s
+  - Bodyweight / HIIT: 30–45s
+- User can adjust the default in settings, or override per-exercise
+- Timer vibrates/pings at completion
+- Shows "your last set was X% of your estimated max" alongside the timer for context
+
+**Why it matters:** One of the most common "I wish the app did this" requests for lifting apps. Keeps the user in the app between sets (rather than opening a stopwatch elsewhere). Adds data: if users frequently extend rest beyond the timer, that's a signal the load is too high.
+
+**Effort estimate:** Low — client-side timer with localStorage persistence. The exercise type mapping is the hardest part, and that data would also be useful for the progressive overload engine (Pillar 3).
+
+---
+
+#### B2 — Superset & Circuit Support
+
+**The problem:** A large portion of modern training involves supersets (two exercises back-to-back, no rest between), circuits (3+ exercises cycled), and AMRAP sets (as many reps as possible in a time window). The current workout builder treats everything as straight sets.
+
+**What it does:**
+- In the workout builder, exercises can be grouped into a "superset block" or "circuit block"
+- Within a superset/circuit, the rest timer fires only after the last exercise in the group
+- AMRAP timer: instead of a target rep count, the user sets a time window; the app records how many reps they completed
+- Volume calculation and progressive overload alerts adapt to grouped-exercise formats
+- AI program generation (Pillar 3) outputs programs with appropriate superset groupings
+
+**Why it matters:** Without this, the app systematically underserves a major training style. Users who follow PPL, PHUL, or any bodybuilding-style split use supersets constantly. Currently they have to either skip logging the second exercise or break the superset into separate blocks and lose the relationship.
+
+**Effort estimate:** Medium — the data model needs a `superset_group` field on `workout_exercises`. The UI needs drag-to-group functionality. The rest timer adapts naturally once grouping is modelled.
+
+---
+
+#### B3 — Muscle Gap Detection & Workout Suggestions
+
+**The problem:** The volume dashboard (Pillar 3) will show what you've trained. But it won't proactively surface what you *haven't* trained and suggest you do something about it.
+
+**What it does:**
+- Runs daily alongside the readiness score calculation
+- For each major muscle group, tracks days since last meaningful training stimulus
+- If a muscle group crosses a user-configured threshold (default: 7 days for secondary muscles, 5 days for primary), it surfaces a nudge:
+  - In the dashboard: *"Your back hasn't been trained in 8 days — here are 3 back workouts from your history"*
+  - In the workout suggestion: *"Today's recommended focus: Pull (back, biceps)"*
+- Pairs with the recovery/readiness score: if you're at 80+ readiness and a muscle group is overdue, the suggestion is more assertive
+- Muscle group coverage derived from the exercise→muscle mapping already needed for Pillar 3's volume dashboard
+
+**Why it matters:** Bridges the gap between passive tracking and active guidance. Most users don't intentionally neglect muscle groups — they just forget, lose track, or get into ruts. This makes the app feel like it's watching out for you.
+
+**Effort estimate:** Low-Medium — depends on the exercise→muscle mapping being built for Pillar 3. Given that, this is a few queries and a UI card.
+
+---
+
+### Category C — Motivational & Analytical Tools
+
+---
+
+#### C1 — Goal ETA & "What If" Projections
+
+**The problem:** Users set goals (lose 10kg, bench 100kg) but have no sense of when they'll actually get there. Without a timeline, goals feel abstract and motivation decays.
+
+**What it does:**
+- On the Goals page, for each active goal, show a projection line: *"At your current rate (+0.6kg/week deficit), you'll reach your goal weight in ~11 weeks (around September 2nd)."*
+- Calculated from a linear regression on the last 30 days of the relevant metric
+- Confidence band shown (wider when less data available)
+- **"What If" scenarios** — a slider that lets users ask:
+  - "What if I hit my calorie target 7/7 days instead of 4/7?" → projection line shifts
+  - "What if I added one workout per week?" → projection accelerates
+- Scenarios are rough (heuristic, not biophysical simulation) but useful as directional motivation tools
+- If the user is off-track (trending away from goal), the projection card turns amber and suggests *"At your current rate, you'll miss your target by 3 weeks. Want help from your AI coach?"*
+
+**Why it matters:** Makes abstract goals concrete. Externalises the motivation from willpower to maths — users aren't fighting themselves, they're watching a timeline shift when they make good decisions.
+
+**Effort estimate:** Low-Medium — linear regression on existing metric data is simple. The "what if" simulator is heuristic and easy. The hard part is UI — a clean, readable projection card with a chart.
+
+---
+
+#### C2 — Performance Benchmarks
+
+**The problem:** Users track their 1RM estimates but have no context for what those numbers mean. Is bench-pressing 80kg good? Depends on your bodyweight, gender, and training age. Without benchmarks, progress tracking lacks meaning.
+
+**What it does:**
+- For each tracked exercise with an estimated 1RM, show where the user ranks on a standard strength scale (using Symmetric Strength or Kilpatrick standards):
+  - Untrained / Novice / Intermediate / Advanced / Elite
+  - Expressed as a ratio to bodyweight
+- Visual "strength profile radar" showing relative strength across push/pull/squat/hinge
+- Personal records (PRs) celebrated in-app with an XP bonus and share card
+- "PR Alerts" — when a new 1RM estimate is set, surface it immediately with a celebration modal
+- Optional: a "how do I compare to others my age/bodyweight?" modal that shows percentile
+
+**Why it matters:** Context transforms data into meaning. Knowing you're in the "intermediate" bracket for your bodyweight and are tracking toward "advanced" is far more motivating than knowing your 1RM went from 80kg to 82.5kg. Also creates natural share moments.
+
+**Effort estimate:** Low — the strength standards are static lookup tables (one per exercise, by bodyweight bucket). The radar chart is a one-time UI component. PR detection is a simple comparison on each workout save.
+
+---
+
+#### C3 — Monthly Health Report (PDF Export)
+
+**The problem:** Serious fitness and health users often work with coaches, nutritionists, or doctors. Currently there's no way to export data from the app in a form that's useful in those conversations.
+
+**What it does:**
+- A "Generate Monthly Report" option in Settings or the Trends page
+- Generates a formatted PDF covering the past month:
+  - **Executive summary**: streaks, workouts completed, average macro adherence, net weight change
+  - **Nutrition section**: calorie and macro adherence charts, most-logged foods, days at deficit/surplus
+  - **Training section**: workout frequency, top exercises by volume, PR records set this month
+  - **Wellness section**: sleep quality, energy, stress, and mood averages with trend lines
+  - **AI summary paragraph**: Claude writes a 3–4 sentence narrative summary of the month
+- Downloadable as PDF, shareable via link (with optional expiry)
+- Monthly auto-generation option with email delivery
+
+**Why it matters:** Provides tangible utility beyond the app. A user who hands their personal trainer or nutritionist a clean monthly report is deeply engaged with the app as a health tool — and very unlikely to churn. Also useful for the user's own accountability.
+
+**Effort estimate:** Medium — PDF generation from Next.js is well-solved (Puppeteer headless, or a library like `@react-pdf/renderer`). The hardest part is chart rendering inside a PDF context.
+
+---
+
+### Category D — Lifestyle Extensions
+
+---
+
+#### D1 — Intermittent Fasting Tracker
+
+**The problem:** A significant portion of health-conscious users practice some form of intermittent fasting (16:8, 5:2, OMAD, or custom). Currently the app has no concept of eating windows, and food logs don't show *when* food was eaten — only what.
+
+**What it does:**
+- Optional "Fasting Mode" toggle in settings
+- User selects protocol: 16:8, 18:6, 5:2, custom, or "manual" (start/stop the fast manually)
+- A fasting timer widget on the dashboard: *"Currently fasting — 13h 22m in (target: 16h) — eating window opens at 12:00"*
+- Food log timestamps become visible and used to compute eating window automatically
+- Fasting streaks tracked alongside the existing streak system
+- Integration with nutrition planning: AI meal plans respect the eating window
+- Integrates with readiness score: training in a fasted state affects the recommendation
+
+**Why it matters:** IF is one of the most popular dietary approaches in the app's target demographic. Without fasting support, the app is invisible to users who practice it — food logging in the wrong window looks like a failure rather than intentional behaviour.
+
+**Effort estimate:** Medium — requires timestamp granularity on food log entries (add `logged_at` field) and a new `fasting_sessions` table. The timer widget is simple. The protocol logic is straightforward.
+
+---
+
+#### D2 — Injury & Soreness Journal
+
+**The problem:** Pain and injury are the primary reason people stop training. But there's no way to track soreness patterns, spot recurring issues, or know when a niggle is becoming something worse. The app encourages training but doesn't protect against the #1 reason people stop.
+
+**What it does:**
+- A new optional section in the daily log: "Body Check" — a simple body-map silhouette where the user taps affected areas and rates severity (1–3)
+- Soreness vs. injury distinction: soreness is expected post-training, injury is unexpected/sharp
+- The app tracks which exercises preceded each soreness report and flags patterns: *"Left knee pain has appeared after 4 of your last 6 leg day sessions"*
+- Integrates with the readiness score: injury/soreness reports in affected areas lower the score for relevant exercises
+- AI coaching can contextualise: *"You've had recurring right shoulder soreness — here are some mobility exercises and form cues for overhead pressing"*
+- "Clear" button when soreness resolves; tracks average recovery time per area
+
+**Why it matters:** Keeps users training safely over the long term. It also enables a genuinely useful AI safety layer — the coach can notice patterns the user doesn't see and intervene before acute soreness becomes a real injury that ends their training for weeks.
+
+**Effort estimate:** Medium — needs a body-map SVG interaction component (can use a simplified region model: 8–10 areas rather than full anatomical detail). New `body_soreness_log` table. The pattern detection is a simple query.
+
+---
+
+#### D3 — Supplement & Stack Tracker
+
+**The problem:** Most serious gym-goers take supplements (creatine, protein powder, pre-workout, vitamins, omega-3s). These affect performance, recovery, and body composition — but the app has no visibility into them. Users can't correlate "days I took creatine" with performance, or see if their vitamin D supplementation is consistent.
+
+**What it does:**
+- A "Supplements" tab in the daily log (alongside food/activity/wellness)
+- Users create their stack: name, dose, timing (morning / pre-workout / with meals / evening)
+- One-tap logging: checkmark each supplement as you take it
+- Supplement adherence tracked as a percentage: *"You've taken your creatine 18/20 days this month"*
+- Correlations run through the insights engine: *"Your energy scores are 1.4 points higher on days you take your pre-workout"*
+- Supplement reminders integrated with the existing push notification system
+
+**Why it matters:** Serious users care deeply about supplement consistency. Building this into the app makes it a daily habit hub beyond just food and workouts. It also gives the correlation engine more variables to work with — supplement data is high-quality (binary: took it or didn't) and easy to correlate.
+
+**Effort estimate:** Low — a `user_supplements` table (stack definition) and supplement entries in `daily_logs.supplements jsonb`. UI is a simple checklist. No nutritional calculations needed.
+
+---
+
+#### D4 — AI Recipe Generator
+
+**The problem:** The meal planner (Pillar 2) helps users plan what to eat. But many users cook at home and want to know *how* to turn their macro targets into actual meals with what they have in their fridge. There's a gap between "you need 50g protein for dinner" and "here's a recipe."
+
+**What it does:**
+- Accessible from the meal planner or from the "I need ideas" prompt in the AI coach
+- User inputs:
+  - Macro target for the meal (auto-populated from their remaining daily targets)
+  - Available ingredients (free text: "I have chicken, broccoli, rice, olive oil")
+  - Time constraint: "15 minutes", "I have an hour"
+  - Dietary preferences (inherited from their profile)
+- Claude returns 3 recipe options with:
+  - Full ingredient list with gram weights
+  - Step-by-step instructions (brief)
+  - Macros per serving
+  - "Log this meal" button that adds all ingredients to the daily log
+- Saved recipes go into the Saved Meals library (Pillar 2)
+
+**Why it matters:** Closes the loop between nutrition planning and actual cooking. Users who are at 120g/150g protein at 8pm and don't know what to make for dinner are exactly the people who order pizza instead. This gives them a solution in 10 seconds.
+
+**Effort estimate:** Low — this is a prompt engineering task more than a data model task. The hard part is the "Log this meal" integration, which maps recipe ingredients to the food item schema.
+
+---
+
+### Category E — Growth & Retention Angle
+
+---
+
+#### E1 — Coach View (B2B / Pro Tier)
+
+**The problem:** Personal trainers, nutritionists, and online coaches manage multiple clients. Currently each client would need their own app account with no visibility for the coach. This is a completely untapped user segment that would pay a monthly fee.
+
+**What it does:**
+- A "Coach" account tier with a separate dashboard showing all linked clients
+- Coaches can:
+  - View any client's full dashboard (with client permission)
+  - Design and push training programs (extends Pillar 3) to clients
+  - Leave notes and feedback on specific workout sessions
+  - Receive the weekly check-in summary automatically
+  - Set goals for clients via the Goal Wizard
+- Clients see which coach is watching their data and can revoke access
+- Coach accounts limited to X clients per tier (monetisation lever)
+
+**Why it matters:** Opens a B2B revenue stream without building a separate product. Trainers who adopt it bring all their clients with them — multiplying user acquisition. The accountability layer (Pillar 5) already establishes the permission model needed.
+
+**Effort estimate:** High — requires a role system in auth, a coach dashboard view, multi-client management UI, and billing tier logic. Worth scoping as a v2 after core pillars are solid.
+
+---
+
+#### E2 — Public Challenge Campaigns
+
+**The problem:** Group challenges (Pillar 5) require inviting people you know. But many users are motivated by larger community events — "Dry January", "Run Every Day in June" — where strangers all pursue the same goal. This is a powerful acquisition channel when challenges are shareable.
+
+**What it does:**
+- App-created (not user-created) monthly challenge campaigns:
+  - *"June Protein Challenge: hit your protein goal every day this month"*
+  - *"30-Day Movement Streak"*
+  - *"Hydration Week: 8 glasses/day for 7 days"*
+- Any user can join with one tap — no friends required
+- A public leaderboard (anonymous by default) showing completion rates
+- Shareable "I'm doing the June Challenge" card for social media
+- At the end of a challenge, participants earn a unique badge (extends the gamification system)
+- Push notification on Day 7, 14, 21, and at completion for encouragement
+
+**Why it matters:** Challenges are viral acquisition loops — each shared card is a free ad. They also create time-sensitive urgency (join before the month ends), increase notification engagement, and add collectible badges that reinforce long-term retention.
+
+**Effort estimate:** Low-Medium — uses the existing challenge data model (Pillar 5) with a new `is_public` flag and an admin-created challenge flow. The leaderboard is a simple count query.
+
+---
+
+### New Feature Prioritisation Addendum
+
+These new ideas slotted into the existing prioritisation matrix:
+
+| Feature | Impact | Feasibility | Score | Suggested Sprint |
+|---|---|---|---|---|
+| Water Intake Tracker (A3) | High | Very High | ★★★★★ | Sprint 1 — add to daily log |
+| Adaptive Rest Timer (B1) | High | Very High | ★★★★★ | Sprint 1 — active workout |
+| Barcode Scanner (A2) | Very High | High | ★★★★☆ | Sprint 2 — Open Food Facts |
+| Goal ETA Projections (C1) | Very High | High | ★★★★☆ | Sprint 2 — uses existing data |
+| Performance Benchmarks (C2) | High | High | ★★★★☆ | Sprint 2 — static lookup tables |
+| Supplement Tracker (D3) | Medium | High | ★★★☆☆ | Sprint 2 — simple checklist |
+| Muscle Gap Detection (B3) | High | Medium | ★★★☆☆ | Sprint 3 — needs Pillar 3 first |
+| AI Recipe Generator (D4) | High | Medium | ★★★☆☆ | Sprint 3 — prompt + log integration |
+| Food Photo Logging (A1) | Very High | Medium | ★★★☆☆ | Sprint 3 — vision API |
+| Injury Journal (D2) | High | Medium | ★★★☆☆ | Sprint 3 — body map UI |
+| Voice-First Daily Log (A4) | High | Medium | ★★★☆☆ | Sprint 3 — speech API |
+| Fasting Tracker (D1) | Medium | Medium | ★★★☆☆ | Sprint 4 — timestamp changes needed |
+| Monthly PDF Report (C3) | Medium | Medium | ★★★☆☆ | Sprint 4 — PDF rendering |
+| Superset Support (B2) | High | Medium | ★★★☆☆ | Sprint 4 — data model change |
+| Public Challenges (E2) | High | Low | ★★☆☆☆ | Sprint 5 — needs Pillar 5 first |
+| Coach View / B2B (E1) | Very High | Very Low | ★★☆☆☆ | Future — significant scope |
+
+---
+
+*Document updated 2026-06-03. New ideas added in Categories A–E above. Original six pillars and quick wins unchanged.*
