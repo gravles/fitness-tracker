@@ -1,8 +1,8 @@
 # Fitness Tracker — Expanded Features PRD
 
 **Author:** Claude  
-**Date:** 2026-05-20  
-**Status:** Proposal — for review
+**Date:** 2026-05-20 (brainstorm update: 2026-06-05)  
+**Status:** Living document — updated with code-survey corrections and new feature ideas
 
 ---
 
@@ -16,22 +16,31 @@ This document proposes six major feature pillars, each with full specifications,
 
 ## Current State (What Exists)
 
-| Area | Status |
-|---|---|
-| Daily log (food, activity, wellness) | ✅ Solid, AI-assisted entry |
-| Workout tracking (exercises, sets, reps) | ✅ Full, with voice spotter |
-| Streaks & XP gamification | ✅ 15 badges, level system |
-| Trends & analytics | ✅ Charts across 5 dimensions |
-| AI coaching chat | ✅ Context-aware, 30-day window |
-| Push notifications | ✅ Server-side, custom reminders |
-| Strava sync | ✅ Manual sync |
-| Goal Wizard | ⚠️ Built but no entry point |
-| Progress photos | ✅ Upload + compare |
-| Body metrics | ⚠️ Measurements but no photo upload |
-| Social / sharing | 🔴 Stub only |
-| Nutrition planning | 🔴 Not started |
-| Recovery / readiness | 🔴 Not started |
-| Wearable integrations | 🔴 Strava only |
+*Updated 2026-06-05 after a code survey of the actual implementation. Several items originally listed as missing are already built.*
+
+| Area | Status | Notes |
+|---|---|---|
+| Daily log (food, activity, wellness) | ✅ Solid, AI-assisted entry | |
+| Workout tracking (exercises, sets, reps) | ✅ Full, with voice spotter | |
+| Streaks & XP gamification | ✅ 15 badges, level system | |
+| Trends & analytics | ✅ Charts across 5 dimensions | |
+| AI coaching chat | ✅ Context-aware, 30-day window | |
+| Push notifications | ✅ Server-side, custom reminders | |
+| Strava sync | ✅ Manual sync | |
+| Goal Wizard | ⚠️ Built but buried | Component exists; only reachable via Settings — needs a prominent entry point |
+| Progress photos | ✅ Upload + compare | |
+| Body metrics photo upload | 🔴 Not done | URL text field only — needs Supabase Storage (same code as Progress Photos) |
+| **Barcode scanner** | ✅ Already built | Open Food Facts API — this was not in the original PRD |
+| **Food photo / AI meal scan** | ✅ Already built | `/api/ai/analyze-food` endpoint; camera capture in log UI |
+| **Menu photo scanner** | ✅ Already built | Photos of restaurant menus parsed by AI |
+| **Voice food entry** | ✅ Already built | Natural language input wired to food log |
+| **Offline mode / service worker** | ✅ Partial | SW registered, offline queue exists; background sync flagged as future work |
+| **Water tracking schema** | ⚠️ Partially built | `water_glasses` field exists in daily_logs — **no UI exposes it** |
+| Social / sharing | 🔴 Stub only | |
+| Nutrition planning | 🔴 Not started | |
+| Recovery / readiness | 🔴 Not started | |
+| Supplement tracking | 🔴 Not started | No schema field, no UI |
+| Wearable integrations | 🔴 Strava only | |
 
 ---
 
@@ -590,7 +599,8 @@ These are bugs or small features that could each ship in a day or less. Not a pi
 
 | Feature | Description | Effort |
 |---|---|---|
-| Goal Wizard entry point | Add a "Set Goals with AI" banner to the Settings page that opens GoalWizard | 1h |
+| Goal Wizard entry point | GoalWizard is built but only reachable via Settings. Add a prominent "Set Goals with AI" card to the home dashboard and onboarding flow | 2h |
+| **Water tracking UI** | `water_glasses` already exists in the DB schema — just needs a UI section in DailyLogForm (e.g. a simple +/- glass counter). No migration required | 2h |
 | Unit preference (kg/lbs) | Add `weight_unit` to `user_settings`, convert display throughout | 1 day |
 | Saved Meals (quick version) | Allow saving a group of food items as a named meal — no planning UI needed yet | 1 day |
 | Log reminder smart skip | Skip the evening log reminder automatically if user has already logged today | 2h |
@@ -600,6 +610,7 @@ These are bugs or small features that could each ship in a day or less. Not a pi
 | Autosave indicator | Show a small "Saved ✓" or pulsing dot in DailyLogForm header when saving | 1h |
 | Persistent macro summary bar | Sticky mini macro bar (P/C/F/Cal) visible across all log tabs | 2h |
 | Coach chat history sync | Move coach chat history from localStorage to Supabase for cross-device persistence | 1 day |
+| Complete offline sync | Background sync in service worker is marked "future enhancement" — wire it up so queued mutations actually sync when the device reconnects | 1 day |
 
 ---
 
@@ -636,6 +647,371 @@ The highest-ROI work is features that require **no new infrastructure** — they
 Total estimated effort: 7–11 days of development.
 
 This sprint alone would make the app feel dramatically more intelligent without requiring any new data collection from the user.
+
+---
+
+---
+
+---
+
+## Feature Brainstorm — New Ideas (2026-06-05)
+
+The following ideas are not yet in the roadmap. They are raw proposals — some are quick wins, some are pillars in their own right. Ordered loosely by estimated impact. None are committed; pick what resonates.
+
+---
+
+### B1 — Supplement Tracker
+
+**The gap:** The daily log captures food, movement, sleep, stress, and alcohol — but not supplements. Most fitness-conscious users take creatine, vitamin D, omega-3, magnesium, pre-workout, or protein powder daily. There's nowhere to log this, and the correlation engine can't account for it.
+
+**What it does:**
+- A supplements section in DailyLogForm — a checklist of the user's saved supplements, each with a one-tap "taken today" toggle
+- Users build their personal stack in Settings (name, dose, timing: morning/pre-workout/evening)
+- The correlation engine can then surface: *"Your energy levels are 22% higher on days you take creatine"* or *"You sleep worse on days you take pre-workout after 3pm"*
+
+**Data model:**
+```sql
+-- Supplement definitions (user's personal stack)
+CREATE TABLE supplements (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  dose text,              -- '5g', '2000 IU', etc.
+  timing text,            -- 'morning', 'pre_workout', 'evening', 'any'
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Daily supplement log (linked to daily_logs date)
+CREATE TABLE supplement_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  supplement_id uuid REFERENCES supplements(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  taken boolean DEFAULT false,
+  taken_at timestamptz,
+  UNIQUE(user_id, supplement_id, date)
+);
+```
+
+**Effort:** 2–3 days. Low risk, high signal for the correlation engine.
+
+---
+
+### B2 — Personal Records (PR) Hall of Fame
+
+**The gap:** The app tracks every set, weight, and rep. It calculates estimated 1RM (mentioned in Pillar 3). But there is no celebration when a user hits a personal best. The moment a PR happens is one of the highest-motivation moments in fitness — the app currently lets it pass silently.
+
+**What it does:**
+- During active workout, detect in real-time when a set exceeds the all-time best for that exercise
+- Show a confetti/celebration animation and log the PR automatically
+- A dedicated "Hall of Fame" screen (accessible from the Profile or Progress page) showing all-time records for every tracked exercise, with the date they were set
+- PRs also award a significant XP bonus and a badge (e.g., "Bench Press Champion")
+- Optional: push notification to accountability partner when a PR is hit
+
+**Data model:**
+```sql
+CREATE TABLE personal_records (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  exercise_name text NOT NULL,
+  record_type text NOT NULL,       -- 'estimated_1rm', 'max_weight', 'max_reps', 'max_volume'
+  value numeric NOT NULL,
+  achieved_at timestamptz DEFAULT now(),
+  workout_id uuid REFERENCES workouts(id),
+  set_details jsonb,               -- snapshot of the set that set the record
+  UNIQUE(user_id, exercise_name, record_type)  -- only keeps the current best
+);
+```
+
+**Effort:** 2–3 days. Extremely high engagement / emotional payoff per unit of effort.
+
+---
+
+### B3 — "On This Day" Fitness Memory
+
+**The gap:** Users log data every day but rarely look back at how far they've come. Long-term progress is the most powerful motivator, but the Trends page requires active navigation. Surfacing historical data *unprompted* is far more emotionally powerful.
+
+**What it does:**
+- A card on the home dashboard (below the readiness score, if built) that appears when there is data from exactly 1 month, 3 months, 6 months, or 1 year ago
+- *"One year ago today: you logged your first workout — 3×10 bench at 50kg. Your estimated 1RM is now 87.5kg. That's a 75% increase."*
+- *"Three months ago: you weighed 84.2kg. Today you're at 79.8kg. 4.4kg down."*
+- Tapping expands to a mini retrospective with a few key stats from that day
+
+**Technical approach:** A lightweight server-side query on the `/api/dashboard` endpoint — no cron, no new table. Query daily_logs and workout data for dates exactly 30/90/180/365 days prior. Generate the copy with a single Claude Haiku call per user per day (cached).
+
+**Effort:** 1–2 days. Enormous retention value for almost zero infrastructure.
+
+---
+
+### B4 — Shareable Workout / Progress Cards
+
+**The gap:** Strava's killer feature is the shareable run card that people post on Instagram Stories. The app has no equivalent. A completed workout is a proud moment — give users a way to share it without requiring a social network inside the app.
+
+**What it does:**
+- After completing a workout, a "Share" button generates a beautifully formatted image card:
+  - App name / branding
+  - Workout name, date, duration
+  - Exercises completed with top sets
+  - Total volume lifted
+  - A subtle background gradient matching the workout type (pull = blue, push = orange, legs = green)
+- A second card type: Weekly Summary — shares the week's stats (days logged, workouts, streak, top PR)
+- Cards are generated as PNG via a `/api/share/workout-card` route using `@vercel/og` (Vercel's OG image library — no canvas, no puppeteer)
+- Users can download or share directly from the app
+
+**Why `@vercel/og`:** It renders JSX to an image at the edge, takes ~150ms, and is free on the Vercel hobby plan.
+
+**Effort:** 2–3 days. Acts as free top-of-funnel marketing every time a user shares.
+
+---
+
+### B5 — AI Weekly Goal Review
+
+**The gap:** Goals are set via the Goal Wizard but then feel static. There's no moment where the app says *"Based on last week, should we adjust your targets?"* This makes goals feel like a set-and-forget form rather than a living coaching relationship.
+
+**What it does:**
+- Every Monday morning, a card appears on the dashboard (or a push notification is sent): *"Weekly review ready — 2 min"*
+- Tapping opens a guided AI conversation:
+  1. Show last week's performance vs. targets (hit protein 4/7 days, 2 workouts vs. 3 target, etc.)
+  2. Ask: "How did last week feel — too hard, about right, or too easy?"
+  3. Based on performance data + user's response, AI suggests specific target adjustments: *"You've hit your protein goal 5/7 days for 3 weeks running — ready to increase to 165g?"* or *"You only hit 2 of your 3 workout targets — want to drop to 2 and build back from there?"*
+  4. User approves or dismisses each suggestion; approved changes update `user_settings` directly
+
+**Technical approach:** Extends the existing AI coach infrastructure. The Monday card is a new notification type. The conversation uses the coach endpoint with a structured system prompt focused on goal calibration.
+
+**Effort:** 2–3 days. Makes the entire app feel like it's paying attention.
+
+---
+
+### B6 — Habit Template Library
+
+**The gap:** The app has a custom habits checklist in the daily log, but starting from scratch is friction. Many users don't know what habits to track, so they log nothing. A curated library of pre-built habits removes that barrier and helps users discover what's worth tracking.
+
+**What it does:**
+- In Settings → Habits, a "Browse habit library" button opens a modal with ~30 pre-built habits grouped by category:
+  - **Nutrition:** Eat vegetables at every meal, No ultra-processed foods, 2L water (pre-populated from water tracker), No alcohol today, Eat breakfast
+  - **Movement:** 10,000 steps, Morning stretch, Post-workout mobility, Take the stairs
+  - **Sleep:** In bed by 10pm, No screens 30 min before bed, 7+ hours
+  - **Mental:** 5-min meditation, Gratitude note, No social media before 9am
+  - **Recovery:** Cold shower, Foam roll, Sauna session
+- One tap adds to their personal habit list
+- Each habit has a suggested correlation pair: "This habit correlates with better sleep quality in users who track it" (shown as a tooltip)
+
+**Effort:** 1 day. Massively reduces onboarding friction; feeds the correlation engine with richer data.
+
+---
+
+### B7 — Adaptive Rest Timer
+
+**The gap:** The active workout screen has no between-set rest timer. Users either guess their rest period, use their phone's clock app (interrupting the workout flow), or use muscle memory. Adding a rest timer is one of the most-requested features in fitness apps and keeps users inside the app between sets instead of switching away.
+
+**What it does:**
+- When a set is marked complete in the active workout, a rest timer starts automatically in the bottom bar
+- Default rest periods are smart by exercise type:
+  - Compound strength (squat, deadlift, bench): 3 min
+  - Isolation (curls, laterals): 90 sec
+  - Bodyweight / HIIT: 60 sec
+- User can tap to adjust (tap +30s / -30s) or set a custom default per exercise
+- Timer pulses green → amber → red as it counts down; haptic feedback + optional sound on completion
+- Rest periods are logged and contribute to readiness score calculation (longer rests → higher perceived exertion context)
+
+**Technical approach:** Pure client-side timer (`useInterval` + Web Audio API for the beep). No new API calls. Rest duration preferences stored in `user_settings.exercise_preferences jsonb`.
+
+**Effort:** 1–2 days. High daily-use value; keeps users in the app longer during workouts.
+
+---
+
+### B8 — Meal Timing & Pre/Post Workout Nutrition Guidance
+
+**The gap:** The app knows when workouts are scheduled (from the schedule/calendar) and what the user eats (from the food log). But it never connects these two signals to give timing guidance. Pre and post-workout nutrition is one of the highest-leverage levers for training outcomes.
+
+**What it does:**
+- When a workout is scheduled, the coach surfaces a proactive nudge 90 minutes before: *"You have a leg session at 6pm. Aim for 40–60g carbs and 20–30g protein around 4:30pm for optimal performance."*
+- After a logged workout, if the user hasn't logged a post-workout meal within 45 minutes, send a push: *"Recovery window: log your post-workout nutrition — protein within the hour helps muscle repair."*
+- A new "Nutrition Timing" section in the coach chat: user can ask "what should I eat before my run?" and get a personalised answer based on their macros, weight, and workout intensity
+
+**Effort:** 2 days. Uses existing schedule, notification, and coach infrastructure — just needs the logic to connect them.
+
+---
+
+### B9 — Coach Persona Selection
+
+**The gap:** The AI coach currently has one voice. But people respond very differently to different coaching styles — some want data and science, some want a hype buddy, some want tough love. A single voice is optimised for no one.
+
+**What it does:**
+- In Settings → AI Coach, a "Coaching Style" selector with 4 options:
+  - **Motivator** — Energetic, positive, celebrates every win. *"Let's GO! You crushed that workout!"*
+  - **Scientist** — Data-first, minimal fluff, specific numbers. *"Your progressive overload rate is 1.3kg/week — above the 0.5–1kg optimal range. Consider slowing down."*
+  - **Supportive Friend** — Warm, empathetic, non-judgmental. *"That was a tough week — and you still showed up twice. That counts."*
+  - **Drill Sergeant** — Direct, demanding, zero excuses. *"You missed your protein target 4 days in a row. What's the plan?"*
+- The selected persona is injected into the system prompt of every coach interaction
+- Persona is also reflected in push notification copy, weekly summaries, and readiness explanations
+
+**Technical approach:** A `coach_persona` field in `user_settings`. Each persona maps to a system prompt prefix stored as a constant. No new API routes needed.
+
+**Effort:** 1 day. High personalisation payoff for minimal engineering.
+
+---
+
+### B10 — Fasting / Eating Window Tracker
+
+**The gap:** The daily log already has an `eating_windows` field (noted in the code survey), suggesting this was planned. Intermittent fasting is one of the most popular nutrition approaches. The app captures the data but doesn't surface it as a first-class feature.
+
+**What it does:**
+- A simple "Eating Window" widget in the log: user taps "First bite" and "Last bite" to record their eating window, or enters times manually
+- The dashboard shows the current eating window (e.g., "16:8 — eating from 12pm–8pm") and a streak for maintaining the window
+- Correlation engine can then surface: *"Your energy is 18% higher on days your eating window is under 9 hours"*
+- Optional: a push notification at the close of the eating window: *"Your eating window closes at 8pm — 30 minutes left"*
+
+**Effort:** 1–2 days (schema likely already partially exists). High value for intermittent fasting users.
+
+---
+
+### B11 — Full Data Export & Portability
+
+**The gap:** Users who log diligently for months accumulate deeply personal health data. Currently there is no way to export it. This is a trust issue as much as a feature issue — users who know they can leave take the leap of trusting the app more fully.
+
+**What it does:**
+- Settings → Privacy → "Export my data" button
+- Triggers a background job that compiles:
+  - All daily logs (CSV)
+  - All workouts and sets (CSV)
+  - All body metrics (CSV)
+  - Progress photos (zip of originals)
+  - A summary PDF with charts (total workouts, weight trend, streak history)
+- User receives an email (via Resend, already in the stack) with a time-limited download link (48h)
+- The export job runs as a Vercel serverless function; the download is served from Supabase Storage
+
+**Effort:** 2–3 days. GDPR compliance by-product; builds long-term user trust.
+
+---
+
+### B12 — Non-Scale Victory (NSV) Tracker
+
+**The gap:** Weight loss or muscle gain apps often make users feel like failures if the scale doesn't move for a week — even when real progress is happening (better sleep, more energy, a new lift PR, clothes fitting differently). Celebrating non-scale victories is a well-evidenced technique for maintaining motivation during plateau periods.
+
+**What it does:**
+- A "Victories" section in the Progress page, separate from body metrics
+- Users can log NSVs in free text or pick from a library of common ones:
+  - First unassisted pull-up
+  - Ran 5km without stopping
+  - Slept 7+ hours 5 nights in a row
+  - Went 30 days without alcohol
+  - Fit into a smaller clothing size
+  - Did 10 consecutive press-ups
+- Each NSV auto-awards XP and a badge, and is stored with the date
+- The AI coach references recent NSVs when responding: *"You just logged your first pull-up last week — that's a serious milestone worth celebrating."*
+- NSVs appear in the accountability partner weekly summary
+
+**Data model:**
+```sql
+CREATE TABLE non_scale_victories (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  title text NOT NULL,
+  category text,           -- 'strength', 'cardio', 'nutrition', 'sleep', 'lifestyle'
+  description text,
+  achieved_at date NOT NULL,
+  xp_awarded int DEFAULT 100,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+**Effort:** 1–2 days. Disproportionately powerful for motivation and churn prevention.
+
+---
+
+### B13 — AI Injury Prevention Alerts
+
+**The gap:** Overuse injuries are the number one reason people stop training. The app has all the data needed to detect the warning signs — sudden volume spikes, muscle group imbalances, training frequency without rest days — but currently does nothing with it.
+
+**What it does:**
+- A new category of correlation engine insight: **risk alerts** (amber/red, distinct from green insight cards)
+- Alert triggers (computed by the nightly cron alongside other insights):
+  - **Volume spike:** Weekly volume for any muscle group has increased >30% vs the prior 4-week average
+  - **Imbalance:** A push muscle group (chest, triceps, front delts) has >2× the weekly sets of its antagonist pull group (back, biceps, rear delts) for 3+ consecutive weeks
+  - **No rest day:** 7+ consecutive days of logged workouts with moderate/high intensity
+  - **Repetitive strain pattern:** Same movement pattern (e.g., overhead pressing) logged >4x/week for 3+ weeks
+- Alerts appear as an amber card on the dashboard: *"Heads up — your chest volume has jumped 45% this week. Consider extra shoulder mobility work and a light session instead of heavy pressing."*
+- Tapping the card opens an AI explanation with specific recommendations
+
+**Effort:** 2–3 days (rides the Pillar 3 muscle-group mapping and Pillar 1 cron job). Could genuinely prevent injuries and the churn that follows.
+
+---
+
+### B14 — Recipe URL → Food Log
+
+**The gap:** The app already has AI food photo analysis, barcode scanning, and voice entry — but one common logging scenario is missing: *"I cooked this recipe from a website, how do I log it?"* Currently the user has to manually search and add each ingredient. This is the highest-friction scenario in the food log.
+
+**What it does:**
+- In the food log's AI input options, add "Paste a recipe link"
+- User pastes any recipe URL (e.g., BBC Good Food, NYT Cooking, a random food blog)
+- The app fetches the page, extracts the ingredient list using a scraper + Claude, calculates approximate macros per serving, and adds it as a single food log entry with a breakdown
+- User can adjust servings ("I had 1.5 portions") before confirming
+
+**Technical approach:**
+- Server-side route: `POST /api/ai/analyze-recipe` — takes a URL, fetches the HTML (Vercel edge function bypasses CORS), passes ingredients to Claude Haiku for macro estimation
+- Macro estimation uses the same logic as the existing AI food analyzer
+- Edge cases: paywalled content (NYT Cooking) — fall back to "paste the ingredient list instead"
+
+**Effort:** 2–3 days. Eliminates the biggest single friction point in food logging for home cooks.
+
+---
+
+### B15 — Smart Notification Learning
+
+**The gap:** The app sends reminders at fixed times set by the user. But the app knows when users actually engage — when they open the app, when they log, when they complete workouts. A system that learns from this behaviour and shifts notification timing accordingly would have meaningfully higher open rates.
+
+**What it does:**
+- Track `notification_events` (sent, opened, dismissed) for each user
+- After 14 days of data, compute each user's "peak engagement windows" — the times of day they are most likely to open the app
+- Shift reminder notifications (log reminder, workout reminder) to the nearest engagement peak, within a ±90-minute window of the user's set time
+- The AI coach weekly summary is sent at the time the user historically opens Saturday or Sunday morning messages
+
+**Data model:**
+```sql
+CREATE TABLE notification_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  notification_type text NOT NULL,
+  sent_at timestamptz NOT NULL,
+  opened_at timestamptz,
+  action_taken boolean DEFAULT false
+);
+```
+
+**Effort:** 2–3 days. Increases notification open rate across all existing notification types — multiplies the value of every other reminder feature.
+
+---
+
+## Brainstorm Prioritisation
+
+Quick score across the 15 new ideas: Impact (1–5) × Effort (1 = hardest, 5 = easiest).
+
+| # | Feature | Impact | Effort | Score | Notes |
+|---|---|---|---|---|---|
+| B3 | "On This Day" memories | 5 | 5 | 25 | Zero infrastructure, huge emotional hit |
+| B2 | PR Hall of Fame | 5 | 4 | 20 | Celebrates the moments that matter most |
+| B7 | Adaptive rest timer | 4 | 5 | 20 | Keeps users in the app during workouts |
+| B9 | Coach persona selection | 4 | 5 | 20 | 1 day to add, feels premium |
+| B6 | Habit template library | 4 | 5 | 20 | Reduces onboarding friction |
+| B12 | NSV tracker | 5 | 4 | 20 | Critical for motivation during plateaus |
+| B1 | Supplement tracker | 4 | 4 | 16 | Enriches correlation engine significantly |
+| B4 | Shareable workout cards | 4 | 4 | 16 | Free marketing on every share |
+| B5 | AI weekly goal review | 5 | 3 | 15 | Makes the whole app feel alive |
+| B10 | Fasting / eating window | 3 | 5 | 15 | Schema partially exists already |
+| B8 | Meal timing guidance | 4 | 4 | 16 | Connects two existing data streams |
+| B14 | Recipe URL logging | 4 | 3 | 12 | High friction reduction for home cooks |
+| B13 | Injury prevention alerts | 5 | 3 | 15 | Prevents the churn that follows injury |
+| B11 | Data export | 3 | 3 | 9 | Trust + GDPR compliance |
+| B15 | Smart notification learning | 3 | 3 | 9 | Boosts existing notification ROI |
+
+**Top 5 picks to consider for the next sprint:**
+1. **B3 — On This Day** — ships in a day, will delight users immediately
+2. **B2 — PR Hall of Fame** — the biggest emotional gap in the current workout flow
+3. **B7 — Rest Timer** — most-requested type of feature in fitness apps
+4. **B12 — NSV Tracker** — one of the strongest churn-prevention mechanisms
+5. **B9 — Coach Persona** — one day of work, feels like a completely personalised product
 
 ---
 
