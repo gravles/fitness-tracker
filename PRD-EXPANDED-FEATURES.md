@@ -639,4 +639,263 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
-*Document ends. Questions, pushback, or additions — flag them and I'll revise.*
+## Outstanding Work — Current Status Summary
+
+As of 2026-06-06, **none of the six pillars have been implemented**. The table below captures where things stand before any sprint work begins.
+
+| Item | Status | Notes |
+|---|---|---|
+| Quick Win bugs (8 items) | 🔴 Not started | Highest ROI, unblock trust in the app |
+| Quick Win small features (10 items) | 🔴 Not started | Goal Wizard entry point is a 1h fix |
+| Pillar 4 — Readiness Score | 🔴 Not started | Recommended Sprint 1, no new infra needed |
+| Pillar 1 — Correlation Engine | 🔴 Not started | Recommended Sprint 1, data already exists |
+| Pillar 3 — Progressive Overload Alerts | 🔴 Not started | Recommended Sprint 1, fits in active workout |
+| Pillar 2 — Nutrition Planning | 🔴 Not started | Saved Meals first (Sprint 2), full planner later |
+| Pillar 3 — Periodisation Programs | 🔴 Not started | Sprint 4 |
+| Pillar 5 — Accountability Layer | 🔴 Not started | Sprint 3 |
+| Pillar 6 — Wearable Integrations | 🔴 Not started | Withings + Oura first (Sprint 3) |
+| Body metrics photo upload | ⚠️ Text field only | Same Supabase Storage code as Progress Photos |
+| Goal Wizard | ⚠️ No entry point | Feature exists, needs a surface in Settings |
+| Social / sharing | 🔴 Stub only | Addressed by Pillar 5 |
+
+---
+
+---
+
+## Future Feature Ideas — Brainstorm (2026-06-06)
+
+The following ideas extend beyond the six pillars. They are **not yet prioritised or specced** — this section exists so they can be reviewed and pulled into a sprint plan if any feel right. Each idea is described with the problem it solves, a rough implementation sketch, and an honest effort/impact assessment.
+
+---
+
+### Idea A — AI Meal Photo Logging
+
+**The Problem**  
+Typing food into a log after every meal is the primary reason people stop tracking nutrition. The session friction compounds over weeks. If logging a meal took 5 seconds instead of 90, compliance would be dramatically higher.
+
+**What It Does**  
+User taps a camera icon in the food log. They take (or upload) a photo of their meal. Claude Vision analyses the image and returns:
+- A list of identified food items with estimated portion sizes
+- Estimated macros per item
+- A confidence level ("I can see chicken breast and rice — I'm estimating 150g each")
+
+The user sees a confirmation screen: "Does this look right?" with the ability to edit quantities before logging. One tap confirms.
+
+**Implementation Notes**  
+- Claude's vision API handles food recognition (no external food-vision model needed)
+- Prompt: *"Analyse this meal photo. List each food item visible, estimate the portion size in grams, and provide estimated macros (calories, protein, carbs, fat). Return JSON. Be conservative with estimates and state your confidence."*
+- This becomes the most-used logging method on mobile within weeks of launch
+- Estimated effort: 3–4 days (API integration + confirmation UI)
+
+**Impact / Effort**: Very High / Medium
+
+---
+
+### Idea B — Barcode Scanner for Packaged Foods
+
+**The Problem**  
+Logging packaged foods (protein bars, yoghurt, cereals) is tedious — users search by name and often find multiple entries with inconsistent data. A barcode scan gives perfect accuracy instantly.
+
+**What It Does**  
+In the food log, a "Scan Barcode" button opens the device camera in barcode mode. The app reads the EAN/UPC, looks up the product in the Open Food Facts database (free, open API, 3M+ products), and pre-fills the food entry with verified nutrition data from the product label.
+
+**Implementation Notes**  
+- Open Food Facts REST API: `https://world.openfoodfacts.org/api/v0/product/{barcode}.json` — completely free, no auth
+- Use `@zxing/library` (browser-native barcode scanning via camera) or the Capacitor Barcode Scanner plugin for the native iOS build
+- Falls back to manual search if product not found
+- New route: `GET /api/food/barcode?code=5000112637922` — server-side fetch from Open Food Facts, caches results in Supabase to reduce repeat API calls
+- Estimated effort: 2–3 days
+
+**Impact / Effort**: High / Medium-Low
+
+---
+
+### Idea C — Injury Tracking & Smart Exercise Substitutions
+
+**The Problem**  
+People get hurt. When they do, they either stop using the app (because it keeps nagging them to do exercises they can't do) or train through pain and make it worse. There's no way to tell the app "my left shoulder is sore" and have it adapt.
+
+**What It Does**  
+A new "Body Status" section (in Settings or the daily log) shows an anatomical front/back diagram. Users tap body parts to mark them as: Fine / Sore / Injured. This persists until changed.
+
+When building or logging a workout with an affected body part, the app:
+- Flags exercises that stress that area
+- Suggests substitutions: *"Your left shoulder is marked as sore — try dumbbell rows instead of overhead press"*
+- Warns if planned training volume for an injured area seems high
+
+Over time, the log tracks how soreness/injury changes alongside training load — feeding into the correlation engine.
+
+**Data Model**
+
+```sql
+CREATE TABLE body_status (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  body_part text NOT NULL,          -- 'left_shoulder', 'lower_back', 'right_knee', etc.
+  status text NOT NULL DEFAULT 'fine',  -- 'fine', 'sore', 'injured'
+  notes text,
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, body_part)
+);
+```
+
+**Impact / Effort**: High / Medium
+
+---
+
+### Idea D — Supplement Tracker
+
+**The Problem**  
+Supplements are a significant part of many users' routines (creatine, protein powder, magnesium, vitamin D, pre-workout, omega-3s) but the app has no way to log or analyse them. Users have no way to know if their creatine is working or if their magnesium is improving sleep quality.
+
+**What It Does**  
+A "Supplements" tab (in the daily log or a dedicated section) lets users:
+- Set up a personal supplement stack with timing (morning, pre-workout, evening)
+- Log each supplement with a single tap daily (checkbox style, not macro entry)
+- The correlation engine gets new variables: did the user take creatine today? take magnesium last night?
+
+This feeds directly into Pillar 1: *"Your sleep score is 0.6 points higher on nights you took magnesium"* or *"Your workout output (estimated 1RM gains) improved 18% in the 4 weeks after you started creatine."*
+
+**Data Model**
+
+```sql
+CREATE TABLE supplement_stack (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,         -- 'Creatine Monohydrate', 'Magnesium Glycinate'
+  dose text,                  -- '5g', '400mg'
+  timing text,                -- 'morning', 'pre_workout', 'evening', 'with_meals'
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE supplement_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  supplement_id uuid REFERENCES supplement_stack(id) ON DELETE CASCADE,
+  logged_date date NOT NULL,
+  taken boolean NOT NULL DEFAULT true,
+  UNIQUE(user_id, supplement_id, logged_date)
+);
+```
+
+**Impact / Effort**: Medium-High / Low-Medium
+
+---
+
+### Idea E — Running & Cardio Deep Analytics
+
+**The Problem**  
+The workout tracker is excellent for strength training but thin for runners, cyclists, and cardio-focused users. This is a large demographic being underserved. Strava sync brings in cardio data but the app doesn't do much with it.
+
+**What It Does**  
+A "Cardio" tab in the analytics section, powered by Strava-synced and manually-logged cardio sessions:
+
+- **Pace Zones** — automatic zone classification (Z1 easy through Z5 max) based on HR or pace; shows zone distribution over time
+- **VO2 Max Estimate** — calculated from recent runs using the Jack Daniels formula (pace + HR → estimated VO2 max); tracked as a fitness trend
+- **Aerobic Base Score** — ratio of easy-to-hard cardio; flags if the user is doing too much high-intensity work (a common beginner mistake)
+- **Running Volume Tracker** — weekly km/miles logged, shown as a progression chart with injury-risk flag if weekly volume increases >10% in a week
+- **Pace vs. HR Trend** — over time, the same pace at lower HR = improving aerobic fitness; this is a powerful motivational signal
+
+**Impact / Effort**: High / Medium (mostly UI + data processing, Strava data is already syncing)
+
+---
+
+### Idea F — Daily Mission System
+
+**The Problem**  
+Streaks are a blunt instrument. Miss one day and the whole thing resets — which demoralises users and causes churn. The XP system rewards logging but doesn't guide *what to do today*. There's a missing layer between "open the app" and "know what to focus on."
+
+**What It Does**  
+Each morning, the app generates 3 personalised daily missions for the user, displayed as cards on the dashboard. Completing a mission earns bonus XP (50–150 XP depending on difficulty). Missions are generated by a lightweight rule engine (not AI, to keep it instant):
+
+**Mission types:**
+- *"Log all 3 meals before 8pm today"* (nutrition compliance)
+- *"Hit your protein goal by 7pm"* (macro timing)
+- *"Add a 10-minute walk to your log"* (movement nudge)
+- *"Log your workout within 30 minutes of finishing"* (habit timing)
+- *"Use the AI Coach today"* (feature engagement)
+- *"Drink water: log 2.5L today"* (if hydration tracking added)
+- *"Hit your calorie target within 100 kcal"* (precision challenge)
+
+Missions adapt to context: no workout missions on rest days, no calorie-restriction missions if the user is in a bulk phase. Completing all 3 unlocks a "Perfect Day" badge variant.
+
+**Data Model**
+
+```sql
+CREATE TABLE daily_missions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  missions jsonb NOT NULL,     -- [{ type, description, target_value, xp_reward, completed }]
+  completed_count int DEFAULT 0,
+  UNIQUE(user_id, date)
+);
+```
+
+**Impact / Effort**: Medium-High / Medium (rule engine for generation, completion check hooks into existing log events)
+
+---
+
+### Idea G — Recipe Builder & Macro Calculator
+
+**The Problem**  
+Home cooks have no way to log a meal they made themselves with any accuracy. They either log each ingredient separately (tedious, 10+ entries per meal), guess a generic "chicken stir fry" entry (inaccurate), or skip logging entirely. A recipe builder that calculates per-serving macros would solve this.
+
+**What It Does**  
+A recipe builder UI where users:
+1. Name the recipe ("Post-workout pasta")
+2. Add ingredients by searching the food database, entering quantity in grams/oz/cups
+3. Enter the number of servings the recipe makes
+4. The app calculates macros per serving automatically
+5. Save as a Saved Meal (hooks into Pillar 2's `saved_meals` table) — then one tap logs the whole recipe
+
+**AI Enhancement**: After saving, the user can ask *"How can I increase the protein in this recipe?"* — Claude analyses the ingredient list and suggests specific swaps with updated macro projections (e.g., "Swap 100g full-fat yoghurt for 100g Greek yoghurt: +8g protein, same calories").
+
+This pairs tightly with Pillar 2 (Meal Planning) — recipes become the building blocks of meal plans.
+
+**Impact / Effort**: Medium-High / Medium
+
+---
+
+### Idea H — Adaptive Coach Personality
+
+**The Problem**  
+The AI coach currently has one voice. Some users want tough love ("Stop making excuses, you've missed 3 sessions"). Others find that demotivating and need gentleness ("You're doing great — what got in the way this week?"). The same message at the wrong moment can cause a user to disengage entirely.
+
+**What It Does**  
+A "Coach Style" setting in the user's profile, with three modes:
+
+| Style | Description | Example tone |
+|---|---|---|
+| **Drill Sergeant** | Direct, no-nonsense, holds the user accountable | *"You're 3 sessions behind. What's the plan to catch up?"* |
+| **Balanced** (default) | Positive but honest, like a good personal trainer | *"Solid week overall — one thing to push on next week is your protein consistency."* |
+| **Supportive** | Gentle, empathetic, celebrates effort over results | *"You showed up even on a hard week — that's what matters most."* |
+
+The style preference is injected into every AI coach system prompt. Additionally, the system prompt is enriched with context signals:
+- If stress ≥ 4/5 for 3+ consecutive days → automatically soften tone regardless of setting
+- If streak is in danger → inject urgency without judgment
+- If user just hit a PR → lead with celebration
+
+This is a system prompt change — no new data model, no new API routes. Pure prompt engineering.
+
+**Impact / Effort**: High / Very Low (1 day: setting UI + system prompt update)
+
+---
+
+### New Ideas — Prioritisation
+
+| Idea | Impact | Effort | Score | When |
+|---|---|---|---|---|
+| H — Adaptive Coach Personality | High | Very Low | ★★★★★ | Sprint 1 — 1 day, prompt-only change |
+| B — Barcode Scanner | High | Low | ★★★★☆ | Sprint 2 — high daily-use value |
+| A — AI Meal Photo Logging | Very High | Medium | ★★★★☆ | Sprint 2 — major friction reducer |
+| D — Supplement Tracker | Medium-High | Low | ★★★☆☆ | Sprint 2 — quick to build, feeds correlation engine |
+| F — Daily Mission System | Medium-High | Medium | ★★★☆☆ | Sprint 3 — gamification layer |
+| G — Recipe Builder | Medium-High | Medium | ★★★☆☆ | Sprint 3 — extends Pillar 2 naturally |
+| C — Injury Tracking | High | Medium | ★★★☆☆ | Sprint 3 |
+| E — Cardio Deep Analytics | High | Medium | ★★★☆☆ | Sprint 3–4 (Strava data already exists) |
+
+---
+
+*Document last updated 2026-06-06. Original six pillars unchanged above.*
