@@ -1,7 +1,7 @@
 # Fitness Tracker — Expanded Features PRD
 
 **Author:** Claude  
-**Date:** 2026-05-20  
+**Date:** 2026-05-20 (updated 2026-06-07)
 **Status:** Proposal — for review
 
 ---
@@ -569,6 +569,178 @@ Every extra data source makes the correlation engine, readiness score, and AI co
 
 ---
 
+---
+
+## Pillar 7 — Precision Nutrition Input
+
+### The Problem
+
+Food logging is the most effortful part of the app and the most common reason people fall off. The current flow (text search → add item → adjust grams) is fine for dedicated users but has too much friction for casual or new ones. The gap is in *capture speed* — reducing the time from "I ate this" to "it's logged" to under 10 seconds.
+
+### What It Does
+
+**AI Food Photo Recognition**
+A camera button in the food log. User takes or uploads a photo of their meal; Claude Vision (or a dedicated food-classification API like Edamam's Nutrition Analysis or LogMeal) identifies the foods, estimates portions, and pre-fills the food log with a confidence score per item. The user reviews and confirms or adjusts before saving.
+
+This is not a gimmick — every major food-logging study shows that photo-based entry produces 3–4× faster logging and significantly better adherence. It's also highly shareable ("look what the app figured out") which drives word-of-mouth.
+
+Implementation: POST the image to `/api/nutrition/photo-analyze`. Use Claude's vision capability with a structured prompt to return `[{ name, estimated_grams, calories, protein, carbs, fat, confidence }]`. Display results in an editable confirm sheet.
+
+```
+System: You are a sports nutritionist and food scientist. Analyze this meal photo.
+For each identifiable food item, return:
+- name (specific, e.g. "grilled chicken breast" not just "chicken")
+- estimated_grams (realistic portion for one person)
+- approximate macros per 100g
+- confidence: high/medium/low
+
+Return JSON array. If confidence is low, flag it. Be specific about cooking method as it affects calories.
+```
+
+**Barcode Scanner**
+A barcode icon alongside the search bar in food log. Uses the device camera + a JS barcode library (e.g. `@zxing/browser`, already works in PWA) to read EAN-13/UPC-A codes. Lookups against the Open Food Facts database (free, 3M+ products, REST API). Returns full nutrition label data.
+
+This is table-stakes for any nutrition app. Packaged food is still a large portion of most users' diets and manual searching for branded products is slow and error-prone.
+
+```
+GET https://world.openfoodfacts.org/api/v0/product/{barcode}.json
+```
+
+New API route: `GET /api/nutrition/barcode?code=1234567890123` — server-side proxy to cache results in Supabase and avoid rate limits.
+
+**Hydration Tracking**
+A simple water intake logger embedded in the daily log: tap a cup icon to add 250ml, or enter a custom amount. Daily goal (default: 8 cups / 2L, customisable) shown as a fill progress. Optionally log other beverages (coffee, juice) as partial hydration.
+
+Why it matters beyond tracking: hydration is a direct lever on energy and performance — and the correlation engine already captures energy levels. Adding hydration data closes a significant gap in the existing correlation model. *"Your energy is 28% lower on days you log under 1.5L of water"* becomes a real, actionable insight.
+
+Data model addition:
+```sql
+-- Hydration entries (lightweight, multiple per day)
+CREATE TABLE hydration_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  logged_at timestamptz DEFAULT now(),
+  amount_ml int NOT NULL,
+  beverage_type text DEFAULT 'water',  -- 'water', 'coffee', 'juice', 'other'
+  date date GENERATED ALWAYS AS (logged_at::date) STORED
+);
+
+-- Daily total stored in daily_logs for correlation queries
+ALTER TABLE daily_logs ADD COLUMN IF NOT EXISTS water_ml int DEFAULT 0;
+```
+
+**Supplement Tracker**
+Log supplements (creatine, protein powder, vitamins, pre-workout, omega-3) with time of day. Stored as a daily checklist. The primary value is not the data itself but habit formation — users who track supplement intake are significantly more likely to take them consistently, which compounds over months into real performance deltas.
+
+One table addition:
+```sql
+CREATE TABLE supplement_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  supplement_name text NOT NULL,
+  dose_amount numeric,
+  dose_unit text DEFAULT 'mg',
+  taken_at timestamptz,
+  UNIQUE(user_id, date, supplement_name)
+);
+```
+
+User maintains a personal supplement stack in Settings; each day shows a checklist. One tap = logged.
+
+### Why This Matters
+
+Every minute of friction in food logging costs real data. If even 20% of meals don't get logged because it's too slow, every correlation, readiness score, and coaching insight is built on incomplete data. This pillar is about the quality of the foundation everything else stands on.
+
+---
+
+---
+
+## Pillar 8 — Athlete Lifecycle Intelligence
+
+### The Problem
+
+The existing features treat each day somewhat in isolation — log today, score today, coach today. But athletes have patterns that span weeks and months: a shoulder that gets sore every time they ramp up pressing volume, a tendency to skip the gym in week 3 of a diet, a predictable energy crash in the luteal phase. A truly intelligent app notices these long-arc patterns and adapts its guidance accordingly.
+
+### What It Does
+
+**Injury & Pain Log**
+A body-region selector (front/back body map, tap to mark a region) where users log mild discomfort, soreness, or pain on a 1–3 scale (soreness / discomfort / pain). Not a medical tool — positioned as a "training awareness" feature.
+
+The value is in the correlations: *"Your left knee soreness spikes when your weekly running volume exceeds 30km"* or *"Your shoulder discomfort appears 2–3 days after high bench press volume."* These patterns emerge over months and are invisible without the data.
+
+The app can then:
+- Flag exercises that historically correlate with logged discomfort (warn, not block)
+- Auto-suggest substitutions when a region is logged as "pain"
+- Track cumulative training stress on specific muscle groups vs reported discomfort
+
+```sql
+CREATE TABLE pain_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  body_region text NOT NULL,       -- 'left_knee', 'lower_back', 'left_shoulder', etc.
+  severity int NOT NULL,           -- 1=soreness, 2=discomfort, 3=pain
+  note text,
+  logged_at timestamptz DEFAULT now()
+);
+```
+
+**Cycle-Aware Training & Nutrition (Enhancement of Existing Feature)**
+Cycle tracking is already in the app but the data is not used for anything. This feature closes that loop.
+
+Each cycle phase has well-documented effects on performance and nutrition:
+- **Follicular (days 1–13)**: higher pain tolerance, better strength performance, lower fatigue — ideal for high-intensity training and slight calorie surplus
+- **Ovulatory (days 14–16)**: peak strength and coordination — schedule PB attempts here
+- **Luteal (days 17–28)**: higher core body temp, more fatigue, increased carb/calorie needs — reduce intensity, increase protein and carbs, expect lower performance numbers
+
+The app should:
+1. Show the current cycle phase on the dashboard (for users with tracking enabled)
+2. Adjust the daily readiness recommendation to account for cycle phase
+3. Add a subtle "This week may be naturally harder — your targets are adjusted" note during luteal phase
+4. Show cycle phase overlay on the trends/calendar view
+
+This requires no new data collection — just using `cycle_logs` (or however cycle data is currently stored) to surface phase-aware guidance.
+
+**Adaptive Goal Re-evaluation**
+After 4+ weeks of data, the app proactively reviews whether the user's goals are still calibrated correctly and surfaces a recommendation. Examples:
+- *"You've hit your protein goal 26 of the last 30 days. You might be ready to raise it to 185g."*
+- *"Your calorie target of 2,100 was set 6 weeks ago. Your weight has been stable for 3 weeks — if your goal is continued loss, consider reducing to 1,950."*
+- *"You've completed all 3 scheduled workouts every week for 5 weeks. Your program may be too easy — consider adding a 4th session."*
+
+Shown as a dismissable modal ("Time to review your goals") that opens the Goal Wizard pre-populated with the suggestion. Triggered by the nightly cron job; only shown once per 4-week window.
+
+**Personal Records (PRs) Dashboard**
+A dedicated screen (accessible from the Workout section) that shows every tracked exercise with:
+- All-time 1RM (estimated from Epley formula, already proposed in Pillar 3)
+- Most recent performance vs best performance (trend arrow)
+- PR date ("Set 3 weeks ago")
+- A timeline chart showing estimated 1RM over time
+
+This is highly motivating and extremely shareable. Personal records are the main form of progress visible to strength-focused users, and burying them in a history scroll is wasted potential. A good PRs screen becomes a daily check-in destination on its own.
+
+**Workout Warm-up Generator**
+Before starting a workout, AI generates a 5-minute warm-up specific to the day's exercises. Not generic jumping jacks — specific mobility and activation work:
+- Squats in today's plan → hip circles, goblet squat, ankle mobility
+- Bench press → shoulder CARs, band pull-aparts, light dumbbell flyes
+- Deadlifts → cat-cow, hip hinge drills, hamstring flossing
+
+Generated by Claude with a simple prompt using `workout_exercises` for the session. Stored per workout template so it doesn't regenerate every time. Shown as a collapsible pre-workout checklist with checkboxes.
+
+```
+System: Generate a 5-minute warm-up for a workout that includes: {exercise_list}.
+Return 4–6 exercises as JSON: [{ name, duration_seconds, sets, instructions }].
+Focus on joint mobility and muscle activation for the specific movement patterns. No equipment required.
+```
+
+### Why This Matters
+
+These features share a theme: using longitudinal data to give guidance that no human coach could deliver without months of observation. The injury log turns "I think pressing hurts my shoulder" into "your shoulder discomfort spikes at >8 pressing sets/week." Cycle-awareness turns a tracking feature into a genuine training partner. Adaptive goals prevent the plateau most apps never address. Together they make the app feel like it *knows* you — not just what you logged today.
+
+---
+
+---
+
 ## Quick Wins Appendix
 
 These are bugs or small features that could each ship in a day or less. Not a pillar, but worth doing.
@@ -600,6 +772,11 @@ These are bugs or small features that could each ship in a day or less. Not a pi
 | Autosave indicator | Show a small "Saved ✓" or pulsing dot in DailyLogForm header when saving | 1h |
 | Persistent macro summary bar | Sticky mini macro bar (P/C/F/Cal) visible across all log tabs | 2h |
 | Coach chat history sync | Move coach chat history from localStorage to Supabase for cross-device persistence | 1 day |
+| Smart notification timing | Track the time of day the user actually logs; shift reminder to match their pattern instead of a fixed time | 1 day |
+| Data export | Export all user data (logs, workouts, body metrics) as CSV or JSON from Settings — builds trust, useful for power users | 1 day |
+| MyFitnessPal CSV import | Accept an MFP export CSV to bulk-import food log history — lowers the switching cost for new users | 2 days |
+| Rest timer in workout | After completing a set, show a configurable countdown (default 90s) before the next set auto-highlights | 2h |
+| Calorie burn estimate | In daily log, show estimated TDEE vs logged calories with a simple surplus/deficit indicator — no new data, just math | 2h |
 
 ---
 
@@ -612,11 +789,20 @@ Scored on Impact (user value) × Feasibility (time + complexity) for a solo deve
 | Quick Wins | Medium | Very High | ★★★★★ | Ship first (continuous) |
 | Readiness Score | Very High | High | ★★★★☆ | Sprint 1 — no new tables, just logic |
 | Correlation Engine | Very High | High | ★★★★☆ | Sprint 1 — data already exists |
+| Barcode Scanner (Pillar 7) | High | Very High | ★★★★☆ | Sprint 1 — free Open Food Facts API, existing camera APIs |
+| Hydration Tracking (Pillar 7) | High | High | ★★★★☆ | Sprint 1 — tiny schema, feeds correlation engine |
 | Nutrition Planning (Saved Meals only) | High | High | ★★★☆☆ | Sprint 2 — start with saved meals |
 | Periodisation (Overload Alerts only) | High | High | ★★★☆☆ | Sprint 2 — active workout is already there |
+| PRs Dashboard (Pillar 8) | High | High | ★★★☆☆ | Sprint 2 — data exists, just needs a screen |
+| Cycle-Aware Recommendations (Pillar 8) | High | High | ★★★☆☆ | Sprint 2 — data already captured, no new collection |
+| Warm-up Generator (Pillar 8) | Medium | High | ★★★☆☆ | Sprint 2 — one Claude call per template |
 | Accountability (Partner only, no challenges) | Very High | Medium | ★★★☆☆ | Sprint 3 |
+| Adaptive Goal Re-evaluation (Pillar 8) | High | Medium | ★★★☆☆ | Sprint 3 — extends nightly cron |
 | Withings Integration | High | Medium | ★★★☆☆ | Sprint 3 |
 | Oura Integration | High | Medium | ★★★☆☆ | Sprint 3 |
+| AI Photo Recognition (Pillar 7) | Very High | Medium | ★★★☆☆ | Sprint 3 — Claude Vision API call, confirm UX is the hard part |
+| Injury Log (Pillar 8) | High | Medium | ★★★☆☆ | Sprint 3 — body map UI is the main effort |
+| Supplement Tracker (Pillar 7) | Medium | High | ★★★☆☆ | Sprint 3 — simple checklist |
 | Nutrition Planning (Full Meal Planner) | High | Low | ★★☆☆☆ | Sprint 4 |
 | Group Challenges | Medium | Medium | ★★☆☆☆ | Sprint 4 |
 | 12-Week Programs | High | Low | ★★☆☆☆ | Sprint 4 |
@@ -632,10 +818,24 @@ The highest-ROI work is features that require **no new infrastructure** — they
 2. **Readiness Score v1** (2–3 days) — calculated from existing log fields, shows on dashboard
 3. **Correlation Engine v1** (3–4 days) — nightly cron, top 2–3 correlations shown in a weekly insight card
 4. **Progressive Overload Alerts** (1–2 days) — show last session + suggestion at top of each exercise in active workout
+5. **Barcode Scanner** (1 day) — single biggest friction reducer for packaged-food logging
+6. **Hydration Tracking** (1 day) — tiny effort, feeds the correlation engine immediately
 
-Total estimated effort: 7–11 days of development.
+Total estimated effort: 9–14 days of development.
 
-This sprint alone would make the app feel dramatically more intelligent without requiring any new data collection from the user.
+This sprint alone would make the app feel dramatically more intelligent without requiring any new data collection from the user (and the barcode/hydration additions ensure that new data being captured is high-quality).
+
+---
+
+## Open Questions & Decisions Needed
+
+| Question | Context | Options |
+|---|---|---|
+| AI Photo Recognition: build vs buy? | Claude Vision works well for food but a dedicated API (Edamam, LogMeal) may be more accurate on obscure items | Claude Vision (low cost, in stack) vs LogMeal API (higher accuracy, $) |
+| Barcode database: Open Food Facts vs paid? | OFF is free and good; USDA/Nutritionix have better coverage for US branded foods | Start with OFF, add USDA fallback |
+| Cycle-aware features: opt-in or always-on (for users with tracking enabled)? | Showing cycle-phase labels may feel intrusive to some users | Default off + prominent opt-in in Settings |
+| Injury log: medical disclaimer needed? | This is a training-awareness feature, not a medical one — but pain logging may carry expectations | Add a one-time disclaimer; position as "training awareness" not "diagnosis" |
+| Data export format: CSV or JSON? | CSV is more user-friendly; JSON is more complete and importable | Offer both; CSV per-table, JSON as full dump |
 
 ---
 
