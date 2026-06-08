@@ -639,4 +639,331 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
-*Document ends. Questions, pushback, or additions — flag them and I'll revise.*
+---
+
+---
+
+## Outstanding Items — Current Status
+
+*Updated 2026-06-08. This table tracks progress against the six pillars and quick wins.*
+
+| Item | Status | Notes |
+|---|---|---|
+| **Quick Wins — Bugs** | 🔴 Not started | All 8 bugs from the appendix are unresolved |
+| **Quick Wins — Small Features** | 🔴 Not started | Goal Wizard entry point, unit preference, saved meals, etc. |
+| **Goal Wizard entry point** | ⚠️ Built, hidden | Component exists, no navigation link |
+| **Body metrics photo upload** | ⚠️ Partial | Measurements exist; photo field is a URL text input, not real upload |
+| **Pillar 1 — Correlation Engine** | 🔴 Not started | Highest ROI, uses existing data |
+| **Pillar 2 — Nutrition Planning** | 🔴 Not started | Full meal planner; saved meals is a quick-win subset |
+| **Pillar 3 — Periodisation** | 🔴 Not started | Progressive overload alerts are the Sprint 1 slice |
+| **Pillar 4 — Readiness Score** | 🔴 Not started | Highest ROI daily hook; no new data needed |
+| **Pillar 5 — Accountability Layer** | 🔴 Not started | Social stub exists, no working feature |
+| **Pillar 6 — Health Platform Integrations** | 🔴 Not started | Strava only; Withings & Oura are next |
+
+**Recommended first move**: Knock out the Quick Wins bugs (1–2 days) to reduce friction, then build Readiness Score + Correlation Engine (Sprint 1). These two deliver the largest jump in perceived intelligence with zero new infrastructure.
+
+---
+
+---
+
+## New Feature Ideas — Brainstorm
+
+*Added 2026-06-08. These are ideas beyond the six pillars, for review and consideration. None are scheduled. Effort estimates are rough solo-developer days.*
+
+---
+
+### Idea 1 — Food Photo Logging (AI Vision)
+
+**The Problem**: Looking up individual food items is the biggest friction point in daily logging. A photo should be enough.
+
+**What It Would Do**:
+- User taps a camera icon in the food log
+- Photo is sent to Claude claude-opus-4-8 (vision) with a prompt asking for food items, estimated portion sizes, and macro estimates
+- Results pre-populate the food entry form for the user to confirm or tweak
+- Falls back gracefully: if the AI isn't confident, it shows its best guess with a confidence indicator
+
+**Why It Matters**: This is the single highest-friction point in the app. Removing it could meaningfully increase daily log completion rates. Vision models are now accurate enough for common foods at typical portion sizes.
+
+**Effort Estimate**: 2–3 days. The AI call is straightforward; most of the work is the camera UI and the review/confirm step.
+
+**Risks**: Cost (vision calls are more expensive than text); accuracy on mixed dishes or plated meals.
+
+---
+
+### Idea 2 — Natural Language Multi-Field Entry ("Brain Dump")
+
+**The Problem**: Users often know everything they want to log but hate filling it in field by field. A single free-text input that parses the whole day at once would be dramatically faster.
+
+**What It Would Do**:
+- A "Quick log" text area on the dashboard
+- User types: *"Had oatmeal and a banana for breakfast, chicken salad at lunch, skipped dinner. Ran 5k, slept about 7 hours, feeling a bit tired. 2 glasses of wine last night."*
+- Claude parses this into: food items (with macro estimates), activity log, sleep hours, energy/stress ratings, alcohol count
+- Shows a review screen before saving — user can edit any field
+- Can also be voice-driven using the Web Speech API
+
+**Why It Matters**: Eliminates the friction of navigating between tabs. Particularly useful for end-of-day catch-up logging. Could become the primary log entry method.
+
+**Effort Estimate**: 3–4 days. Parsing is an LLM call with structured output; the review UI is the main work.
+
+---
+
+### Idea 3 — Barcode / Nutrition Label Scanner
+
+**The Problem**: Packaged foods have all their macro data on the label, but users still have to type it in manually.
+
+**What It Would Do**:
+- Camera button in the food log opens barcode scanner (using a JS barcode library like ZXing or QuaggaJS)
+- Scans EAN/UPC barcode → looks up in Open Food Facts API (free, 3M+ products) → auto-fills food name and macros
+- Fallback: photograph the nutrition label → Claude vision extracts per-serving macros from the label text
+- Saves to the user's `favorite_foods` automatically for future quick-log
+
+**Why It Matters**: Packaged food logging goes from 30+ seconds to 3 seconds. Open Food Facts is free and has excellent coverage for UK and US products.
+
+**Effort Estimate**: 2 days. Barcode scanning is a well-solved problem in the browser; the Open Food Facts API is free and well-documented.
+
+---
+
+### Idea 4 — Fasting & Eating Window Tracker
+
+**The Problem**: Intermittent fasting is one of the most popular dietary protocols, but the app has no support for it. Users who fast are essentially fighting the app's UI (which nudges them to log meals at all times).
+
+**What It Would Do**:
+- Optional fasting mode in settings: user sets their eating window (e.g., 12pm–8pm for 16:8)
+- A fasting timer on the dashboard shows time elapsed in current fast and time until the eating window opens
+- Notifications: "Your eating window opens in 30 minutes" and "Your eating window closes in 1 hour"
+- Fasting days are tracked as a separate streak
+- Correlation engine picks up fasting days as a variable (does fasting correlate with better energy? better sleep?)
+- No calories logged during fasting window shows as intentional, not a gap in the data
+
+**Why It Matters**: IF is mainstream. This removes a "this app isn't for me" moment for a large user segment, and it integrates naturally with the existing correlation engine.
+
+**Effort Estimate**: 2–3 days. Mostly UI + notification logic; the timer itself is trivial.
+
+---
+
+### Idea 5 — Supplement & Medication Tracker
+
+**The Problem**: Many users take supplements (creatine, vitamin D, omega-3, magnesium, protein shakes) as part of their health routine. Currently there's nowhere to log these. Missing a supplement doesn't show up in the data, so the correlation engine can't find a signal.
+
+**What It Would Do**:
+- A "Supplements" section in daily log (collapsible, off by default)
+- User adds their supplement stack once (name, dose, timing — morning/pre-workout/evening)
+- Daily log pre-populates with their stack; they check off what they took
+- Reminders fire at the configured timing
+- Correlation engine: track supplement adherence vs. energy, sleep, performance
+- Optional: show a 30-day heatmap of supplement adherence alongside the existing log heatmaps
+
+**Data Model**:
+```sql
+CREATE TABLE user_supplements (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,           -- 'Creatine', 'Vitamin D', 'Magnesium'
+  dose_mg int,
+  timing text[],                -- ['morning', 'pre_workout']
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
+-- One row per supplement per day logged
+CREATE TABLE supplement_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  supplement_id uuid REFERENCES user_supplements(id),
+  date date NOT NULL,
+  taken boolean DEFAULT false,
+  taken_at timestamptz,
+  UNIQUE(supplement_id, date)
+);
+```
+
+**Effort Estimate**: 2–3 days. Straightforward CRUD + correlation engine extension.
+
+---
+
+### Idea 6 — Injury & Pain Log with Workout Modification
+
+**The Problem**: Injuries are a major reason people fall off training. But there's currently no place to log "my left knee is sore" — so the AI coach has no context, and the app keeps suggesting leg workouts regardless.
+
+**What It Would Do**:
+- A body map (SVG front/back silhouette) where users tap to mark soreness or injury on a body part
+- Severity scale (1–5) and type (soreness, sharp pain, old injury)
+- Workout generator avoids exercises that stress the flagged area
+- AI coach automatically knows about active injuries when providing advice
+- Tracks recovery over time: if a user flags knee pain for 5 days then removes it, that's a recovery event the correlation engine can use
+- Optional: flag workout sets as "adjusted due to injury" so the volume data stays clean
+
+**Why It Matters**: Shows genuine empathy and practical intelligence. Users in pain feel "seen" rather than judged for not training. Prevents the app from naively suggesting squats to someone with a knee injury.
+
+**Effort Estimate**: 3–4 days. The body map SVG is the trickiest UI piece; the logic is mostly a filter on exercise suggestions.
+
+---
+
+### Idea 7 — Smart Goal Auto-Adjustment
+
+**The Problem**: Goals set at onboarding go stale. A user who set a 2,500 kcal goal 6 months ago may have lost 10kg since then, changing their TDEE. Users who consistently overshoot or undershoot their targets by >15% for 2+ weeks are either frustrated or being set up for failure.
+
+**What It Would Do**:
+- Weekly analysis job checks if the user has hit their calorie or protein goal 0–2 times in the past 14 days (chronically missing) or 14 times (chronically exceeding)
+- If so, generate a gentle AI suggestion: *"You've been averaging 2,850 kcal over the past 2 weeks against a 2,500 target. Based on your current weight trend, your maintenance is closer to 2,700. Want to update your goal?"*
+- User can accept the suggestion with one tap (updates `user_settings`), dismiss it, or tell the AI why they're intentionally under/over-eating
+- Also fires when the user's body weight changes significantly (>5% in 8 weeks), prompting a protein target recalculation
+
+**Why It Matters**: Goals that no one hits feel punishing. This is the difference between an app that shames you and one that meets you where you are. Also materially improves the accuracy of every downstream recommendation.
+
+**Effort Estimate**: 2 days. The logic is a cron job + a notification; the LLM call is simple.
+
+---
+
+### Idea 8 — Menstrual Cycle-Aware Training & Nutrition
+
+**The Problem**: Cycle tracking already exists in the app but defaults to off and isn't connected to anything else. For the users who do enable it, the data just sits there — there's no adaptation to the log, workouts, or AI advice.
+
+**What It Would Do**:
+- Phase-aware dashboard badge: *"Day 12 — Follicular phase. Energy tends to be high. Great week for strength work."*
+- Nutrition targets auto-adjust by phase: slightly higher carbs in luteal phase, higher overall calories in the week before menstruation
+- Workout recommendations shift by phase: follicular/ovulatory = push intensity; luteal = moderate volume; menstrual = gentle movement, yoga
+- AI coach is briefed on current phase when generating advice
+- Correlation engine tracks phase as a variable: does sleep quality correlate with cycle phase? Does performance dip in luteal?
+- All of this is opt-in, clearly labeled, and easy to turn off
+
+**Why It Matters**: No major fitness tracking app does cycle-aware recommendations well. This is a significant differentiator and addresses a real, documented physiological reality. The data to support it already exists in the app.
+
+**Effort Estimate**: 3–4 days. Cycle phase calculation is a few lines of logic; most of the work is wiring it into existing systems and the UI prompts.
+
+---
+
+### Idea 9 — Data Export & Health Report
+
+**The Problem**: Users' health data is locked in the app. A user visiting a doctor, dietitian, or personal trainer has no way to share a coherent summary. Users who want to leave the app have no way to take their data with them.
+
+**What It Would Do**:
+- **PDF Health Report**: A monthly or on-demand PDF with charts, trends, key stats, and AI-generated narrative summary. Designed to hand to a healthcare professional. Built with a React PDF library (like `@react-pdf/renderer`).
+- **CSV / JSON Data Export**: Full raw export of all logs, workouts, and body metrics. GDPR-compliant data portability.
+- **Shareable Progress Link**: A time-limited, read-only URL that shows a curated summary (weight trend, streak, workout count, best lifts). User controls what's visible. Replaces the 🔴 Social stub.
+
+**Why It Matters**: Data portability builds trust. The PDF report is a genuine value-add that no consumer app does well. The shareable link could go viral ("look at my 90-day transformation") and serve as organic acquisition.
+
+**Effort Estimate**: 3–4 days total. PDF generation is the main effort; CSV export is trivial; the shareable link reuses existing data display components.
+
+---
+
+### Idea 10 — Smart Notification Timing (Pattern-Learned Reminders)
+
+**The Problem**: Push notifications are sent at fixed times the user configured at setup. But that time may no longer match their routine — and a notification at the wrong moment gets dismissed or ignored, training the user to ignore all notifications.
+
+**What It Would Do**:
+- The nightly cron job analyses log timestamps: *when does this user actually log each day?* (e.g., typically around 8pm)
+- If the user's configured reminder is 7pm but they consistently log at 8:30pm, suggest shifting the reminder
+- Workout reminders: detect if the user consistently trains in the morning vs. evening and shift the default suggestion accordingly
+- "Rescue" notifications: if a user hasn't logged by 10pm and their streak is active, send one late nudge — but only if they haven't logged and it's within 2 hours of their typical log time (not a blanket 10pm blast for everyone)
+- Show users their own log timing patterns in Settings: "You usually log around 8pm — your reminder is set for 7pm. Want to shift it?"
+
+**Why It Matters**: Relevant notifications get acted on. Irrelevant ones train users to disable all notifications. This is a retention feature dressed as a UX improvement.
+
+**Effort Estimate**: 2 days. The cron job already exists; it's a new analysis pass + a settings page insight.
+
+---
+
+### Idea 11 — Workout History Search & Export
+
+**The Problem**: A user who has 6 months of workout history can't search it. "What weight was I squatting in February?" requires scrolling through the history manually. There's also no way to copy a past workout as a template for today.
+
+**What It Would Do**:
+- Full-text search across workout names, exercises, and notes
+- Filter by exercise name, date range, muscle group
+- "Repeat this workout" button on any past session — copies it into a new active workout
+- Personal records page: for each exercise, show the heaviest set, best estimated 1RM, and a trend chart over time (this complements Pillar 3 but is simpler and standalone)
+- Export a workout session to a shareable format (text summary or image card)
+
+**Why It Matters**: Makes historical data useful rather than archival. The "personal records" view is highly motivating — seeing your squat go from 60kg to 100kg over 12 months is the emotional core of strength training.
+
+**Effort Estimate**: 2 days. Search is a Supabase full-text query; the PRs page is a client-side aggregation of existing `workout_sets` data.
+
+---
+
+### Idea 12 — Caffeine & Hydration Tracking
+
+**The Problem**: Hydration and caffeine both affect energy, sleep, and performance significantly — and neither is tracked. The correlation engine is missing two high-signal variables.
+
+**What It Would Do**:
+- A simple hydration tracker: tap to add a glass/bottle of water; configurable daily target; progress ring on dashboard
+- Caffeine log: tap coffee, espresso, tea, pre-workout; app knows approximate caffeine content
+- Smart reminder: "You haven't logged any water in 3 hours"
+- Caffeine cutoff warning: "You've had 400mg caffeine today. Your last dose was at 3pm — this may affect your sleep quality tonight."
+- Correlation engine picks up: caffeine total vs. sleep quality; hydration vs. energy level; alcohol + poor hydration combination
+
+**Why It Matters**: Water and caffeine are tracked in approximately zero consumer health apps well. These are genuinely actionable health inputs. The caffeine cutoff warning alone could meaningfully improve sleep quality for many users.
+
+**Effort Estimate**: 1–2 days. Mostly new UI widgets in the daily log; no new tables needed if caffeine and water are stored in the existing daily log JSON fields.
+
+---
+
+### Idea 13 — Guided Recovery Sessions
+
+**The Problem**: The Readiness Score (Pillar 4) can tell users to take it easy, but the app currently has nothing for them to *do* on those days. A low-readiness day with no content pushes users to either ignore the advice or leave the app.
+
+**What It Would Do**:
+- A small library of guided recovery sessions: breathing exercises (box breathing, 4-7-8), mobility routines (5/10/15-minute options), and progressive muscle relaxation
+- Sessions are matched to readiness score: score <40 → breathing/PMR, 40–60 → mobility routine
+- Can be simple video embeds (YouTube unlisted or Vimeo) or text + timer-based guides
+- Logged as an activity (type: "recovery") in the activity log — so rest days aren't blank
+- AI coach can prescribe specific sessions: "Try this 10-minute hip mobility routine before your workout tomorrow"
+
+**Why It Matters**: Turns the app into a complete training system, not just a tracker. Makes low-readiness days feel productive rather than wasted. Creates a content hook that keeps users opening the app even when they're not training hard.
+
+**Effort Estimate**: 2–3 days for the player UI and session library; content curation is ongoing.
+
+---
+
+### Quick Idea Parking Lot
+
+*Smaller ideas that don't need full specs yet but are worth remembering:*
+
+| Idea | One-liner | Effort |
+|---|---|---|
+| Step counter sync | Pull daily steps from phone pedometer (no wearable needed) via Web API or manual entry; add steps as an activity signal | 1 day |
+| Workout sharing card | Generate a shareable image card ("Just crushed 3×5 deadlift at 140kg 🔥") for social sharing; uses Canvas API | 1 day |
+| Training phase labels | Let users manually label calendar weeks: "Cut", "Bulk", "Maintenance", "Deload" — visible in trend charts | 1 day |
+| Pre-workout meal timer | Remind user to eat their pre-workout meal X minutes before a scheduled session | 1h |
+| Gym buddy finder (opt-in) | Match users in the same city with similar goals and training times — requires trust/safety thinking | Large |
+| AI-written training log recap | Weekly email that reads like a sports journalist wrote it: "This was your strongest week in 3 months..." | 1 day |
+| Habit anchoring tool | Pair new habits with existing ones: "After morning coffee → log breakfast". Visual habit chain builder | 2 days |
+
+---
+
+## Updated Prioritisation (Including New Ideas)
+
+Incorporating new ideas into the matrix. New entries marked with 🆕.
+
+| Feature | Impact | Feasibility | Score | Suggested Sprint |
+|---|---|---|---|---|
+| Quick Wins (bugs + small features) | Medium | Very High | ★★★★★ | Now |
+| Readiness Score v1 (Pillar 4) | Very High | High | ★★★★☆ | Sprint 1 |
+| Correlation Engine v1 (Pillar 1) | Very High | High | ★★★★☆ | Sprint 1 |
+| Progressive Overload Alerts (Pillar 3) | High | High | ★★★★☆ | Sprint 1 |
+| 🆕 Barcode / Nutrition Label Scanner | High | High | ★★★★☆ | Sprint 1–2 |
+| 🆕 Natural Language Multi-Field Entry | High | High | ★★★★☆ | Sprint 2 |
+| 🆕 Smart Goal Auto-Adjustment | High | Very High | ★★★★☆ | Sprint 2 |
+| Nutrition Planning — Saved Meals (Pillar 2) | High | High | ★★★☆☆ | Sprint 2 |
+| 🆕 Workout History Search & PRs | High | High | ★★★☆☆ | Sprint 2 |
+| 🆕 Supplement Tracker | Medium | High | ★★★☆☆ | Sprint 2–3 |
+| 🆕 Caffeine & Hydration Tracking | High | Very High | ★★★☆☆ | Sprint 2–3 |
+| 🆕 Smart Notification Timing | High | High | ★★★☆☆ | Sprint 3 |
+| Accountability Partner (Pillar 5) | Very High | Medium | ★★★☆☆ | Sprint 3 |
+| Withings Integration (Pillar 6) | High | Medium | ★★★☆☆ | Sprint 3 |
+| Oura Integration (Pillar 6) | High | Medium | ★★★☆☆ | Sprint 3 |
+| 🆕 Fasting & Eating Window Tracker | High | High | ★★★☆☆ | Sprint 3 |
+| 🆕 Data Export & Health Report | High | Medium | ★★★☆☆ | Sprint 3 |
+| 🆕 Cycle-Aware Training & Nutrition | High | Medium | ★★★☆☆ | Sprint 3–4 |
+| 🆕 Guided Recovery Sessions | Medium | Medium | ★★☆☆☆ | Sprint 4 |
+| 🆕 Injury & Pain Log | Medium | Medium | ★★☆☆☆ | Sprint 4 |
+| 🆕 Food Photo Logging (AI Vision) | Very High | Low-Medium | ★★☆☆☆ | Sprint 4 |
+| Nutrition Planning — Full Meal Planner (Pillar 2) | High | Low | ★★☆☆☆ | Sprint 4 |
+| 12-Week Training Programs (Pillar 3) | High | Low | ★★☆☆☆ | Sprint 4 |
+| Group Challenges (Pillar 5) | Medium | Medium | ★★☆☆☆ | Sprint 4 |
+| Apple Health / Google Fit (Pillar 6) | Very High | Very Low | ★★☆☆☆ | Future |
+
+---
+
+*Document last updated 2026-06-08. Questions, pushback, or additions — flag them and I'll revise.*
