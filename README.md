@@ -17,7 +17,8 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - AI Nutrition Planner: generates meal plans from your pantry
 
 **Workout Tracking**
-- Active workout logger with real-time set / rep tracking and rest timer
+- Active workout logger with real-time set / rep tracking, rest timer, and per-set autosave
+- Delete individual sets with a single tap; reopen any completed workout for set-level editing
 - AI Coach builds and saves workouts from natural language
 - Schedule workouts on a calendar with per-session reminders
 - 1RM estimation (Epley), PR notifications, and progress analytics
@@ -45,6 +46,16 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - iOS (App Store) and Android (Play Store) via Capacitor
 - FCM push notifications for reminders
 - Native haptics, swipe-back navigation on iOS
+
+**Language Support**
+- English / French toggle in Settings → Customisation
+- All UI and AI responses respect the selected language
+- Persisted locally; works in the native apps without URL-segment routing
+
+**Claude AI Connector (MCP)**
+- Generate a personal API key in Settings → Claude AI Connector
+- Connect Life Logger to Claude.ai as an MCP tool
+- Claude can read logs, workouts, and body metrics, and write new entries on your behalf
 
 **Customisation**
 - Light / System / Dark theme

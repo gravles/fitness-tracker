@@ -2,6 +2,39 @@
 
 All notable changes to Life Logger are documented here.
 
+## [2.1.0] — 2026-06-08
+
+### English / French Language Toggle
+- Full i18n system via a `LanguageProvider` React context with `localStorage` persistence
+- Toggle in Settings → Customisation; no URL-segment routing so it works in the native apps
+- Covers all core UI: navigation, dashboard, daily log, settings, onboarding, and all section components
+- AI responses (coach, weekly insights, workout chat, goal wizard, recommendations) also honour the selected language
+
+### Claude MCP Connector
+- Generate a personal API key in Settings → Claude AI Connector
+- Connect Life Logger directly to Claude.ai as an MCP tool — Claude can read and write your data
+- Seven tools exposed: `get_daily_logs`, `get_workouts`, `get_body_metrics`, `get_user_profile`, `log_food`, `log_workout`, `update_daily_log`
+- Keys are hashed server-side; revoke any key from Settings at any time
+
+### Workout Autosave & Edit Completed Workouts
+- Every set toggle writes to the database immediately — progress survives navigation or crashes
+- Autosave status chip ("Saving…" / "Saved" / "Save failed") shown in the workout header
+- Lazy creation: the DB record is created on the first completed set; crash-resume reloads from DB
+- "Edit Sets" button on each completed workout card reopens it in the full logger for set-level editing
+
+### Workout Logger: Delete Individual Sets
+- Each set row has a red × button to remove it instantly — no confirmation dialog
+
+### Bug Fixes
+- iOS push notifications: APNs production entitlement added; notifications delivered directly via APNs
+- iOS black screen on launch: ViewController now correctly registered in the Xcode project
+- Food camera: camera capture restored; gallery picker added as an alternative
+- Food photo scan: resolved inconsistency where the same photo returned different results
+- AI weekly analysis: fixed queries returning no results; made JSON parsing more robust
+- MCP daily logs: corrected habits column name in query
+
+---
+
 ## [2.0.0] — 2026-05-24
 
 ### Native iOS & Android Apps

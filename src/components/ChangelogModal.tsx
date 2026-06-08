@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen } from 'lucide-react';
+import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen, Languages, Plug, Save, Trash2 } from 'lucide-react';
 
 interface ChangelogModalProps {
     isOpen: boolean;
@@ -11,6 +11,17 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
     if (!isOpen) return null;
 
     const changes = [
+        {
+            version: "v2.1 — Language, MCP Connector & Workout Autosave",
+            date: "June 8, 2026",
+            features: [
+                { icon: <Languages className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "English / French toggle in Settings — all UI and AI responses honour your choice." },
+                { icon: <Plug className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Claude AI Connector: generate a key in Settings and use Life Logger as an MCP tool inside Claude.ai." },
+                { icon: <Save className="w-4 h-4 text-green-500" />, text: "Workout autosave: every set writes to the DB immediately; reopen any past workout to edit sets." },
+                { icon: <Trash2 className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Delete individual set rows in the workout logger with the × button." },
+                { icon: <Bug className="w-4 h-4 text-[var(--color-text-muted)]" />, text: "iOS push notifications fixed; food camera restored with gallery picker; AI weekly analysis reliability improved." },
+            ]
+        },
         {
             version: "v2.0 — Native Apps & Calendar",
             date: "May 24, 2026",
