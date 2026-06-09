@@ -1,7 +1,7 @@
 # Fitness Tracker — Expanded Features PRD
 
 **Author:** Claude  
-**Date:** 2026-05-20  
+**Date:** 2026-05-20 (revised 2026-06-09)  
 **Status:** Proposal — for review
 
 ---
@@ -603,23 +603,160 @@ These are bugs or small features that could each ship in a day or less. Not a pi
 
 ---
 
+---
+
+## Brainstormed Features — Next Horizon
+
+*Added 2026-06-09. These are ideas for review — none are committed to a sprint yet.*
+
+The six pillars above close the gap between "tracking app" and "intelligent coaching tool." This section brainstorms the *next* horizon: features that could push the app into territory that larger apps (MyFitnessPal, Cronometer, Whoop) have not fully solved. Three are large enough to be full pillars. The rest are medium-sized and could ship independently.
+
+---
+
+### Potential Pillar 7 — AI Food Photo Logging
+
+**The problem:** Typing food into a log is the number-one reason people abandon nutrition tracking. The friction is real — finding the right food in the database, estimating portion sizes, adding custom entries. Most users log breakfast and give up by dinner.
+
+**What it would do:**  
+Point your phone camera at a plate, tap once, and the app identifies the foods, estimates portion sizes, and pre-fills the food log. The user reviews and confirms (or adjusts) before saving. For ambiguous items, AI asks a quick clarifying question: *"Is that white rice or cauliflower rice?"*
+
+**Fallback path:** If the photo is unclear, the user can type a description in plain English — *"a plate of spaghetti bolognese, probably medium portion"* — and Claude estimates macros from that description. This is already close to what the AI food entry does; the vision input is the upgrade.
+
+**Why it matters:** This is the single highest-friction point in the entire app loop. A user who logs 95% of meals gets dramatically better insights than one who logs 60%. Reducing logging time from 2 minutes to 15 seconds compounds across every day of use.
+
+**Technical approach:** Call Claude's vision API with the food photo + system prompt asking for a structured JSON list of identified items with estimated weights/portions. Map to the existing food_items schema. Confidence score triggers the review step — high confidence items are pre-checked, low confidence items are flagged for manual confirmation.
+
+**Estimated effort:** Medium-High (3–5 days). Most of the work is prompt engineering and the review UI; the API call itself is straightforward.
+
+---
+
+### Potential Pillar 8 — Injury & Pain Tracking
+
+**The problem:** Almost every serious exerciser deals with nagging pain or past injuries, but there's nowhere in the app to log or track it. This means the AI coach gives workout suggestions that might load a recovering shoulder, the progressive overload engine pushes load onto a strained joint, and the user has no way to see whether their knee pain is getting better or worse over 4 weeks.
+
+**What it would do:**
+
+- **Body map UI:** An interactive front/back body silhouette. Tap a region (left knee, lower back, right shoulder) to log soreness or pain on a 1–5 scale with an optional note.
+- **Pain history charts:** View soreness trends per region over time. See which exercises correlate with flare-ups.
+- **Exercise filtering:** When an injury is marked "active," the exercise selector in the workout builder filters out or warns on movements that load the injured region. (This requires a muscle/joint mapping per exercise — a one-time data effort.)
+- **Adaptive readiness:** Active injuries reduce the Readiness Score (Pillar 4) in the relevant muscle groups, not just the global score.
+- **Return-to-training protocol:** When a region is marked as healing, AI suggests a graduated loading progression: *"Your left knee has been at 2/5 for 3 days — you could try bodyweight squats today and see how it feels."*
+
+**New data model (sketch):**
+```sql
+CREATE TABLE pain_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  logged_at timestamptz DEFAULT now(),
+  body_region text NOT NULL,    -- 'left_knee', 'lower_back', 'right_shoulder', etc.
+  severity int NOT NULL,        -- 1-5
+  note text,
+  associated_workout_id uuid REFERENCES workouts(id)
+);
+```
+
+**Why it matters:** Pain is the leading cause of exercise dropout. An app that notices *"you've logged left knee pain 4 times this week after leg day"* and adjusts the program is providing genuine coaching value that no consumer app currently offers.
+
+**Estimated effort:** Medium (3–4 days for body map + log + basic correlation). Full exercise filtering would take an additional 1–2 days.
+
+---
+
+### Potential Pillar 9 — Fasting & Time-Restricted Eating Tracker
+
+**The problem:** Intermittent fasting and time-restricted eating (TRE) are among the most popular dietary approaches, but they're invisible to the current app. The food log shows *what* you ate but not *when*, and there's no way to set or track an eating window. Users doing 16:8 have to mentally track their fast outside the app entirely.
+
+**What it would do:**
+
+- **Fasting timer:** A simple start/stop timer. Tap "Start fast" when you finish your last meal; the timer runs until you tap "Break fast." Shows elapsed fast duration and time remaining to goal.
+- **Eating window configuration:** Set a target fasting protocol (16:8, 18:6, 20:4, custom). The timer automatically marks when you're inside and outside your eating window.
+- **Food log integration:** If the user logs a food entry while fasting, show a gentle warning: *"You're 11 hours into your fast — are you sure you want to log this?"* (dismissible, not blocking).
+- **Fasting streaks:** Track consecutive days of hitting the fasting target alongside the existing streak system. A separate XP bonus for fasting consistency.
+- **Correlation with outcomes:** Feed fasting adherence data into the Correlation Engine (Pillar 1) to surface patterns: *"Your energy is 22% higher on days you complete a 16+ hour fast."*
+
+**New data model (sketch):**
+```sql
+CREATE TABLE fasting_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  fast_start timestamptz NOT NULL,
+  fast_end timestamptz,               -- null while active
+  target_hours int NOT NULL DEFAULT 16,
+  goal_met boolean,                   -- computed on fast_end
+  notes text
+);
+```
+
+**Why it matters:** TRE is particularly sticky as a feature — users check the timer multiple times a day, dramatically increasing app open rate. It also adds a temporal dimension to nutrition that the current log completely lacks. Low infrastructure cost: no AI calls needed for the core feature.
+
+**Estimated effort:** Low-Medium (2–3 days for timer + streaks + log integration). Correlations come for free once the data exists.
+
+---
+
+### Medium Features — Backlog
+
+Features larger than a Quick Win but not requiring a full pillar spec. Each could ship independently.
+
+| Feature | Description | Why It Matters | Est. Effort |
+|---|---|---|---|
+| **Barcode Scanner** | Camera scan of packaged food barcodes → auto-fill nutrition data via Open Food Facts API. Shows in the food search bar as a camera icon. | Eliminates manual entry for packaged foods — huge friction reducer, especially for meal prep users. | 1–2 days |
+| **Water / Hydration Tracking** | Daily water target, quick-add buttons (250ml / 500ml / 1L glass), reminder if behind pace. Correlates with energy via Correlation Engine. | Dehydration is one of the most common unrecognised causes of low energy and poor workout performance. High engagement feature — multiple daily taps. | 1–2 days |
+| **Supplement Tracker** | Log daily supplements (creatine, protein powder, vitamins, fish oil). Track consistency %. Correlation Engine can surface patterns (e.g., "Your energy is higher on days you take creatine"). | Many users take supplements and wonder if they work. This makes the correlation discoverable rather than anecdotal. | 1 day |
+| **Smart Predictive Logging** | Learn user patterns from history (always has oatmeal on Monday mornings, always does legs on Tuesday). Pre-fill log suggestions based on day of week + time of day. User can confirm with one tap. | Reduces logging time for habitual eaters to near zero. Rewards consistency — the more consistent you are, the faster the app works. | 2–3 days |
+| **Body Composition Forecasting** | Project current trajectory forward: *"At your current rate, you'll reach your goal weight in ~11 weeks."* Show two curves: 'if nothing changes' vs. 'if you hit your weekly targets'. Updates daily. | Connects daily behaviour to the long-term outcome the user actually cares about. Far more motivating than a weekly trend chart. | 2 days |
+| **Competition / Event Prep Mode** | Set a target event with a date (marathon, powerlifting meet, holiday, wedding). App creates a reverse-engineered periodisation plan with a countdown widget on the dashboard. Training volume tapers as event date approaches. | Gives goal-oriented users a structured runway. The countdown creates urgency and daily relevance. | 3–4 days |
+| **Data Export & Coach Sharing** | Export all data as a formatted PDF progress report or CSV. Generate a read-only shareable link for a coach, physio, or doctor. PDF includes trend charts and workout history summary. | Opens a professional use case. Users paying coaches need to share data. Makes the app more "official" and hard to replace. | 2 days |
+| **Mindfulness & Stress Interventions** | Guided breathing exercises (box breathing, 4-7-8, physiological sigh). Brief meditation timers. When stress is logged at 4–5/5, prompt a 2-minute breathing exercise before logging is saved. | Closes the loop between tracking stress and actually doing something about it. Differentiates from pure fitness tracking apps. Connects stress data to active outcomes in the correlation analysis. | 1–2 days |
+| **Smart Workout Timing Suggestions** | Based on readiness score, historical workout performance by time of day, and logged calendar gaps, suggest optimal workout windows: *"Your best workouts are between 6–8am. There's a gap tomorrow morning — want to schedule one?"* | Moves from reactive logging to proactive scheduling. Natural extension of the Readiness Score pillar. | 1–2 days (requires Pillar 4 first) |
+| **Coach Feedback Loop** | After AI coach suggestions, allow users to rate advice: "Tried this — helped / didn't help / not relevant." Store this signal and surface it in future prompts so the coach learns what resonates for this user. | Makes the AI coaching feel genuinely personal over time. High trust lever — users who feel *heard* churn dramatically less. | 1 day |
+
+---
+
+### New Quick Wins (2026 additions)
+
+| Feature | Description | Effort |
+|---|---|---|
+| Calories remaining push notification | An optional mid-day notification: "You've logged 800 kcal so far. ~1200 remaining for your target." Respects the existing reminder system. | 2h |
+| Workout duration auto-timer | When a workout is started, run a visible elapsed timer. Show total session time on the completion screen. | 1h |
+| "Log same as yesterday" shortcut | A one-tap option to clone yesterday's food log into today. Useful for meal-preppers with repetitive eating patterns. | 2h |
+| Personal records celebration modal | When a new estimated 1RM or rep PR is hit, show a celebratory full-screen animation (like the streak modal). Currently PRs are silent. | 2h |
+| Dark/light mode toggle in quick settings | Surface the theme toggle in the main settings page rather than burying it. High discoverability request from early testers. | 30min |
+| Negative calorie days warning | If logged calories are below 1000 kcal by 8pm, show a gentle reminder to eat more — important safety guardrail for users in a deficit. | 1h |
+| Weekly log completion score | On the weekly analytics modal, show what % of days were fully logged (food + movement + wellness) — a meta-metric that correlates with outcomes. | 1h |
+| Favourite workouts | Allow users to star a completed workout as a favourite template — same as existing workout templates but seeded from real sessions. | 2h |
+
+---
+
+---
+
 ## Prioritisation Matrix
 
 Scored on Impact (user value) × Feasibility (time + complexity) for a solo developer.
 
-| Pillar | Impact | Feasibility | Score | Recommended Sequencing |
+| Pillar / Feature | Impact | Feasibility | Score | Recommended Sequencing |
 |---|---|---|---|---|
-| Quick Wins | Medium | Very High | ★★★★★ | Ship first (continuous) |
+| Quick Wins (existing + new) | Medium | Very High | ★★★★★ | Ship first (continuous) |
 | Readiness Score | Very High | High | ★★★★☆ | Sprint 1 — no new tables, just logic |
 | Correlation Engine | Very High | High | ★★★★☆ | Sprint 1 — data already exists |
 | Nutrition Planning (Saved Meals only) | High | High | ★★★☆☆ | Sprint 2 — start with saved meals |
 | Periodisation (Overload Alerts only) | High | High | ★★★☆☆ | Sprint 2 — active workout is already there |
+| **Fasting / TRE Tracker (new)** | High | Very High | ★★★★☆ | Sprint 2 — low infra cost, high engagement |
+| **Barcode Scanner (new)** | High | High | ★★★★☆ | Sprint 2 — pure UX win for nutrition |
+| **Water Tracking (new)** | Medium | Very High | ★★★☆☆ | Sprint 2 — quick win with real retention value |
+| **Body Comp Forecasting (new)** | High | High | ★★★☆☆ | Sprint 2 — motivational hook for goal-focused users |
 | Accountability (Partner only, no challenges) | Very High | Medium | ★★★☆☆ | Sprint 3 |
 | Withings Integration | High | Medium | ★★★☆☆ | Sprint 3 |
 | Oura Integration | High | Medium | ★★★☆☆ | Sprint 3 |
+| **Injury & Pain Tracking (new)** | High | Medium | ★★★☆☆ | Sprint 3 — higher value once workouts are more active |
+| **Smart Predictive Logging (new)** | High | Medium | ★★★☆☆ | Sprint 3 — requires 60+ days of user data to be useful |
+| **Competition / Event Prep Mode (new)** | High | Medium | ★★★☆☆ | Sprint 3 — natural extension of Pillar 3 |
+| **Data Export & Coach Sharing (new)** | Medium | High | ★★★☆☆ | Sprint 3 — opens professional/coach use case |
+| **AI Food Photo Logging (new)** | Very High | Medium | ★★★☆☆ | Sprint 3 — highest friction reducer; needs UX polish |
 | Nutrition Planning (Full Meal Planner) | High | Low | ★★☆☆☆ | Sprint 4 |
 | Group Challenges | Medium | Medium | ★★☆☆☆ | Sprint 4 |
 | 12-Week Programs | High | Low | ★★☆☆☆ | Sprint 4 |
+| **Supplement Tracker (new)** | Medium | High | ★★☆☆☆ | Sprint 4 — more valuable once correlation engine is live |
+| **Mindfulness & Stress Interventions (new)** | Medium | High | ★★☆☆☆ | Sprint 4 — differentiator, not core loop |
+| **Coach Feedback Loop (new)** | Medium | High | ★★☆☆☆ | Sprint 4 — requires coaching to be well-used first |
 | Apple Health / Google Fit | Very High | Very Low | ★★☆☆☆ | Future (requires native app) |
 
 ---
@@ -640,3 +777,7 @@ This sprint alone would make the app feel dramatically more intelligent without 
 ---
 
 *Document ends. Questions, pushback, or additions — flag them and I'll revise.*
+
+---
+
+*Revision 2026-06-09: Added "Brainstormed Features — Next Horizon" section with 3 new potential pillars (AI Food Photo Logging, Injury & Pain Tracking, Fasting/TRE Tracker), 10 medium backlog features, 8 new quick wins, and updated the prioritisation matrix.*
