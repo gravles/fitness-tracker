@@ -639,4 +639,312 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
+---
+
+## Brainstormed Feature Ideas
+
+*Added 2026-06-10. These are unscoped ideas for evaluation — not commitments. Each is described at the level needed to decide whether it's worth speccing properly.*
+
+---
+
+### Idea 1 — Food Photo Logging (AI Vision)
+
+**The gap:** Typing food into a log is the single biggest source of friction. AI vision can close it.
+
+**What it does:**  
+User taps a camera icon on the food log, takes a photo of their meal or snack, and the AI estimates the dish, portion size, calories, and macros. Results are editable before saving. Handles restaurant plates, home-cooked meals, packaged food (label recognition), and smoothies.
+
+**Why it matters:**  
+This could cut food logging time by 80% for users who eat visually identifiable meals. It also removes the "I can't be bothered to log this" moment that breaks streaks. Claude already has vision capability — this is mostly a UI + prompt problem.
+
+**Technical notes:**  
+- Send image to Claude claude-sonnet-4-6 with a structured prompt asking for a JSON food estimate
+- Store raw image in Supabase Storage; store structured result in `food_log_entries`
+- Confidence score shown to user so they know when to override
+- Fallback to text entry if confidence is low
+
+**Effort estimate:** 3–4 days. **Priority candidate: Sprint 2.**
+
+---
+
+### Idea 2 — Hydration Tracking
+
+**The gap:** The daily log tracks food, movement, sleep, and stress — but not water. Hydration directly affects energy, workout performance, and recovery, and it's already a top user request in every fitness app category.
+
+**What it does:**  
+- Quick-add buttons on the log screen: +250ml / +500ml / +750ml (1 cup / standard bottle / large bottle)
+- Daily hydration goal (default 2.5L, adjusted for body weight and activity)
+- Progress bar visible alongside macros on the Today tab
+- Hydration reminder push notification at configurable intervals (e.g. every 2 hours between 8am and 8pm)
+- Mild correlation: flag in the Insight Feed if low hydration days correlate with low energy scores
+
+**Data model addition:**
+```sql
+ALTER TABLE daily_logs ADD COLUMN IF NOT EXISTS water_ml int DEFAULT 0;
+-- Or as a separate table if tracking multiple entries per day:
+CREATE TABLE hydration_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  logged_at timestamptz DEFAULT now(),
+  amount_ml int NOT NULL,
+  source text DEFAULT 'manual'  -- 'manual', 'apple_health'
+);
+```
+
+**Effort estimate:** 1–2 days. **Priority candidate: Sprint 1 or Quick Win.**
+
+---
+
+### Idea 3 — Supplement & Medication Tracker
+
+**The gap:** Many serious users take creatine, protein powder (beyond logged food), pre-workout, omega-3s, vitamin D, magnesium, etc. There's no place in the app to track this.
+
+**What it does:**  
+- A Supplements section in Settings or the Nutrition tab
+- User adds their stack: name, dose, timing (pre-workout / with breakfast / evening), days of week
+- Daily reminder push notifications for each supplement at the configured time
+- Log confirmation: mark each supplement as taken
+- Creatine loading protocol: a guided setup for the 5g/day maintenance phase with a visual progress indicator
+- Optional: note subjective response over time, which feeds into the Correlation Engine
+
+**Why it matters:**  
+Supplements that aren't taken consistently are wasted money. A well-designed tracker with timely reminders improves adherence. For users doing creatine loading, structured guidance is genuinely useful.
+
+**Effort estimate:** 2–3 days. **Priority: Sprint 3.**
+
+---
+
+### Idea 4 — Injury & Pain Log
+
+**The gap:** The app has no concept of injury. When a user gets injured (which is when they need the app most), they currently have no way to log it, modify their plan, or track recovery. This is a major churn trigger — users stop logging because they "can't train."
+
+**What it does:**  
+- **Body map:** A front/back body diagram where users tap a region to log pain (1–5 scale, type: sharp / aching / tight / stiffness)
+- **Injury record:** Name, onset date, severity, cause (overuse / acute / unknown), status (active / recovering / resolved)
+- **Workout auto-filter:** When an injury is active, the workout builder filters out exercises that load the affected region (hardcoded muscle-group exclusion map)
+- **Recovery timeline:** Log daily pain ratings; chart them over time to see healing trend
+- **Readiness integration (Pillar 4):** Active injury automatically caps the Readiness Score at 60, with explanation
+- **Return-to-activity prompt:** After 7 days with pain rating ≤ 1, prompt "Are you ready to return to full training?"
+
+**Data model:**
+```sql
+CREATE TABLE injuries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  body_region text NOT NULL,    -- 'lower_back', 'left_knee', 'right_shoulder', etc.
+  injury_type text,             -- 'strain', 'sprain', 'tendinitis', 'soreness'
+  severity int CHECK (severity BETWEEN 1 AND 5),
+  onset_date date NOT NULL,
+  resolved_date date,
+  status text DEFAULT 'active', -- 'active', 'recovering', 'resolved'
+  notes text,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE injury_pain_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  injury_id uuid REFERENCES injuries(id) ON DELETE CASCADE,
+  logged_at date NOT NULL,
+  pain_rating int CHECK (pain_rating BETWEEN 0 AND 5),
+  notes text
+);
+```
+
+**Effort estimate:** 3–5 days. **Priority: Sprint 3.**
+
+---
+
+### Idea 5 — Mindfulness & Breathing Exercise Library
+
+**The gap:** The Readiness Score (Pillar 4) recommends "a breathing exercise or journaling prompt" for low-readiness days — but there's nothing to serve. This idea builds that content layer.
+
+**What it does:**  
+- A **Rest & Recovery** mini-section, accessible from the dashboard on low-readiness days and from the bottom nav
+- **Guided breathing exercises:** Box breathing (4-4-4-4), 4-7-8 relaxation breath, physiological sigh (double inhale + extended exhale), Wim Hof basic. Each exercise is an animated timer/visual — no video needed, just CSS animation.
+- **Body scan meditation:** A text-guided, tap-to-advance experience (3–10 minutes). Backed by a Supabase-stored script; no audio required.
+- **Post-session prompt:** "How do you feel now?" → 1–5 scale → logged to `daily_logs.mindfulness_minutes`
+- **Journaling prompts:** On high-stress days, surface a structured prompt: *"What's one thing today that's in your control?"* Response stored optionally in the log.
+- **XP integration:** Complete a mindfulness session → earn XP, counts toward a "Recovery" badge category
+
+**Why it matters:**  
+The app currently only rewards physical output. Adding a recovery dimension rewards rest, which is what the readiness score is trying to reinforce. Users with streaks only feel streaks burning — this gives them a valid activity on off days.
+
+**Effort estimate:** 3–4 days. **Priority: Sprint 2.**
+
+---
+
+### Idea 6 — Calendar Sync (Google Calendar / Apple Calendar)
+
+**The gap:** Scheduled workouts live inside the app but have no presence in the user's real calendar. Most users manage their week from a calendar app — if workouts aren't there, they get squeezed out.
+
+**What it does:**  
+- **Export to calendar:** One-tap to add a scheduled workout to Google Calendar or Apple Calendar as an event with the workout name, duration, and a deep link back to the app
+- **Two-way conflict detection:** If the user's calendar has a busy block during a scheduled workout time, surface a gentle note: *"Your Tuesday workout overlaps with a meeting — want to reschedule to 6am or move it to Wednesday?"*
+- **Travel mode:** If a multi-day calendar block is detected (e.g. "Trip to London"), auto-suggest a hotel/bodyweight workout variant
+- **Weekly schedule push:** Every Sunday evening, send a push notification summarising the week's scheduled workouts and asking the user to confirm or adjust
+
+**Technical notes:**  
+- Google Calendar: OAuth2 + Google Calendar API (REST) — accessible from the web
+- Apple Calendar: `.ics` file download (no OAuth needed) — simpler, works immediately
+- Start with `.ics` export + Google Calendar add-event URL (no backend needed), add real sync in a later sprint
+
+**Effort estimate:** 1 day (`.ics` export) to 1 week (full Google Calendar OAuth sync). **Priority: Quick Win (`.ics`) → Sprint 3 (full sync).**
+
+---
+
+### Idea 7 — Monthly Progress Report (PDF Export)
+
+**The gap:** Users have no way to share their progress with a doctor, coach, or accountability partner beyond screenshots. There's also no "moment of pride" artifact — something you can look at and feel accomplished.
+
+**What it does:**  
+- A **Monthly Report** generated on the 1st of each month (or on demand)
+- **Content:**
+  - Cover: name, month, headline stats (workouts completed, streak record, total XP)
+  - Nutrition summary: average daily calories, protein, goal adherence %
+  - Body metrics trend: weight chart, any measurements logged
+  - Workout volume chart: sets/reps per muscle group
+  - Wellness trends: sleep, energy, stress averages
+  - AI-written narrative summary (3–4 sentences, generated by Claude Haiku from structured data)
+  - Top 3 personal records set this month
+- **Delivery:** In-app download + optional email delivery
+- **Shareable card:** A condensed social-media-sized graphic (1080×1080) with the headline stats — shareable without exposing private data
+
+**Technical notes:**  
+- Use `@react-pdf/renderer` or similar for PDF generation on the server
+- Or generate as a high-quality HTML page and use browser print-to-PDF
+- Shareable card can be a Canvas-rendered image on the client side
+
+**Effort estimate:** 3–4 days. **Priority: Sprint 3.**
+
+---
+
+### Idea 8 — Fitness Age & VO2 Max Estimation
+
+**The gap:** Users track progress in terms of weight and reps, but have no sense of their overall fitness level relative to their age and population. "Fitness age" is a compelling aspirational number.
+
+**What it does:**  
+- **VO2 Max estimation:** Calculated from workout data using the non-exercise prediction equation: `15.3 × (MaxHR / RestHR)`. Requires the user to input their resting heart rate (or pull from wearable) and estimated max heart rate (220 − age).
+- **Fitness Age:** Compare estimated VO2 Max to population norms by age and sex. If VO2 Max is above average for age, "fitness age" is below chronological age. Display this prominently: *"Your fitness age is 28"* (for a 35-year-old).
+- **Trend over time:** Plot fitness age monthly — the arc of improvement over months and years is highly motivating.
+- **VO2 Max estimator from run:** If a user logs a 12-minute Cooper test or a timed 1.5-mile run, calculate a more accurate VO2 Max from the result.
+- **Comparison context:** *"Your VO2 Max of 44 ml/kg/min puts you in the top 25% for men aged 35–39."*
+
+**Data model:**
+```sql
+ALTER TABLE body_metrics
+  ADD COLUMN IF NOT EXISTS resting_heart_rate int,
+  ADD COLUMN IF NOT EXISTS estimated_vo2max numeric,
+  ADD COLUMN IF NOT EXISTS fitness_age int;
+```
+
+**Effort estimate:** 2 days (calculation + display). **Priority: Sprint 2.**
+
+---
+
+### Idea 9 — AI-Generated Monthly Coaching Letter
+
+**The gap:** The AI coaching chat is reactive — users have to ask it things. But most users don't know what questions to ask. A monthly letter from the "coach" is proactive, personal, and creates a powerful retention moment.
+
+**What it does:**  
+- On the 1st of each month, generate a personal letter from the AI coach addressed to the user
+- **Structure:**
+  - Opening: acknowledges the month's headline story (e.g. "March was your strongest month yet" or "February was hard — you hit a plateau but didn't quit")
+  - 2–3 specific observations from the data: wins, patterns, surprises
+  - 1–2 specific recommendations for next month, grounded in the data
+  - A closing note that's encouraging but not sycophantic
+- Delivered as a push notification + in-app message in the coach chat thread
+- Users can reply and continue the conversation
+
+**Example output:**
+> *"April was a breakthrough month. You completed 14 workouts — your highest ever — and your bench press estimated 1RM climbed from 85kg to 92.5kg. The data also shows something interesting: on the 4 days you skipped your protein goal, your next-day energy averaged 2.1/5 vs 3.8/5 on days you hit it. That correlation is getting stronger. For May: prioritise the protein window on your three main training days. The gains are clearly there when you do."*
+
+**Technical notes:**  
+- Claude Haiku with a rich structured-data prompt — roughly 800 tokens in, 300 tokens out
+- Generated by the nightly cron job on the 1st; cached in a `coaching_letters` table
+- Cost: ~$0.001 per letter per user per month — negligible
+
+**Effort estimate:** 2–3 days. **Priority: Sprint 2.**
+
+---
+
+### Idea 10 — Barcode Scanner for Packaged Foods
+
+**The gap:** Logging packaged food by typing brand names is slow and error-prone. A barcode scanner solves it in one tap.
+
+**What it does:**  
+- Camera icon on the food log opens a barcode scanner view
+- Scan any packaged food's barcode — returns product name, serving size, and full nutrition label
+- User confirms serving size (e.g. "I had 2 servings") and adds to log
+- Uses Open Food Facts (free, open-source database of 3M+ products) as the data source via their public API — no cost, no API key required
+- Falls back to Nutritionix or USDA if not found in Open Food Facts
+
+**Why it matters:**  
+Barcode scanning is table stakes for nutrition apps. Users who eat a lot of packaged or branded food will find this dramatically faster than text search. It's particularly useful for pre-workout snacks, protein bars, and supplements.
+
+**Technical notes:**  
+- `@zxing/browser` (open source) for in-browser barcode scanning — no native app needed
+- Open Food Facts API: `https://world.openfoodfacts.org/api/v2/product/{barcode}.json`
+- Cache results in a `barcode_cache` table to reduce external API calls
+
+**Effort estimate:** 2–3 days. **Priority: Sprint 2.**
+
+---
+
+### Idea 11 — Intermittent Fasting / Eating Window Timer
+
+**The gap:** A significant subset of health-conscious users practice some form of intermittent fasting (16:8, 18:6, OMAD, 5:2). The app has no concept of an eating window, which means it can't help these users track or optimise their fasting schedule.
+
+**What it does:**  
+- An optional **Eating Window** mode in Settings
+- User sets their eating window: e.g. 12:00pm – 8:00pm (16:8)
+- Dashboard shows a fasting timer: *"Currently fasting · 14h 22m · 1h 38m until eating window opens"*
+- Push notifications: "Eating window opens in 30 minutes" and "Eating window closes in 1 hour"
+- Fasting streaks: a separate streak for maintaining the eating window
+- Correlation with energy and mood: the Insight Feed can surface whether eating window adherence correlates with energy scores
+
+**Technical notes:**  
+- Entirely client-side calculation — no new tables needed beyond a few settings fields
+- `user_settings.eating_window_start` and `eating_window_end` (time of day, timezone-aware)
+
+**Effort estimate:** 1–2 days. **Priority: Sprint 3 or Quick Win for power users.**
+
+---
+
+### Idea 12 — Gym & Equipment Profile
+
+**The gap:** The workout builder and AI coach don't know what equipment the user has. A user in a home gym gets suggested barbell exercises they can't do; a hotel traveller gets a plan that assumes a full gym. This degrades trust in AI suggestions.
+
+**What it does:**  
+- **Equipment profiles** in Settings: "Home gym", "Full gym", "Bodyweight only", "Hotel room", custom
+- User ticks available equipment: barbell, dumbbells, resistance bands, pull-up bar, cable machine, squat rack, etc.
+- AI coach and workout suggestions filter to available equipment only
+- Quick-switch: "I'm travelling this week" toggles to a bodyweight profile temporarily
+- When generating a 12-Week Program (Pillar 3), the equipment profile constrains the exercise selection
+
+**Why it matters:**  
+This is a one-time 30-second setup that makes every AI-generated workout recommendation more relevant. It's a small feature that prevents a recurring frustration.
+
+**Effort estimate:** 1 day. **Priority: Quick Win / Sprint 1.**
+
+---
+
+### Summary of New Ideas: Prioritisation
+
+| Idea | Impact | Effort | Priority |
+|---|---|---|---|
+| Hydration Tracking | High | Very Low | Quick Win / Sprint 1 |
+| Gym & Equipment Profile | Medium | Very Low | Quick Win / Sprint 1 |
+| Barcode Food Scanner | High | Low | Sprint 2 |
+| Food Photo Logging (AI Vision) | Very High | Medium | Sprint 2 |
+| Mindfulness & Breathing Library | Medium | Low | Sprint 2 |
+| Fitness Age & VO2 Max | Medium | Low | Sprint 2 |
+| AI Monthly Coaching Letter | High | Very Low | Sprint 2 |
+| Supplement Tracker | Medium | Low | Sprint 3 |
+| Injury & Pain Log | High | Medium | Sprint 3 |
+| Calendar Sync (`.ics` first) | High | Low→Medium | Sprint 3 |
+| Monthly PDF Report | Medium | Medium | Sprint 3 |
+| Intermittent Fasting Timer | Medium | Low | Sprint 3 |
+
+---
+
 *Document ends. Questions, pushback, or additions — flag them and I'll revise.*
