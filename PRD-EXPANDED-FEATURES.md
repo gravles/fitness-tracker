@@ -2,7 +2,8 @@
 
 **Author:** Claude  
 **Date:** 2026-05-20  
-**Status:** Proposal — for review
+**Last Updated:** 2026-06-11  
+**Status:** Living Document — updated with Round 2 proposals
 
 ---
 
@@ -16,6 +17,8 @@ This document proposes six major feature pillars, each with full specifications,
 
 ## Current State (What Exists)
 
+> **Note:** Table updated 2026-06-11. Several features originally marked "not started" are now shipped.
+
 | Area | Status |
 |---|---|
 | Daily log (food, activity, wellness) | ✅ Solid, AI-assisted entry |
@@ -25,13 +28,23 @@ This document proposes six major feature pillars, each with full specifications,
 | AI coaching chat | ✅ Context-aware, 30-day window |
 | Push notifications | ✅ Server-side, custom reminders |
 | Strava sync | ✅ Manual sync |
-| Goal Wizard | ⚠️ Built but no entry point |
+| Goal Wizard | ⚠️ Built but no entry point in UI |
 | Progress photos | ✅ Upload + compare |
 | Body metrics | ⚠️ Measurements but no photo upload |
-| Social / sharing | 🔴 Stub only |
-| Nutrition planning | 🔴 Not started |
-| Recovery / readiness | 🔴 Not started |
-| Wearable integrations | 🔴 Strava only |
+| Social / sharing | ⚠️ Accountability partners shipped; group challenges not started |
+| Nutrition planning | ✅ Full meal planner, pantry, AI generation, saved meals |
+| Nutrition meal scanner | ✅ Camera + voice scanning for ingredients |
+| Recovery / readiness | 🔴 Not started (Pillar 4) |
+| Correlation Engine | 🔴 Not started (Pillar 1) |
+| Progressive Overload Engine | 🔴 Not started (Pillar 3) |
+| Wearable integrations | ✅ Strava, Withings, Oura Ring connected |
+| Apple Health / Google Fit | 🔴 Not started (requires native app) |
+| Hydration tracking | 🔴 Not started |
+| Supplement tracking | 🔴 Not started |
+| Injury logging | 🔴 Not started |
+| Coach persona customisation | 🔴 Not started |
+| Data export | 🔴 Not started |
+| Fasting mode (dedicated UI) | ⚠️ Eating window fields exist; no timer/UI |
 
 ---
 
@@ -603,7 +616,365 @@ These are bugs or small features that could each ship in a day or less. Not a pi
 
 ---
 
-## Prioritisation Matrix
+---
+
+## Round 2 — New Feature Proposals
+
+*Added 2026-06-11. These are brainstormed additions beyond the original six pillars, ordered by estimated impact. None are designed or scoped in detail yet — this section is a backlog for future sprint planning.*
+
+---
+
+### R2-1 — Hydration Tracker
+
+**The Problem**  
+Dehydration is one of the most direct and easily-fixed causes of low energy and poor workout performance, yet the app captures zero hydration data. The correlation engine (Pillar 1) can't connect energy crashes to dehydration if the data doesn't exist.
+
+**What It Does**
+- Add a **water intake field** to the daily log Wellness tab: a simple numeric input (glasses or ml/oz) with a tap-to-increment control
+- User sets a daily hydration goal (defaults to 8 glasses / 2L)
+- A **hydration ring** sits alongside the macro rings on the log summary — same visual language the app already uses
+- The Correlation Engine can then surface insights like *"Your energy is 28% higher on days you hit your water goal"*
+- Optional: a mid-day push notification if the user is behind pace ("You've logged 2/8 glasses and it's 2pm")
+
+**Data Model Change**  
+Add `water_glasses int` and `water_goal int` to `daily_logs` (or user settings for the goal). No new tables needed.
+
+**Effort:** 1–2 days. The UI pattern (tap-to-increment, ring visualisation) already exists for macros.
+
+**Why This Matters**  
+This is the single most-requested missing feature in fitness apps. It's trivial to build, immediately useful, and enriches the correlation dataset at zero ongoing cost.
+
+---
+
+### R2-2 — Smart TDEE Recalibration
+
+**The Problem**  
+The app sets a calorie target once (via Goal Wizard or onboarding) and never revisits it. But TDEE (Total Daily Energy Expenditure) varies with activity level, weight loss/gain, and adaptation. A user who has been in a 500 kcal deficit for 10 weeks has almost certainly adapted — their actual TDEE is lower than it was, and the original target no longer produces the expected result. Right now the app has no way to detect or correct this.
+
+**What It Does**
+
+**Adaptive Calorie Check-In (monthly)**  
+Once a month, the app compares:
+1. The user's logged calorie average over the past 30 days
+2. The direction and rate of their weight change (from `body_metrics`)
+3. The predicted weight change based on the current calorie target
+
+If the actual change diverges significantly from predicted (e.g., user is in deficit but weight isn't dropping), the app surfaces a **Calorie Review card** on the dashboard:
+> *"Over the last 30 days, your average intake was 1,850 kcal and your weight dropped 0.2 kg — slower than your target of 0.5 kg/week suggests. Your body may have adapted. Would you like to recalibrate your goal?"*
+
+The user can trigger an AI-guided recalibration that adjusts their calorie and macro targets based on current weight and recent activity.
+
+**Non-linear plateau detection**  
+If weight has been within ±0.3 kg for 3+ weeks despite being in a logged deficit, flag a plateau and suggest a diet break (2 weeks at maintenance) before resuming — this is evidence-based and rarely implemented in consumer apps.
+
+**Data Model Change**  
+A `tdee_snapshots` table to store recalibration events and reasoning, for auditability and to power the AI explanation.
+
+```sql
+CREATE TABLE tdee_snapshots (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  snapshot_date date NOT NULL,
+  estimated_tdee int,
+  avg_logged_calories int,
+  avg_weight_change_kg_per_week numeric,
+  recommendation text,
+  new_calorie_target int,
+  applied boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+**Effort:** 3–4 days. Requires the body_metrics weight data to be consistently logged — works best alongside Withings integration.
+
+**Why This Matters**  
+This is the "closing the loop" feature for weight management. Almost no consumer app does this automatically. It turns the app from a passive logger into an active advisor — and it directly prevents the plateau frustration that causes users to quit.
+
+---
+
+### R2-3 — Injury Log & AI Exercise Modifications
+
+**The Problem**  
+Real athletes get niggles, aches, and injuries. Right now, there's nowhere to log them. The AI coach has no idea the user has a sore shoulder, so it will happily suggest overhead press in a workout recommendation. This is a significant gap for any user who trains consistently.
+
+**What It Does**
+
+**Pain/Discomfort Log**  
+A new sub-section in the daily log (or accessible from the workout screen) where users can tag:
+- Body region (shoulder, knee, lower back, etc.) using a simple body-map tap interface
+- Severity (1–5: twinge → sharp pain)
+- Status: active, monitoring, resolved
+- Optional free-text note
+
+**AI Coach Context Injection**  
+Unresolved injury records are automatically injected into the AI coach system prompt:
+> *"User has an active right shoulder complaint rated 3/5. Avoid overhead pressing movements. Suggest alternatives."*
+
+This means every workout suggestion and coaching response is automatically injury-aware — no extra user action required after the initial log.
+
+**Exercise Modification Cards**  
+When an active injury overlaps with a planned exercise (detected by a muscle-group mapping), show an inline card in the active workout:
+> *"⚠️ Shoulder complaint active — consider cable flyes instead of overhead press. [Substitute]"*
+
+**Injury History & Recovery Timeline**  
+A simple log of past injuries with dates and recovery duration — useful for spotting patterns (e.g., recurring lower back issues on high-volume deadlift weeks).
+
+**Data Model**
+
+```sql
+CREATE TABLE injury_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  body_region text NOT NULL,      -- 'right_shoulder', 'left_knee', 'lower_back', etc.
+  severity int NOT NULL,          -- 1-5
+  status text DEFAULT 'active',   -- 'active', 'monitoring', 'resolved'
+  notes text,
+  onset_date date NOT NULL,
+  resolved_date date,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+**Effort:** 3–4 days (body map UI is the main complexity; logic is straightforward).
+
+**Why This Matters**  
+This is the feature that makes the app feel like it actually knows the user's body. It prevents bad AI recommendations and builds significant trust. Injury awareness is table stakes for any app targeting serious fitness users.
+
+---
+
+### R2-4 — Data Export & Year in Review
+
+**The Problem**  
+Users have months or years of personal health data in the app with no way to get it out. This is both a trust/privacy issue (users should own their data) and a missed engagement opportunity — a beautiful annual summary is one of the highest-shareability moments an app can create.
+
+**What It Does**
+
+**Data Export (Settings Page)**  
+A "Download My Data" button in Settings that exports:
+- All daily logs (CSV or JSON)
+- All workout sessions (CSV)
+- Body metrics history (CSV)
+- Progress photos (ZIP)
+- Full JSON archive of everything
+
+Generated as a background job, delivered via a download link emailed to the user. No streaming to the browser for large datasets.
+
+**Year in Review (Annual Feature)**  
+Each January (or on the user's first log-anniversary), generate a personalised summary page — think Spotify Wrapped for fitness:
+- Total workouts, total volume lifted, total distance moved
+- Best streak, biggest PR, most consistent habit
+- Favourite foods (by log frequency), most-skipped goal
+- Readiness score trend, sleep trend
+- A single "headline stat" the AI picks as most impressive
+- Shareable as a card (image export or link)
+
+This is the app's highest organic-sharing moment. It also creates a strong reason to keep logging — users don't want to break the data record.
+
+**Effort:** Export = 2 days. Year in Review = 3–5 days (depends on design investment).
+
+**Why This Matters**  
+Data portability builds trust and is increasingly a regulatory expectation (GDPR, etc.). The Year in Review is a viral-growth mechanism — users share these. It's also a powerful retention driver: the longer you use the app, the better your Year in Review.
+
+---
+
+### R2-5 — AI Coach Persona Customisation
+
+**The Problem**  
+The AI coach currently has a fixed communication style. Different users respond dramatically differently to motivational approaches — some want tough love, some want encouragement, some want clinical data. A single tone alienates significant portions of the user base.
+
+**What It Does**
+
+A setting in the coach or settings page lets users choose a **coaching style**:
+
+| Persona | Description | Example |
+|---|---|---|
+| **Drill Sergeant** | Direct, no-nonsense, pushes hard | *"You missed your protein by 40g. That's not good enough. Fix it tomorrow."* |
+| **Best Friend** | Warm, casual, empathetic | *"Aw, tough week! You still logged 5 days — that's genuinely great. What got in the way?"* |
+| **Sports Scientist** | Data-driven, precise, minimal emotion | *"Protein deficit: 40g (-22%). Recommend increasing lunch protein by ~35g. Current 7-day avg: 118g vs 160g target."* |
+| **Zen Master** | Mindful, process-focused, non-judgmental | *"Every log is a moment of self-awareness. Today wasn't perfect — that's information, not failure."* |
+
+The chosen persona is stored in `user_settings` and injected into the coach system prompt as a style instruction.
+
+**Data Model Change**  
+Add `coach_persona text DEFAULT 'best_friend'` to `user_settings`. No new tables.
+
+**Effort:** 1 day. The core change is writing 4 prompt persona blocks and wiring the setting.
+
+**Why This Matters**  
+Persona fit is one of the biggest factors in whether users find an AI assistant engaging or off-putting. This is low-effort and high-delight — the kind of customisation that makes users feel the app "gets them".
+
+---
+
+### R2-6 — Fasting Mode (Full Feature)
+
+**The Problem**  
+The eating window start/end times are already being logged, but there's no UI built around them. Intermittent fasting is one of the most popular dietary approaches, and right now the data is captured but ignored.
+
+**What It Does**
+
+**Fasting Timer**  
+A persistent card on the dashboard (or log page) when a fast is active:
+- Shows elapsed fasting time and target duration (e.g., "14:32 / 16:00 hours")
+- Colour-coded: grey (in eating window) → green (in fast, on track) → amber (approaching eating window) → red (past target, should eat)
+- Tap to end fast (logs eating window start time)
+- Tap to start fast (logs eating window end time)
+- Optional push notification when fast target is reached
+
+**Fasting History & Insights**  
+A simple history view of fasting windows with average duration, consistency score, and the correlation with energy/sleep from the existing log data.
+
+**Fasting Goal Setting**  
+User can set a fasting protocol (12:12, 14:10, 16:8, OMAD, custom) and the app tracks adherence.
+
+**Data Model Change**  
+Add `fasting_protocol text` and `fasting_goal_hours int` to `user_settings`. The existing `eating_window_start` and `eating_window_end` fields on `daily_logs` are sufficient for storage.
+
+**Effort:** 2–3 days (timer UI and push notification for fast-complete are the main pieces).
+
+**Why This Matters**  
+Intermittent fasting users are highly engaged and vocal. This takes existing half-implemented data and builds a complete, useful feature around it — high ROI because the infrastructure is already there.
+
+---
+
+### R2-7 — Supplement Tracker
+
+**The Problem**  
+Most serious fitness users take supplements — creatine, protein powder, vitamin D, omega-3, magnesium, pre-workout. These are part of their daily routine, affect their performance and recovery, and yet no fitness app tracks them well. This is a gap the app could own.
+
+**What It Does**
+
+**Supplement Library**  
+Users build a personal supplement list with:
+- Name, dose, unit (mg, g, capsules, scoops)
+- Timing: morning / pre-workout / post-workout / with meals / evening
+- Category: vitamin / mineral / performance / recovery / other
+
+**Daily Check-off**  
+A simple check-off widget in the daily log (Wellness tab or a new tab) — tap each supplement to mark as taken. Unchecked supplements contribute to a "compliance %" metric.
+
+**Smart Reminders**  
+At the configured timing (e.g., 30 min before a logged workout), send a push notification: *"Pre-workout reminder: take your creatine and beta-alanine."*
+
+**Supplement-Outcome Correlations**  
+Once the Correlation Engine exists (Pillar 1), creatine compliance can be correlated with workout performance, magnesium with sleep quality, etc. This turns the supplement log into actionable data rather than just a checklist.
+
+**Data Model**
+
+```sql
+CREATE TABLE supplements (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  dose numeric,
+  unit text,
+  timing text[],    -- ['morning', 'pre_workout']
+  category text,
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Daily supplement logs stored as jsonb on daily_logs:
+-- supplements_taken: [{ supplement_id, taken: true/false, taken_at: timestamp }]
+-- (avoids a separate table for simple use cases)
+```
+
+**Effort:** 2–3 days.
+
+**Why This Matters**  
+This is highly sticky (users configure it once, interact daily) and differentiating (almost no consumer app does this well). It also creates a richer dataset for the correlation engine.
+
+---
+
+### R2-8 — Training Load Analytics (ATL / CTL / TSB)
+
+**The Problem**  
+Serious athletes manage their training using load metrics — specifically the balance between acute fatigue and chronic fitness. The app captures all the raw data needed to calculate this (workout volume, intensity, frequency) but doesn't do the math. For any user training for a race, competition, or peak performance event, this is exactly the insight they need.
+
+**What It Does**
+
+**Three Derived Metrics (calculated from workout history):**
+
+| Metric | What It Measures | Calculation |
+|---|---|---|
+| **CTL** — Chronic Training Load (Fitness) | Long-term training stress absorbed; your "fitness" | 42-day exponentially weighted average of daily TSS |
+| **ATL** — Acute Training Load (Fatigue) | Recent stress; how tired you are right now | 7-day exponentially weighted average of daily TSS |
+| **TSB** — Training Stress Balance (Form) | CTL − ATL; positive = fresh, negative = fatigued | CTL minus ATL |
+
+**Training Stress Score (TSS) per workout** is estimated from: duration × intensity multiplier (Light=0.5, Moderate=1.0, Hard=1.5, Max=2.0). For more precision, heart rate data from wearables can be used.
+
+**"Performance Management Chart"**  
+A time-series chart (similar to TrainingPeaks' PMC) showing CTL, ATL, and TSB over time. Shows peaking periods, taper windows, and overtraining risk zones.
+
+**Interpretation Guidance**  
+- TSB > +25: very fresh, possibly detrained — schedule a hard session
+- TSB -10 to +10: optimal training zone
+- TSB < -20: high fatigue — risk of overtraining; recommend lighter sessions
+- TSB < -30: excessive fatigue — force a rest day recommendation
+
+**Integration with Readiness Score (Pillar 4)**  
+TSB becomes a weighted input in the Readiness Score calculation, replacing the cruder "days since last rest" signal.
+
+**Data Model Change**  
+Add daily TSS as a computed field (or store it on `workouts`). CTL/ATL/TSB are always computed on-the-fly from workout history — no caching needed for most views.
+
+**Effort:** 3–4 days. The chart component is the main UI investment; the math is simple.
+
+**Why This Matters**  
+This is the feature that makes the app legitimately useful for anyone training for a goal event — marathon, triathlon, powerlifting meet, Hyrox. It's currently the preserve of expensive coaching software (TrainingPeaks charges $19/month). Building it here creates a compelling argument for athletes to consolidate to this app.
+
+---
+
+### R2-9 — AI Form Coach (Browser Video Analysis)
+
+**The Problem**  
+Poor exercise form is the leading cause of gym injuries, yet form feedback has always required an in-person coach. Browser-based pose estimation (via TensorFlow.js + MoveNet or MediaPipe) has reached a point where real-time analysis is viable on a mid-range phone. This would be the most technically differentiating feature in the app.
+
+**What It Does**
+
+**Phase 1: Rep Counter + Depth Check**  
+- User opens the camera during an active workout set
+- The AI detects the exercise being performed (based on joint angles) and counts reps automatically
+- For squat/deadlift/bench: checks depth/range of motion against minimums and flags incomplete reps
+- End of set: summary card — "12 reps detected. 2 were above parallel — depth was inconsistent."
+
+**Phase 2: Form Feedback**  
+- Real-time visual overlay on the camera feed (skeleton rendering)
+- Voice feedback during the set: *"Drive through your heels"* / *"Keep your back flat"* — triggered by angle threshold violations
+- Post-set written summary with the specific fault and a corrective cue
+
+**Phase 3: Progress Tracking**  
+- Form scores recorded per set over time (% of reps with good depth, bar path deviation, etc.)
+- Shows form improvement trend alongside strength trend
+
+**Technical Approach**  
+- TensorFlow.js MoveNet (blazepose for upper body, thunder for lower body) running entirely in the browser — no video uploaded to servers
+- Angle calculations on 33 keypoints
+- Exercise classification from characteristic joint angle signatures
+- All processing client-side: no privacy concern, works offline, no API cost
+
+**Effort:** High — 1–2 weeks for Phase 1 alone. This is a significant engineering investment.
+
+**Why This Matters**  
+No major consumer fitness app has shipped real-time form coaching at this fidelity in the browser. If it works well, this single feature could drive significant word-of-mouth and press coverage. The "no video uploaded" privacy angle is also a strong differentiator over camera-based AI competitors.
+
+---
+
+---
+
+## Round 2 — Priority Assessment
+
+| Feature | Impact | Effort | Priority |
+|---|---|---|---|
+| Hydration Tracker | High | Very Low (1-2 days) | ★★★★★ Ship immediately |
+| Coach Persona Customisation | High | Very Low (1 day) | ★★★★★ Ship immediately |
+| Fasting Mode (full feature) | High | Low (2-3 days) | ★★★★☆ Sprint 2 |
+| Data Export | Medium-High | Low (2 days) | ★★★★☆ Sprint 2 |
+| Injury Log & Modifications | Very High | Medium (3-4 days) | ★★★★☆ Sprint 2 |
+| Smart TDEE Recalibration | Very High | Medium (3-4 days) | ★★★★☆ Sprint 2 |
+| Supplement Tracker | Medium | Medium (2-3 days) | ★★★☆☆ Sprint 3 |
+| Year in Review | High | Medium (3-5 days) | ★★★☆☆ Sprint 3 (time-dependent) |
+| Training Load Analytics | High | Medium (3-4 days) | ★★★☆☆ Sprint 3 (for serious athletes) |
+| AI Form Coach | Very High | Very High (1-2 weeks) | ★★☆☆☆ Future investment |
 
 Scored on Impact (user value) × Feasibility (time + complexity) for a solo developer.
 
