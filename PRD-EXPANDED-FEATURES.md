@@ -2,7 +2,8 @@
 
 **Author:** Claude  
 **Date:** 2026-05-20  
-**Status:** Proposal — for review
+**Last Updated:** 2026-06-12  
+**Status:** Living document — updated with implementation status and new feature ideas
 
 ---
 
@@ -16,6 +17,8 @@ This document proposes six major feature pillars, each with full specifications,
 
 ## Current State (What Exists)
 
+> Last verified: 2026-06-12
+
 | Area | Status |
 |---|---|
 | Daily log (food, activity, wellness) | ✅ Solid, AI-assisted entry |
@@ -25,13 +28,17 @@ This document proposes six major feature pillars, each with full specifications,
 | AI coaching chat | ✅ Context-aware, 30-day window |
 | Push notifications | ✅ Server-side, custom reminders |
 | Strava sync | ✅ Manual sync |
-| Goal Wizard | ⚠️ Built but no entry point |
+| Goal Wizard | ✅ Built with settings entry point |
 | Progress photos | ✅ Upload + compare |
 | Body metrics | ⚠️ Measurements but no photo upload |
+| Nutrition planning | ✅ Meal planner, pantry, saved meals |
+| Wearable integrations | ✅ Withings + Oura OAuth + sync |
+| Accountability partners | ⚠️ Backend + DB exists, no UI |
+| AI weekly insights | ⚠️ Exists but AI-narrative only — no real correlation analysis |
 | Social / sharing | 🔴 Stub only |
-| Nutrition planning | 🔴 Not started |
-| Recovery / readiness | 🔴 Not started |
-| Wearable integrations | 🔴 Strava only |
+| Recovery / readiness score | 🔴 Not started |
+| Correlation engine | 🔴 Not started (distinct from weekly AI insights) |
+| Progressive overload alerts | 🔴 Not started |
 
 ---
 
@@ -636,6 +643,270 @@ The highest-ROI work is features that require **no new infrastructure** — they
 Total estimated effort: 7–11 days of development.
 
 This sprint alone would make the app feel dramatically more intelligent without requiring any new data collection from the user.
+
+---
+
+---
+
+---
+
+## Horizon 2 — New Feature Ideas
+
+> Brainstormed 2026-06-12. None of these are commitments — they're ideas to evaluate. Each is described with enough detail to decide whether it's worth scoping properly.
+
+---
+
+### Idea 1 — Injury & Soreness Tracker
+
+**The Gap**  
+The app captures energy and stress but has no concept of *where it hurts*. Users with a sore left shoulder, tight hamstrings, or a tweaked lower back currently have no way to log this, which means the AI coach and readiness score can't account for it.
+
+**What It Would Do**  
+- An interactive front/back body silhouette where users tap muscle groups to log soreness (1–5 scale) or flag an injury
+- Soreness auto-decays over time (no log = assumed healing); injury persists until user clears it
+- Readiness Score incorporates soreness: sore glutes on a deadlift day drops score for lower-body intensity
+- Coach and Progressive Overload engine avoid recommending exercises that stress flagged areas
+- Soreness history plotted over time — "your lower back is consistently sore after heavy deadlift days" feeds the correlation engine
+
+**Why Now**  
+Injury prevention is one of the top reasons people quit training. This is a safety feature as much as a UX feature, and it completes the readiness score story. The body-map UI is a well-understood pattern; the main work is wiring soreness into readiness score weighting and the workout recommendation logic.
+
+**New Data**  
+```sql
+CREATE TABLE soreness_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  muscle_group text NOT NULL,   -- 'lower_back', 'left_hamstring', etc.
+  severity int NOT NULL,        -- 1 (mild) to 5 (injury)
+  is_injury boolean DEFAULT false,
+  notes text,
+  resolved_at date
+);
+```
+
+**Effort Estimate**: Medium (3–5 days). The body map UI is the most time-consuming part; the logic integrations are small once that exists.
+
+---
+
+### Idea 2 — Training Load Model (Fitness / Fatigue / Form)
+
+**The Gap**  
+Serious athletes — especially runners, cyclists, and crossfitters — track their training loads using the CTL/ATL/TSB model: Chronic Training Load (fitness), Acute Training Load (fatigue), and Training Stress Balance (form = CTL − ATL). This is the science behind "peaking" for an event. No consumer app surfaces it cleanly.
+
+**What It Would Do**  
+- After each workout, prompt for or auto-calculate RPE (Rate of Perceived Exertion, 1–10) × duration in minutes = Training Stress Score (TSS) for the session
+- Plot three rolling averages on a single chart:
+  - **Fitness (CTL)**: 42-day exponentially weighted moving average of daily TSS
+  - **Fatigue (ATL)**: 7-day EWMA
+  - **Form (TSB)**: CTL − ATL — positive = rested, negative = fatigued, very negative = over-trained
+- Interpret the chart: *"You're currently at Form +8. You're rested and ready to race. Don't add volume this week — save it."*
+- Integrate with the readiness score: low TSB → lower readiness, regardless of last night's sleep
+
+**Why Now**  
+This feature has zero UI complexity — it's a line chart with three series. The hard part is data collection (RPE on each workout). But the app already has workout logging; adding RPE is a 30-minute change. Once RPE is collected, the chart is straightforward maths. This would be a significant differentiator for the endurance athlete segment.
+
+**Effort Estimate**: Medium (3–4 days: RPE field + TSS calc + chart).
+
+---
+
+### Idea 3 — Hydration Tracker
+
+**The Gap**  
+Hydration is directly correlated with energy, cognitive performance, and recovery — all things the app already tracks. But there's no way to log water intake.
+
+**What It Would Do**  
+- A simple water intake widget on the daily log: large +250ml / +500ml buttons, custom entry
+- Daily target (default 2.5L, adjustable, optionally auto-calculated from bodyweight + activity)
+- Hydration ring on the dashboard alongside protein/calorie rings
+- Evening reminder if user hasn't hit 80% of target
+- Correlation engine variable: `water_intake_ml` ↔ `energy_level`, `sleep_quality`
+- On high-exercise days, automatically increase the daily target by a configurable amount
+
+**Why Now**  
+This is a one-day feature that rounds out the daily log. It's the most-requested "missing" feature type in fitness apps generally, and the correlation engine makes it more meaningful than a simple counter — users will actually *see* the impact on their energy scores.
+
+**Effort Estimate**: Low (1–2 days including UI and reminder logic).
+
+---
+
+### Idea 4 — Intermittent Fasting / Eating Window Tracker
+
+**The Gap**  
+A significant portion of the fitness-conscious audience practices some form of intermittent fasting (IF). The current nutrition log has no concept of eating windows — a 7am breakfast and a 12pm breakfast look identical.
+
+**What It Would Do**  
+- IF timer: user taps "Start Fast" / "Break Fast" — the app tracks fasting and eating windows
+- Popular presets: 16:8, 18:6, 20:4, OMAD — one tap to set the protocol
+- Eating window shown as a timeline bar on the nutrition log page
+- Daily log shows current fast duration and time until eating window opens/closes
+- Calorie/macro targets are scoped to the eating window (dinner-heavy vs. breakfast-heavy patterns handled correctly)
+- Correlation: fasting duration ↔ energy level, weight trend, sleep quality
+
+**Why Now**  
+The meal planner and nutrition log are already built; this extends them with a time dimension. The IF timer itself is a simple clock — the interesting work is adjusting how macro progress is displayed within a window. Given the user base of a fitness tracker almost certainly overlaps heavily with IF practitioners, this closes a notable gap.
+
+**Effort Estimate**: Medium (2–3 days: timer state, window display, correlation variable).
+
+---
+
+### Idea 5 — Goal Event / Peak Mode
+
+**The Gap**  
+Right now, goals are abstract ("lose 5kg", "bench 100kg"). Most people who train hard are doing it *for something*: a marathon, a powerlifting meet, a wedding, a holiday. A dated goal event changes the psychology entirely — it creates urgency, a countdown, and a natural endpoint.
+
+**What It Would Do**  
+- User sets an event: type (race, competition, photo shoot, holiday, other), date, and a brief description
+- A countdown badge appears on the dashboard: *"14 weeks to your marathon"*
+- App enters **Peak Mode**: training volume and intensity recommendations follow a periodisation arc toward the event
+  - Phase 1 (build): progressively increase volume toward event − 3 weeks
+  - Phase 2 (taper): reduce volume 40–50% for the final 2–3 weeks while maintaining intensity
+  - Phase 3 (peak week): light activation sessions, sleep and nutrition prioritised
+- Nutrition adjusts for event type: a marathon needs carb loading; a bodybuilding show needs a calorie deficit peak
+- Post-event: prompt for a reflection and celebration, then suggest a new event
+
+**Why Now**  
+This is a narrative feature more than a data feature — it gives the app a story arc. Users with a concrete event log more consistently because they have a "why." It also makes the existing periodisation (Pillar 3) much more meaningful, as all the programming has a target date to work toward.
+
+**Effort Estimate**: Medium-High (4–6 days: event model, countdown UI, phase-aware recommendations).
+
+---
+
+### Idea 6 — Supplement Stack Tracker
+
+**The Gap**  
+Many fitness-focused users take supplements — creatine, protein powder, vitamin D, magnesium, omega-3, pre-workout, etc. These are logged nowhere, yet they have measurable effects on energy, recovery, and performance that the correlation engine could detect.
+
+**What It Would Do**  
+- A supplement library: user adds their stack with dose, timing (morning/pre-workout/evening), and days (daily/training days only)
+- Each day, a supplement checklist — one tap to confirm you took them
+- Compliance tracking: did you take your supplements consistently this week?
+- Correlation engine: supplement adherence ↔ energy, sleep, performance metrics
+- Cost tracking: monthly spend on supplements with "cost per logged use" stat
+- Reminders: push notification at configured supplement times if not yet confirmed
+
+**Why Now**  
+The existing daily log is food + activity + wellness — supplements fall in none of these categories but are part of most serious fitness users' routines. The correlation angle is genuinely interesting: if a user starts creatine, the app should surface "your strength metrics improved 8% in the 4 weeks since you started creatine." This is a feature no other tracking app does well.
+
+**Effort Estimate**: Medium (3–4 days: supplement model, checklist UI, correlation variable, reminders).
+
+---
+
+### Idea 7 — AI Form Check (Camera)
+
+**The Gap**  
+Every gym in the world has people squatting with rounded backs and benching with flared elbows. Form coaching is the highest-value service a personal trainer provides. It's also entirely absent from every fitness app.
+
+**What It Would Do**  
+- User props up their phone, selects an exercise, and records a set
+- Video is sent to a vision-capable model (Claude's vision or a dedicated pose estimation model)
+- AI provides written form feedback: *"Your knees are caving inward on the descent. Focus on driving them out over your little toes. Your depth is good."*
+- Key checkpoints displayed per exercise (e.g., for squat: depth, knee tracking, back angle, bar path)
+- Form score per set (1–5) stored against the workout set — plotted over time to show improvement
+- **Privacy first**: video is processed server-side and immediately deleted; only the text feedback is stored
+
+**Considerations**  
+This feature has the highest wow factor but the highest complexity. Real-time pose estimation requires either a native app (for on-device ML) or server-side video processing (higher latency, bandwidth, cost). A pragmatic v1 would skip real-time and do post-set upload + async feedback within 10–30 seconds.
+
+**Effort Estimate**: High (7–10 days for a basic v1). Requires evaluating model capability and infrastructure cost before committing.
+
+---
+
+### Idea 8 — Personalised Warm-up & Cool-down Generator
+
+**The Gap**  
+Most people skip warm-ups because they don't know what to do. A generic 5-minute treadmill walk is poor preparation for a heavy squat session. Targeted warm-ups — hip flexor activation before squats, rotator cuff work before pressing — reduce injury risk and improve performance.
+
+**What It Would Do**  
+- When user starts a workout (or views the workout plan the day before), the app generates a 5–10 minute warm-up specific to the planned exercises
+  - E.g., chest day → band pull-aparts, face pulls, light flyes, chest stretch
+  - E.g., leg day → hip circles, leg swings, goblet squats, couch stretch
+- Warm-up shown as an ordered list of movements with reps/duration and a brief technique note
+- User can swipe through exercises with a timer, then tap "Done — Start Workout"
+- Same logic generates a cool-down: static stretches targeting muscles worked
+- Soreness tracker (Idea 1) informs warm-up — extra attention to areas showing soreness
+
+**Why Now**  
+This is largely an AI prompt engineering feature. The exercise library is already built; generating targeted warm-ups from a list of planned exercises is a well-scoped Claude prompt. The UI is a simple ordered list with a timer. The impact on injury prevention and user experience is disproportionate to the implementation effort.
+
+**Effort Estimate**: Low-Medium (2–3 days: warm-up generation prompt, exercise display UI, timer).
+
+---
+
+### Idea 9 — Menstrual Cycle Phase Training & Nutrition
+
+**The Gap**  
+The app already has cycle tracking, but it only logs cycle data — it doesn't do anything with it. Research shows that hormonal phases strongly influence optimal training intensity, recovery needs, and nutritional strategies. This is an underserved area in mainstream fitness apps.
+
+**What It Would Do**  
+- Extend the cycle tracker to identify the current phase (menstrual, follicular, ovulatory, luteal) based on logged cycle data
+- Phase-specific recommendations shown on the dashboard:
+  - **Menstrual (days 1–5)**: lower intensity suggested, iron-rich foods highlighted, rest normalised
+  - **Follicular (days 6–14)**: higher intensity and PRs appropriate (estrogen peak), higher carb tolerance
+  - **Ovulatory (around day 14)**: peak strength and power output window
+  - **Luteal (days 15–28)**: higher calorie needs, more recovery time, PMS symptom tracking
+- Readiness score incorporates cycle phase as a modulating factor
+- Correlation engine: cycle phase ↔ energy, performance, sleep quality, mood
+
+**Why Now**  
+The infrastructure is already there (cycle tracking is built). This is primarily a recommendation layer on top of existing data — adding phase detection logic and surfacing phase-aware nudges. It addresses an audience that is systematically underserved by generic fitness apps that treat all users as male-default.
+
+**Effort Estimate**: Medium (3–4 days: phase detection logic, phase-aware recommendations, readiness integration).
+
+---
+
+### Idea 10 — Year in Review / Data Export & Shareable Highlights
+
+**The Gap**  
+Users accumulate months of data with no way to appreciate the full arc of their progress or share it outside the app. Spotify Wrapped created a cultural moment; fitness apps haven't done the same.
+
+**What It Would Do**  
+**On-Demand "My Year" (or any date range)**  
+A generated summary page with:
+- Total workouts, total sets lifted, total distance run
+- Biggest personal records set
+- Longest streak achieved
+- Best month for consistency
+- Weight change trend (if tracked)
+- Most-logged foods, most-trained muscle groups
+- AI-generated "story of your year": *"You started 2026 unable to squat your bodyweight. You ended it with a 120kg 1RM. That's a 40% improvement in 9 months."*
+- Visually shareable as an image card (like Spotify Wrapped) — tap to share to Instagram/WhatsApp
+
+**Data Export**  
+- Export all data as CSV (for users who want to analyse in Excel/Sheets)
+- Export a PDF "Health Report" — a formatted summary of the last 90 days, structured like what you'd bring to a doctor or nutritionist
+- GDPR-compliant: full data dump available from Settings
+
+**Why Now**  
+This is a retention and acquisition feature. Users who see their year in review feel pride and attachment to the app. Shareable cards create organic word-of-mouth. The data export signals trust — users who know they can export their data are more willing to put data in. The Year in Review is also a natural annual hook that brings churned users back.
+
+**Effort Estimate**: Medium (3–5 days: stats aggregation query, narrative prompt, card design, export generation).
+
+---
+
+## Updated Prioritisation Matrix
+
+Including outstanding original pillars + new Horizon 2 ideas, ordered by recommended sequencing.
+
+| Feature | Impact | Effort | Priority |
+|---|---|---|---|
+| **Accountability UI** (backend exists) | High | Very Low | ★★★★★ Ship now |
+| **Readiness Score** | Very High | Low | ★★★★★ Sprint 1 |
+| **Correlation Engine** (real stats, not AI narrative) | Very High | Medium | ★★★★☆ Sprint 1 |
+| **Progressive Overload Alerts** | High | Low | ★★★★☆ Sprint 1 |
+| **Hydration Tracker** (Idea 3) | Medium | Very Low | ★★★★☆ Sprint 1 — quick win |
+| **Injury & Soreness Tracker** (Idea 1) | High | Medium | ★★★★☆ Sprint 2 |
+| **Warm-up Generator** (Idea 8) | Medium | Low | ★★★☆☆ Sprint 2 |
+| **Supplement Tracker** (Idea 6) | Medium | Medium | ★★★☆☆ Sprint 2 |
+| **Intermittent Fasting Timer** (Idea 4) | Medium | Medium | ★★★☆☆ Sprint 2 |
+| **Training Load Model** (Idea 2) | High (athletes) | Medium | ★★★☆☆ Sprint 3 |
+| **Goal Event / Peak Mode** (Idea 5) | High | Medium-High | ★★★☆☆ Sprint 3 |
+| **Cycle Phase Training** (Idea 9) | High (subset) | Medium | ★★★☆☆ Sprint 3 |
+| **Year in Review / Export** (Idea 10) | Medium | Medium | ★★★☆☆ Sprint 3 |
+| **AI Form Check** (Idea 7) | Very High | Very High | ★★☆☆☆ Sprint 4+ |
+| **Apple Health / Google Fit** | Very High | Very High | ★★☆☆☆ Sprint 4+ |
+| **12-Week Training Programs** | High | High | ★★☆☆☆ Sprint 4 |
+| **Group Challenges** | Medium | Medium | ★★☆☆☆ Sprint 4 |
 
 ---
 
