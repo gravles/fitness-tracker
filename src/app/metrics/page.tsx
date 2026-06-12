@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { upsertBodyMetrics, getBodyMetricsHistory, getSettings, updateSettings } from '@/lib/api';
-import { Loader2, Scale, Camera, ImageIcon, Activity, Zap, TrendingUp } from 'lucide-react';
+import { Loader2, Scale, Camera, ImageIcon, Activity, Zap, TrendingUp, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -14,12 +14,12 @@ const CM_PER_IN = 2.54;
 
 const WITHINGS_CONFIG: Record<string, { label: string; color: string; isMass: boolean; fixedUnit?: string }> = {
     body_fat_pct:       { label: 'Body Fat',      color: 'var(--color-primary)', isMass: false, fixedUnit: '%'   },
-    muscle_mass_kg:     { label: 'Muscle Mass',   color: '#22c55e',              isMass: true                   },
-    fat_free_mass_kg:   { label: 'Fat-Free Mass', color: '#3b82f6',              isMass: true                   },
-    bone_mass_kg:       { label: 'Bone Mass',     color: '#a855f7',              isMass: true                   },
-    hydration_kg:       { label: 'Hydration',     color: '#06b6d4',              isMass: true                   },
-    visceral_fat_index: { label: 'Visceral Fat',  color: '#f97316',              isMass: false, fixedUnit: ''    },
-    vascular_age:       { label: 'Vascular Age',  color: '#ec4899',              isMass: false, fixedUnit: 'yrs' },
+    muscle_mass_kg:     { label: 'Muscle Mass',   color: 'var(--chart-2)',              isMass: true                   },
+    fat_free_mass_kg:   { label: 'Fat-Free Mass', color: 'var(--chart-1)',              isMass: true                   },
+    bone_mass_kg:       { label: 'Bone Mass',     color: 'var(--chart-3)',              isMass: true                   },
+    hydration_kg:       { label: 'Hydration',     color: 'var(--chart-4)',              isMass: true                   },
+    visceral_fat_index: { label: 'Visceral Fat',  color: 'var(--chart-5)',              isMass: false, fixedUnit: ''    },
+    vascular_age:       { label: 'Vascular Age',  color: 'var(--chart-6)',              isMass: false, fixedUnit: 'yrs' },
 };
 
 export default function BodyMetricsPage() {
@@ -293,7 +293,7 @@ export default function BodyMetricsPage() {
                         }}
                         onFocus={e => {
                             e.currentTarget.style.borderColor = 'var(--color-gold)';
-                            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)';
+                            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)';
                         }}
                         onBlur={e => {
                             e.currentTarget.style.borderColor = 'var(--color-border)';
@@ -349,7 +349,7 @@ export default function BodyMetricsPage() {
                                 onClick={() => setPhotoUrl('')}
                                 className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
                                 style={{ background: 'rgba(0,0,0,0.6)', color: 'white' }}
-                            >✕</button>
+                             aria-label="Remove photo"><X className="w-4 h-4" aria-hidden="true" /></button>
                         </div>
                     ) : (
                         <button
@@ -422,7 +422,7 @@ export default function BodyMetricsPage() {
                                         </div>
                                         {entry.photo_url && (
                                             <span className="text-xs block mt-1" style={{ color: 'var(--color-primary)' }}>
-                                                📸 Photo attached
+                                                <Camera className="w-3 h-3 inline-block mr-1 align-text-bottom" aria-hidden="true" />Photo attached
                                             </span>
                                         )}
                                     </div>

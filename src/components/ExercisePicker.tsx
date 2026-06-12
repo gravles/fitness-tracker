@@ -72,9 +72,9 @@ export function ExercisePicker({ onSelect, onClose }: Props) {
                         <button
                             onClick={() => handleSelect(query.trim())}
                             className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors"
-                            style={{ background: 'rgba(29,95,168,0.06)', color: 'var(--color-primary)' }}
+                            style={{ background: 'rgba(77,137,226,0.06)', color: 'var(--color-primary)' }}
                         >
-                            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(29,95,168,0.12)' }}>
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(77,137,226,0.12)' }}>
                                 <Plus className="w-4 h-4" />
                             </div>
                             <span className="font-semibold text-sm">Add "{query.trim()}"</span>

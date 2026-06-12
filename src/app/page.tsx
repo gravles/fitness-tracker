@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowRight, Flame, Mic, Camera, Settings } from 'lucide-react';
+import { Flame, Mic, Camera, Barcode, Settings } from 'lucide-react';
 import { useLanguage } from '@/components/LanguageProvider';
 import { format, subDays } from 'date-fns';
 import { getStreak, getMonthlyLogs, getBodyMetricsHistory, DailyLog, UserSettings } from '@/lib/api';
@@ -16,14 +16,13 @@ import { RecentLogs } from '@/components/RecentLogs';
 import { AIWeeklyInsightModal } from '@/components/AIWeeklyInsightModal';
 import { FeatureTutorial } from '@/components/FeatureTutorial';
 import { getSmartAdvice, CoachingTip } from '@/lib/smartCoach';
-import { calculateXP, XPTargets } from '@/lib/gamification';
 import { LevelProgress } from '@/components/LevelProgress';
 import { XPHistoryModal } from '@/components/XPHistoryModal';
 import { ShareModal } from '@/components/ShareModal';
 import { getSettings } from '@/lib/api';
 import { DashboardSkeleton } from '@/components/Skeleton';
-import { UpcomingWorkouts } from '@/components/UpcomingWorkouts';
-import { DailyGoalTracker } from '@/components/DailyGoalTracker';
+import { TodayHero } from '@/components/TodayHero';
+import { NextWorkoutTile } from '@/components/NextWorkoutTile';
 import { WhatsNewModal, useWhatsNew } from '@/components/WhatsNewModal';
 
 export default function Dashboard() {
@@ -43,7 +42,6 @@ export default function Dashboard() {
 
   // Gamification State
   const [userLevel, setUserLevel] = useState({ level: 1, xp: 0 });
-  const [weeklyXP, setWeeklyXP] = useState<number[]>([]);
   const [showXPModal, setShowXPModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showInsightModal, setShowInsightModal] = useState(false);
@@ -105,18 +103,6 @@ export default function Dashboard() {
           level: settings.current_level || 1,
           xp: settings.total_xp || 0
         });
-
-        const xpTargets: XPTargets = {
-          daily_protein: settings.target_protein || undefined,
-          daily_calories: settings.target_calories || undefined,
-        };
-        setWeeklyXP(
-          Array.from({ length: 7 }, (_, i) => {
-            const d = format(subDays(today, 6 - i), 'yyyy-MM-dd');
-            const log = recentLogs.find((l: DailyLog) => l.date === d);
-            return log ? calculateXP(log, xpTargets) : 0;
-          })
-        );
       }
 
       // Calculate Weekly Stats
@@ -147,6 +133,12 @@ export default function Dashboard() {
     }
   }
 
+  const quickActions = [
+    { href: '/log?action=voice', icon: Mic, label: t.dashboard.voiceLog, ariaLabel: 'Log with voice' },
+    { href: '/log?action=camera', icon: Camera, label: t.dashboard.snapMeal, ariaLabel: 'Snap a photo of your meal' },
+    { href: '/log?action=barcode', icon: Barcode, label: t.dashboard.barcode, ariaLabel: 'Scan a barcode' },
+  ];
+
   return (
     <>
     {showOnboarding && (
@@ -165,20 +157,33 @@ export default function Dashboard() {
     {!showOnboarding && showWhatsNew && (
       <WhatsNewModal onClose={dismissWhatsNew} />
     )}
-    <main className="p-6 pt-12 pb-24 space-y-6 max-w-2xl mx-auto">
+    <main className="p-6 pt-12 pb-28 space-y-5 max-w-2xl mx-auto">
       {/* Header */}
-      <header className="flex justify-between items-center mb-2">
+      <header className="flex justify-between items-start mb-2">
         <div>
           <p className="text-sm font-medium text-[var(--color-text-muted)] mb-0.5">{format(today, 'EEEE, MMMM d')}</p>
-          <h1 className="text-2xl font-bold text-[var(--color-text)]" style={{ fontFamily: 'var(--font-display)' }}>{greeting}</h1>
+          <h1 className="text-2xl font-semibold text-[var(--color-text)]">{greeting}</h1>
         </div>
-        <Link
-          href="/settings"
-          className="p-3 bg-[var(--color-surface-elevated)] rounded-full border border-[var(--color-border-light)] shadow-sm text-[var(--color-text-muted)] hover:text-[var(--color-gold)] hover:border-[var(--color-gold)]/30 transition-all focus-ring tap-target"
-          aria-label="Settings"
-        >
-          <Settings className="w-5 h-5" aria-hidden="true" />
-        </Link>
+        <div className="flex items-center gap-2">
+          {!isLoading && (
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
+              style={{ background: 'var(--color-gold-muted)', border: '1px solid var(--color-gold-border)' }}
+              aria-label={`${t.dashboard.streak.label}: ${streak} ${t.dashboard.streak.days}`}
+              title={streak === 0 ? t.dashboard.streak.zero : streak < 7 ? t.dashboard.streak.low : streak < 30 ? t.dashboard.streak.mid : t.dashboard.streak.high}
+            >
+              <Flame className="w-4 h-4" style={{ color: 'var(--color-gold-text)' }} aria-hidden="true" />
+              <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--color-gold-text)' }}>{streak}</span>
+            </div>
+          )}
+          <Link
+            href="/settings"
+            className="p-2.5 bg-[var(--color-surface-elevated)] rounded-full border border-[var(--color-border-light)] shadow-sm text-[var(--color-text-muted)] hover:text-[var(--color-gold-text)] transition-all focus-ring tap-target"
+            aria-label="Settings"
+          >
+            <Settings className="w-5 h-5" aria-hidden="true" />
+          </Link>
+        </div>
       </header>
 
       {/* Loading State */}
@@ -186,13 +191,52 @@ export default function Dashboard() {
         <DashboardSkeleton />
       ) : (
         <>
-          {/* Level Progress */}
-          <LevelProgress
-            level={userLevel.level}
-            xp={userLevel.xp}
-            weeklyXP={weeklyXP.length === 7 ? weeklyXP : undefined}
-            onClick={() => setShowXPModal(true)}
-          />
+          {/* Today hero — rings for protein / calories / checklist */}
+          <TodayHero todayLog={todayLog} settings={settings} stagger={0} />
+
+          {/* Bento row — level + next workout */}
+          <div className="grid grid-cols-2 gap-3">
+            <LevelProgress
+              level={userLevel.level}
+              xp={userLevel.xp}
+              onClick={() => setShowXPModal(true)}
+              stagger={60}
+            />
+            <NextWorkoutTile stagger={120} />
+          </div>
+
+          {/* Smart Coach */}
+          <SmartCoach tip={advice} onWeeklyAnalysis={() => setShowInsightModal(true)} stagger={180} />
+
+          {/* Quick Actions */}
+          <section aria-labelledby="quick-add-heading" className="animate-in" style={{ ['--stagger' as string]: '240ms' }}>
+            <h3 id="quick-add-heading" className="font-semibold text-sm text-[var(--color-text)] uppercase tracking-wide mb-3 px-1">{t.dashboard.quickAdd}</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {quickActions.map(({ href, icon: Icon, label, ariaLabel }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="group p-4 flex flex-col items-center justify-center gap-2 border border-[var(--color-border-light)] bg-[var(--color-surface-elevated)] shadow-sm active:scale-[0.97] hover:border-[var(--color-gold-border)] transition-all focus-ring tap-target"
+                  style={{ borderRadius: 'var(--radius-card)' }}
+                  aria-label={ariaLabel}
+                >
+                  <div
+                    className="w-11 h-11 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform"
+                    style={{ background: 'var(--color-gold-muted)', color: 'var(--color-gold-text)' }}
+                  >
+                    <Icon className="w-5 h-5" aria-hidden="true" />
+                  </div>
+                  <span className="font-semibold text-xs text-[var(--color-text-secondary)]">{label}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {/* Weekly Summary */}
+          <WeeklySummary stats={weeklyStats} />
+
+          {/* Recent Activity */}
+          <RecentLogs logs={logs} />
 
           <XPHistoryModal
             isOpen={showXPModal}
@@ -220,127 +264,6 @@ export default function Dashboard() {
               ]
             }}
           />
-
-          {/* Daily Goal Tracker */}
-          <DailyGoalTracker todayLog={todayLog} settings={settings} />
-
-          {/* Smart Coach Widget */}
-          <div className="space-y-3">
-            <SmartCoach tip={advice} />
-            <button
-              onClick={() => setShowInsightModal(true)}
-              className="w-full py-3.5 rounded-xl font-semibold active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 focus-ring tap-target border"
-              style={{
-                background: 'var(--color-navy)',
-                color: 'var(--color-gold)',
-                borderColor: 'rgba(201,168,76,0.25)',
-              }}
-              aria-label="View AI Weekly Analysis"
-            >
-              <span className="text-base" aria-hidden="true">📊</span>
-              {t.dashboard.weeklyAnalysis}
-            </button>
-          </div>
-
-          {/* Streak Card */}
-          <div
-            className="rounded-2xl p-6 shadow-xl relative overflow-hidden"
-            style={{ background: 'var(--color-navy)' }}
-          >
-            <div className="relative z-10 flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-1.5 rounded-lg" style={{ background: 'rgba(201,168,76,0.15)' }}>
-                    <Flame className="w-4 h-4" style={{ color: 'var(--color-gold)' }} aria-hidden="true" />
-                  </div>
-                  <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(201,168,76,0.6)' }}>
-                    {t.dashboard.streak.label}
-                  </span>
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span
-                    className="text-6xl font-black tracking-tight"
-                    style={{ color: 'var(--color-gold)', fontFamily: 'var(--font-display)' }}
-                  >
-                    {streak}
-                  </span>
-                  <span className="text-xl font-semibold" style={{ color: 'rgba(228,234,242,0.5)' }}>{t.dashboard.streak.days}</span>
-                </div>
-                <p className="text-sm mt-2" style={{ color: 'rgba(228,234,242,0.45)' }}>
-                  {streak === 0 ? t.dashboard.streak.zero : streak < 7 ? t.dashboard.streak.low : streak < 30 ? t.dashboard.streak.mid : t.dashboard.streak.high}
-                </p>
-              </div>
-              <div style={{ opacity: 0.04 }} aria-hidden="true">
-                <Flame className="w-28 h-28" style={{ color: 'var(--color-gold)' }} />
-              </div>
-            </div>
-          </div>
-
-          {/* Weekly Summary */}
-          <WeeklySummary stats={weeklyStats} />
-
-          {/* Upcoming Workouts */}
-          <UpcomingWorkouts />
-
-          {/* Quick Actions - Enhanced */}
-          <section aria-labelledby="quick-add-heading">
-            <h3 id="quick-add-heading" className="font-bold text-[var(--color-text)] mb-3 px-1">{t.dashboard.quickAdd}</h3>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              {/* Voice Log Card */}
-              <Link
-                href="/log?action=voice"
-                className="group relative p-5 rounded-2xl flex flex-col items-center justify-center gap-3 shadow-sm active:scale-[0.97] transition-all focus-ring tap-target"
-                style={{
-                  background: 'var(--color-gold-muted)',
-                  border: '1px solid rgba(201,168,76,0.2)',
-                }}
-                aria-label="Log with voice"
-              >
-                <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 group-hover:rotate-3 transition-all"
-                  style={{ background: 'var(--color-gold)', color: 'var(--color-navy)' }}
-                >
-                  <Mic className="w-6 h-6" aria-hidden="true" />
-                </div>
-                <span className="font-bold text-sm" style={{ color: 'var(--color-gold)' }}>{t.dashboard.voiceLog}</span>
-              </Link>
-
-              {/* Snap Meal Card */}
-              <Link
-                href="/log?action=camera"
-                className="group relative p-5 rounded-2xl flex flex-col items-center justify-center gap-3 shadow-sm active:scale-[0.97] transition-all focus-ring tap-target"
-                style={{
-                  background: 'rgba(29,95,168,0.08)',
-                  border: '1px solid rgba(29,95,168,0.18)',
-                }}
-                aria-label="Snap a photo of your meal"
-              >
-                <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 group-hover:-rotate-3 transition-all"
-                  style={{ background: 'var(--color-primary)', color: 'white' }}
-                >
-                  <Camera className="w-6 h-6" aria-hidden="true" />
-                </div>
-                <span className="font-bold text-sm" style={{ color: 'var(--color-primary)' }}>{t.dashboard.snapMeal}</span>
-              </Link>
-            </div>
-          </section>
-
-          {/* Log Today CTA */}
-          <Link href="/log" className="block group focus-ring rounded-2xl">
-            <div className="bg-[var(--color-primary)] p-5 rounded-2xl flex items-center justify-between shadow-lg shadow-[var(--color-primary)]/25 group-active:scale-[0.98] group-hover:shadow-[var(--color-primary)]/40 transition-all duration-200">
-              <div>
-                <h3 className="font-bold text-lg text-white mb-0.5">{t.dashboard.logToday}</h3>
-                <p className="text-sm text-white/70 font-medium">{t.dashboard.logTodaySubtitle}</p>
-              </div>
-              <div className="w-10 h-10 bg-white/15 text-white rounded-full flex items-center justify-center group-hover:bg-white/25 transition-colors" aria-hidden="true">
-                <ArrowRight className="w-5 h-5" />
-              </div>
-            </div>
-          </Link>
-
-          {/* Recent Activity */}
-          <RecentLogs logs={logs} />
 
           <AIWeeklyInsightModal
             isOpen={showInsightModal}

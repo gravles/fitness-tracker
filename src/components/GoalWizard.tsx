@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Loader2, Target, Sparkles, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { X, Loader2, Target, Sparkles, ChevronRight, ChevronLeft, Check, Flame, Dumbbell, Scale, Footprints, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { createGoal, GoalType, UserGoal } from '@/lib/features';
 import { haptics } from '@/lib/haptics';
@@ -16,12 +16,12 @@ interface GoalWizardProps {
     currentBodyFat?: number;
 }
 
-const GOAL_OPTIONS: { type: GoalType; title: string; description: string; icon: string }[] = [
-    { type: 'lose_weight', title: 'Lose Weight', description: 'Burn fat while preserving muscle', icon: '🔥' },
-    { type: 'build_muscle', title: 'Build Muscle', description: 'Gain strength and size', icon: '💪' },
-    { type: 'maintain', title: 'Maintain', description: 'Keep your current physique', icon: '⚖️' },
-    { type: 'improve_fitness', title: 'Improve Fitness', description: 'Boost endurance and energy', icon: '🏃' },
-    { type: 'custom', title: 'Custom Goal', description: 'Set your own targets', icon: '🎯' },
+const GOAL_OPTIONS: { type: GoalType; title: string; description: string; icon: LucideIcon }[] = [
+    { type: 'lose_weight', title: 'Lose Weight', description: 'Burn fat while preserving muscle', icon: Flame },
+    { type: 'build_muscle', title: 'Build Muscle', description: 'Gain strength and size', icon: Dumbbell },
+    { type: 'maintain', title: 'Maintain', description: 'Keep your current physique', icon: Scale },
+    { type: 'improve_fitness', title: 'Improve Fitness', description: 'Boost endurance and energy', icon: Footprints },
+    { type: 'custom', title: 'Custom Goal', description: 'Set your own targets', icon: Target },
 ];
 
 export function GoalWizard({ isOpen, onClose, onComplete, currentWeight, currentBodyFat }: GoalWizardProps) {
@@ -103,7 +103,7 @@ export function GoalWizard({ isOpen, onClose, onComplete, currentWeight, current
                         <div className="flex items-center gap-2">
                             <Target className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
                             <h3 className="font-bold">Set Your Goal</h3>
-                            <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(201,168,76,0.2)', color: 'var(--color-gold)' }}>
+                            <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(224,179,90,0.2)', color: 'var(--color-gold)' }}>
                                 Step {step}/3
                             </span>
                         </div>
@@ -123,13 +123,13 @@ export function GoalWizard({ isOpen, onClose, onComplete, currentWeight, current
                                     className="w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all"
                                     style={goalType === option.type ? {
                                         borderColor: 'var(--color-primary)',
-                                        background: 'rgba(29,95,168,0.08)'
+                                        background: 'rgba(77,137,226,0.08)'
                                     } : {
                                         borderColor: 'var(--color-border)',
                                         background: 'transparent'
                                     }}
                                 >
-                                    <span className="text-2xl">{option.icon}</span>
+                                    <option.icon className="w-6 h-6 text-[var(--color-gold-text)]" aria-hidden="true" />
                                     <div className="text-left">
                                         <p className="font-bold text-[var(--color-text)]">{option.title}</p>
                                         <p className="text-xs text-[var(--color-text-muted)]">{option.description}</p>
@@ -194,7 +194,7 @@ export function GoalWizard({ isOpen, onClose, onComplete, currentWeight, current
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="p-3 rounded-xl text-center border" style={{ background: 'rgba(29,95,168,0.06)', borderColor: 'rgba(29,95,168,0.15)' }}>
+                                <div className="p-3 rounded-xl text-center border" style={{ background: 'rgba(77,137,226,0.06)', borderColor: 'rgba(77,137,226,0.15)' }}>
                                     <p className="text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>{aiRecommendations.calories}</p>
                                     <p className="text-xs" style={{ color: 'var(--color-primary)' }}>Daily Calories</p>
                                 </div>
@@ -202,16 +202,16 @@ export function GoalWizard({ isOpen, onClose, onComplete, currentWeight, current
                                     <p className="text-2xl font-bold text-green-600">{aiRecommendations.protein}g</p>
                                     <p className="text-xs text-green-600/70">Daily Protein</p>
                                 </div>
-                                <div className="p-3 rounded-xl text-center col-span-2 border" style={{ background: 'var(--color-gold-muted)', borderColor: 'rgba(201,168,76,0.2)' }}>
+                                <div className="p-3 rounded-xl text-center col-span-2 border" style={{ background: 'var(--color-gold-muted)', borderColor: 'rgba(224,179,90,0.2)' }}>
                                     <p className="text-2xl font-bold" style={{ color: 'var(--color-gold)' }}>{aiRecommendations.weekly_workouts}x</p>
                                     <p className="text-xs" style={{ color: 'var(--color-gold)' }}>Workouts Per Week</p>
                                 </div>
                             </div>
 
                             {aiRecommendations.advice && (
-                                <div className="p-4 rounded-xl border" style={{ background: 'var(--color-gold-muted)', borderColor: 'rgba(201,168,76,0.2)' }}>
+                                <div className="p-4 rounded-xl border" style={{ background: 'var(--color-gold-muted)', borderColor: 'rgba(224,179,90,0.2)' }}>
                                     <p className="text-sm" style={{ color: 'var(--color-text)' }}>
-                                        💡 {aiRecommendations.advice}
+                                        {aiRecommendations.advice}
                                     </p>
                                 </div>
                             )}

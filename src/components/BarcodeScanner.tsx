@@ -116,7 +116,7 @@ export function BarcodeScanner({ onResult, onClose }: Props) {
                     onClick={() => fileInputRef.current?.click()}
                     className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed rounded-xl font-semibold text-sm transition-colors bg-[var(--color-surface-elevated)]"
                     style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.background = 'rgba(29,95,168,0.05)'; }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.background = 'rgba(77,137,226,0.05)'; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.background = ''; }}
                 >
                     <Camera className="w-4 h-4" />

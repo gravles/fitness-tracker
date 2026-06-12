@@ -19,7 +19,7 @@ export function MuscleHeatmap({ workouts }: MuscleHeatmapProps) {
         const intensity = val / maxVol;
         if (intensity < 0.3) return '#fde047';
         if (intensity < 0.6) return '#fb923c';
-        return '#ef4444';
+        return 'var(--color-danger)';
     };
 
     return (

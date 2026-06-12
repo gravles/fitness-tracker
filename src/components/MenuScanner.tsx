@@ -85,7 +85,7 @@ export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
             <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur flex flex-col items-center justify-center text-white">
                 <ChefHat className="w-16 h-16 animate-bounce mb-4" style={{ color: 'var(--color-gold)' }} />
                 <h3 className="text-xl font-bold mb-2">Analyzing Menu...</h3>
-                <p className="text-white/60 text-sm">Finding high-protein gems 💎</p>
+                <p className="text-white/60 text-sm">Finding high-protein gems</p>
             </div>
         );
     } else {
@@ -105,7 +105,7 @@ export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
                     {recommendations.length === 0 ? (
                         <div className="text-center py-20 text-[var(--color-text-muted)]">
-                            <p>No healthy options found... maybe try the water? 😅</p>
+                            <p>No healthy options found… maybe try the water?</p>
                         </div>
                     ) : (
                         recommendations.map((rec, idx) => (
@@ -122,7 +122,7 @@ export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
                                 <h4 className="font-bold text-lg text-[var(--color-text)] mb-1">{rec.name}</h4>
                                 <p className="text-sm text-[var(--color-text-muted)] mb-3">{rec.description}</p>
 
-                                <div className="p-3 rounded-xl mb-4 border" style={{ background: 'rgba(29,95,168,0.06)', borderColor: 'rgba(29,95,168,0.15)' }}>
+                                <div className="p-3 rounded-xl mb-4 border" style={{ background: 'rgba(77,137,226,0.06)', borderColor: 'rgba(77,137,226,0.15)' }}>
                                     <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--color-primary)' }}>Why it's good</p>
                                     <p className="text-sm leading-snug" style={{ color: 'var(--color-primary)' }}>{rec.reason}</p>
                                 </div>

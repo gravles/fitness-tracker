@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { getDailyLog, upsertDailyLog, getWorkouts, Workout, getFavoriteFoods, FavoriteFood, addWorkout, getSettings, getStreak, getUserBadges, getMonthlyLogs, awardBadge, getLifetimeLogCount } from '@/lib/api';
 import { getNewlyEarnedBadges } from '@/lib/gamification';
 import { format, subDays } from 'date-fns';
-import { Loader2, Utensils, Activity, Heart } from 'lucide-react';
+import { Loader2, Utensils, Activity, Heart, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '@/components/LanguageProvider';
 import { MenuScanner } from './MenuScanner';
@@ -64,6 +64,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     const saveStatusTimerRef = useRef<NodeJS.Timeout | null>(null);
     const [showCamera, setShowCamera] = useState(false);
     const [autoStartVoice, setAutoStartVoice] = useState(false);
+    const [autoStartBarcode, setAutoStartBarcode] = useState(false);
 
     // Autosave & Concurrency Refs
     const autosaveTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -82,6 +83,8 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
             setAutoStartVoice(true);
         } else if (action === 'scan') {
             setShowMenuScanner(true);
+        } else if (action === 'barcode') {
+            setAutoStartBarcode(true);
         }
     }, [searchParams]);
 
@@ -330,6 +333,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     proteinGoal: settings?.target_protein || undefined,
                 }, alreadyEarned);
                 await Promise.all(newBadges.map(b => awardBadge(b.id)));
+                if (newBadges.length > 0) haptics.success();
                 newBadges.forEach(b =>
                     toast.success(`${b.icon} Badge unlocked: ${b.name}!`, { duration: 5000 })
                 );
@@ -383,7 +387,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     )}
                     {saveStatus === 'saved' && (
                         <span className="flex items-center gap-1 text-[11px] text-[var(--color-success)]">
-                            <span>✓</span> {t.log.saveStatus.saved}
+                            <Check className="w-3 h-3" aria-hidden="true" /> {t.log.saveStatus.saved}
                         </span>
                     )}
                 </div>
@@ -395,10 +399,10 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                         style={{ background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-light)' }}
                     >
                         {[
-                            { label: 'Cal', value: nutrition.calories, color: '#f97316' },
-                            { label: 'Protein', value: `${nutrition.protein}g`, color: '#3b82f6' },
+                            { label: 'Cal', value: nutrition.calories, color: 'var(--chart-5)' },
+                            { label: 'Protein', value: `${nutrition.protein}g`, color: 'var(--chart-1)' },
                             { label: 'Carbs', value: `${nutrition.carbs}g`, color: 'var(--color-warning)' },
-                            { label: 'Fat', value: `${nutrition.fat}g`, color: '#a855f7' },
+                            { label: 'Fat', value: `${nutrition.fat}g`, color: 'var(--chart-3)' },
                         ].map(({ label, value, color }) => (
                             <div key={label}>
                                 <p className="text-sm font-black" style={{ color }}>{value}</p>
@@ -462,6 +466,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                             setShowWorkoutChat={setShowWorkoutChat}
                             onAddFoodItems={addFoodItems}
                             autoStartVoice={autoStartVoice}
+                            autoStartBarcode={autoStartBarcode}
                             showCamera={showCamera}
                             setShowCamera={setShowCamera}
                             setShowMenuScanner={setShowMenuScanner}

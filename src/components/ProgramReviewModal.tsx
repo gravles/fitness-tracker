@@ -23,8 +23,8 @@ interface EditMessage {
 
 const PHASE_COLORS: Record<string, string> = {
     Accumulation:    'var(--color-primary)',
-    Intensification: '#f97316',
-    Realisation:     '#a855f7',
+    Intensification: 'var(--chart-5)',
+    Realisation:     'var(--chart-3)',
     Deload:          'var(--color-success)',
 };
 
@@ -137,7 +137,7 @@ export function ProgramReviewModal({ program, onClose, onScheduled }: Props) {
                 className="flex-shrink-0 flex border-b"
                 style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-elevated)' }}
             >
-                {([['program', '📋 Program'], ['edit', '✨ Edit with AI']] as const).map(([id, label]) => (
+                {([['program', 'Program'], ['edit', 'Edit with AI']] as const).map(([id, label]) => (
                     <button
                         key={id}
                         onClick={() => setActiveTab(id)}

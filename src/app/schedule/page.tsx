@@ -5,7 +5,7 @@ import { format, addDays, startOfWeek, eachDayOfInterval, isToday } from 'date-f
 import {
     ChevronLeft, ChevronRight, Plus, Calendar, Clock, Dumbbell, Play, X, Trash2,
     Loader2, LayoutGrid, Edit2, Sparkles, Star, MoreVertical, Copy, Check, Eye, Zap, Bot, Trophy, RefreshCw,
-    Activity, Wind,
+    Activity, Wind, Footprints, Flame, PersonStanding, type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { confirm } from '@/components/ConfirmDialog';
@@ -22,12 +22,12 @@ import { useLanguage } from '@/components/LanguageProvider';
 type Tab = 'schedule' | 'templates' | 'discover' | 'programs';
 type WorkoutCategoryFilter = WorkoutCategory | 'all';
 
-const CATEGORIES: { value: WorkoutCategoryFilter; label: string; icon: string }[] = [
-    { value: 'all', label: 'All', icon: '🏋️' },
-    { value: 'strength', label: 'Strength', icon: '💪' },
-    { value: 'cardio', label: 'Cardio', icon: '🏃' },
-    { value: 'hiit', label: 'HIIT', icon: '🔥' },
-    { value: 'flexibility', label: 'Flexibility', icon: '🧘' },
+const CATEGORIES: { value: WorkoutCategoryFilter; label: string; icon: LucideIcon }[] = [
+    { value: 'all', label: 'All', icon: LayoutGrid },
+    { value: 'strength', label: 'Strength', icon: Dumbbell },
+    { value: 'cardio', label: 'Cardio', icon: Footprints },
+    { value: 'hiit', label: 'HIIT', icon: Flame },
+    { value: 'flexibility', label: 'Flexibility', icon: PersonStanding },
 ];
 
 const COMMON_EXERCISES = [
@@ -160,9 +160,9 @@ export default function WorkoutHubPage() {
     // Visual accent colours for each session type
     function sessionAccent(type: SessionType): { color: string; bgAlpha: string; iconBg: string } {
         switch (type) {
-            case 'cardio':   return { color: '#f97316', bgAlpha: 'rgba(249,115,22,0.06)',  iconBg: 'rgba(249,115,22,0.12)' };
-            case 'mobility': return { color: '#a855f7', bgAlpha: 'rgba(168,85,247,0.06)', iconBg: 'rgba(168,85,247,0.12)' };
-            default:         return { color: 'var(--color-primary)', bgAlpha: 'rgba(29,95,168,0.06)', iconBg: 'rgba(29,95,168,0.12)' };
+            case 'cardio':   return { color: 'var(--chart-5)', bgAlpha: 'rgba(249,115,22,0.06)',  iconBg: 'rgba(249,115,22,0.12)' };
+            case 'mobility': return { color: 'var(--chart-3)', bgAlpha: 'rgba(168,85,247,0.06)', iconBg: 'rgba(168,85,247,0.12)' };
+            default:         return { color: 'var(--color-primary)', bgAlpha: 'rgba(77,137,226,0.06)', iconBg: 'rgba(77,137,226,0.12)' };
         }
     }
 
@@ -416,7 +416,7 @@ export default function WorkoutHubPage() {
                             style={{
                                 background: 'var(--color-primary)',
                                 color: 'white',
-                                boxShadow: '0 4px 16px rgba(29,95,168,0.3)',
+                                boxShadow: '0 4px 16px rgba(77,137,226,0.3)',
                             }}
                         >
                             <Plus className="w-5 h-5" />
@@ -447,7 +447,7 @@ export default function WorkoutHubPage() {
                 style={{ background: 'var(--color-navy)' }}
             >
                 <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(201,168,76,0.2)' }}>
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(224,179,90,0.2)' }}>
                         <Bot className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />
                     </div>
                     <div>
@@ -526,7 +526,7 @@ export default function WorkoutHubPage() {
                         {loading && (
                             <div
                                 className="absolute inset-0 flex items-center justify-center z-10"
-                                style={{ background: 'var(--color-surface-elevated)/80', backdropFilter: 'blur(4px)' }}
+                                style={{ background: 'color-mix(in srgb, var(--color-surface-elevated) 80%, transparent)', backdropFilter: 'blur(4px)' }}
                             >
                                 <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--color-primary)' }} />
                             </div>
@@ -543,7 +543,7 @@ export default function WorkoutHubPage() {
                                     className="p-3 text-center border-r last:border-r-0 transition-colors"
                                     style={{
                                         borderColor: 'var(--color-border-light)',
-                                        background: isToday(day) ? 'rgba(29,95,168,0.08)' : 'transparent',
+                                        background: isToday(day) ? 'rgba(77,137,226,0.08)' : 'transparent',
                                     }}
                                 >
                                     <div
@@ -642,7 +642,7 @@ export default function WorkoutHubPage() {
                                                                     {session.exercises?.length ?? 0} exercise{(session.exercises?.length ?? 0) !== 1 ? 's' : ''}
                                                                     {isDone && <span className="ml-1" style={{ color: 'var(--color-success)' }}>✓ Completed</span>}
                                                                     {isSkipped && <span className="ml-1">Skipped</span>}
-                                                                    {session.status === 'rescheduled' && <span className="ml-1" style={{ color: '#f97316' }}>Rescheduled</span>}
+                                                                    {session.status === 'rescheduled' && <span className="ml-1" style={{ color: 'var(--chart-5)' }}>Rescheduled</span>}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -697,7 +697,7 @@ export default function WorkoutHubPage() {
                                                             style={{
                                                                 background: workout.status === 'completed'
                                                                     ? 'rgba(34,197,94,0.1)'
-                                                                    : 'rgba(201,168,76,0.12)',
+                                                                    : 'rgba(224,179,90,0.12)',
                                                             }}
                                                         >
                                                             <Dumbbell
@@ -795,7 +795,7 @@ export default function WorkoutHubPage() {
                         </div>
                         <div
                             className="p-4 rounded-2xl border"
-                            style={{ background: 'rgba(29,95,168,0.06)', borderColor: 'rgba(29,95,168,0.2)' }}
+                            style={{ background: 'rgba(77,137,226,0.06)', borderColor: 'rgba(77,137,226,0.2)' }}
                         >
                             <div className="text-2xl font-black" style={{ color: 'var(--color-primary)' }}>
                                 {programSessions.filter(s => s.status === 'upcoming' || s.status === 'rescheduled').length}
@@ -804,7 +804,7 @@ export default function WorkoutHubPage() {
                         </div>
                         <div
                             className="p-4 rounded-2xl border"
-                            style={{ background: 'rgba(201,168,76,0.06)', borderColor: 'rgba(201,168,76,0.2)' }}
+                            style={{ background: 'rgba(224,179,90,0.06)', borderColor: 'rgba(224,179,90,0.2)' }}
                         >
                             <div className="text-2xl font-black" style={{ color: 'var(--color-gold)' }}>
                                 {scheduledWorkouts.filter(w => w.status === 'scheduled').length}
@@ -906,7 +906,7 @@ export default function WorkoutHubPage() {
                                                         <button
                                                             onClick={() => handleDeleteTemplate(template.id)}
                                                             className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors"
-                                                            style={{ color: '#ef4444' }}
+                                                            style={{ color: 'var(--color-danger)' }}
                                                         >
                                                             <Trash2 className="w-4 h-4" /> Delete
                                                         </button>
@@ -946,7 +946,7 @@ export default function WorkoutHubPage() {
                         className="rounded-2xl border p-4"
                         style={{
                             background: 'var(--color-navy)',
-                            borderColor: 'rgba(201,168,76,0.2)',
+                            borderColor: 'rgba(224,179,90,0.2)',
                         }}
                     >
                         <h3 className="font-bold mb-1 text-white">Quick Start</h3>
@@ -956,7 +956,7 @@ export default function WorkoutHubPage() {
                             className="flex items-center justify-between w-full p-3 rounded-xl transition-all"
                             style={{
                                 background: 'rgba(255,255,255,0.07)',
-                                border: '1px solid rgba(201,168,76,0.2)',
+                                border: '1px solid rgba(224,179,90,0.2)',
                             }}
                         >
                             <div className="flex items-center gap-3">
@@ -965,7 +965,7 @@ export default function WorkoutHubPage() {
                                 </div>
                                 <span className="font-medium text-white">Empty Workout</span>
                             </div>
-                            <ChevronRight className="w-5 h-5" style={{ color: 'rgba(201,168,76,0.6)' }} />
+                            <ChevronRight className="w-5 h-5" style={{ color: 'rgba(224,179,90,0.6)' }} />
                         </button>
                     </div>
                 </div>
@@ -977,7 +977,7 @@ export default function WorkoutHubPage() {
                     {/* AI Recommendations */}
                     <div
                         className="rounded-2xl border p-4"
-                        style={{ background: 'var(--color-navy)', borderColor: 'rgba(201,168,76,0.2)' }}
+                        style={{ background: 'var(--color-navy)', borderColor: 'rgba(224,179,90,0.2)' }}
                     >
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
@@ -1019,7 +1019,7 @@ export default function WorkoutHubPage() {
                                         className="rounded-xl p-3 border"
                                         style={{
                                             background: 'rgba(255,255,255,0.05)',
-                                            borderColor: 'rgba(201,168,76,0.2)',
+                                            borderColor: 'rgba(224,179,90,0.2)',
                                         }}
                                     >
                                         <div className="flex items-center justify-between mb-2">
@@ -1033,19 +1033,19 @@ export default function WorkoutHubPage() {
                                                 <Copy className="w-4 h-4" />
                                             </button>
                                         </div>
-                                        <p className="text-xs mb-2" style={{ color: 'rgba(201,168,76,0.8)' }}>{rec.reason}</p>
+                                        <p className="text-xs mb-2" style={{ color: 'rgba(224,179,90,0.8)' }}>{rec.reason}</p>
                                         <div className="flex flex-wrap gap-1">
                                             {rec.exercises.slice(0, 4).map((ex, i) => (
                                                 <span
                                                     key={i}
                                                     className="px-2 py-0.5 text-xs rounded"
-                                                    style={{ background: 'rgba(201,168,76,0.12)', color: 'var(--color-gold)' }}
+                                                    style={{ background: 'rgba(224,179,90,0.12)', color: 'var(--color-gold)' }}
                                                 >
                                                     {ex.name}
                                                 </span>
                                             ))}
                                             {rec.exercises.length > 4 && (
-                                                <span className="text-xs" style={{ color: 'rgba(201,168,76,0.5)' }}>
+                                                <span className="text-xs" style={{ color: 'rgba(224,179,90,0.5)' }}>
                                                     +{rec.exercises.length - 4}
                                                 </span>
                                             )}
@@ -1075,7 +1075,7 @@ export default function WorkoutHubPage() {
                                         : { background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }
                                 }
                             >
-                                {cat.icon} {cat.label}
+                                <cat.icon className="w-4 h-4 inline-block mr-1 align-text-bottom" aria-hidden="true" />{cat.label}
                             </button>
                         ))}
                     </div>
@@ -1098,7 +1098,7 @@ export default function WorkoutHubPage() {
                                         <div className="flex items-center gap-3 flex-1 min-w-0">
                                             <div
                                                 className="p-2 rounded-xl flex-shrink-0"
-                                                style={{ background: template.is_featured ? 'var(--color-gold-muted)' : 'rgba(29,95,168,0.1)' }}
+                                                style={{ background: template.is_featured ? 'var(--color-gold-muted)' : 'rgba(77,137,226,0.1)' }}
                                             >
                                                 {template.is_featured
                                                     ? <Star className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
@@ -1115,8 +1115,8 @@ export default function WorkoutHubPage() {
                                                                 template.difficulty === 'beginner'
                                                                     ? { background: 'rgba(34,197,94,0.1)', color: 'var(--color-success)' }
                                                                     : template.difficulty === 'intermediate'
-                                                                    ? { background: 'rgba(234,179,8,0.1)', color: '#ca8a04' }
-                                                                    : { background: 'rgba(239,68,68,0.1)', color: '#ef4444' }
+                                                                    ? { background: 'rgba(234,179,8,0.1)', color: 'var(--color-warning)' }
+                                                                    : { background: 'rgba(239,68,68,0.1)', color: 'var(--color-danger)' }
                                                             }
                                                         >
                                                             {template.difficulty}
@@ -1151,7 +1151,7 @@ export default function WorkoutHubPage() {
                                                 style={
                                                     copiedId === template.id
                                                         ? { background: 'rgba(34,197,94,0.1)', color: 'var(--color-success)' }
-                                                        : { background: 'rgba(29,95,168,0.1)', color: 'var(--color-primary)' }
+                                                        : { background: 'rgba(77,137,226,0.1)', color: 'var(--color-primary)' }
                                                 }
                                             >
                                                 {copiedId === template.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -1263,7 +1263,7 @@ export default function WorkoutHubPage() {
                                             <div className="flex items-center gap-3">
                                                 <div
                                                     className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm"
-                                                    style={{ background: 'rgba(29,95,168,0.1)', color: 'var(--color-primary)' }}
+                                                    style={{ background: 'rgba(77,137,226,0.1)', color: 'var(--color-primary)' }}
                                                 >
                                                     {idx + 1}
                                                 </div>
@@ -1343,7 +1343,7 @@ export default function WorkoutHubPage() {
                                     autoFocus
                                     onFocus={e => {
                                         e.currentTarget.style.borderColor = 'var(--color-gold)';
-                                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)';
+                                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)';
                                     }}
                                     onBlur={e => {
                                         e.currentTarget.style.borderColor = 'var(--color-border)';
@@ -1451,7 +1451,7 @@ export default function WorkoutHubPage() {
                                             <button
                                                 onClick={() => removeExercise(i)}
                                                 className="p-2 rounded-lg transition-colors"
-                                                style={{ color: '#ef4444' }}
+                                                style={{ color: 'var(--color-danger)' }}
                                                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.08)'}
                                                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                             >

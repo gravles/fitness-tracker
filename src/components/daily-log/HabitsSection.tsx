@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Settings } from 'lucide-react';
+import { Check, CheckSquare, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageProvider';
 
@@ -25,7 +25,7 @@ export function HabitsSection({ habits, setHabits, availableHabits }: HabitsSect
         return (
             <section className="bg-[var(--color-surface-elevated)] p-6 rounded-2xl border border-[var(--color-border-light)] shadow-sm">
                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-[var(--color-text)]">
-                    <span className="text-xl">✅</span> {t.habits.title}
+                    <CheckSquare className="w-5 h-5 text-[var(--color-success)]" aria-hidden="true" /> {t.habits.title}
                 </h3>
                 <div className="text-center py-6">
                     <p className="text-[var(--color-text-muted)] mb-3">{t.habits.noHabits}</p>
@@ -45,7 +45,7 @@ export function HabitsSection({ habits, setHabits, availableHabits }: HabitsSect
     return (
         <section className="bg-[var(--color-surface-elevated)] p-6 rounded-2xl border border-[var(--color-border-light)] shadow-sm">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-[var(--color-text)]">
-                <span className="text-xl">✅</span> {t.habits.title}
+                <CheckSquare className="w-5 h-5 text-[var(--color-success)]" aria-hidden="true" /> {t.habits.title}
             </h3>
             <div className="grid grid-cols-2 gap-3">
                 {availableHabits.map((habit) => {

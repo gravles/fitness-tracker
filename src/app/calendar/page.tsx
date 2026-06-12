@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getMonthlyLogs, DailyLog } from '@/lib/api';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths, subMonths, getDay } from 'date-fns';
-import { ChevronLeft, ChevronRight, Loader2, Dumbbell, Utensils, Star } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Dumbbell, Utensils, Star, X } from 'lucide-react';
 
 export default function CalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -109,8 +109,8 @@ export default function CalendarPage() {
                 <div
                     className="p-4 rounded-2xl border flex flex-col items-center justify-center text-center"
                     style={{
-                        background: 'rgba(29,95,168,0.08)',
-                        borderColor: 'rgba(29,95,168,0.2)',
+                        background: 'rgba(77,137,226,0.08)',
+                        borderColor: 'rgba(77,137,226,0.2)',
                     }}
                 >
                     <Dumbbell className="w-5 h-5 mb-1" style={{ color: 'var(--color-primary)' }} />
@@ -140,7 +140,7 @@ export default function CalendarPage() {
                     className="p-4 rounded-2xl border flex flex-col items-center justify-center text-center"
                     style={{
                         background: 'var(--color-gold-muted)',
-                        borderColor: 'rgba(201,168,76,0.25)',
+                        borderColor: 'rgba(224,179,90,0.25)',
                     }}
                 >
                     <Star className="w-5 h-5 mb-1" style={{ color: 'var(--color-gold)' }} />
@@ -191,7 +191,7 @@ export default function CalendarPage() {
                                     className="aspect-square flex flex-col items-center justify-start pt-1 rounded-xl transition-all"
                                     style={
                                         isCurrent
-                                            ? { background: 'var(--color-primary)', boxShadow: '0 4px 12px rgba(29,95,168,0.3)' }
+                                            ? { background: 'var(--color-primary)', boxShadow: '0 4px 12px rgba(77,137,226,0.3)' }
                                             : isMissed
                                             ? { background: 'var(--color-bg-subtle)' }
                                             : {}
@@ -211,7 +211,7 @@ export default function CalendarPage() {
                                     </span>
                                     <div className="flex gap-0.5 mt-0.5">
                                         {isMissed && (
-                                            <span className="text-[9px]" style={{ color: 'var(--color-text-muted)' }}>✕</span>
+                                            <X className="w-2.5 h-2.5" style={{ color: 'var(--color-text-muted)' }} aria-hidden="true" />
                                         )}
                                         {moved && (
                                             <div
@@ -264,9 +264,7 @@ export default function CalendarPage() {
                     <div
                         className="w-6 h-6 rounded-lg flex items-center justify-center text-[9px]"
                         style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
-                    >
-                        ✕
-                    </div>
+                    ><X className="w-3 h-3" aria-hidden="true" /></div>
                     Missed
                 </div>
                 <div className="flex items-center gap-1.5">

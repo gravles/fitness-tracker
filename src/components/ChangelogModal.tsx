@@ -83,7 +83,7 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
                 <div className="p-6 text-white flex justify-between items-center" style={{ background: 'var(--color-navy)' }}>
                     <div>
                         <h2 className="text-xl font-bold flex items-center gap-2">
-                            🚀 What&apos;s New
+                            What&apos;s New
                         </h2>
                         <p className="text-sm mt-0.5" style={{ color: 'var(--color-gold)' }}>Changelog &amp; Updates</p>
                     </div>

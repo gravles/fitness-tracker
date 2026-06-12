@@ -563,9 +563,9 @@ export default function ActiveWorkoutPage() {
 
     // ── Program session accent colours (banner) ──────────────────────────────
     const psAccent = !activeProgramSession ? null
-        : activeProgramSession.session_type === 'cardio'   ? { color: '#f97316', bg: 'rgba(249,115,22,0.08)',  iconBg: 'rgba(249,115,22,0.15)'  }
-        : activeProgramSession.session_type === 'mobility' ? { color: '#a855f7', bg: 'rgba(168,85,247,0.08)', iconBg: 'rgba(168,85,247,0.15)' }
-        : { color: 'var(--color-primary)', bg: 'rgba(29,95,168,0.08)', iconBg: 'rgba(29,95,168,0.15)' };
+        : activeProgramSession.session_type === 'cardio'   ? { color: 'var(--chart-5)', bg: 'rgba(249,115,22,0.08)',  iconBg: 'rgba(249,115,22,0.15)'  }
+        : activeProgramSession.session_type === 'mobility' ? { color: 'var(--chart-3)', bg: 'rgba(168,85,247,0.08)', iconBg: 'rgba(168,85,247,0.15)' }
+        : { color: 'var(--color-primary)', bg: 'rgba(77,137,226,0.08)', iconBg: 'rgba(77,137,226,0.15)' };
 
     return (
         <main className="h-screen flex flex-col" style={{ background: 'var(--color-bg)' }}>
@@ -587,14 +587,14 @@ export default function ActiveWorkoutPage() {
                     <div className="flex items-center gap-2">
                         <div
                             className="flex items-center gap-2 font-mono text-sm transition-colors"
-                            style={{ color: isPaused ? '#f97316' : 'var(--color-primary)' }}
+                            style={{ color: isPaused ? 'var(--chart-5)' : 'var(--color-primary)' }}
                         >
                             <Clock className="w-3 h-3" />
                             {formatTime(elapsedSeconds)}
                             {isPaused && (
                                 <span
                                     className="text-xs font-bold uppercase border px-1 rounded"
-                                    style={{ borderColor: '#fed7aa', background: '#fff7ed', color: '#f97316' }}
+                                    style={{ borderColor: '#fed7aa', background: '#fff7ed', color: 'var(--chart-5)' }}
                                 >
                                     Paused
                                 </span>
@@ -626,7 +626,7 @@ export default function ActiveWorkoutPage() {
                         className="p-2 rounded-full transition-colors"
                         style={
                             isPaused
-                                ? { background: '#fff7ed', color: '#f97316' }
+                                ? { background: '#fff7ed', color: 'var(--chart-5)' }
                                 : { background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }
                         }
                     >
@@ -703,7 +703,7 @@ export default function ActiveWorkoutPage() {
                                         className="p-2 rounded-full transition-colors"
                                         style={{ color: 'var(--color-text-muted)' }}
                                         onMouseEnter={e => {
-                                            e.currentTarget.style.background = 'rgba(29,95,168,0.1)';
+                                            e.currentTarget.style.background = 'rgba(77,137,226,0.1)';
                                             e.currentTarget.style.color = 'var(--color-primary)';
                                         }}
                                         onMouseLeave={e => {
@@ -720,7 +720,7 @@ export default function ActiveWorkoutPage() {
                                         style={{ color: 'var(--color-text-muted)' }}
                                         onMouseEnter={e => {
                                             e.currentTarget.style.background = 'rgba(239,68,68,0.08)';
-                                            e.currentTarget.style.color = '#ef4444';
+                                            e.currentTarget.style.color = 'var(--color-danger)';
                                         }}
                                         onMouseLeave={e => {
                                             e.currentTarget.style.background = '';
@@ -736,7 +736,7 @@ export default function ActiveWorkoutPage() {
                             {prev && prev.sets.length > 0 && (
                                 <div
                                     className="mb-2 px-2 py-1.5 rounded-lg"
-                                    style={{ background: 'rgba(29,95,168,0.08)' }}
+                                    style={{ background: 'rgba(77,137,226,0.08)' }}
                                 >
                                     <p
                                         className="text-[10px] font-bold uppercase tracking-wide mb-0.5"
@@ -770,7 +770,7 @@ export default function ActiveWorkoutPage() {
                                             className="grid grid-cols-12 gap-2 items-center p-1 rounded-lg transition-colors"
                                             style={{
                                                 background: set.completed
-                                                    ? 'rgba(29,95,168,0.08)'
+                                                    ? 'rgba(77,137,226,0.08)'
                                                     : 'var(--color-bg-subtle)',
                                             }}
                                         >
@@ -817,7 +817,7 @@ export default function ActiveWorkoutPage() {
                                                             ? {
                                                                 background: 'var(--color-primary)',
                                                                 color: 'white',
-                                                                boxShadow: '0 4px 12px rgba(29,95,168,0.35)',
+                                                                boxShadow: '0 4px 12px rgba(77,137,226,0.35)',
                                                             }
                                                             : {
                                                                 background: 'var(--color-bg-subtle)',

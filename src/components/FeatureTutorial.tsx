@@ -32,43 +32,43 @@ export function FeatureTutorial({ onClose, forceOpen }: FeatureTutorialProps) {
 
     const steps = [
         {
-            title: "Welcome to AI Fitness! 🚀",
+            title: "Welcome to AI Fitness!",
             desc: "Your personal tracker just got a major brain upgrade. Let's take a quick tour of the new AI superpowers.",
             icon: <Sparkles className="w-12 h-12 text-yellow-400" />,
             bg: 'var(--color-navy)'
         },
         {
-            title: "Voice Logging 🗣️",
+            title: "Voice Logging",
             desc: "Don't type. Just say 'I ate 2 eggs and toast' or 'I ran 5k in 25 mins'. We handle the tracking.",
             icon: <Mic className="w-12 h-12 text-blue-300" />,
             bg: 'var(--color-primary)'
         },
         {
-            title: "Snap & Track 📸",
+            title: "Snap & Track",
             desc: "Not sure about macros? Snap a photo of your meal. Our AI identifies the food and estimates calories instantly.",
             icon: <Camera className="w-12 h-12 text-purple-300" />,
             bg: '#6d28d9'
         },
         {
-            title: "AI Workout Coach 🏋️",
+            title: "AI Workout Coach",
             desc: "Ask the Coach to 'Build me a chest workout'. It creates a plan based on your equipment. Click 'Save' to track it instantly.",
             icon: <Brain className="w-12 h-12 text-green-300" />,
             bg: '#059669'
         },
         {
-            title: "Workout Builder 🛠️",
+            title: "Workout Builder",
             desc: "Create your own custom templates or edit the AI's suggestions. Track sets, reps, and weights in real-time.",
             icon: <Dumbbell className="w-12 h-12 text-pink-300" />,
             bg: '#db2777'
         },
         {
-            title: "Menu Scanner 🍽️",
+            title: "Menu Scanner",
             desc: "Eating out? Scan a restaurant menu to find the high-protein, healthy gems hidden in the list.",
             icon: <ChefHat className="w-12 h-12 text-orange-300" />,
             bg: '#ea580c'
         },
         {
-            title: "Weekly Analyst 📊",
+            title: "Weekly Analyst",
             desc: "Every week, get a deep-dive report on your progress, including sleep, alcohol impact, and nutrition tips.",
             icon: <Brain className="w-12 h-12 text-indigo-300" />,
             bg: 'var(--color-navy)'

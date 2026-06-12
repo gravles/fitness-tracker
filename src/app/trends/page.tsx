@@ -7,7 +7,7 @@ import {
     LineChart, Line, BarChart, Bar, ComposedChart,
     XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid, Legend
 } from 'recharts';
-import { Loader2, TrendingUp, Scale, Camera, Calendar, Activity, RefreshCw } from 'lucide-react';
+import { Loader2, TrendingUp, Scale, Camera, Calendar, Activity, RefreshCw, Flame, Moon, Beer, Flower2, ChartNoAxesColumn, BicepsFlexed, Zap, Bone, Hexagon } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { ExerciseProgressChart } from '@/components/analytics/ExerciseProgressChart';
@@ -21,12 +21,12 @@ const LB_PER_KG = 2.20462;
 
 const WITHINGS_CONFIG: Record<string, { label: string; color: string; isMass: boolean; fixedUnit?: string }> = {
     body_fat_pct:       { label: 'Body Fat',      color: 'var(--color-primary)', isMass: false, fixedUnit: '%'   },
-    muscle_mass_kg:     { label: 'Muscle Mass',   color: '#22c55e',              isMass: true                   },
-    fat_free_mass_kg:   { label: 'Fat-Free Mass', color: '#3b82f6',              isMass: true                   },
-    bone_mass_kg:       { label: 'Bone Mass',     color: '#a855f7',              isMass: true                   },
-    hydration_kg:       { label: 'Hydration',     color: '#06b6d4',              isMass: true                   },
-    visceral_fat_index: { label: 'Visceral Fat',  color: '#f97316',              isMass: false, fixedUnit: ''    },
-    vascular_age:       { label: 'Vascular Age',  color: '#ec4899',              isMass: false, fixedUnit: 'yrs' },
+    muscle_mass_kg:     { label: 'Muscle Mass',   color: 'var(--chart-2)',              isMass: true                   },
+    fat_free_mass_kg:   { label: 'Fat-Free Mass', color: 'var(--chart-1)',              isMass: true                   },
+    bone_mass_kg:       { label: 'Bone Mass',     color: 'var(--chart-3)',              isMass: true                   },
+    hydration_kg:       { label: 'Hydration',     color: 'var(--chart-4)',              isMass: true                   },
+    visceral_fat_index: { label: 'Visceral Fat',  color: 'var(--chart-5)',              isMass: false, fixedUnit: ''    },
+    vascular_age:       { label: 'Vascular Age',  color: 'var(--chart-6)',              isMass: false, fixedUnit: 'yrs' },
 };
 
 const RANGES = [
@@ -325,7 +325,7 @@ export default function TrendsPage() {
                     <Link
                         href="/calendar"
                         className="p-2 rounded-lg transition-all"
-                        style={{ background: 'rgba(29,95,168,0.1)', color: 'var(--color-primary)' }}
+                        style={{ background: 'rgba(77,137,226,0.1)', color: 'var(--color-primary)' }}
                         aria-label="History"
                     >
                         <Calendar className="w-5 h-5" />
@@ -423,7 +423,7 @@ export default function TrendsPage() {
                             </ChartCard>
 
                             {/* Calories Chart */}
-                            <ChartCard title="Calories" icon={<span className="text-xl">🔥</span>}>
+                            <ChartCard title="Calories" icon={<Flame className="w-5 h-5 text-[var(--chart-5)]" aria-hidden="true" />}>
                                 <BarChart data={caloriesData}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-light)" />
                                     <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} interval={interval} axisLine={false} tickLine={false} />
@@ -438,7 +438,7 @@ export default function TrendsPage() {
 
                             {/* Sleep & Energy */}
                             {sleepEnergyData.length > 0 && (
-                                <ChartCard title="Sleep Quality vs Energy" icon={<span className="text-xl">😴</span>}>
+                                <ChartCard title="Sleep Quality vs Energy" icon={<Moon className="w-5 h-5 text-[var(--chart-3)]" aria-hidden="true" />}>
                                     <ComposedChart data={sleepEnergyData}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-light)" />
                                         <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} interval={interval} axisLine={false} tickLine={false} />
@@ -452,7 +452,7 @@ export default function TrendsPage() {
                             )}
 
                             {/* Alcohol Chart */}
-                            <ChartCard title="Alcohol Consumption" icon={<span className="text-xl">🍺</span>}>
+                            <ChartCard title="Alcohol Consumption" icon={<Beer className="w-5 h-5 text-[var(--chart-5)]" aria-hidden="true" />}>
                                 <BarChart data={alcoholData}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-light)" />
                                     <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} interval={interval} axisLine={false} tickLine={false} />
@@ -464,12 +464,12 @@ export default function TrendsPage() {
 
                             {/* Cycle Chart */}
                             {settings?.enable_cycle_tracking === true && cycleData.length > 0 && (
-                                <ChartCard title="Cycle Phase vs Workout Duration" icon={<span className="text-xl">🌸</span>}>
+                                <ChartCard title="Cycle Phase vs Workout Duration" icon={<Flower2 className="w-5 h-5 text-[var(--chart-6)]" aria-hidden="true" />}>
                                     <BarChart data={cycleData}>
                                         <XAxis dataKey="flow" tick={{ fontSize: 12, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
                                         <YAxis width={30} tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
                                         <Tooltip contentStyle={tooltipStyle} />
-                                        <Bar dataKey="avgDuration" fill="#ec4899" radius={[3, 3, 0, 0]} name="Avg Mins" />
+                                        <Bar dataKey="avgDuration" fill="var(--chart-6)" radius={[3, 3, 0, 0]} name="Avg Mins" />
                                     </BarChart>
                                 </ChartCard>
                             )}
@@ -599,7 +599,7 @@ export default function TrendsPage() {
 
                             {/* Body Fat % Trend */}
                             {bodyCompChartData.some(d => d.body_fat_pct !== null) && (
-                                <ChartCard title="Body Fat %" icon={<span className="text-xl">📊</span>}>
+                                <ChartCard title="Body Fat %" icon={<ChartNoAxesColumn className="w-5 h-5 text-[var(--chart-1)]" aria-hidden="true" />}>
                                     <LineChart data={bodyCompChartData.filter(d => d.body_fat_pct !== null)}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-light)" />
                                         <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} interval={interval} axisLine={false} tickLine={false} />
@@ -612,52 +612,52 @@ export default function TrendsPage() {
 
                             {/* Muscle Mass Trend */}
                             {bodyCompChartData.some(d => d.muscle_mass !== null) && (
-                                <ChartCard title={`Muscle Mass (${massUnit})`} icon={<span className="text-xl">💪</span>}>
+                                <ChartCard title={`Muscle Mass (${massUnit})`} icon={<BicepsFlexed className="w-5 h-5 text-[var(--chart-2)]" aria-hidden="true" />}>
                                     <LineChart data={bodyCompChartData.filter(d => d.muscle_mass !== null)}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-light)" />
                                         <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} interval={interval} axisLine={false} tickLine={false} />
                                         <YAxis domain={['dataMin - 1', 'dataMax + 1']} width={35} tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
                                         <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`${v} ${massUnit}`, 'Muscle Mass']} />
-                                        <Line type="monotone" dataKey="muscle_mass" stroke="#22c55e" strokeWidth={3} dot={{ r: 3, fill: '#22c55e', strokeWidth: 0 }} name={`Muscle Mass (${massUnit})`} />
+                                        <Line type="monotone" dataKey="muscle_mass" stroke="var(--chart-2)" strokeWidth={3} dot={{ r: 3, fill: 'var(--chart-2)', strokeWidth: 0 }} name={`Muscle Mass (${massUnit})`} />
                                     </LineChart>
                                 </ChartCard>
                             )}
 
                             {/* Fat-Free Mass Trend */}
                             {bodyCompChartData.some(d => d.fat_free_mass !== null) && (
-                                <ChartCard title={`Fat-Free Mass (${massUnit})`} icon={<span className="text-xl">⚡</span>}>
+                                <ChartCard title={`Fat-Free Mass (${massUnit})`} icon={<Zap className="w-5 h-5 text-[var(--chart-4)]" aria-hidden="true" />}>
                                     <LineChart data={bodyCompChartData.filter(d => d.fat_free_mass !== null)}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-light)" />
                                         <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} interval={interval} axisLine={false} tickLine={false} />
                                         <YAxis domain={['dataMin - 1', 'dataMax + 1']} width={35} tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
                                         <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`${v} ${massUnit}`, 'Fat-Free Mass']} />
-                                        <Line type="monotone" dataKey="fat_free_mass" stroke="#3b82f6" strokeWidth={3} dot={{ r: 3, fill: '#3b82f6', strokeWidth: 0 }} name={`Fat-Free Mass (${massUnit})`} />
+                                        <Line type="monotone" dataKey="fat_free_mass" stroke="var(--chart-1)" strokeWidth={3} dot={{ r: 3, fill: 'var(--chart-1)', strokeWidth: 0 }} name={`Fat-Free Mass (${massUnit})`} />
                                     </LineChart>
                                 </ChartCard>
                             )}
 
                             {/* Bone Mass Trend */}
                             {bodyCompChartData.some(d => d.bone_mass !== null) && (
-                                <ChartCard title={`Bone Mass (${massUnit})`} icon={<span className="text-xl">🦴</span>}>
+                                <ChartCard title={`Bone Mass (${massUnit})`} icon={<Bone className="w-5 h-5 text-[var(--color-text-muted)]" aria-hidden="true" />}>
                                     <LineChart data={bodyCompChartData.filter(d => d.bone_mass !== null)}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-light)" />
                                         <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} interval={interval} axisLine={false} tickLine={false} />
                                         <YAxis domain={['dataMin - 0.5', 'dataMax + 0.5']} width={35} tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
                                         <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`${v} ${massUnit}`, 'Bone Mass']} />
-                                        <Line type="monotone" dataKey="bone_mass" stroke="#a855f7" strokeWidth={3} dot={{ r: 3, fill: '#a855f7', strokeWidth: 0 }} name={`Bone Mass (${massUnit})`} />
+                                        <Line type="monotone" dataKey="bone_mass" stroke="var(--chart-3)" strokeWidth={3} dot={{ r: 3, fill: 'var(--chart-3)', strokeWidth: 0 }} name={`Bone Mass (${massUnit})`} />
                                     </LineChart>
                                 </ChartCard>
                             )}
 
                             {/* Visceral Fat Index */}
                             {bodyCompChartData.some(d => d.visceral_fat !== null) && (
-                                <ChartCard title="Visceral Fat Index" icon={<span className="text-xl">🔶</span>}>
+                                <ChartCard title="Visceral Fat Index" icon={<Hexagon className="w-5 h-5 text-[var(--chart-5)]" aria-hidden="true" />}>
                                     <LineChart data={bodyCompChartData.filter(d => d.visceral_fat !== null)}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-light)" />
                                         <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} interval={interval} axisLine={false} tickLine={false} />
                                         <YAxis domain={['dataMin - 1', 'dataMax + 1']} width={25} tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
                                         <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [v, 'Visceral Fat']} />
-                                        <Line type="monotone" dataKey="visceral_fat" stroke="#f97316" strokeWidth={3} dot={{ r: 3, fill: '#f97316', strokeWidth: 0 }} name="Visceral Fat Index" />
+                                        <Line type="monotone" dataKey="visceral_fat" stroke="var(--chart-5)" strokeWidth={3} dot={{ r: 3, fill: 'var(--chart-5)', strokeWidth: 0 }} name="Visceral Fat Index" />
                                     </LineChart>
                                 </ChartCard>
                             )}
@@ -681,7 +681,7 @@ export default function TrendsPage() {
                                 style={{ background: 'var(--color-surface-elevated)', borderColor: 'var(--color-border-light)' }}
                             >
                                 <div className="flex items-center gap-2 mb-4">
-                                    <span className="text-xl">🔥</span>
+                                    <Flame className="w-5 h-5 text-[var(--chart-5)]" aria-hidden="true" />
                                     <h3 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>
                                         Workout Heatmap
                                     </h3>

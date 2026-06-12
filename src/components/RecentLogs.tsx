@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/components/LanguageProvider';
+import { Button, Input, Select, Textarea } from '@/components/ui';
 
 export function RecentLogs({ logs }: { logs: DailyLog[] }) {
     const router = useRouter();
@@ -81,7 +82,7 @@ export function RecentLogs({ logs }: { logs: DailyLog[] }) {
 
     return (
         <div className="space-y-3">
-            <h3 className="font-bold text-[var(--color-text)] px-1">{t.recentLogs.title}</h3>
+            <h3 className="font-semibold text-sm text-[var(--color-text)] uppercase tracking-wide px-1">{t.recentLogs.title}</h3>
             <div className="space-y-2">
                 {recent.map(log => (
                     <div key={log.date} className="bg-[var(--color-surface-elevated)] p-4 rounded-xl border border-[var(--color-border-light)] shadow-sm flex items-center justify-between group">
@@ -120,54 +121,38 @@ export function RecentLogs({ logs }: { logs: DailyLog[] }) {
                         </div>
 
                         <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide mb-1.5">{t.recentLogs.activity}</label>
-                                <input
-                                    value={editForm.activity_type}
-                                    onChange={e => setEditForm({ ...editForm, activity_type: e.target.value })}
-                                    className="w-full p-3 bg-[var(--color-bg-subtle)] rounded-xl font-medium text-[var(--color-text)] border border-[var(--color-border-light)] focus:border-[var(--color-primary)] focus:outline-none transition-colors"
-                                />
-                            </div>
+                            <Input
+                                label={t.recentLogs.activity}
+                                value={editForm.activity_type}
+                                onChange={e => setEditForm({ ...editForm, activity_type: e.target.value })}
+                            />
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide mb-1.5">{t.recentLogs.duration}</label>
-                                    <input
-                                        type="number"
-                                        value={editForm.duration}
-                                        onChange={e => setEditForm({ ...editForm, duration: e.target.value })}
-                                        className="w-full p-3 bg-[var(--color-bg-subtle)] rounded-xl font-medium text-[var(--color-text)] border border-[var(--color-border-light)] focus:border-[var(--color-primary)] focus:outline-none transition-colors"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide mb-1.5">{t.recentLogs.intensity}</label>
-                                    <select
-                                        value={editForm.intensity}
-                                        onChange={e => setEditForm({ ...editForm, intensity: e.target.value })}
-                                        className="w-full p-3 bg-[var(--color-bg-subtle)] rounded-xl font-medium text-[var(--color-text)] border border-[var(--color-border-light)] focus:border-[var(--color-primary)] focus:outline-none transition-colors"
-                                    >
-                                        <option value="Light">{t.movement.intensityOptions.light}</option>
-                                        <option value="Moderate">{t.movement.intensityOptions.moderate}</option>
-                                        <option value="Hard">{t.movement.intensityOptions.hard}</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide mb-1.5">{t.recentLogs.notes}</label>
-                                <textarea
-                                    rows={4}
-                                    value={editForm.notes}
-                                    onChange={e => setEditForm({ ...editForm, notes: e.target.value })}
-                                    className="w-full p-3 bg-[var(--color-bg-subtle)] rounded-xl text-sm text-[var(--color-text)] border border-[var(--color-border-light)] focus:border-[var(--color-primary)] focus:outline-none transition-colors"
+                                <Input
+                                    label={t.recentLogs.duration}
+                                    type="number"
+                                    value={editForm.duration}
+                                    onChange={e => setEditForm({ ...editForm, duration: e.target.value })}
                                 />
+                                <Select
+                                    label={t.recentLogs.intensity}
+                                    value={editForm.intensity}
+                                    onChange={e => setEditForm({ ...editForm, intensity: e.target.value })}
+                                >
+                                    <option value="Light">{t.movement.intensityOptions.light}</option>
+                                    <option value="Moderate">{t.movement.intensityOptions.moderate}</option>
+                                    <option value="Hard">{t.movement.intensityOptions.hard}</option>
+                                </Select>
                             </div>
+                            <Textarea
+                                label={t.recentLogs.notes}
+                                rows={4}
+                                value={editForm.notes}
+                                onChange={e => setEditForm({ ...editForm, notes: e.target.value })}
+                            />
 
-                            <button
-                                onClick={handleSave}
-                                disabled={loadingEdit}
-                                className="w-full py-3.5 bg-[var(--color-primary)] text-white rounded-xl font-bold shadow-lg shadow-[var(--color-primary)]/20 active:scale-[0.98] transition-all disabled:opacity-50"
-                            >
+                            <Button fullWidth onClick={handleSave} disabled={loadingEdit}>
                                 {loadingEdit ? t.recentLogs.saving : t.recentLogs.saveChanges}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>

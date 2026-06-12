@@ -34,7 +34,7 @@ export default function HelpPage() {
 
                 <Section
                     id="quick-start"
-                    title="🚀 Quick Start"
+                    title="Quick Start"
                     isOpen={openSection === 'quick-start'}
                     onClick={() => toggle('quick-start')}
                 >
@@ -51,7 +51,7 @@ export default function HelpPage() {
 
                 <Section
                     id="food"
-                    title="🥗 Smart Food Logging"
+                    title="Smart Food Logging"
                     icon={<Utensils className="w-5 h-5" style={{ color: 'var(--color-success)' }} />}
                     isOpen={openSection === 'food'}
                     onClick={() => toggle('food')}
@@ -85,7 +85,7 @@ export default function HelpPage() {
 
                 <Section
                     id="nutrition"
-                    title="🍽️ Meal Planner"
+                    title="Meal Planner"
                     icon={<UtensilsCrossed className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />}
                     isOpen={openSection === 'nutrition'}
                     onClick={() => toggle('nutrition')}
@@ -102,7 +102,7 @@ export default function HelpPage() {
 
                 <Section
                     id="workouts"
-                    title="🏋️ Workouts & Coach"
+                    title="Workouts & Coach"
                     icon={<Dumbbell className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />}
                     isOpen={openSection === 'workouts'}
                     onClick={() => toggle('workouts')}
@@ -125,7 +125,7 @@ export default function HelpPage() {
 
                 <Section
                     id="settings"
-                    title="⚙️ Settings & Equipment"
+                    title="Settings & Equipment"
                     icon={<Settings className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />}
                     isOpen={openSection === 'settings'}
                     onClick={() => toggle('settings')}
@@ -186,8 +186,8 @@ function Section({ id, title, icon, isOpen, onClick, children }: any) {
 function FeatureCard({ color, icon, title, children }: { color: 'success' | 'primary' | 'gold'; icon: React.ReactNode; title: string; children: React.ReactNode }) {
     const colors = {
         success: { bg: 'rgba(34,197,94,0.07)', border: 'rgba(34,197,94,0.15)', icon: 'var(--color-success)', title: 'var(--color-success)' },
-        primary: { bg: 'rgba(29,95,168,0.07)', border: 'rgba(29,95,168,0.15)', icon: 'var(--color-primary)', title: 'var(--color-primary)' },
-        gold: { bg: 'rgba(201,168,76,0.07)', border: 'rgba(201,168,76,0.2)', icon: 'var(--color-gold)', title: 'var(--color-gold)' },
+        primary: { bg: 'rgba(77,137,226,0.07)', border: 'rgba(77,137,226,0.15)', icon: 'var(--color-primary)', title: 'var(--color-primary)' },
+        gold: { bg: 'rgba(224,179,90,0.07)', border: 'rgba(224,179,90,0.2)', icon: 'var(--color-gold)', title: 'var(--color-gold)' },
     }[color];
 
     return (

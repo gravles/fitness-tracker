@@ -7,7 +7,6 @@ const APP_VERSION = '2.0';
 const STORAGE_KEY = 'lifelogger_seen_version';
 
 interface Slide {
-    emoji: string;
     icon: React.ReactNode;
     title: string;
     body: string;
@@ -16,35 +15,30 @@ interface Slide {
 
 const SLIDES: Slide[] = [
     {
-        emoji: '📱',
         icon: <Smartphone className="w-6 h-6" />,
         title: 'Now on iOS & Android',
         body: 'Download the native app for push notifications, haptic feedback, and swipe-back navigation.',
         accent: 'var(--color-primary)',
     },
     {
-        emoji: '📅',
         icon: <Calendar className="w-6 h-6" />,
         title: 'Workout Calendar Feed',
         body: 'Subscribe to your personal webcal:// link and see every scheduled workout in Apple Calendar or Google Calendar.',
         accent: 'var(--color-gold)',
     },
     {
-        emoji: '🏋️',
         icon: <BookOpen className="w-6 h-6" />,
         title: '12-Week Training Programs',
         body: 'AI builds a periodised program for your goal. Target weights, 1RM tracking, PR notifications, and a full adherence calendar.',
-        accent: '#22c55e',
+        accent: 'var(--chart-2)',
     },
     {
-        emoji: '🔗',
         icon: <Dna className="w-6 h-6" />,
         title: 'Health Integrations',
         body: 'Connect Strava, Withings, and Oura under Settings → Health Integrations to sync activities and body composition automatically.',
         accent: 'var(--color-primary)',
     },
     {
-        emoji: '🥗',
         icon: <Sparkles className="w-6 h-6" />,
         title: 'AI Nutrition Planner',
         body: 'Build a pantry, set prep-time limits, and let AI generate a weekly meal plan. Log meals straight to your diary.',
@@ -103,13 +97,19 @@ export function WhatsNewModal({ onClose }: WhatsNewModalProps) {
                 </div>
 
                 <div className="p-8 pt-6 text-center">
-                    {/* Emoji hero */}
-                    <div className="text-6xl mb-5" aria-hidden="true">{current.emoji}</div>
+                    {/* Icon hero */}
+                    <div
+                        className="w-16 h-16 mx-auto mb-5 rounded-full flex items-center justify-center [&>svg]:w-8 [&>svg]:h-8"
+                        style={{ background: `color-mix(in srgb, ${current.accent} 14%, transparent)`, color: current.accent }}
+                        aria-hidden="true"
+                    >
+                        {current.icon}
+                    </div>
 
                     {/* Icon badge */}
                     <div
                         className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold mb-4"
-                        style={{ background: `${current.accent}22`, color: current.accent }}
+                        style={{ background: `color-mix(in srgb, ${current.accent} 14%, transparent)`, color: current.accent }}
                     >
                         {current.icon}
                         <span>New in v{APP_VERSION}</span>

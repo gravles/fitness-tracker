@@ -76,8 +76,8 @@ export function ClaudeConnectorSection() {
         setTimeout(() => setCopied(false), 2500);
     }
 
-    const READ_TOOLS  = ['📊 Daily logs', '🏋️ Workouts & sets', '⚖️ Body metrics', '👤 Profile & goals'];
-    const WRITE_TOOLS = ['🥗 Log food', '🏃 Log workouts', '💤 Update wellness'];
+    const READ_TOOLS  = ['Daily logs', 'Workouts & sets', 'Body metrics', 'Profile & goals'];
+    const WRITE_TOOLS = ['Log food', 'Log workouts', 'Update wellness'];
 
     if (loading) {
         return (
@@ -149,7 +149,7 @@ export function ClaudeConnectorSection() {
                             <button
                                 onClick={() => revokeKey(key.id)}
                                 className="p-2 rounded-lg transition-all"
-                                style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}
+                                style={{ color: 'var(--color-danger)', background: 'rgba(239,68,68,0.08)' }}
                                 title="Revoke key"
                             >
                                 <Trash2 className="w-4 h-4" />

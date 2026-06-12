@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getSettings, updateSettings, getUserBadges, UserBadge, getAccountabilityPartners, addAccountabilityPartner, deleteAccountabilityPartner, AccountabilityPartner, getIntegrations, upsertIntegration, deleteIntegration, Integration } from '@/lib/api';
-import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2, Users, Trash2, Send, X, Link2, RefreshCw, User, Sun, Moon, Monitor, CalendarDays, Copy, Check, Bot } from 'lucide-react';
+import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2, Users, Trash2, Send, X, Link2, RefreshCw, User, Sun, Moon, Monitor, CalendarDays, Copy, Check, Bot, Flame, Dumbbell, Scale, Footprints, Settings as SettingsIcon, BookOpen, Watch } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLanguage } from '@/components/LanguageProvider';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -244,7 +244,7 @@ export default function SettingsPage() {
                     className="flex items-center gap-2 pb-4"
                     style={{ borderBottom: '1px solid var(--color-border-light)' }}
                 >
-                    <div className="p-1.5 rounded-lg" style={{ background: 'rgba(29,95,168,0.1)' }}>
+                    <div className="p-1.5 rounded-lg" style={{ background: 'rgba(77,137,226,0.1)' }}>
                         <User className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
                     </div>
                     <h2
@@ -269,7 +269,7 @@ export default function SettingsPage() {
                             maxLength={40}
                             className={inputClass}
                             style={inputStyle}
-                            onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)'; }}
+                            onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)'; }}
                             onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
                         />
                     </div>
@@ -285,7 +285,7 @@ export default function SettingsPage() {
                             onChange={e => setProfile({ ...profile, dob: e.target.value })}
                             className={inputClass}
                             style={inputStyle}
-                            onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)'; }}
+                            onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)'; }}
                             onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
                         />
                     </div>
@@ -305,7 +305,7 @@ export default function SettingsPage() {
                                     min={0} max={8}
                                     className={inputClass}
                                     style={inputStyle}
-                                    onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)'; }}
+                                    onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)'; }}
                                     onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
                                 />
                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--color-text-muted)' }}>ft</span>
@@ -319,7 +319,7 @@ export default function SettingsPage() {
                                     min={0} max={11}
                                     className={inputClass}
                                     style={inputStyle}
-                                    onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)'; }}
+                                    onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)'; }}
                                     onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
                                 />
                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--color-text-muted)' }}>in</span>
@@ -334,10 +334,10 @@ export default function SettingsPage() {
                         </label>
                         <div className="grid grid-cols-2 gap-2">
                             {[
-                                { id: 'lose_weight',     label: t.settings.profile.goals.loseWeight,     emoji: '🔥' },
-                                { id: 'build_muscle',    label: t.settings.profile.goals.buildMuscle,    emoji: '💪' },
-                                { id: 'maintain',        label: t.settings.profile.goals.maintain,        emoji: '⚖️'  },
-                                { id: 'improve_fitness', label: t.settings.profile.goals.improveFitness, emoji: '🏃' },
+                                { id: 'lose_weight',     label: t.settings.profile.goals.loseWeight,     icon: Flame },
+                                { id: 'build_muscle',    label: t.settings.profile.goals.buildMuscle,    icon: Dumbbell },
+                                { id: 'maintain',        label: t.settings.profile.goals.maintain,        icon: Scale },
+                                { id: 'improve_fitness', label: t.settings.profile.goals.improveFitness, icon: Footprints },
                             ].map(g => (
                                 <button
                                     key={g.id}
@@ -345,11 +345,11 @@ export default function SettingsPage() {
                                     onClick={() => setProfile({ ...profile, fitnessGoal: g.id })}
                                     className="p-3 rounded-xl text-left transition-all"
                                     style={{
-                                        background: profile.fitnessGoal === g.id ? 'rgba(201,168,76,0.12)' : 'var(--color-bg-subtle)',
+                                        background: profile.fitnessGoal === g.id ? 'rgba(224,179,90,0.12)' : 'var(--color-bg-subtle)',
                                         border: `1.5px solid ${profile.fitnessGoal === g.id ? 'var(--color-gold)' : 'var(--color-border)'}`,
                                     }}
                                 >
-                                    <span className="mr-1.5">{g.emoji}</span>
+                                    <g.icon className="w-4 h-4 mr-1.5 inline-block align-text-bottom" style={{ color: profile.fitnessGoal === g.id ? 'var(--color-gold-text)' : 'var(--color-text-muted)' }} aria-hidden="true" />
                                     <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{g.label}</span>
                                 </button>
                             ))}
@@ -437,7 +437,7 @@ export default function SettingsPage() {
                                 style={inputStyle}
                                 onFocus={e => {
                                     e.currentTarget.style.borderColor = 'var(--color-gold)';
-                                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)';
+                                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)';
                                 }}
                                 onBlur={e => {
                                     e.currentTarget.style.borderColor = 'var(--color-border)';
@@ -455,7 +455,7 @@ export default function SettingsPage() {
                     className="flex items-center gap-2 pb-4"
                     style={{ borderBottom: '1px solid var(--color-border-light)' }}
                 >
-                    <span className="text-xl">⚙️</span>
+                    <SettingsIcon className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} aria-hidden="true" />
                     <h2
                         className="font-bold text-lg"
                         style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
@@ -598,7 +598,7 @@ export default function SettingsPage() {
                                     onClick={() => setTargets({ ...targets, habits: targets.habits.filter(h => h !== habit) })}
                                     className="transition-colors"
                                     style={{ color: 'var(--color-text-muted)' }}
-                                    onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                                    onMouseEnter={e => e.currentTarget.style.color = 'var(--color-danger)'}
                                     onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
                                 >
                                     <span className="sr-only">Remove</span>×
@@ -648,7 +648,7 @@ export default function SettingsPage() {
                 {/* Equipment Manager */}
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-                        <span className="text-lg">🏋️‍♂️</span>
+                        <Dumbbell className="w-5 h-5" style={{ color: 'var(--color-primary)' }} aria-hidden="true" />
                         <h3 className="font-medium" style={{ color: 'var(--color-text)' }}>{t.settings.customization.homeEquipment}</h3>
                     </div>
                     <p className="text-sm mb-4" style={{ color: 'var(--color-text-muted)' }}>
@@ -660,9 +660,9 @@ export default function SettingsPage() {
                                 key={item}
                                 className="px-3 py-1 rounded-lg text-sm flex items-center gap-2 border"
                                 style={{
-                                    background: 'rgba(29,95,168,0.08)',
+                                    background: 'rgba(77,137,226,0.08)',
                                     color: 'var(--color-primary)',
-                                    borderColor: 'rgba(29,95,168,0.2)',
+                                    borderColor: 'rgba(77,137,226,0.2)',
                                 }}
                             >
                                 {item}
@@ -750,9 +750,9 @@ export default function SettingsPage() {
             </section>
 
             {/* Goal Wizard */}
-            <section className="p-5 rounded-2xl border shadow-sm" style={{ ...sectionStyle, background: 'var(--color-navy)', borderColor: 'rgba(201,168,76,0.2)' }}>
+            <section className="p-5 rounded-2xl border shadow-sm" style={{ ...sectionStyle, background: 'var(--color-navy)', borderColor: 'rgba(224,179,90,0.2)' }}>
                 <div className="flex items-center gap-4">
-                    <div className="p-2.5 rounded-xl flex-shrink-0" style={{ background: 'rgba(201,168,76,0.15)' }}>
+                    <div className="p-2.5 rounded-xl flex-shrink-0" style={{ background: 'rgba(224,179,90,0.15)' }}>
                         <Wand2 className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -794,9 +794,9 @@ export default function SettingsPage() {
                         onClick={() => window.location.href = '/?tutorial=true'}
                         className="p-4 rounded-xl font-bold flex items-center justify-center gap-2 border transition-all"
                         style={{
-                            background: 'rgba(29,95,168,0.06)',
+                            background: 'rgba(77,137,226,0.06)',
                             color: 'var(--color-primary)',
-                            borderColor: 'rgba(29,95,168,0.15)',
+                            borderColor: 'rgba(77,137,226,0.15)',
                         }}
                     >
                         <Sparkles className="w-5 h-5" /> {t.settings.help.rerunOnboarding}
@@ -807,7 +807,7 @@ export default function SettingsPage() {
                         style={{
                             background: 'var(--color-gold-muted)',
                             color: 'var(--color-gold)',
-                            borderColor: 'rgba(201,168,76,0.2)',
+                            borderColor: 'rgba(224,179,90,0.2)',
                         }}
                     >
                         <Rocket className="w-5 h-5" /> {t.settings.help.whatsNew}
@@ -821,7 +821,7 @@ export default function SettingsPage() {
                             borderColor: 'rgba(34,197,94,0.15)',
                         }}
                     >
-                        <span className="text-xl">📚</span> {t.settings.help.userManual}
+                        <BookOpen className="w-5 h-5" aria-hidden="true" /> {t.settings.help.userManual}
                     </button>
                 </div>
             </section>
@@ -897,15 +897,15 @@ export default function SettingsPage() {
                 </div>
 
                 {[
-                    { id: 'strava',   name: 'Strava',     icon: '🏃', desc: t.settings.integrations.providers.strava,   authUrl: '/api/strava/auth',                 syncUrl: '/api/strava/sync' },
-                    { id: 'withings', name: 'Withings',   icon: '⚖️', desc: t.settings.integrations.providers.withings, authUrl: '/api/integrations/withings/auth',  syncUrl: '/api/integrations/withings/sync' },
-                    { id: 'oura',     name: 'Oura Ring',  icon: '💍', desc: t.settings.integrations.providers.oura,     authUrl: '/api/integrations/oura/auth',      syncUrl: '/api/integrations/oura/sync' },
+                    { id: 'strava',   name: 'Strava',     icon: Footprints, desc: t.settings.integrations.providers.strava,   authUrl: '/api/strava/auth',                 syncUrl: '/api/strava/sync' },
+                    { id: 'withings', name: 'Withings',   icon: Scale,      desc: t.settings.integrations.providers.withings, authUrl: '/api/integrations/withings/auth',  syncUrl: '/api/integrations/withings/sync' },
+                    { id: 'oura',     name: 'Oura Ring',  icon: Watch,      desc: t.settings.integrations.providers.oura,     authUrl: '/api/integrations/oura/auth',      syncUrl: '/api/integrations/oura/sync' },
                 ].map(provider => {
                     const connected = integrations.find(i => i.provider === provider.id);
                     return (
                         <div key={provider.id} className="flex items-center justify-between p-3 rounded-xl" style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border-light)' }}>
                             <div className="flex items-center gap-3">
-                                <span className="text-2xl">{provider.icon}</span>
+                                <provider.icon className="w-6 h-6" style={{ color: 'var(--color-primary)' }} aria-hidden="true" />
                                 <div>
                                     <p className="font-bold text-sm text-[var(--color-text)]">{provider.name}</p>
                                     <p className="text-xs" style={{ color: connected ? 'var(--color-success)' : 'var(--color-text-muted)' }}>
@@ -929,7 +929,7 @@ export default function SettingsPage() {
                                             } finally { setSyncingIntegration(null); }
                                         }}
                                         className="p-2 rounded-lg transition-all"
-                                        style={{ color: 'var(--color-primary)', background: 'rgba(29,95,168,0.08)' }}
+                                        style={{ color: 'var(--color-primary)', background: 'rgba(77,137,226,0.08)' }}
                                         title={t.settings.integrations.syncNow}
                                     >
                                         {syncingIntegration === provider.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
@@ -943,7 +943,7 @@ export default function SettingsPage() {
                                             toast.success(`${provider.name} disconnected`);
                                         }}
                                         className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
-                                        style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}
+                                        style={{ color: 'var(--color-danger)', background: 'rgba(239,68,68,0.08)' }}
                                     >
                                         {t.settings.integrations.disconnect}
                                     </button>
@@ -1009,7 +1009,7 @@ export default function SettingsPage() {
                                     } finally { setSendingSummary(null); }
                                 }}
                                 className="p-2 rounded-lg transition-all"
-                                style={{ color: 'var(--color-primary)', background: 'rgba(29,95,168,0.08)' }}
+                                style={{ color: 'var(--color-primary)', background: 'rgba(77,137,226,0.08)' }}
                                 title={t.settings.partners.sendSummaryTitle}
                             >
                                 {sendingSummary === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
@@ -1021,7 +1021,7 @@ export default function SettingsPage() {
                                     toast.success('Partner removed');
                                 }}
                                 className="p-2 rounded-lg transition-all"
-                                style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}
+                                style={{ color: 'var(--color-danger)', background: 'rgba(239,68,68,0.08)' }}
                             >
                                 <Trash2 className="w-4 h-4" />
                             </button>

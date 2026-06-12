@@ -11,6 +11,7 @@ async function setupAuth(page: Page): Promise<void> {
             access_token: 'fake-jwt-token'
         }));
         window.localStorage.setItem('has_seen_tutorial_v1', 'true');
+        window.localStorage.setItem('lifelogger_seen_version', '99');
     });
 }
 
@@ -22,7 +23,7 @@ test.describe('Daily Logging Flow', () => {
 
     test('user can view the dashboard', async ({ page }) => {
         await expect(page).toHaveTitle(/Life Logger/i);
-        await expect(page.locator('h1:has-text("Dashboard")')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('section[aria-label="Today\'s goal tracker"]')).toBeVisible({ timeout: 15000 });
     });
 
     test('user can navigate to log page', async ({ page }) => {
@@ -31,7 +32,7 @@ test.describe('Daily Logging Flow', () => {
         await logLink.click();
 
         // Verify navigation by checking for log page content
-        await expect(page.locator('text=TODAY')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('text=TODAY').first()).toBeVisible({ timeout: 15000 });
     });
 
     test('date navigator changes displayed date', async ({ page }) => {
@@ -65,8 +66,8 @@ test.describe('Daily Logging Flow', () => {
         await expect(movementToggle).toBeVisible();
         await movementToggle.click();
 
-        // Verify button state changed (becomes active with blue background)
-        await expect(movementToggle).toHaveClass(/bg-blue-600/);
+        // Verify button state changed (becomes active with primary background)
+        await expect(movementToggle).toHaveClass(/bg-\[var\(--color-primary\)\]/);
     });
 
     test('nutrition data can be entered', async ({ page }) => {
@@ -93,7 +94,7 @@ test.describe('Workout Tracking Flow', () => {
     test('user can navigate to workout schedule page', async ({ page }) => {
         await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-        const workoutLink = page.locator('nav[aria-label="Main navigation"] a[aria-label="Workout"]');
+        const workoutLink = page.locator('nav[aria-label="Main navigation"] a[aria-label="Train"]');
         await expect(workoutLink).toBeVisible({ timeout: 10000 });
         await workoutLink.click();
 
@@ -152,6 +153,6 @@ test.describe('Responsive Design', () => {
         await page.goto('/', { waitUntil: 'domcontentloaded' });
 
         await expect(page.locator('body')).toBeVisible();
-        await expect(page.locator('h1:has-text("Dashboard")')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('section[aria-label="Today\'s goal tracker"]')).toBeVisible({ timeout: 15000 });
     });
 });

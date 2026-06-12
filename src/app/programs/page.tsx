@@ -19,10 +19,10 @@ import { haptics } from '@/lib/haptics';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const GOALS: { id: 'strength' | 'hypertrophy' | 'endurance' | 'athletic'; label: string; desc: string }[] = [
-    { id: 'strength',    label: '💪 Strength',    desc: 'Heavy loads, compound lifts' },
-    { id: 'hypertrophy', label: '🔥 Hypertrophy', desc: 'Muscle building, volume focus' },
-    { id: 'endurance',   label: '🏃 Endurance',   desc: 'High reps, conditioning' },
-    { id: 'athletic',    label: '⚡ Athletic',     desc: 'Power, speed, agility' },
+    { id: 'strength',    label: 'Strength',    desc: 'Heavy loads, compound lifts' },
+    { id: 'hypertrophy', label: 'Hypertrophy', desc: 'Muscle building, volume focus' },
+    { id: 'endurance',   label: 'Endurance',   desc: 'High reps, conditioning' },
+    { id: 'athletic',    label: 'Athletic',     desc: 'Power, speed, agility' },
 ];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -247,7 +247,7 @@ export default function ProgramsPage() {
                     {activeProgram && (
                         <div
                             className="p-5 rounded-2xl border space-y-4"
-                            style={{ background: 'var(--color-navy)', borderColor: 'rgba(201,168,76,0.2)' }}
+                            style={{ background: 'var(--color-navy)', borderColor: 'rgba(224,179,90,0.2)' }}
                         >
                             <div className="flex items-start justify-between">
                                 <div>
@@ -367,7 +367,7 @@ export default function ProgramsPage() {
                                                                             className="w-4 h-4 rounded-sm"
                                                                             style={{
                                                                                 background:
-                                                                                    s.status === 'completed'  ? '#22c55e' :
+                                                                                    s.status === 'completed'  ? 'var(--chart-2)' :
                                                                                     s.status === 'skipped'    ? 'rgba(239,68,68,0.55)' :
                                                                                     s.status === 'upcoming' || s.status === 'rescheduled'
                                                                                         ? 'rgba(255,255,255,0.18)' :
@@ -388,7 +388,7 @@ export default function ProgramsPage() {
                                             </div>
                                             <div className="flex gap-4 text-xs pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                                                 {[
-                                                    { label: 'Done',     bg: '#22c55e'                 },
+                                                    { label: 'Done',     bg: 'var(--chart-2)'                 },
                                                     { label: 'Skipped',  bg: 'rgba(239,68,68,0.55)'    },
                                                     { label: 'Upcoming', bg: 'rgba(255,255,255,0.18)'  },
                                                 ].map(({ label, bg }) => (
@@ -476,7 +476,7 @@ export default function ProgramsPage() {
                                             <span
                                                 key={e}
                                                 className="text-xs px-2 py-0.5 rounded-full font-medium"
-                                                style={{ background: 'rgba(29,95,168,0.1)', color: 'var(--color-primary)' }}
+                                                style={{ background: 'rgba(77,137,226,0.1)', color: 'var(--color-primary)' }}
                                             >
                                                 {e}
                                             </span>
@@ -583,7 +583,7 @@ export default function ProgramsPage() {
                                             <button
                                                 onClick={() => handleResume(prog)}
                                                 className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"
-                                                style={{ background: 'rgba(249,115,22,0.15)', color: '#f97316', border: '1px solid rgba(249,115,22,0.3)' }}
+                                                style={{ background: 'rgba(249,115,22,0.15)', color: 'var(--chart-5)', border: '1px solid rgba(249,115,22,0.3)' }}
                                             >
                                                 <Play className="w-3 h-3" /> Resume
                                             </button>
@@ -599,7 +599,7 @@ export default function ProgramsPage() {
                                         <button
                                             onClick={() => handleDelete(prog.id)}
                                             className="p-1.5 rounded-lg"
-                                            style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}
+                                            style={{ color: 'var(--color-danger)', background: 'rgba(239,68,68,0.08)' }}
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>

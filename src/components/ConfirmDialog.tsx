@@ -61,8 +61,8 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                             <div
                                 className="p-2 rounded-xl flex-shrink-0"
                                 style={{
-                                    background: state.danger ? 'rgba(239,68,68,0.1)' : 'rgba(201,168,76,0.1)',
-                                    color: state.danger ? '#ef4444' : 'var(--color-gold)',
+                                    background: state.danger ? 'rgba(239,68,68,0.1)' : 'rgba(224,179,90,0.1)',
+                                    color: state.danger ? 'var(--color-danger)' : 'var(--color-gold)',
                                 }}
                             >
                                 <AlertTriangle className="w-5 h-5" />
@@ -86,7 +86,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                                 onClick={() => handle(true)}
                                 className="flex-1 py-3 rounded-xl font-bold text-sm transition-all active:scale-95"
                                 style={{
-                                    background: state.danger ? '#ef4444' : 'var(--color-navy)',
+                                    background: state.danger ? 'var(--color-danger)' : 'var(--color-navy)',
                                     color: state.danger ? 'white' : 'var(--color-gold)',
                                 }}
                             >

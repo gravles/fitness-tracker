@@ -16,10 +16,10 @@ const ASSETS    = join(ROOT, 'assets');
 if (!existsSync(ASSETS)) mkdirSync(ASSETS, { recursive: true });
 
 // ─── Colours ────────────────────────────────────────────────────────────────
-const NAVY        = '#0d1b2a';
-const GOLD_LIGHT  = '#e8d080';
-const GOLD        = '#c9a84c';
-const GOLD_DARK   = '#b8922a';
+const NAVY        = '#060a13';
+const GOLD_LIGHT  = '#ecc77e';
+const GOLD        = '#e0b35a';
+const GOLD_DARK   = '#b8893a';
 
 // ─── Lucide heart path (24×24 viewBox) ──────────────────────────────────────
 const HEART = `M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z`;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronRight, CheckCircle } from 'lucide-react';
+import { ChevronRight, CheckCircle, Hand, Cake, Scale, Target, Flame, Dumbbell, Footprints, type LucideIcon } from 'lucide-react';
 import { updateSettings, upsertBodyMetrics } from '@/lib/api';
 import { useLanguage } from '@/components/LanguageProvider';
 
@@ -31,7 +31,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
     };
     const focusStyle = {
         borderColor: 'var(--color-gold)',
-        boxShadow: '0 0 0 3px rgba(201,168,76,0.15)',
+        boxShadow: '0 0 0 3px rgba(224,179,90,0.15)',
     };
 
     function cmFromFtIn() {
@@ -83,19 +83,29 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
         ? true
         : !!goal;
 
-    const fitnessGoals = [
-        { id: 'lose_weight',     ...t.onboarding.step4.goals.loseWeight,     emoji: '🔥' },
-        { id: 'build_muscle',    ...t.onboarding.step4.goals.buildMuscle,    emoji: '💪' },
-        { id: 'maintain',        ...t.onboarding.step4.goals.maintain,        emoji: '⚖️' },
-        { id: 'improve_fitness', ...t.onboarding.step4.goals.improveFitness, emoji: '🏃' },
+    const fitnessGoals: { id: string; label: string; desc: string; icon: LucideIcon }[] = [
+        { id: 'lose_weight',     ...t.onboarding.step4.goals.loseWeight,     icon: Flame },
+        { id: 'build_muscle',    ...t.onboarding.step4.goals.buildMuscle,    icon: Dumbbell },
+        { id: 'maintain',        ...t.onboarding.step4.goals.maintain,        icon: Scale },
+        { id: 'improve_fitness', ...t.onboarding.step4.goals.improveFitness, icon: Footprints },
     ];
+
+    const StepHero = ({ icon: Icon }: { icon: LucideIcon }) => (
+        <div
+            className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
+            style={{ background: 'var(--color-gold-muted)' }}
+            aria-hidden="true"
+        >
+            <Icon className="w-8 h-8" style={{ color: 'var(--color-gold)' }} />
+        </div>
+    );
 
     const stepContent = () => {
         switch (step) {
             case 1:
                 return (
                     <>
-                        <div className="text-6xl mb-4" aria-hidden="true">👋</div>
+                        <StepHero icon={Hand} />
                         <h2 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-display)' }}>
                             {t.onboarding.step1.title}
                         </h2>
@@ -120,7 +130,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
             case 2:
                 return (
                     <>
-                        <div className="text-6xl mb-4" aria-hidden="true">🎂</div>
+                        <StepHero icon={Cake} />
                         <h2 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-display)' }}>
                             {t.onboarding.step2.title}
                         </h2>
@@ -179,7 +189,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
             case 3:
                 return (
                     <>
-                        <div className="text-6xl mb-4" aria-hidden="true">⚖️</div>
+                        <StepHero icon={Scale} />
                         <h2 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-display)' }}>
                             {t.onboarding.step3.title}
                         </h2>
@@ -205,7 +215,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
             case 4:
                 return (
                     <>
-                        <div className="text-6xl mb-4" aria-hidden="true">🎯</div>
+                        <StepHero icon={Target} />
                         <h2 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-display)' }}>
                             {t.onboarding.step4.title}
                         </h2>
@@ -219,11 +229,11 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                                     onClick={() => setGoal(g.id)}
                                     className="p-4 rounded-2xl text-left transition-all active:scale-95"
                                     style={{
-                                        background: goal === g.id ? 'rgba(201,168,76,0.2)' : 'rgba(255,255,255,0.06)',
+                                        background: goal === g.id ? 'rgba(224,179,90,0.2)' : 'rgba(255,255,255,0.06)',
                                         border: `1.5px solid ${goal === g.id ? 'var(--color-gold)' : 'rgba(255,255,255,0.12)'}`,
                                     }}
                                 >
-                                    <div className="text-2xl mb-1.5">{g.emoji}</div>
+                                    <g.icon className="w-6 h-6 mb-1.5" style={{ color: goal === g.id ? 'var(--color-gold)' : 'rgba(255,255,255,0.6)' }} aria-hidden="true" />
                                     <div className="font-bold text-sm text-white">{g.label}</div>
                                     <div className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>{g.desc}</div>
                                 </button>
@@ -253,7 +263,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
 
                 <div className="p-8">
                     <div className="flex items-center justify-between mb-8">
-                        <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(201,168,76,0.6)' }}>
+                        <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(224,179,90,0.6)' }}>
                             {t.onboarding.stepOf(step, TOTAL_STEPS)}
                         </span>
                         <div className="flex gap-1.5">

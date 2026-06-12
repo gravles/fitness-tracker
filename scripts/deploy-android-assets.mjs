@@ -29,7 +29,7 @@ async function resize(src, dest, width, height) {
 
 /** Generate a square icon with navy background and the foreground image composited on top */
 async function makeRoundIcon(foreground, dest, size) {
-    const NAVY = '#0d1b2a';
+    const NAVY = '#060a13';
     // Create a navy background, then composite the foreground scaled to ~80% to leave padding
     const padded = Math.round(size * 0.82);
     const padding = Math.round((size - padded) / 2);

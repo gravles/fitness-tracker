@@ -6,6 +6,7 @@ import {
     Plus, Trash2, Loader2, Sparkles, ChevronLeft, ChevronRight,
     Clock, CheckCircle2, RefreshCw, Settings2, UtensilsCrossed,
     Camera, Mic, MicOff, X, BookMarked, PlayCircle,
+    Sunrise, Sun, Moon, Apple, Soup, ShoppingCart,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { confirm } from '@/components/ConfirmDialog';
@@ -30,10 +31,16 @@ const PREP_TIMES = [
 ] as const;
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 const MEAL_LABELS: Record<string, string> = {
-    breakfast: '🌅 Breakfast',
-    lunch: '☀️ Lunch',
-    dinner: '🌙 Dinner',
-    snack: '🍎 Snack',
+    breakfast: 'Breakfast',
+    lunch: 'Lunch',
+    dinner: 'Dinner',
+    snack: 'Snack',
+};
+const MEAL_ICONS: Record<string, typeof Sunrise> = {
+    breakfast: Sunrise,
+    lunch: Sun,
+    dinner: Moon,
+    snack: Apple,
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -59,7 +66,7 @@ function mealKey(date: string, mealType: string) {
 function macroColor(pct: number) {
     if (pct >= 90) return 'var(--color-success)';
     if (pct >= 60) return 'var(--color-gold)';
-    return '#ef4444';
+    return 'var(--color-danger)';
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -90,7 +97,10 @@ function MealCard({
                 className="p-3 rounded-xl border border-dashed flex items-center justify-between"
                 style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg-subtle)' }}
             >
-                <span className="text-sm text-[var(--color-text-muted)]">{MEAL_LABELS[mealType]}</span>
+                <span className="text-sm text-[var(--color-text-muted)] flex items-center gap-1.5">
+                    {(() => { const MealIcon = MEAL_ICONS[mealType]; return MealIcon ? <MealIcon className="w-3.5 h-3.5" aria-hidden="true" /> : null; })()}
+                    {MEAL_LABELS[mealType]}
+                </span>
                 <button onClick={onRegenerate} disabled={isRegenerating} className="text-xs font-medium" style={{ color: 'var(--color-primary)' }}>
                     {isRegenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Generate'}
                 </button>
@@ -105,7 +115,8 @@ function MealCard({
         >
             <div className="flex items-start justify-between gap-2">
                 <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
+                        {(() => { const MealIcon = MEAL_ICONS[mealType]; return MealIcon ? <MealIcon className="w-3 h-3" aria-hidden="true" /> : null; })()}
                         {MEAL_LABELS[mealType]}
                     </p>
                     <p className="font-bold text-sm text-[var(--color-text)] mt-0.5">{meal.name}</p>
@@ -607,7 +618,7 @@ export default function NutritionPage() {
                             onClick={() => generateMeals([todayStr])}
                             disabled={!!generating}
                             className="w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2.5 transition-all active:scale-[0.98]"
-                            style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid rgba(201,168,76,0.2)' }}
+                            style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid rgba(224,179,90,0.2)' }}
                         >
                             {generating === todayStr
                                 ? <><Loader2 className="w-5 h-5 animate-spin" /> Planning your meals…</>
@@ -664,7 +675,7 @@ export default function NutritionPage() {
                         onClick={() => generateMeals(weekDays.map(d => format(d, 'yyyy-MM-dd')))}
                         disabled={!!generating}
                         className="w-full py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2.5 transition-all active:scale-[0.98]"
-                        style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid rgba(201,168,76,0.2)' }}
+                        style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid rgba(224,179,90,0.2)' }}
                     >
                         {generating === 'week'
                             ? <><Loader2 className="w-5 h-5 animate-spin" /> Building week plan…</>
@@ -684,7 +695,7 @@ export default function NutritionPage() {
                                 {/* Day header */}
                                 <div
                                     className="px-4 py-2.5 flex items-center justify-between"
-                                    style={{ background: isToday ? 'rgba(29,95,168,0.08)' : 'var(--color-bg-subtle)' }}
+                                    style={{ background: isToday ? 'rgba(77,137,226,0.08)' : 'var(--color-bg-subtle)' }}
                                 >
                                     <div>
                                         <span className="font-bold text-sm text-[var(--color-text)]">{format(day, 'EEEE')}</span>
@@ -732,7 +743,7 @@ export default function NutritionPage() {
                 <div className="space-y-4">
                     {savedMeals.length === 0 ? (
                         <div className="text-center py-12 space-y-3">
-                            <div className="text-5xl">🍱</div>
+                            <Soup className="w-12 h-12 mx-auto text-[var(--color-text-muted)]" aria-hidden="true" />
                             <p className="font-bold text-[var(--color-text)]">No saved meals yet</p>
                             <p className="text-sm text-[var(--color-text-muted)] max-w-xs mx-auto">
                                 In your daily log, select multiple food items and tap "Save as Meal" to create a one-tap bundle.
@@ -796,7 +807,7 @@ export default function NutritionPage() {
                                                 toast.success('Meal deleted');
                                             }}
                                             className="p-2 rounded-xl transition-all"
-                                            style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}
+                                            style={{ color: 'var(--color-danger)', background: 'rgba(239,68,68,0.08)' }}
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
@@ -830,7 +841,7 @@ export default function NutritionPage() {
                 <div className="space-y-5">
                     {pantry.length === 0 && !showAddItem && (
                         <div className="text-center py-8 space-y-2">
-                            <div className="text-5xl">🛒</div>
+                            <ShoppingCart className="w-12 h-12 mx-auto text-[var(--color-text-muted)]" aria-hidden="true" />
                             <p className="font-bold text-[var(--color-text)]">Your pantry is empty</p>
                             <p className="text-sm text-[var(--color-text-muted)] max-w-xs mx-auto">Scan a photo or read out what's in your fridge — AI will categorise everything for you.</p>
                         </div>
@@ -854,7 +865,7 @@ export default function NutritionPage() {
                                     onClick={() => photoInputRef.current?.click()}
                                     disabled={scanning || recording}
                                     className="py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                                    style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid rgba(201,168,76,0.2)' }}
+                                    style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid rgba(224,179,90,0.2)' }}
                                 >
                                     {scanning ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
                                     {scanning ? 'Scanning…' : 'Scan Photo'}
@@ -864,7 +875,7 @@ export default function NutritionPage() {
                                     disabled={scanning}
                                     className="py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                                     style={recording
-                                        ? { background: '#ef4444', color: 'white' }
+                                        ? { background: 'var(--color-danger)', color: 'white' }
                                         : { background: 'var(--color-surface-elevated)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }
                                     }
                                 >
@@ -1122,7 +1133,7 @@ export default function NutritionPage() {
                             onClick={handleBulkAdd}
                             disabled={bulkAdding || reviewItems.filter(i => i.selected).length === 0}
                             className="w-full py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                            style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid rgba(201,168,76,0.2)' }}
+                            style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid rgba(224,179,90,0.2)' }}
                         >
                             {bulkAdding
                                 ? <><Loader2 className="w-5 h-5 animate-spin" /> Adding…</>
@@ -1147,15 +1158,15 @@ export default function NutritionPage() {
                     >
                         <div className="flex items-center justify-between">
                             <h3 className="font-bold text-lg text-[var(--color-text)]">Meal Planning Preferences</h3>
-                            <button onClick={() => setShowPrefs(false)} className="text-[var(--color-text-muted)]">✕</button>
+                            <button onClick={() => setShowPrefs(false)} className="text-[var(--color-text-muted)]" aria-label="Close"><X className="w-5 h-5" aria-hidden="true" /></button>
                         </div>
 
                         <p className="text-sm text-[var(--color-text-muted)]">Set how much time you have to prep each meal. The AI will only suggest meals that fit.</p>
 
                         {[
-                            { key: 'breakfast_prep_min' as keyof NutritionPrefs, label: '🌅 Breakfast prep time', options: [5, 10, 15, 20] },
-                            { key: 'lunch_prep_min' as keyof NutritionPrefs, label: '☀️ Lunch prep time', options: [5, 10, 15, 30] },
-                            { key: 'dinner_prep_min' as keyof NutritionPrefs, label: '🌙 Dinner prep time', options: [15, 30, 45, 60] },
+                            { key: 'breakfast_prep_min' as keyof NutritionPrefs, label: 'Breakfast prep time', options: [5, 10, 15, 20] },
+                            { key: 'lunch_prep_min' as keyof NutritionPrefs, label: 'Lunch prep time', options: [5, 10, 15, 30] },
+                            { key: 'dinner_prep_min' as keyof NutritionPrefs, label: 'Dinner prep time', options: [15, 30, 45, 60] },
                         ].map(({ key, label, options }) => (
                             <div key={key}>
                                 <p className="text-sm font-semibold text-[var(--color-text)] mb-2">{label}</p>

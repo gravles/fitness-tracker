@@ -188,7 +188,7 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
                     style={{ background: 'rgba(234,179,8,0.1)', color: 'var(--color-gold)', border: '1px solid rgba(234,179,8,0.3)' }}
                     title="Voice spotter requires Chrome or Safari"
                 >
-                    🎙️ Voice spotter not supported in this browser — use Chrome or Safari
+                    Voice spotter not supported in this browser — use Chrome or Safari
                 </div>
             );
         }

@@ -43,7 +43,7 @@ export function Auth() {
                 {/* Subtle background glow */}
                 <div
                     className="absolute inset-0 pointer-events-none"
-                    style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(201,168,76,0.06) 0%, transparent 65%)' }}
+                    style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(224,179,90,0.06) 0%, transparent 65%)' }}
                 />
 
                 <div className="w-full max-w-xs relative">
@@ -53,7 +53,7 @@ export function Auth() {
                             className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5"
                             style={{
                                 background: 'var(--color-gold-muted)',
-                                border: '1px solid rgba(201,168,76,0.25)',
+                                border: '1px solid rgba(224,179,90,0.25)',
                             }}
                         >
                             <Mail className="w-6 h-6" style={{ color: 'var(--color-gold)' }} />
@@ -90,7 +90,7 @@ export function Auth() {
                             }}
                             onFocus={e => {
                                 e.currentTarget.style.borderColor = 'var(--color-gold)';
-                                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)';
+                                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)';
                             }}
                             onBlur={e => {
                                 e.currentTarget.style.borderColor = 'var(--color-border)';
@@ -135,7 +135,7 @@ export function Auth() {
             {/* Subtle background glow */}
             <div
                 className="absolute inset-0 pointer-events-none"
-                style={{ background: 'radial-gradient(ellipse at 50% 20%, rgba(29,95,168,0.08) 0%, transparent 60%)' }}
+                style={{ background: 'radial-gradient(ellipse at 50% 20%, rgba(77,137,226,0.08) 0%, transparent 60%)' }}
             />
 
             <div className="w-full max-w-xs relative">
@@ -145,7 +145,7 @@ export function Auth() {
                         className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-5"
                         style={{
                             background: 'var(--color-gold-muted)',
-                            border: '1px solid rgba(201,168,76,0.25)',
+                            border: '1px solid rgba(224,179,90,0.25)',
                         }}
                     >
                         <span
@@ -192,7 +192,7 @@ export function Auth() {
                             }}
                             onFocus={e => {
                                 e.currentTarget.style.borderColor = 'var(--color-gold)';
-                                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)';
+                                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)';
                             }}
                             onBlur={e => {
                                 e.currentTarget.style.borderColor = 'var(--color-border)';

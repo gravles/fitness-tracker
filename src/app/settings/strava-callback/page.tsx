@@ -72,7 +72,7 @@ export default function StravaCallbackPage() {
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center max-w-sm w-full text-center">
                 {status.includes('Error') ? (
-                    <div className="text-red-500 font-bold mb-4">⚠️ Authorization Failed</div>
+                    <div className="text-red-500 font-bold mb-4">Authorization Failed</div>
                 ) : (
                     <Loader2 className="w-10 h-10 text-orange-500 animate-spin mb-4" />
                 )}

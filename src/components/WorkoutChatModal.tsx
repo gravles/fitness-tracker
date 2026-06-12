@@ -116,7 +116,7 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
                 {/* Header */}
                 <div className="p-4 flex justify-between items-center text-white" style={{ background: 'var(--color-navy)' }}>
                     <div className="flex items-center gap-2">
-                        <div className="p-2 rounded-full" style={{ background: 'rgba(201,168,76,0.2)' }}>
+                        <div className="p-2 rounded-full" style={{ background: 'rgba(224,179,90,0.2)' }}>
                             <Sparkles className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
                         </div>
                         <div>
@@ -194,7 +194,7 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
                             <button
                                 onClick={toggleListening}
                                 className="p-3 rounded-full transition-all"
-                                style={isListening ? { background: '#ef4444', color: 'white' } : { background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
+                                style={isListening ? { background: 'var(--color-danger)', color: 'white' } : { background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
                             >
                                 {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                             </button>

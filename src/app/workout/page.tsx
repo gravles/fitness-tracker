@@ -53,7 +53,7 @@ export default function WorkoutHubPage() {
                         style={{ background: 'var(--color-navy)' }}
                     >
                         <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-xl" style={{ background: 'rgba(201,168,76,0.15)' }}>
+                            <div className="p-3 rounded-xl" style={{ background: 'rgba(224,179,90,0.15)' }}>
                                 <Play className="w-6 h-6" style={{ color: 'var(--color-gold)' }} />
                             </div>
                             <div>
@@ -70,7 +70,7 @@ export default function WorkoutHubPage() {
                         className="block p-5 rounded-2xl shadow-lg active:scale-[0.98] transition-all"
                         style={{
                             background: 'var(--color-primary)',
-                            boxShadow: '0 8px 24px rgba(29,95,168,0.25)',
+                            boxShadow: '0 8px 24px rgba(77,137,226,0.25)',
                         }}
                     >
                         <div className="flex items-center gap-4">

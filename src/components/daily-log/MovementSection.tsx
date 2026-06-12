@@ -2,7 +2,7 @@
 
 import { Workout, addWorkout, deleteWorkout, updateWorkout } from '@/lib/api';
 import { confirm } from '@/components/ConfirmDialog';
-import { Loader2, Plus, Dumbbell, Clock, Trash2, Sparkles, Pencil, ChevronDown, ChevronUp, Check, X, BarChart2 } from 'lucide-react';
+import { Loader2, Plus, Dumbbell, Clock, Trash2, Sparkles, Pencil, ChevronDown, ChevronUp, Check, X, BarChart2, Flame, Footprints, Bike, Waves, PersonStanding, Heart, Ruler } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -41,12 +41,12 @@ export function MovementSection({
     const [editForm, setEditForm] = useState<{ activity_type: string; duration: number; intensity: 'Moderate' | 'Light' | 'Hard' }>({ activity_type: '', duration: 30, intensity: 'Moderate' });
 
     const workoutPresets = [
-        { emoji: '🏃', label: t.movement.presets.run,   activity: 'Running',  duration: 30 },
-        { emoji: '🚴', label: t.movement.presets.cycle,  activity: 'Cycling',  duration: 45 },
-        { emoji: '🏋️', label: t.movement.presets.gym,    activity: 'Gym',      duration: 60 },
-        { emoji: '🧘', label: t.movement.presets.yoga,   activity: 'Yoga',     duration: 30 },
-        { emoji: '🏊', label: t.movement.presets.swim,   activity: 'Swimming', duration: 30 },
-        { emoji: '🚶', label: t.movement.presets.walk,   activity: 'Walking',  duration: 30 },
+        { icon: Footprints,     label: t.movement.presets.run,   activity: 'Running',  duration: 30 },
+        { icon: Bike,           label: t.movement.presets.cycle,  activity: 'Cycling',  duration: 45 },
+        { icon: Dumbbell,       label: t.movement.presets.gym,    activity: 'Gym',      duration: 60 },
+        { icon: PersonStanding, label: t.movement.presets.yoga,   activity: 'Yoga',     duration: 30 },
+        { icon: Waves,          label: t.movement.presets.swim,   activity: 'Swimming', duration: 30 },
+        { icon: Footprints,     label: t.movement.presets.walk,   activity: 'Walking',  duration: 30 },
     ];
 
     const totalDuration = workouts.reduce((acc, w) => acc + w.duration, 0);
@@ -135,7 +135,7 @@ export function MovementSection({
     return (
         <section className="bg-[var(--color-surface-elevated)] p-6 rounded-2xl border border-[var(--color-border-light)] shadow-sm">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-[var(--color-text)]">
-                <span className="text-xl">🔥</span> {t.movement.title}
+                <Flame className="w-5 h-5 text-[var(--color-gold-text)]" aria-hidden="true" /> {t.movement.title}
             </h3>
 
             <div className="flex gap-3 mb-6">
@@ -228,17 +228,17 @@ export function MovementSection({
                                                         <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {workout.duration} min</span>
                                                         {workout.distance && (
                                                             <span className="flex items-center gap-1 bg-[var(--color-bg-muted)] px-2 py-0.5 rounded-full">
-                                                                📏 {(workout.distance / 1000).toFixed(2)} km
+                                                                <Ruler className="w-3 h-3" aria-hidden="true" /> {(workout.distance / 1000).toFixed(2)} km
                                                             </span>
                                                         )}
                                                         {workout.calories && (
                                                             <span className="flex items-center gap-1 bg-[var(--color-bg-muted)] px-2 py-0.5 rounded-full">
-                                                                🔥 {workout.calories} kcal
+                                                                <Flame className="w-3 h-3" aria-hidden="true" /> {workout.calories} kcal
                                                             </span>
                                                         )}
                                                         {workout.average_heartrate && (
                                                             <span className="flex items-center gap-1 bg-[var(--color-bg-muted)] px-2 py-0.5 rounded-full">
-                                                                ❤️ {Math.round(workout.average_heartrate)} bpm
+                                                                <Heart className="w-3 h-3" aria-hidden="true" /> {Math.round(workout.average_heartrate)} bpm
                                                             </span>
                                                         )}
                                                         <span className="px-2 py-0.5 bg-[var(--color-bg-muted)] rounded-full font-medium">{workout.intensity}</span>
@@ -287,7 +287,7 @@ export function MovementSection({
                                         onClick={() => quickAddWorkout(preset)}
                                         className="flex flex-col items-center justify-center p-3 bg-[var(--color-bg-subtle)] hover:bg-[var(--color-primary)]/5 border border-[var(--color-border-light)] hover:border-[var(--color-primary)]/30 rounded-xl transition-all tap-target active:scale-95"
                                     >
-                                        <span className="text-2xl mb-1">{preset.emoji}</span>
+                                        <preset.icon className="w-6 h-6 mb-1 text-[var(--color-primary)]" aria-hidden="true" />
                                         <span className="text-xs font-bold text-[var(--color-text)]">{preset.label}</span>
                                         <span className="text-[10px] text-[var(--color-text-muted)]">{preset.duration}m</span>
                                     </button>
@@ -365,7 +365,7 @@ export function MovementSection({
                             onClick={() => router.push('/workout')}
                             className="w-full py-4 bg-[var(--color-text)] text-[var(--color-bg)] rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
                         >
-                            <span>🏋️‍♀️</span>
+                            <Dumbbell className="w-5 h-5" aria-hidden="true" />
                             {t.movement.openWorkoutHub}
                         </button>
                     </div>

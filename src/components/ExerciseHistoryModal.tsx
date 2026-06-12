@@ -74,7 +74,7 @@ export function ExerciseHistoryModal({ exerciseName, onClose }: Props) {
                             <div key={i} className="bg-[var(--color-bg-subtle)] rounded-2xl p-4">
                                 <div className="flex justify-between items-start mb-3">
                                     <span className="text-sm font-bold text-[var(--color-text)]">{dateStr}</span>
-                                    <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(29,95,168,0.1)', color: 'var(--color-primary)' }}>
+                                    <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(77,137,226,0.1)', color: 'var(--color-primary)' }}>
                                         Best: {best.weight}lbs × {best.reps}
                                     </span>
                                 </div>

@@ -178,7 +178,7 @@ export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightM
                             </div>
 
                             {/* Alcohol Analysis */}
-                            <div className="p-5 rounded-xl border" style={{ background: 'var(--color-gold-muted)', borderColor: 'rgba(201,168,76,0.2)' }}>
+                            <div className="p-5 rounded-xl border" style={{ background: 'var(--color-gold-muted)', borderColor: 'rgba(224,179,90,0.2)' }}>
                                 <h3 className="font-bold mb-2 flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
                                     <Wine className="w-5 h-5" style={{ color: 'var(--color-gold)' }} /> Alcohol & Recovery
                                 </h3>

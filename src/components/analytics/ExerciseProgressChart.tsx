@@ -54,7 +54,7 @@ export function ExerciseProgressChart() {
 
     if (exercises.length === 0) return (
         <div className="text-center p-8 text-[var(--color-text-muted)] italic">
-            No workout data found yet. Go lift something! 🏋️‍♂️
+            No workout data found yet. Go lift something!
         </div>
     );
 
@@ -82,8 +82,8 @@ export function ExerciseProgressChart() {
                         onChange={e => setMetric(e.target.value as any)}
                         className="p-2 border rounded-lg text-sm font-bold"
                         style={{
-                            borderColor: 'rgba(29,95,168,0.3)',
-                            background: 'rgba(29,95,168,0.06)',
+                            borderColor: 'rgba(77,137,226,0.3)',
+                            background: 'rgba(77,137,226,0.06)',
                             color: 'var(--color-primary)'
                         }}
                     >
@@ -113,9 +113,9 @@ export function ExerciseProgressChart() {
                         <Line
                             type="monotone"
                             dataKey={metric}
-                            stroke="#1d5fa8"
+                            stroke="var(--color-primary)"
                             strokeWidth={3}
-                            dot={{ r: 4, fill: '#1d5fa8', strokeWidth: 0 }}
+                            dot={{ r: 4, fill: 'var(--color-primary)', strokeWidth: 0 }}
                             activeDot={{ r: 6 }}
                             animationDuration={1000}
                         />

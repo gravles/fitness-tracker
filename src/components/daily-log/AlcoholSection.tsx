@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Minus } from 'lucide-react';
+import { Plus, Minus, Beer } from 'lucide-react';
 import { useLanguage } from '@/components/LanguageProvider';
 
 interface AlcoholSectionProps {
@@ -14,7 +14,7 @@ export function AlcoholSection({ alcohol, setAlcohol }: AlcoholSectionProps) {
     return (
         <section className="bg-[var(--color-surface-elevated)] p-6 rounded-2xl border border-[var(--color-border-light)] shadow-sm">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-[var(--color-text)]">
-                <span className="text-xl">🍺</span> {t.alcohol.title}
+                <Beer className="w-5 h-5 text-[var(--chart-5)]" aria-hidden="true" /> {t.alcohol.title}
             </h3>
             <div className="flex items-center justify-between">
                 <span className="text-[var(--color-text-muted)] font-medium">{t.alcohol.standardDrinks}</span>

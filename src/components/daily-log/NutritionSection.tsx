@@ -3,9 +3,9 @@
 import { VoiceInput } from '../VoiceInput';
 import { FoodCamera } from '../FoodCamera';
 import { BarcodeScanner } from '../BarcodeScanner';
-import { Keyboard, ChefHat, Camera, X, Brain, Heart, Trash2, BookOpen, Pencil, Barcode, Loader2, Mic } from 'lucide-react';
+import { Keyboard, ChefHat, Camera, X, Brain, Heart, Trash2, BookOpen, Pencil, Barcode, Loader2, Mic, Salad } from 'lucide-react';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { addFavoriteFood, deleteFavoriteFood, getFavoriteFoods, FavoriteFood } from '@/lib/api';
 import { confirm } from '@/components/ConfirmDialog';
 import { useLanguage } from '@/components/LanguageProvider';
@@ -29,6 +29,7 @@ interface NutritionSectionProps {
     setShowWorkoutChat: (val: boolean) => void;
     onAddFoodItems: (items: any[]) => void;
     autoStartVoice: boolean;
+    autoStartBarcode?: boolean;
     showCamera: boolean;
     setShowCamera: (val: boolean) => void;
     setShowMenuScanner: (val: boolean) => void;
@@ -65,7 +66,7 @@ function MacroRing({ value, target, label, color, trackColor, unit }: MacroRingP
                     <circle
                         cx="44" cy="44" r={r}
                         strokeWidth="8" fill="none"
-                        stroke={over ? '#f97316' : color}
+                        stroke={over ? 'var(--chart-5)' : color}
                         strokeDasharray={circ}
                         strokeDashoffset={target > 0 ? offset : circ}
                         strokeLinecap="round"
@@ -100,6 +101,7 @@ export function NutritionSection({
     setShowWorkoutChat,
     onAddFoodItems,
     autoStartVoice,
+    autoStartBarcode,
     showCamera,
     setShowCamera,
     setShowMenuScanner,
@@ -113,6 +115,10 @@ export function NutritionSection({
     const [loadingAI, setLoadingAI] = useState(false);
     const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
     const [voiceListening, setVoiceListening] = useState(false);
+
+    useEffect(() => {
+        if (autoStartBarcode) setShowBarcodeScanner(true);
+    }, [autoStartBarcode]);
     const [voiceProcessing, setVoiceProcessing] = useState(false);
 
     function updateFoodItemQuantity(index: number, newQuantity: string | number) {
@@ -257,7 +263,7 @@ export function NutritionSection({
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: '#f97316' }}>{t.nutrition.calPerUnit}</label>
+                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: 'var(--chart-5)' }}>{t.nutrition.calPerUnit}</label>
                                     <input
                                         type="number"
                                         value={editForm.calories}
@@ -266,7 +272,7 @@ export function NutritionSection({
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: '#3b82f6' }}>{t.nutrition.proteinG}</label>
+                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: 'var(--chart-1)' }}>{t.nutrition.proteinG}</label>
                                     <input
                                         type="number"
                                         value={editForm.protein}
@@ -284,7 +290,7 @@ export function NutritionSection({
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: '#a855f7' }}>{t.nutrition.fatG}</label>
+                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: 'var(--chart-3)' }}>{t.nutrition.fatG}</label>
                                     <input
                                         type="number"
                                         value={editForm.fat}
@@ -309,7 +315,7 @@ export function NutritionSection({
             <section className="bg-[var(--color-surface-elevated)] p-6 rounded-2xl border border-[var(--color-border-light)] shadow-sm relative overflow-hidden">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-bold flex items-center gap-2 text-[var(--color-text)]">
-                        <span className="text-xl">🥗</span> {t.nutrition.title}
+                        <Salad className="w-5 h-5 text-[var(--color-success)]" aria-hidden="true" /> {t.nutrition.title}
                     </h3>
                 </div>
 
@@ -395,13 +401,13 @@ export function NutritionSection({
                                             isListening ? 'bg-red-500 border-red-400 scale-110' :
                                             isProcessing ? 'border-[var(--color-primary)] opacity-70' : ''
                                         }`}
-                                        style={!isListening ? { background: 'rgba(29,95,168,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(29,95,168,0.2)' } : undefined}
+                                        style={!isListening ? { background: 'rgba(77,137,226,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(77,137,226,0.2)' } : undefined}
                                     >
                                         {isProcessing
                                             ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--color-primary)' }} />
                                             : isListening
                                             ? <Mic className="w-5 h-5 text-white" />
-                                            : <span className="text-lg">🎙️</span>
+                                            : <Mic className="w-5 h-5" style={{ color: 'var(--color-primary)' }} aria-hidden="true" />
                                         }
                                     </div>
                                 </div>
@@ -420,7 +426,7 @@ export function NutritionSection({
                         onClick={() => setShowCamera(true)}
                         className="flex flex-col items-center gap-1 w-full"
                     >
-                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'rgba(29,95,168,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(29,95,168,0.2)' }}>
+                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'rgba(77,137,226,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(77,137,226,0.2)' }}>
                             <Camera className="w-5 h-5" />
                         </div>
                         <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">{t.nutrition.actions.camera}</span>
@@ -430,7 +436,7 @@ export function NutritionSection({
                         onClick={() => setShowTextInput(true)}
                         className="flex flex-col items-center gap-1 w-full"
                     >
-                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'rgba(29,95,168,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(29,95,168,0.2)' }}>
+                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'rgba(77,137,226,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(77,137,226,0.2)' }}>
                             <Keyboard className="w-5 h-5" />
                         </div>
                         <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">{t.nutrition.actions.type}</span>
@@ -440,7 +446,7 @@ export function NutritionSection({
                         onClick={() => setShowMenuScanner(true)}
                         className="flex flex-col items-center gap-1 w-full"
                     >
-                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'var(--color-gold-muted)', color: 'var(--color-gold)', borderColor: 'rgba(201,168,76,0.3)' }}>
+                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'var(--color-gold-muted)', color: 'var(--color-gold)', borderColor: 'rgba(224,179,90,0.3)' }}>
                             <ChefHat className="w-5 h-5" />
                         </div>
                         <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">{t.nutrition.actions.scanner}</span>
@@ -450,7 +456,7 @@ export function NutritionSection({
                         onClick={() => setShowFoodSelector(true)}
                         className="flex flex-col items-center gap-1 w-full"
                     >
-                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'rgba(236,72,153,0.1)', color: '#ec4899', borderColor: 'rgba(236,72,153,0.2)' }}>
+                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'rgba(236,72,153,0.1)', color: 'var(--chart-6)', borderColor: 'rgba(236,72,153,0.2)' }}>
                             <Heart className="w-5 h-5" />
                         </div>
                         <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">{t.nutrition.actions.favorites}</span>
@@ -460,7 +466,7 @@ export function NutritionSection({
                         onClick={() => setShowBarcodeScanner(true)}
                         className="flex flex-col items-center gap-1 w-full"
                     >
-                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'rgba(29,95,168,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(29,95,168,0.2)' }}>
+                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'rgba(77,137,226,0.08)', color: 'var(--color-primary)', borderColor: 'rgba(77,137,226,0.2)' }}>
                             <Barcode className="w-5 h-5" />
                         </div>
                         <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">{t.nutrition.actions.barcode}</span>
@@ -551,7 +557,7 @@ export function NutritionSection({
                                 value={nutrition.calories}
                                 target={targets?.calories || 0}
                                 label="Calories"
-                                color="#f97316"
+                                color="var(--chart-5)"
                                 trackColor="rgba(249,115,22,0.15)"
                                 unit="kcal"
                             />
@@ -559,7 +565,7 @@ export function NutritionSection({
                                 value={nutrition.protein}
                                 target={targets?.protein || 0}
                                 label="Protein"
-                                color="#3b82f6"
+                                color="var(--chart-1)"
                                 trackColor="rgba(59,130,246,0.15)"
                                 unit="g"
                             />
@@ -571,8 +577,8 @@ export function NutritionSection({
                                 <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--color-warning)' }}>{t.nutrition.carbs}</p>
                             </div>
                             <div className="rounded-xl p-2.5 text-center border" style={{ background: 'rgba(168,85,247,0.1)', borderColor: 'rgba(168,85,247,0.2)' }}>
-                                <p className="text-lg font-black" style={{ color: '#a855f7' }}>{nutrition.fat}<span className="text-xs font-medium ml-0.5">g</span></p>
-                                <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: '#a855f7' }}>{t.nutrition.fat}</p>
+                                <p className="text-lg font-black" style={{ color: 'var(--chart-3)' }}>{nutrition.fat}<span className="text-xs font-medium ml-0.5">g</span></p>
+                                <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--chart-3)' }}>{t.nutrition.fat}</p>
                             </div>
                         </div>
                     </div>
@@ -607,7 +613,7 @@ export function NutritionSection({
                                                 onClick={() => startEdit(item, index)}
                                                 className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] rounded-lg transition-all tap-target"
                                                 style={{}}
-                                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(29,95,168,0.08)'; }}
+                                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(77,137,226,0.08)'; }}
                                                 onMouseLeave={e => { e.currentTarget.style.background = ''; }}
                                             >
                                                 <Pencil className="w-4 h-4" />

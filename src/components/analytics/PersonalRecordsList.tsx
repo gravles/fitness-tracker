@@ -55,14 +55,14 @@ export function PersonalRecordsList() {
                         key={i}
                         className="flex items-center justify-between p-3 bg-[var(--color-bg-subtle)] rounded-xl border border-[var(--color-border-light)] transition-colors"
                         style={{}}
-                        onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(201,168,76,0.4)')}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(224,179,90,0.4)')}
                         onMouseLeave={e => (e.currentTarget.style.borderColor = '')}
                     >
                         <div className="flex items-center gap-3">
                             <div
                                 className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs"
                                 style={i < 3
-                                    ? { background: 'rgba(201,168,76,0.15)', color: 'var(--color-gold)' }
+                                    ? { background: 'rgba(224,179,90,0.15)', color: 'var(--color-gold)' }
                                     : { background: 'var(--color-surface-elevated)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }
                                 }
                             >
