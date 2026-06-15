@@ -1,7 +1,7 @@
 # Fitness Tracker — Expanded Features PRD
 
 **Author:** Claude  
-**Date:** 2026-05-20  
+**Date:** 2026-05-20 (revised 2026-06-15 — Appendix B added)  
 **Status:** Proposal — for review
 
 ---
@@ -603,7 +603,247 @@ These are bugs or small features that could each ship in a day or less. Not a pi
 
 ---
 
-## Prioritisation Matrix
+---
+
+## Appendix B — Emerging Feature Ideas (Brainstorm)
+
+The following ideas are **unbuilt and unscored**. They extend beyond the six pillars and represent potential future directions. Each is described at the concept level for review; none should be started without a follow-up spec pass.
+
+---
+
+### Idea 1 — Meal Photo Logging
+
+**The idea:** Take a photo of a plate of food and have AI estimate the macros and log the meal automatically. No manual searching for items, no portion estimation — point, shoot, done.
+
+**Why it matters:** The single biggest reason users stop logging food is friction. This removes the heaviest part of that friction. Similar features in MyFO and Lose It have become their most-used functionality. It would be a step-change in daily active usage.
+
+**How it would work:**
+- User taps a camera icon on the food log tab
+- Image is sent to Claude's vision API with a prompt requesting structured JSON: `[{ name, serving_size, calories, protein, carbs, fat }]`
+- User reviews the estimate and confirms/adjusts before saving
+- Logged like any other food entry
+
+**Effort:** Medium (1–2 weeks). The AI call is straightforward; the UX for review/edit is the main work.
+
+**Risk:** Vision-based calorie estimation has meaningful error rates (~±20%). Framing it as "AI estimate — adjust if needed" manages expectations.
+
+---
+
+### Idea 2 — Predictive Goal Achievement Timeline
+
+**The idea:** Based on the past 4 weeks of trend data, project when the user will hit their current goal — and show this on the dashboard.
+
+- *"At your current pace, you'll reach 80kg by 14 September."*
+- *"You're 18 days behind pace — you'd need to average a 350 kcal deficit to stay on track."*
+
+**Why it matters:** Abstract goals feel distant. A concrete date makes them real. It also creates urgency when pace slips, without being punishing — it's framed as information, not failure.
+
+**How it would work:**
+- Fetch the most recent `body_metrics` entries (weight) and calculate the weekly rate of change
+- Extrapolate to goal weight using a simple linear projection
+- Display as a label near the goal card on the dashboard, updated weekly
+- Show a mini trend line: "actual" (solid) + "projected" (dashed) to goal
+
+**Effort:** Low (2–3 days). Pure calculation from existing data, minimal UI.
+
+**Extension:** Show pace lines on the existing weight trend chart — "goal pace" as a reference line so the user can visually see if they're above or below it.
+
+---
+
+### Idea 3 — Training Load & Injury Risk Indicator
+
+**The idea:** A weekly "training load" gauge that detects potentially dangerous volume spikes before they become injuries — specifically, the Acute:Chronic Workload Ratio (ACWR), the most validated injury-risk metric in sports science.
+
+**The problem it solves:** Most overuse injuries follow a clear pattern: a spike in training load over a short window relative to what the body is adapted to. The app has all the data to calculate this; right now it's unused.
+
+**How it works:**
+- **Acute load** = total workout volume (sets × reps × weight, or duration for cardio) in the past 7 days
+- **Chronic load** = rolling 4-week average weekly volume
+- **ACWR** = Acute ÷ Chronic
+  - 0.8–1.3: sweet spot (green) — *"Training load is optimal."*
+  - 1.3–1.5: caution (amber) — *"Volume spiked 35% above your baseline — consider backing off."*
+  - >1.5 or <0.8: warning (red) — high injury risk or detraining
+- Display as a compact badge on the Workout section header or the readiness card
+
+**Effort:** Medium (3–5 days). Calculation from existing `workout_sets` data; new UI indicator.
+
+**Note:** Works well alongside Pillar 4 (Readiness Score) and Pillar 3 (Periodisation) — could be merged into a unified training intelligence card.
+
+---
+
+### Idea 4 — Sleep Optimization Coach
+
+**The idea:** A dedicated, persistent AI coach focused specifically on improving sleep quality, using only the user's own logged data to make concrete, personalized recommendations.
+
+**The problem it solves:** Sleep quality is tracked every day but the insight from it is almost never fed back to the user in a useful way. The correlation engine (Pillar 1) might surface alcohol ↔ sleep correlations, but there's a richer seam: bedtime consistency, pre-sleep eating, workout timing, stress, and screen time all affect sleep quality.
+
+**What it produces:**
+- A weekly "Sleep Review" card with 1–3 specific recommendations:
+  - *"Your worst sleep nights follow days when you logged a workout after 8pm (4 data points). Try moving evening sessions earlier."*
+  - *"Your sleep quality averages 3.8/5 on days you log 3+ drinks vs 4.4/5 with none."*
+  - *"You've had 5/5 sleep quality only 3 times. All three followed days where you logged < 200mg caffeine and were in bed before midnight."*
+- A simple "Sleep hygiene streak" that tracks nights where sleep was 4/5 or better
+
+**Effort:** Low-medium (2–4 days). This is primarily a smart prompt engineering task over existing daily_logs data, plus a new card component.
+
+**Future extension:** Add a "sleep window tracker" — let users log their actual bedtime/wake time (not just quality) for more precise analysis.
+
+---
+
+### Idea 5 — Intermittent Fasting Tracker
+
+**The idea:** A dedicated fasting timer and log integrated into the daily entry, with correlation to energy, weight, and workout performance.
+
+**Why it matters:** Intermittent fasting is one of the most-searched fitness topics and one of the most common nutritional strategies among the target demographic. Many users currently do IF but have no way to track it or see if it's working for them within the app.
+
+**Core features:**
+- **Fast timer:** Start/stop fasting windows with one tap; runs in background (push notification at eating window open)
+- **Fasting log:** Automatically logs fasting window duration each day
+- **Protocol presets:** 16:8, 18:6, 20:4, OMAD, 5:2 — user picks their protocol
+- **Correlation view:** Energy level and weight trend broken down by fasting days vs non-fasting days
+
+**New data:**
+```sql
+ALTER TABLE daily_logs
+  ADD COLUMN IF NOT EXISTS fasting_start timestamptz,
+  ADD COLUMN IF NOT EXISTS fasting_end timestamptz,
+  ADD COLUMN IF NOT EXISTS fasting_hours numeric;  -- computed
+```
+
+**Effort:** Medium (4–6 days). Timer state in the app + schema addition + correlation view.
+
+**Risk:** Adds complexity to the daily log UI. Could be gated behind a setting: "Enable fasting tracker" (off by default).
+
+---
+
+### Idea 6 — AI Recipe Generator
+
+**The idea:** Given a user's macro targets for the day (or a meal slot), generate a specific recipe with full macro breakdown, ingredients, and instructions. Goes one step further than the Meal Planner (Pillar 2) — not "what should I eat" but "how do I make it."
+
+**Why it matters:** Meal planning fails when users don't know what to actually cook. Generating specific, macro-matched recipes with what's in their fridge closes the gap between intention and action.
+
+**Implementation:**
+- Entry points: (a) from a meal plan slot — "Generate a recipe for this lunch", (b) standalone from a "Recipes" tab, with macro target pre-filled
+- User can add constraints: "I have chicken, rice, and broccoli", "under 20 minutes", "high protein"
+- Claude generates a recipe with: title, servings, ingredient list with quantities, instructions, and per-serving macros
+- User can save the recipe to their library, one-tap add to today's log, or one-tap add to meal plan
+
+**Prompt shape:**
+```
+Generate a recipe for one person hitting these targets: {calories} kcal, {protein}g protein,
+{carbs}g carbs, {fat}g fat. Constraints: {user_text}.
+Return JSON: { title, servings, ingredients: [{name, quantity, unit}], steps: [string], 
+macros: { calories, protein, carbs, fat } }.
+```
+
+**Effort:** Medium (4–6 days). Primarily prompt engineering + a recipe display component + save/log flow.
+
+---
+
+### Idea 7 — Body Recomposition Mode
+
+**The idea:** A dedicated tracking mode for users who are simultaneously losing fat and gaining muscle — a scenario where the scale may not move (or may even go up) while body composition improves dramatically. Without this, users often quit because they "aren't losing weight."
+
+**The problem it solves:** Standard weight-loss framing is deeply demotivating for recompers. Someone gaining 1kg of muscle while losing 1kg of fat has made excellent progress but the scale says zero change. The app currently only shows scale weight trends.
+
+**What it adds:**
+- A "Recomposition" goal type in the Goal Wizard (requires body fat % input)
+- Dashboard in recomposition mode shows: scale weight + estimated lean mass + estimated fat mass — derived from weight and body fat % entries
+- A "Recomposition score" = (lean mass gained in period) - (fat mass lost in period), shown as a weekly delta
+- Progress photos are prominently featured in this mode since the mirror is more useful than the scale
+
+**Data note:** Requires periodic body fat % logging. Works best with a Withings scale (Pillar 6) but can use manual caliper/estimation entries.
+
+**Effort:** Low-medium (3–4 days). Primarily new UI/calculation layer over existing body_metrics data.
+
+---
+
+### Idea 8 — Circadian Performance Profiling
+
+**The idea:** Analyse whether the user performs better at different times of day, and give them a data-backed recommendation for their optimal training window.
+
+**Why it matters:** Chronobiology research consistently shows 10–20% performance differences based on training time relative to circadian rhythm. But the answer is highly individual. The app can discover *this user's* optimal time from their own workout data.
+
+**How it works:**
+- Every workout log has a `started_at` timestamp (or could be added)
+- Bucket workouts into time windows: Early Morning (5–8am), Morning (8–11am), Midday (11am–2pm), Afternoon (2–6pm), Evening (6–10pm)
+- For each window with ≥5 data points, calculate: average volume, average workout completion rate, average post-workout energy (next log entry), average readiness score on those days
+- Surface as a "Your best time to train" insight card — *"You log 22% more volume on afternoon workouts than morning ones. Your completion rate is also higher: 94% vs 78%."*
+
+**Effort:** Low (2–3 days). Primarily a data analysis task over existing timestamps.
+
+**Dependency:** Requires `started_at` timestamp on `workouts` — check if this field already exists.
+
+---
+
+### Idea 9 — Bloodwork & Biomarker Tracker
+
+**The idea:** A dedicated log for periodic lab results (quarterly or annual bloodwork), with trend visualization and AI interpretation.
+
+**Why it matters:** Health-conscious users increasingly get regular blood panels (testosterone, vitamin D, ferritin, HbA1c, CRP, etc.) but have no good place to track them over time alongside their training and nutrition data. This is niche but extremely high-value for the users who care about it — and it's a category completely unoccupied by mainstream fitness apps.
+
+**What it tracks:**
+- User manually enters lab results by date (or photos the lab report — future: AI extraction)
+- Stores per-marker readings over time
+- Visualizes trends with reference range overlays (e.g., "your vitamin D has been below the optimal 40–80 ng/mL range for the past 3 quarters")
+- Correlates with training load and nutrition (e.g., "low ferritin correlates with your lower-energy months")
+- AI can note: "Your testosterone has increased 18% since you started the protein-focused goal 6 months ago"
+
+**New data:**
+```sql
+CREATE TABLE biomarker_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  recorded_date date NOT NULL,
+  marker_name text NOT NULL,        -- 'vitamin_d', 'testosterone_total', 'ferritin', etc.
+  value numeric NOT NULL,
+  unit text NOT NULL,               -- 'ng/mL', 'nmol/L', etc.
+  lab_name text,
+  notes text,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+**Effort:** Medium (5–7 days). Schema + entry form + trend charts + AI narrative. No integrations required for v1.
+
+---
+
+### Idea 10 — Personal Record Celebration System (Enhanced)
+
+**The idea:** A more comprehensive and emotionally resonant personal records system — going beyond just 1RM to celebrate all types of achievement, and making the celebrations visible and shareable.
+
+**The problem:** Currently PR tracking is implicit (in the workout history) and understated. Many users hit genuine breakthroughs — their longest ever streak, their best week of sleep, their first month hitting protein goal — and the app says nothing. Missed emotional peak moments are missed retention opportunities.
+
+**What it adds:**
+- **Expanded PR categories:**
+  - Workout: 1RM, total session volume, most sessions in a week/month
+  - Nutrition: longest protein streak, best macro week, most consistent month
+  - Wellness: best sleep score, longest high-energy streak, lowest stress week
+  - Meta: longest app streak ever, first time reaching a new level, first badge
+- **PR wall:** A timeline of all personal records, viewable in profile
+- **Celebration modal:** When a PR is set, show a distinct celebration animation (different from the generic XP gain)
+- **Shareable PR cards:** Generate a clean image card for sharing to Instagram Stories / WhatsApp — "I just hit a new personal record: Bench Press 1RM 100kg 🏋️" with the app logo and a minimalist design
+
+**Effort:** Medium (4–6 days). The detection logic needs care to avoid false positives; the share card generation can use `html2canvas` or a Vercel OG image endpoint.
+
+---
+
+### Summary of New Ideas
+
+| Idea | Impact | Effort | Standout Reason |
+|---|---|---|---|
+| Meal Photo Logging | Very High | Medium | Highest friction-reducer in food logging; category-defining |
+| Predictive Goal Timeline | High | Low | High motivation, zero new data needed |
+| Training Load / ACWR | High | Medium | Evidence-based injury prevention; differentiator |
+| Sleep Optimization Coach | High | Low-Medium | Underutilised existing data |
+| Intermittent Fasting Tracker | Medium-High | Medium | Massive user demand; no competitor does it well |
+| AI Recipe Generator | High | Medium | Closes meal planning → execution gap |
+| Body Recomposition Mode | High | Low-Medium | Fixes the "scale didn't move, I quit" retention problem |
+| Circadian Performance Profiling | Medium | Low | Unique insight; requires almost no new code |
+| Bloodwork Tracker | Medium | Medium | Niche but extremely high-value; no direct competitors |
+| PR Celebration System | Medium | Medium | Retention and virality; extends existing gamification |
+
+---
 
 Scored on Impact (user value) × Feasibility (time + complexity) for a solo developer.
 
