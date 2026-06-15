@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronRight, Smartphone, Calendar, BookOpen, Dna, Sparkles } from 'lucide-react';
+import { ChevronRight, Smartphone, Calendar, BookOpen, Dna, Sparkles, Globe, Plug, Dumbbell } from 'lucide-react';
 
-const APP_VERSION = '2.0';
+const APP_VERSION = '2.1';
 const STORAGE_KEY = 'lifelogger_seen_version';
 
 interface Slide {
@@ -15,34 +15,28 @@ interface Slide {
 
 const SLIDES: Slide[] = [
     {
-        icon: <Smartphone className="w-6 h-6" />,
-        title: 'Now on iOS & Android',
-        body: 'Download the native app for push notifications, haptic feedback, and swipe-back navigation.',
-        accent: 'var(--color-primary)',
-    },
-    {
-        icon: <Calendar className="w-6 h-6" />,
-        title: 'Workout Calendar Feed',
-        body: 'Subscribe to your personal webcal:// link and see every scheduled workout in Apple Calendar or Google Calendar.',
+        icon: <Sparkles className="w-6 h-6" />,
+        title: 'Fresh New Look',
+        body: 'The whole app has been redesigned — animated progress rings, a cleaner dashboard, and a new colour palette. Same data, better experience.',
         accent: 'var(--color-gold)',
     },
     {
-        icon: <BookOpen className="w-6 h-6" />,
-        title: '12-Week Training Programs',
-        body: 'AI builds a periodised program for your goal. Target weights, 1RM tracking, PR notifications, and a full adherence calendar.',
+        icon: <Globe className="w-6 h-6" />,
+        title: 'English & French',
+        body: 'Switch the app language anytime from Settings → Customisation. Your AI coaching responses will match your language too.',
+        accent: 'var(--color-primary)',
+    },
+    {
+        icon: <Plug className="w-6 h-6" />,
+        title: 'Claude AI Connector',
+        body: 'Connect claude.ai directly to your data via a personal MCP server. Ask Claude questions about your logs, or let it log entries for you.',
         accent: 'var(--chart-2)',
     },
     {
-        icon: <Dna className="w-6 h-6" />,
-        title: 'Health Integrations',
-        body: 'Connect Strava, Withings, and Oura under Settings → Health Integrations to sync activities and body composition automatically.',
+        icon: <Dumbbell className="w-6 h-6" />,
+        title: 'Smarter Workout Logging',
+        body: 'Every set saves automatically as you go. Reopen and edit any past workout, and delete individual sets with a single tap.',
         accent: 'var(--color-primary)',
-    },
-    {
-        icon: <Sparkles className="w-6 h-6" />,
-        title: 'AI Nutrition Planner',
-        body: 'Build a pantry, set prep-time limits, and let AI generate a weekly meal plan. Log meals straight to your diary.',
-        accent: 'var(--color-gold)',
     },
 ];
 
@@ -106,7 +100,7 @@ export function WhatsNewModal({ onClose }: WhatsNewModalProps) {
                         {current.icon}
                     </div>
 
-                    {/* Icon badge */}
+                    {/* Version badge */}
                     <div
                         className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold mb-4"
                         style={{ background: `color-mix(in srgb, ${current.accent} 14%, transparent)`, color: current.accent }}
