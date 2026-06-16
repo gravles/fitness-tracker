@@ -2,7 +2,8 @@
 
 **Author:** Claude  
 **Date:** 2026-05-20  
-**Status:** Proposal — for review
+**Last Updated:** 2026-06-16  
+**Status:** Living document — updated with implementation audit + new feature ideas
 
 ---
 
@@ -16,6 +17,8 @@ This document proposes six major feature pillars, each with full specifications,
 
 ## Current State (What Exists)
 
+*Updated 2026-06-16 after implementation audit of the actual codebase.*
+
 | Area | Status |
 |---|---|
 | Daily log (food, activity, wellness) | ✅ Solid, AI-assisted entry |
@@ -23,15 +26,27 @@ This document proposes six major feature pillars, each with full specifications,
 | Streaks & XP gamification | ✅ 15 badges, level system |
 | Trends & analytics | ✅ Charts across 5 dimensions |
 | AI coaching chat | ✅ Context-aware, 30-day window |
-| Push notifications | ✅ Server-side, custom reminders |
-| Strava sync | ✅ Manual sync |
-| Goal Wizard | ⚠️ Built but no entry point |
+| Push notifications | ✅ Server-side, custom reminders + FCM mobile |
+| Strava sync | ✅ OAuth + auto-sync (v1.4.0) |
+| Withings sync | ✅ Weight + body composition (v1.4.0) |
+| Oura sync | ✅ Readiness, sleep, HRV (v1.4.0) |
+| Goal Wizard | ✅ Built; entry point added via onboarding (v2.0.0) |
 | Progress photos | ✅ Upload + compare |
-| Body metrics | ⚠️ Measurements but no photo upload |
-| Social / sharing | 🔴 Stub only |
-| Nutrition planning | 🔴 Not started |
-| Recovery / readiness | 🔴 Not started |
-| Wearable integrations | 🔴 Strava only |
+| Body metrics | ✅ Measurements + photo upload (v1.2.0) |
+| Calendar feed | ✅ iCal webcal:// subscription (v2.0.0) |
+| Nutrition planning | ✅ Meal planner, pantry, AI meal gen (~85% complete) |
+| Periodisation & progressive overload | ✅ 12-week AI programs, 1RM, PR detection (v1.5.0) |
+| Muscle heatmap & volume tracking | ✅ Shipped (v1.5.0) |
+| Individual accountability partners | ✅ Invite by email, weekly summary emails |
+| Social / group challenges | 🔴 Not started — no challenges table |
+| Correlation engine & insights | 🔴 Not started — weekly AI insights are generic, not data-driven |
+| Recovery & readiness score | 🔴 Not started — Oura data syncs but no calculated score, no UI |
+| Apple Health / Google Fit | 🔴 Not started — native app required |
+| Supplement tracker | 🔴 Not started |
+| Injury & pain log | 🔴 Not started |
+| Visual / photo food logging | 🔴 Not started |
+| Barcode food scanning | 🔴 Not started |
+| Water intake tracking | 🔴 Not started |
 
 ---
 
@@ -639,4 +654,404 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
-*Document ends. Questions, pushback, or additions — flag them and I'll revise.*
+---
+
+# New Feature Ideas — Brainstorm (June 2026)
+
+*The six original pillars are either built or in-flight. The following are net-new ideas for the next wave of development. They are organised into five new pillars, followed by an expanded quick wins list.*
+
+---
+
+## Pillar 7 — Visual Food Logging & Barcode Scanning
+
+### The Problem
+
+The current AI food logging works by text description. Users type "chicken breast, 200g, steamed" and the AI extracts macros. This is good but still requires effort. Two powerful shortcuts are missing: scanning a barcode on packaged food (instant, accurate) and photographing a meal (zero typing, works in restaurants).
+
+### What It Does
+
+**Barcode Scanner**
+Using the device camera, scan the barcode on any packaged food. The app hits the Open Food Facts API (free, 3M+ products) or the Nutritionix barcode API to return exact nutrition info. One tap adds it to the log.
+
+- Works offline for recently scanned items (cache in `saved_foods`)
+- Shows product image, brand, and serving size selector
+- "How many servings?" prompt before adding
+
+**Photo-to-Macros (AI Vision)**
+A camera button in the food log opens the camera. The user takes a photo of their meal. Claude's vision API estimates:
+- What's on the plate (identified foods)
+- Approximate portion sizes based on plate geometry and context cues
+- Macro breakdown with confidence indicators ("~450 kcal, likely 35–55g protein")
+
+This is inherently less precise than weighing food, so the UI should be honest: show a range rather than a single number, and let the user adjust portion size with a slider.
+
+**Restaurant Menu QR Scanning** *(may already partially exist — confirm)*
+Scan a restaurant menu QR code or uploaded photo to get macro estimates for any item.
+
+### Data Model
+
+No new tables needed. Both paths write to `daily_logs.food_items` with a `source` field:
+
+```json
+{
+  "name": "Oat biscuits",
+  "source": "barcode",
+  "barcode": "5000169106050",
+  "calories": 135,
+  "protein": 2.1
+}
+```
+
+```json
+{
+  "name": "Grilled salmon with vegetables",
+  "source": "photo",
+  "confidence": "medium",
+  "calories_range": [420, 510],
+  "calories": 465
+}
+```
+
+### New Routes
+
+- `GET /api/nutrition/barcode?code=5000169106050` — look up barcode via Open Food Facts
+- `POST /api/nutrition/photo-log` — accepts base64 image, returns AI macro estimate
+
+### API Strategy
+
+Open Food Facts is free and surprisingly complete for branded products. Only fall back to a paid API (Nutritionix, Edamam) if a barcode isn't found. The photo-to-macros endpoint uses `claude-sonnet-4-6` with vision input — cost is ~$0.01 per photo, acceptable for a premium feature.
+
+### Why This Matters
+
+Logging friction is the #1 reason users stop tracking food. Barcode scanning makes packaged food instant. Photo logging makes restaurant meals tractable. Together they remove the two biggest pain points in food tracking.
+
+---
+
+---
+
+## Pillar 8 — Body & Health Metrics Expansion
+
+### The Problem
+
+The app tracks weight, body fat %, and muscle mass from Withings. But a serious health-and-fitness user tracks more: injury status, supplement intake, water consumption, and periodically their blood work. These are currently either completely absent or scattered across notes in the daily log.
+
+### What It Does
+
+**Injury & Soreness Log**
+A lightweight injury tracker within the body metrics section:
+- Log a muscle, joint, or body part as "sore", "injured", or "pain-free"
+- Mark severity (1–5)
+- When a muscle is marked as injured, the workout planner automatically flags exercises that target it ("Caution: left knee marked sore — consider skipping squats today")
+- Track recovery over time (how many days before it cleared)
+- The AI coach reads injury log entries in its context window
+
+```sql
+CREATE TABLE injury_log (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  body_part text NOT NULL,          -- 'left_knee', 'lower_back', 'right_shoulder'
+  severity int NOT NULL,            -- 1-5
+  status text NOT NULL,             -- 'sore', 'injured', 'pain-free'
+  notes text,
+  logged_at timestamptz DEFAULT now(),
+  resolved_at timestamptz           -- null if still active
+);
+```
+
+**Supplement Tracker**
+Log daily supplement intake similarly to medications:
+- User defines their supplement stack (name, dose, timing: morning/pre-workout/evening)
+- Daily check-off: did you take creatine today? Omega-3? Vitamin D?
+- Streak tracking per supplement
+- The correlation engine (Pillar 1) can then test: "Creatine days vs. non-creatine days: is there a measurable strength difference?"
+
+```sql
+CREATE TABLE user_supplements (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  dose text,                        -- '5g', '1 capsule'
+  timing text,                      -- 'morning', 'pre_workout', 'evening'
+  is_active boolean DEFAULT true
+);
+
+CREATE TABLE supplement_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  supplement_id uuid REFERENCES user_supplements(id),
+  taken_at timestamptz DEFAULT now(),
+  date date NOT NULL
+);
+```
+
+**Water Intake Tracker**
+A simple hydration tracker on the daily log page:
+- A glassful counter (or freeform ml entry)
+- Daily target (default: 2,500ml, adjustable)
+- Automatically increases target on days with logged workouts
+- Shows as a ring/progress bar alongside the macro rings
+- The correlation engine tests: water intake vs. energy level, water intake vs. workout performance
+
+No new table needed — extend `daily_logs` with a `water_ml int` column.
+
+**Blood Work / Lab Results**
+A "Labs" section under Body Metrics for health-conscious users:
+- Upload or manually enter blood test results: cholesterol, testosterone, vitamin D, ferritin, CRP, HbA1c, etc.
+- Track each biomarker over time with reference range overlays (is my value in the normal range?)
+- AI coach has access to recent lab results ("Your last testosterone reading was 450 ng/dL, which is mid-range...")
+- Flag when a value is outside the reference range and suggest discussing with a doctor
+- No diagnostic claims — purely tracking and pattern visualisation
+
+```sql
+CREATE TABLE lab_results (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  test_date date NOT NULL,
+  biomarker text NOT NULL,          -- 'testosterone', 'vitamin_d', 'ldl'
+  value numeric NOT NULL,
+  unit text NOT NULL,               -- 'ng/dL', 'nmol/L', 'mg/dL'
+  reference_low numeric,
+  reference_high numeric,
+  lab_name text,
+  notes text,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+### Why This Matters
+
+These features address the gap between fitness tracking and health tracking. A user who logs their supplements, tracks injuries, and monitors blood work is a highly engaged, sticky user. Injury tracking in particular prevents churn from overtraining — one of the most common reasons people quit.
+
+---
+
+---
+
+## Pillar 9 — Coach / Trainer Mode
+
+### The Problem
+
+The app is built for individuals. But many of the app's most engaged users are likely working with personal trainers, or ARE personal trainers. A trainer needs to manage multiple clients, view their logs, adjust their programs, and leave coaching notes — none of which is possible today.
+
+### What It Does
+
+**Trainer Accounts**
+A trainer account type (toggled in settings) that unlocks a multi-client dashboard. Clients invite their trainer by email or code, granting read access to their logs and write access to their training programs.
+
+**Client Dashboard**
+A trainer view showing all clients in a card grid:
+- Each card: client name, today's readiness score, last workout date, streak, weekly log compliance %
+- Click into any client to see their full dashboard (read-only, using their actual components)
+- Quickly adjust their active training program or leave a coaching note
+
+**Coaching Notes**
+Trainers can leave timestamped notes on any client's workout session or daily log entry. The client sees these as highlighted annotations. Notes feed into the client's AI coach context ("Your trainer left a note after Tuesday's session: focus on bracing your core during deadlifts").
+
+**Program Assignment**
+Trainers can create a training program from scratch or from a template and push it to a client's account with a single action. The client sees it appear in their Programs page.
+
+**Data Model**
+
+```sql
+CREATE TABLE trainer_client_relationships (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  trainer_id uuid REFERENCES auth.users(id),
+  client_id uuid REFERENCES auth.users(id),
+  status text DEFAULT 'pending',    -- 'pending', 'active', 'ended'
+  access_level text DEFAULT 'read', -- 'read', 'write_programs', 'full'
+  started_at timestamptz,
+  ended_at timestamptz,
+  UNIQUE(trainer_id, client_id)
+);
+
+CREATE TABLE coaching_notes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  trainer_id uuid REFERENCES auth.users(id),
+  client_id uuid REFERENCES auth.users(id),
+  entity_type text NOT NULL,        -- 'workout', 'daily_log', 'general'
+  entity_id uuid,
+  note text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+### Monetisation Angle
+
+Trainer accounts could be the app's first paid tier. A trainer managing 10 clients on a $20/month plan is a compelling B2B2C model that doesn't require the complexity of a consumer subscription. Trainers become distribution — they bring their clients.
+
+### Why This Matters
+
+Trainer mode is a force multiplier for reach and retention. Trainers are power users who will dogfood every feature. Their clients arrive with an existing relationship and high motivation. This is the app's clearest path to a revenue model that isn't "charge individual users $10/month."
+
+---
+
+---
+
+## Pillar 10 — Year in Fitness (Wrapped)
+
+### The Problem
+
+The app has all the data to tell a compelling story about a user's year — personal bests, total weight lifted, meals logged, streaks, badges earned. But right now that data only lives in charts on the Trends page. There's no celebration of progress, no shareable moment, no "look how far you've come."
+
+### What It Does
+
+**Monthly Review Card**
+On the first day of each month, a dismissible modal (or dedicated page) shows the prior month summarised as a visual card:
+- Total workouts completed + total volume (kg lifted)
+- Average daily calories / protein vs. target
+- Sleep trend over the month
+- XP earned + badges unlocked
+- Longest streak in the month
+- Top 3 exercises by volume
+- Best personal record set
+
+**Year in Fitness (December / Anniversary)**
+A full-page "wrapped" experience once per year (December 1st, or the user's 12-month signup anniversary):
+- Hero stat: "You lifted X,XXX kg this year"
+- Animated progression through months
+- Top foods, top exercises, most consistent habits
+- Biggest personal record
+- Readiness + energy trends (if available)
+- A shareable image card (download as PNG) designed to post to Instagram / share with friends
+
+**Progress Story Generator**
+At any time from the Progress page, generate a "My Journey" PDF/image that combines:
+- Body composition before/after (if progress photos exist)
+- Key stats from the period
+- Biggest wins highlighted by AI ("You went from logging 3 days/week to 6 days/week over 6 months")
+
+### Technical Notes
+
+- Monthly reviews are cheap — computed from existing data, no AI needed for the core stats
+- The AI is only needed for the narrative headline ("This was your strongest month yet — here's why")
+- Shareable images can be generated server-side with `@vercel/og` (already in the stack or easily added)
+- Year in Fitness is a single page route: `/wrapped` or `/year-review`
+
+### Why This Matters
+
+Shareable milestone moments are the most organic growth mechanism an app can have. When a user posts their Year in Fitness card, every person who sees it is a warm lead. Monthly reviews are also a powerful retention mechanism — users who feel seen and celebrated don't churn.
+
+---
+
+---
+
+## Pillar 11 — Adaptive Goals & Scenario Planning
+
+### The Problem
+
+Goals in the app are currently set once (via Goal Wizard) and rarely revisited. But a user's context changes constantly: they get injured, they travel, their schedule changes, they plateau. Static goals become demotivating when life diverges from the plan. Meanwhile, the app has all the data to answer "what's actually achievable?" and "what would happen if I changed X?"
+
+### What It Does
+
+**Adaptive Goal Recalibration**
+Every 4 weeks, the app proposes goal updates based on recent performance:
+- "You've hit your protein target 6/7 days for the last 3 weeks — ready to increase from 160g to 175g?"
+- "You've only completed 1 workout/week vs. your 3/week goal. Want to temporarily drop to 2/week while you're travelling?"
+- "Your average sleep has been 5.5h — that's limiting your recovery. Addressing sleep might be more impactful than your current calorie deficit."
+
+These are proposals, not automatic changes. The user accepts, adjusts, or dismisses with one tap. Declined proposals are remembered and not shown again for 4 weeks.
+
+**"What If" Scenario Planner**
+A tool on the Goals or Trends page that lets users model outcomes:
+- "If I eat 200 kcal/day less than my target, when would I reach my goal weight?" → plots a trajectory line on the weight chart
+- "If I add one more strength session per week, how much faster will my 1RM progress?" → uses historical 1RM progression rate to extrapolate
+- "What's my estimated body fat % if I lose 5 more kg?" → uses current weight/BF% ratio
+
+These are shown as overlaid projections on existing charts with a "this assumes consistent behaviour" disclaimer.
+
+**Goal Archive & Reflection**
+When a goal is completed or replaced, it moves to a Goal History view showing:
+- The original goal and target date
+- Actual completion date (or reason for change)
+- Key metrics at start vs. end
+- A one-line AI reflection ("You hit this 3 weeks early — your protein consistency was the key driver")
+
+**Data Model**
+
+No major new tables. Extend `user_goals`:
+
+```sql
+ALTER TABLE user_goals
+  ADD COLUMN IF NOT EXISTS proposed_update jsonb,      -- pending recalibration proposal
+  ADD COLUMN IF NOT EXISTS proposal_created_at timestamptz,
+  ADD COLUMN IF NOT EXISTS completed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS completion_note text;        -- AI-generated reflection
+```
+
+### Why This Matters
+
+Goals that adapt to reality are goals users keep. Static goals that fall behind become guilt — and guilt causes churn. The scenario planner also serves curiosity: users who can explore "what if I did X" are more likely to actually try X. This turns the app from a historical record into a forward-looking planning tool.
+
+---
+
+---
+
+## Expanded Quick Wins (June 2026 additions)
+
+*New items added below the existing quick wins list.*
+
+### Additional Bugs to Fix
+
+| Issue | Fix |
+|---|---|
+| Grocery list route exists (`/api/nutrition/grocery-list`) but generation logic unclear | Audit and wire up the generate-from-meal-plan flow end-to-end |
+| Oura readiness score is mapped to `energy_level` (1–5) rather than stored as a separate field | Store raw Oura readiness score (0–100) alongside mapped value |
+| `coach_messages` stored in localStorage as fallback even when Supabase is connected | Remove localStorage path entirely once Supabase chat history is confirmed stable |
+
+### Additional Small Features
+
+| Feature | Description | Effort |
+|---|---|---|
+| Water intake quick-add | Add water ml buttons (250ml, 500ml, 750ml) to the daily log page; store in `daily_logs.water_ml` | 2h |
+| Barcode food lookup | Integrate Open Food Facts API; add camera scan button to food log | 1 day |
+| Supplement daily checklist | Hard-coded list of supplements the user defines; simple daily toggle, no correlation analysis yet | 1 day |
+| Injury flag on exercise | When adding an exercise, show a warning if the user has an active injury for that muscle group | 2h |
+| Monthly review modal | First-of-month modal showing prior month's top stats (no AI needed — pure aggregation) | 1 day |
+| Adaptive goal proposal | 4-week check: if user consistently over/under-performs a goal, surface a proposal card on dashboard | 1 day |
+| Shareable achievement card | "Share" button on any badge/PR that generates a static OG image via `@vercel/og` | 1 day |
+| Dark-mode chart theme | Recharts charts don't respect dark mode — swap hardcoded colour strings for CSS custom properties | 2h |
+| "Skip rest day" guard | If user tries to log a high-intensity workout on a day with readiness <40, show a confirmation prompt | 2h |
+| Coach mode toggle | Add "I am a personal trainer" toggle to settings (no functionality yet — just a flag for future gating) | 30min |
+
+---
+
+## Updated Prioritisation Matrix (June 2026)
+
+Original pillars updated with actual implementation status. New pillars added.
+
+| Feature | Impact | Feasibility | Score | Status |
+|---|---|---|---|---|
+| Quick Wins (existing list) | Medium | Very High | ★★★★★ | Ongoing |
+| **Readiness Score** | Very High | High | ★★★★☆ | **Most important outstanding original pillar** |
+| **Correlation Engine** | Very High | High | ★★★★☆ | **Most important outstanding original pillar** |
+| Nutrition — Grocery List | Medium | High | ★★★☆☆ | Finish the ~15% incomplete nutrition work |
+| Group Challenges | Medium | Medium | ★★★☆☆ | Accountability layer extension |
+| **Barcode / Photo Food Logging** | High | High | ★★★★☆ | New — highest-impact quick UX win |
+| **Water Intake Tracker** | Medium | Very High | ★★★★☆ | New — one column + UI, very fast |
+| **Monthly Review / Wrapped** | High | High | ★★★☆☆ | New — retention + virality driver |
+| **Injury Log** | High | High | ★★★☆☆ | New — safety + coach integration |
+| **Supplement Tracker** | Medium | High | ★★★☆☆ | New — extends Pillar 1 data coverage |
+| **Adaptive Goals** | High | Medium | ★★★☆☆ | New — drives long-term retention |
+| **Scenario Planner** | Medium | Medium | ★★☆☆☆ | New — powerful but complex UI |
+| **Lab Results Tracker** | Medium | Medium | ★★☆☆☆ | New — niche but high engagement |
+| **Trainer Mode** | High | Low | ★★☆☆☆ | New — requires auth model rework |
+| Withings Integration | Already shipped | — | ✅ Done | — |
+| Oura Integration | Already shipped | — | ✅ Done | — |
+| Full Meal Planner | Already shipped | — | ✅ Done | — |
+| 12-Week Programs | Already shipped | — | ✅ Done | — |
+| Apple Health / Google Fit | Very High | Very Low | ★★☆☆☆ | Still future (requires native app) |
+
+### Recommended Next Sprint (given current state)
+
+**Highest-priority items that are not yet started and can be shipped quickly:**
+
+1. **Readiness Score v1** (2–3 days) — the biggest gap in the original PRD; all data exists
+2. **Correlation Engine v1** (3–4 days) — all data exists; adds AI insight layer
+3. **Barcode Food Scanner** (1 day) — single API integration, huge UX improvement
+4. **Water Intake Tracker** (2h) — one column, one UI element
+5. **Monthly Review Modal** (1 day) — pure data aggregation, no AI needed, retention boost
+
+These five items together would close the biggest gap (original Pillar 1 + 4) and add the highest-value new feature from the brainstorm, all within roughly a 2-week sprint.
+
+---
+
+*Document ends. Questions, pushback, or additions — flag them and revise.*
