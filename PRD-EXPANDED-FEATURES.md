@@ -639,4 +639,438 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
+---
+
+## Brainstorm: Additional Feature Candidates
+
+*Added 2026-06-17. These are new ideas beyond the six pillars — raw brainstorm for review. Not sequenced or scoped yet. Each is a candidate for a future sprint or quick win, not a commitment.*
+
+---
+
+### A — Reducing Logging Friction
+
+The single biggest reason people stop tracking is effort. These features make data entry near-effortless.
+
+---
+
+#### A1 — AI Meal Photo Recognition
+
+**The Idea**  
+User taps the camera icon on the food log, takes a photo of their plate, and Claude Vision (or a dedicated food vision model) identifies the foods and estimates portion sizes. The result pre-fills the food log as editable entries. User confirms or adjusts in one tap.
+
+**Why**  
+Food logging is the most tedious part of the app. Photo recognition has a 10–15 second path from "plate on table" to "logged", versus 2–3 minutes of text search per item. This alone could meaningfully improve daily retention for nutrition-focused users.
+
+**Technical Approach**  
+- Send image as base64 to Claude Sonnet (vision-capable) with a structured prompt requesting JSON: `[{name, estimated_grams, calories, protein, carbs, fat}]`
+- Fall back to user's existing AI food entry flow (text) if vision fails or confidence is low
+- Optional: use a specialist food recognition API (Calorie Mama, Nutritionix Vision) for higher accuracy, with Claude as fallback
+- New route: `POST /api/food/identify-from-image`
+
+**Effort estimate:** 2–3 days  
+**Risk:** Portion estimation accuracy is genuinely hard — set user expectations clearly ("AI estimate — adjust as needed")
+
+---
+
+#### A2 — Voice Daily Check-In
+
+**The Idea**  
+Instead of tapping sliders for energy, stress, sleep quality, and motivation, the user presses a mic button and speaks for 20–30 seconds: *"Slept about 6 hours, woke up a couple times. Work was stressful, feeling maybe a 6 on energy. Didn't drink last night."*
+
+Claude parses the transcription and fills the daily log fields. User reviews and saves.
+
+**Why**  
+The daily log slider form is fast but still friction. Voice input, especially on mobile, is faster than any UI. Many users track during commutes or at the gym where typing is awkward.
+
+**Technical Approach**  
+- Use the Web Speech API (browser-native, no cost) for transcription on supported browsers; Whisper API as fallback for mobile/Firefox
+- Send transcription to Claude with a prompt that extracts structured log fields
+- Return pre-filled form for user review — never auto-save without user seeing what was inferred
+- Gracefully degrade on unsupported browsers (hide the mic button)
+
+**Effort estimate:** 2 days  
+**Risk:** Speech recognition quality varies; always give users an easy way to correct AI inferences
+
+---
+
+#### A3 — Water Intake Tracking
+
+**The Idea**  
+Water is conspicuously absent from the daily log. Add a simple water tracker: a target (e.g. 2.5L), a +250ml tap button (glasses count), and a visual fill indicator on the dashboard. Smart nudges based on workout intensity: after a logged hard workout, push a "hydration reminder" notification.
+
+**Why**  
+Hydration affects energy, sleep quality, and performance — all tracked metrics. Adding water creates a new correlation opportunity (water → energy, water → sleep quality) and fills an obvious gap in the wellness picture.
+
+**Data model:** Add `water_ml` column to `daily_logs`. No new table needed.
+
+**Effort estimate:** 1 day  
+**Stretch:** Pull in weather API (hot day = +500ml suggestion). Add to correlation engine.
+
+---
+
+#### A4 — Supplement & Medication Log
+
+**The Idea**  
+Many fitness users take supplements (creatine, protein powder, vitamin D, omega-3, magnesium, pre-workout). A simple supplement log: define your supplements, set reminders per supplement (morning / with meals / pre-workout), and log compliance daily. 
+
+**Why**  
+Supplements are a significant behaviour for the target audience. Tracking compliance creates another correlation signal ("creatine compliance days → strength performance") and positions the app as a complete health OS rather than just a food + workout tracker.
+
+**Data model:**
+```sql
+CREATE TABLE user_supplements (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  dose text,              -- "5g", "1 capsule"
+  timing text,            -- "morning", "pre-workout", "with-dinner"
+  reminder_time time,
+  is_active boolean DEFAULT true
+);
+
+CREATE TABLE supplement_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  supplement_id uuid REFERENCES user_supplements(id),
+  date date NOT NULL,
+  taken boolean DEFAULT false,
+  logged_at timestamptz DEFAULT now()
+);
+```
+
+**Effort estimate:** 2–3 days
+
+---
+
+### B — Smarter Intelligence
+
+These make the AI layer more personal and more useful without needing new data collection.
+
+---
+
+#### B1 — Adaptive Goal Adjustment
+
+**The Idea**  
+If a user consistently misses a goal (e.g. hits protein target only 2/7 days for 4 weeks), the app proactively surfaces an insight: *"You've hit your 160g protein goal only 30% of days over the last month. Would you like to try 130g as a stepping-stone, or get AI suggestions for how to hit 160g more easily?"*
+
+Prevents "goal fatigue" — the silent killer of tracking apps — where impossible targets lead to shame, which leads to quitting.
+
+**Why**  
+The Goal Wizard sets goals but never revisits them. Goals that made sense at setup may be wrong 8 weeks later. An app that notices and responds feels far more intelligent than one that just displays a static target.
+
+**Technical approach:** A weekly cron check (runs alongside insight generation) that calculates goal hit-rate over the last 28 days and flags any goal below 40% hit-rate. Surfaces a single in-app banner, not a push notification (non-intrusive).
+
+**Effort estimate:** 1–2 days (leverages existing cron and goal data)
+
+---
+
+#### B2 — AI Coach Personas
+
+**The Idea**  
+Let users choose how their AI coach communicates. Three personas:
+
+| Persona | Style | When to use |
+|---|---|---|
+| **Supportive Friend** | Warm, encouraging, focuses on progress over perfection | Default — good for beginners and maintenance |
+| **Performance Coach** | Direct, data-focused, sets high expectations | Good for competitive or goal-driven users |
+| **Science Advisor** | Explains the research behind recommendations | Good for analytical users who want the "why" |
+
+The persona is a system prompt prefix appended to all AI coaching calls. One setting in user profile.
+
+**Why**  
+The current AI coach has a fixed tone. Different users respond very differently to coaching styles. This is a 1-hour implementation (a dropdown in settings + a prompt prefix) with an outsized impact on how "personal" the app feels.
+
+**Effort estimate:** 2–3 hours  
+**Note:** The persona should be selectable at first launch or via a settings screen — currently there's no onboarding moment for this.
+
+---
+
+#### B3 — "What If" Simulator
+
+**The Idea**  
+A tab or modal in the Trends section: "What if I...?" The user picks a variable and a target, and the app shows a projection based on their historical data.
+
+Examples:
+- *"What if I hit my protein goal every day for 30 days?"* → Projects estimated lean mass retention based on current training volume and protein correlation
+- *"What if I added one workout per week?"* → Shows projected volume increase vs. historical plateau
+- *"What if I cut alcohol to 1 drink/week?"* → Based on measured sleep correlation, shows expected sleep quality improvement
+
+**Why**  
+This turns the correlation engine (Pillar 1) into a motivational tool. Seeing the projected outcome of a behaviour change is far more motivating than seeing the historical correlation that already happened.
+
+**Technical approach:** Leverages `insights_cache` (from Pillar 1). For each correlation, pre-compute a forward projection using the user's recent averages. No new AI call needed — use the cached correlation coefficient and present the math in plain language.
+
+**Effort estimate:** 2–3 days (requires Pillar 1 to exist first)
+
+---
+
+#### B4 — Cycle-Aware Training & Nutrition
+
+**The Idea**  
+Cycle tracking already exists in the app but isn't connected to anything. Use phase data to actively adapt recommendations:
+
+- **Follicular phase (days 1–14):** Higher oestrogen → better strength performance, higher carb tolerance → push harder, eat more carbs
+- **Ovulation (around day 14):** Peak strength → ideal for 1RM attempts or max effort sessions
+- **Luteal phase (days 15–28):** Higher progesterone → fatigue more likely, cravings higher → schedule deload or moderate sessions, increase iron/magnesium targets
+
+Show a small cycle phase badge on the readiness card and adapt the daily training recommendation accordingly. Add a note to the AI coach context.
+
+**Why**  
+Women are significantly underserved by fitness apps that treat everyone's physiology the same. Research shows cycle phase has measurable effects on strength (up to 11% variation), recovery, and nutrition needs. This is an untapped differentiator.
+
+**Effort estimate:** 2–3 days (cycle data exists; integration is primarily prompt engineering + a few UI additions)  
+**Prerequisite:** Default cycle tracking to off at onboarding (already flagged in quick wins) and only surface this for users who opt in.
+
+---
+
+### C — New Health Dimensions
+
+Features that add entirely new tracked dimensions to the user's health picture.
+
+---
+
+#### C1 — Sleep Hygiene Coach
+
+**The Idea**  
+A dedicated Sleep section (or expansion of the existing log). Currently users log sleep quality as a 1–5 rating, but there's no structured bedtime routine tracking.
+
+Add:
+- **Bedtime / wake time logging** (actual times, not just quality)
+- **Pre-sleep habit checklist:** no screens 1h before, no caffeine after 2pm, room temperature, blackout blinds
+- **Sleep hygiene score** (0–100) computed from the checklist, weighted by which factors most affect their personal sleep quality score (from the correlation engine)
+- **Bedtime reminder** that's smarter: fires 45 minutes before target bedtime with a wind-down prompt
+
+**Why**  
+Sleep quality is the most influential variable in the correlation engine — it affects energy, workout performance, nutrition decisions, and stress. But right now we capture quality (effect) without capturing any of the inputs (causes). Adding the "why" of sleep creates a richer coaching layer.
+
+**Effort estimate:** 3–4 days  
+**Feeds into:** Pillar 1 (correlation engine gets new input variables), Pillar 4 (readiness score gets more accurate sleep data)
+
+---
+
+#### C2 — Longevity & Metabolic Health Score
+
+**The Idea**  
+A composite "health score" (0–100 or letter grade A–F) updated weekly that reflects the user's overall health trajectory — not just fitness, but longevity markers. Based on established research:
+
+| Marker | Weight | Source |
+|---|---|---|
+| Consistent sleep 7–9h | 20% | Walker (Why We Sleep), AHA |
+| Daily movement ≥ 30min | 20% | WHO guidelines |
+| Protein sufficiency | 15% | Attia (Outlive) — for muscle preservation |
+| Alcohol ≤ 2 drinks/week | 15% | WHO/NCD literature |
+| Stress management | 10% | Cortisol/recovery literature |
+| HRV trend (if available) | 10% | Oura/Garmin readiness research |
+| No multi-day inactivity streaks | 10% | Sitting disease research |
+
+Show the score on a dashboard card with a brief explanation and a "what's lowering your score" breakdown.
+
+**Why**  
+Users motivated by longevity (a huge, growing demographic following figures like Peter Attia, Andrew Huberman, Bryan Johnson) want a single number that tells them if their lifestyle is trending toward a longer healthspan. This score gives them that and uses data they're already logging.
+
+**Effort estimate:** 2–3 days (computed from existing log data; no new API calls)
+
+---
+
+#### C3 — Fatigue Debt & Training Load
+
+**The Idea**  
+Track cumulative training load (sets × reps × weight, or duration × intensity for cardio) over a rolling 7-day and 28-day window. Surface a "training load trend":
+
+- **Acute load** (last 7 days) vs **Chronic load** (last 28-day average) = **Acute:Chronic Workload Ratio (ACWR)**
+- ACWR > 1.3: overreach zone → risk of injury → app flags a mandatory easy week
+- ACWR < 0.8: undertraining zone → plateau risk
+- ACWR 0.8–1.3: "sweet spot" — optimal adaptation zone
+
+Show ACWR as a simple gauge on the workout analytics page. This is used by professional sports teams and is the basis for Pillar 3 deload detection, but is distinct and more scientifically grounded.
+
+**Why**  
+Most users train by how they feel, which leads to boom/bust cycles. ACWR is the simplest evidence-based way to prevent overuse injuries and training plateaus. It's calculated entirely from data already in `workout_exercises` and `workout_sets`.
+
+**Effort estimate:** 2 days  
+**Feeds into:** Pillar 3 (Periodisation) and Pillar 4 (Readiness Score)
+
+---
+
+### D — Workout Experience Upgrades
+
+Features that make the in-gym experience significantly better.
+
+---
+
+#### D1 — Superset & Circuit Support
+
+**The Idea**  
+The current workout builder only supports straight sets (exercise A, rest, exercise A again). Most intermediate/advanced programs use supersets (A1 → A2 → rest → repeat) and circuits (A → B → C → D → rest → repeat). Add:
+
+- **Superset pairing:** Link two exercises as a superset. During active workout, they alternate automatically with a shared rest timer
+- **Circuit mode:** Chain 3–6 exercises into a circuit with one rest period per round. Track AMRAP (as many rounds as possible) or EMOM (every minute on the minute) with built-in timers
+- **Rest-pause sets:** A set type where the user rests 10–15 seconds mid-set and continues — common in advanced hypertrophy training
+
+**Why**  
+A significant portion of intermediate lifters follow program styles (PPL, GZCLP, Push Pull, etc.) that use supersets as a core structure. Right now these users have to log each exercise separately, losing the superset relationship entirely. This also differentiates from basic logging apps.
+
+**Effort estimate:** 3–5 days (significant UX work in active workout flow)
+
+---
+
+#### D2 — Personal Records Board
+
+**The Idea**  
+A dedicated "PRs" tab in the workout section: a wall of all-time personal records across every tracked exercise. Each card shows the exercise name, the record weight/reps, the date it was set, and a sparkline of estimated 1RM over time.
+
+When a new PR is set during a workout, trigger a celebration animation (confetti, XP bonus, badge) with a share option (image card with the PR details).
+
+**Why**  
+Personal records are the most emotionally resonant moments in training. Right now the app has no concept of a PR — it can't even tell you when you set one. This feature costs very little to build (it's computed from existing `workout_sets` data) and creates a powerful emotional hook that drives session completion and sharing.
+
+**Effort estimate:** 1–2 days  
+**Estimated 1RM** (Epley formula) is already specified in Pillar 3 — this feature reuses that calculation and makes it the centrepiece rather than a supporting metric.
+
+---
+
+#### D3 — Workout Template Marketplace
+
+**The Idea**  
+A curated library of 30–50 pre-built workout templates, seeded by the app and optionally contributed by users (anonymised, moderated). Filterable by:
+- Goal: Strength / Hypertrophy / Fat Loss / Endurance / Mobility
+- Equipment: Full Gym / Home / Bodyweight only / Minimal (dumbbells)
+- Duration: 30min / 45min / 60min+
+- Experience: Beginner / Intermediate / Advanced
+
+One tap to clone a template into your own routine and start using it.
+
+**Why**  
+A significant proportion of users don't know what to do in the gym. Right now they can build templates from scratch, but that requires expertise they may not have. A marketplace immediately solves the "blank page problem" for new users and reduces time-to-first-workout from days to minutes.
+
+**Implementation note:** Start with 20–30 hand-curated templates (program a few classic programs: SL5×5, GZCLP, PPL, a beginner full-body, a 3-day dumbbell program). No user-contribution system needed initially — just a static library surfaced in a new "Browse" tab on the Templates page.
+
+**Effort estimate:** 2–3 days (mostly content, minimal code)
+
+---
+
+#### D4 — Post-Workout Recovery Protocol
+
+**The Idea**  
+Immediately after a user marks a workout as complete, show a 3-step "recovery checklist" tailored to the session's intensity and type:
+
+*"Great session — here's what to do in the next 2 hours to maximise recovery:"*
+1. **Eat:** 45g protein + 80g carbs within 45 minutes (calculated from their body weight and session volume)
+2. **Drink:** 750ml water (calculated from workout duration and sweat estimation)
+3. **Sleep:** Target 10:30pm tonight for optimal HRV recovery
+
+These are calculated from existing data (body weight from `body_metrics`, workout volume from the session just logged, sleep target from their usual schedule). No AI call required — this is a formula-driven card.
+
+**Why**  
+The "anabolic window" post-workout is when users are most receptive to guidance. This is a moment of high engagement (they just finished a session) where specific, actionable, personalised advice has maximum impact. It also cross-sells the nutrition and sleep tracking by making their value explicit.
+
+**Effort estimate:** 1–2 days
+
+---
+
+### E — Engagement & Retention
+
+Features that keep users coming back, without being manipulative.
+
+---
+
+#### E1 — "You vs. Past You" Competition Mode
+
+**The Idea**  
+A personal challenge mode where the only competitor is the user's own past performance — no social anxiety or comparison with others. Auto-generated weekly challenges:
+
+- *"Last week: 3 workouts. Can you hit 4 this week?"*
+- *"Last month's protein average: 128g/day. Beat it this month."*
+- *"Your best streak was 21 days. Current streak: 9 days. Can you break your record?"*
+
+A small progress tracker at the top of the dashboard shows the active "challenge" with a progress bar.
+
+**Why**  
+Competition is motivating, but social competition has well-documented downsides (comparison anxiety, cheating, demotivation when falling behind). Self-competition avoids all of these while preserving the motivational effect. It's also entirely automatic — no content creation needed, all derived from the user's own data.
+
+**Effort estimate:** 1–2 days
+
+---
+
+#### E2 — Smart Notification Learning
+
+**The Idea**  
+Track which push notifications users actually engage with (open the app within 5 minutes of receiving the notification) vs. which they ignore. After 30 days, automatically reduce the frequency of notification types with <20% open rate. Surface an insight: *"We noticed you rarely engage with the evening reminder — we've turned it down to 3×/week. Adjust in settings."*
+
+**Why**  
+Notification fatigue is a leading cause of app uninstall. Most apps have binary notification settings (on/off). Smart learning creates a self-regulating system that keeps notifications feeling relevant rather than becoming background noise.
+
+**Data model:** Add `notification_events` table tracking `notification_type`, `sent_at`, `opened_at` (null if not opened). Run analytics weekly.
+
+**Effort estimate:** 2–3 days  
+**Risk:** Requires careful measurement of "opened from notification" vs. "opened app organically". Use a query param on the notification deep link to track source.
+
+---
+
+#### E3 — Full Data Export & Portability
+
+**The Idea**  
+A "Download My Data" option in Settings that exports everything to a structured zip file:
+- `daily_logs.csv` — all log entries
+- `workouts.json` — full workout history with sets and reps
+- `body_metrics.csv` — weight and measurements over time
+- `food_entries.csv` — all food items ever logged
+
+Offered as a one-click export, delivered by email (or in-browser download).
+
+**Why**  
+Data portability is increasingly a user expectation and a regulatory requirement (GDPR Article 20). Offering it also builds trust — users who know they can leave are more comfortable staying. It's a signal of confidence in the product. It also enables power users to do their own analysis in Excel/Python.
+
+**Effort estimate:** 1–2 days (primarily SQL queries + zip generation in a serverless function)
+
+---
+
+### F — Future Horizons (Longer Bets)
+
+*High potential but higher effort or platform dependency. Worth tracking, not scheduling yet.*
+
+| Idea | Summary | Why it's a long bet |
+|---|---|---|
+| **AI Form Check (Video)** | User records a 10-second exercise clip; AI analyzes form and flags issues (squat depth, back rounding) | Requires video upload infrastructure + multimodal vision model; accuracy still imperfect |
+| **Workout Playlist Pairing** | After logging a workout type, suggest a Spotify playlist matched to the intensity | Requires Spotify OAuth; value is soft/nice-to-have |
+| **Smart Grocery Delivery Integration** | From the meal planner grocery list, integrate with Instacart/Ocado for 1-tap ordering | Partnership/API complexity; market-dependent |
+| **Body Scan AR** | Use phone camera + ARKit/ARCore to estimate body measurements without a tape measure | Technology not mature enough for consistent accuracy |
+| **Wearable Gamification Sync** | Earn XP and badges from Apple Watch activity rings, automatically synced | Requires native app (Pillar 6 prerequisite) |
+| **AI Injury Risk Flagging** | Detect patterns that precede injuries (e.g. rapid load increase + poor sleep + high stress) | Requires medical-grade validation; liability concerns |
+| **Group Class Integration** | Sync with Mindbody/ClassPass to auto-log booked classes as scheduled workouts | API access and data quality uncertain |
+
+---
+
+### Prioritisation of New Ideas
+
+Scored with the same framework as the main PRD. Assumed Sprint 1–3 are consumed by the original six pillars.
+
+| Idea | Impact | Effort | Recommended Sprint |
+|---|---|---|---|
+| Personal Records Board (D2) | High | Very Low | Sprint 1 add-on — 1–2 days, uses Pillar 3 maths |
+| Water Tracking (A3) | Medium | Very Low | Sprint 1 add-on — 1 day |
+| AI Coach Personas (B2) | High | Very Low | Sprint 1 add-on — 2–3 hours |
+| Post-Workout Recovery Protocol (D4) | High | Low | Sprint 2 |
+| "You vs. Past You" (E1) | High | Low | Sprint 2 |
+| Adaptive Goal Adjustment (B1) | High | Low | Sprint 2 — needs 28 days of data first |
+| Workout Template Marketplace (D3) | High | Low | Sprint 2 |
+| Supplement Tracker (A4) | Medium | Low | Sprint 2 |
+| Fatigue Debt / ACWR (C3) | High | Low | Sprint 2 — feeds Pillar 3 |
+| Cycle-Aware Training (B4) | High | Medium | Sprint 3 — opt-in feature |
+| AI Meal Photo Recognition (A1) | Very High | Medium | Sprint 3 |
+| Sleep Hygiene Coach (C1) | High | Medium | Sprint 3 |
+| Voice Daily Check-In (A2) | Medium | Medium | Sprint 3 |
+| "What If" Simulator (B3) | High | Medium | Sprint 3 — needs Pillar 1 first |
+| Longevity Score (C2) | High | Medium | Sprint 3 |
+| Superset/Circuit Support (D1) | High | High | Sprint 4 |
+| Smart Notification Learning (E2) | Medium | Medium | Sprint 4 |
+| Data Export (E3) | Medium | Low | Any sprint — ship as a quick win |
+| Future Horizons | Varies | Very High | Post-MVP |
+
+---
+
+*Brainstorm section ends. These are candidates for review, not commitments — flag any you want to scope further.*
+
+---
+
 *Document ends. Questions, pushback, or additions — flag them and I'll revise.*
