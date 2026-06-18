@@ -639,4 +639,281 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
-*Document ends. Questions, pushback, or additions — flag them and I'll revise.*
+---
+
+---
+
+## New Feature Ideas — Brainstorm (2026-06-18)
+
+The following are candidate features that don't yet appear anywhere in this document. They are **unscoped proposals** — not commitments. Review, kill, reprioritize, or promote them into full pillars as needed.
+
+---
+
+### Idea 1 — AI Camera Food Logging
+
+**The gap:** Typing food into a log is the highest-friction daily action in the app. Most users do it, but many drop off exactly because of it.
+
+**The idea:** A "Photo Log" mode where the user points their phone at a plate of food, taps a shutter button, and the app uses Claude's vision API to identify the food items, estimate portion sizes, and pre-fill the food log. The user confirms or adjusts before saving.
+
+**Why it's compelling:** This is a step-change in logging speed — 3 seconds vs 90 seconds. It's the #1 feature request in every comparable food-logging app. Claude's multimodal capabilities make this feasible today without a third-party service.
+
+**Technical sketch:**
+- On iOS/Android (Capacitor), use `navigator.mediaDevices.getUserMedia` to capture an image
+- Base64-encode and send to `/api/log/photo-parse`
+- Claude prompt: *"You are a sports nutritionist. Identify all visible food items in this image, estimate gram quantities based on plate size and proportions, and return JSON: `{ items: [{ name, grams, estimated_calories, protein_g, carbs_g, fat_g }] }`. If you cannot see the food clearly, return `{ error: 'unclear' }`."*
+- Show a confirmation step before committing to the log — user can remove items, adjust quantities
+- Fallback to text search if photo parsing returns an error
+
+**Data:** No new tables. Uses existing `food_items` structure inside `daily_logs`.
+
+**Effort estimate:** 2–3 days. MVP excludes quantity accuracy; version 2 adds a "correct the portion" slider per item.
+
+**Risk:** Claude vision portion estimates will be off for mixed dishes or non-standard plates. The confirmation step is critical — frame it as "AI suggestion, you correct."
+
+---
+
+### Idea 2 — Barcode Scanner for Packaged Foods
+
+**The gap:** Packaged food is a huge share of most people's diets but the slowest to log — searching by name rarely matches the exact product.
+
+**The idea:** A barcode scan button in the food search modal. User scans a product barcode; the app queries Open Food Facts (free, 3M+ products) to return exact nutritional data for that SKU. One tap adds it to the log.
+
+**Why it's compelling:** Near-instant accurate macros for anything with a barcode. Open Food Facts is free, has no rate limits for personal use, and covers most markets worldwide.
+
+**Technical sketch:**
+- Use `@capacitor-community/barcode-scanner` (Capacitor) or the `BarcodeDetector` Web API (Chromium-only, needs polyfill fallback)
+- Hit `https://world.openfoodfacts.org/api/v0/product/{barcode}.json` — no API key needed
+- Map `product.nutriments` to the app's food item schema
+- Cache scanned barcodes in a `scanned_products` local table to avoid re-fetching
+
+**Data:**
+```sql
+CREATE TABLE barcode_cache (
+  barcode text PRIMARY KEY,
+  product_name text NOT NULL,
+  calories_per_100g int,
+  protein_per_100g numeric,
+  carbs_per_100g numeric,
+  fat_per_100g numeric,
+  brand text,
+  fetched_at timestamptz DEFAULT now()
+);
+```
+
+**Effort estimate:** 1–2 days. This is a Quick Win that belongs in the Quick Wins Appendix.
+
+---
+
+### Idea 3 — Hydration Tracking
+
+**The gap:** The app tracks food, movement, sleep, and stress — but not water intake. Dehydration directly impacts energy, performance, and recovery, and it's something the correlation engine could surface ("your energy is 22% lower on days you drink under 2L").
+
+**The idea:** A simple water tracker widget on the daily log. Users tap + glasses or + custom amount. A daily target (default 2L, adjustable) shows as a progress bar. Integrates into the correlation engine and readiness score.
+
+**Why it's compelling:** It's the simplest possible addition to the log — one field, one number — but unlocks a meaningful new data dimension. Hydration is one of the most consistently underestimated recovery factors.
+
+**Technical sketch:**
+- Add `water_ml int DEFAULT 0` to `daily_logs`
+- Widget: circular progress ring with tap-to-increment buttons (250ml, 500ml, custom)
+- Readiness score: `water_yesterday >= target ? 100 : (water_yesterday / target) * 100` as a 10% weight factor
+- Correlation engine: add `water_ml` ↔ `energy_level` to the Pearson correlation pairs
+
+**Effort estimate:** Half a day for the field and widget. 1 hour to wire into readiness score. 30 minutes to add to correlation pairs.
+
+---
+
+### Idea 4 — Intermittent Fasting Timer
+
+**The gap:** Intermittent fasting (IF) is one of the most widely practised dietary strategies but the app has no concept of eating windows. Users who fast manually track this elsewhere or just mentally manage it.
+
+**The idea:** An IF timer on the daily log or dashboard. User picks a protocol (16:8, 18:6, 20:4, OMAD, 5:2, or custom). The timer shows time since last meal, time until eating window opens, and countdown to window close. Streak tracks consecutive days of completing a fast.
+
+**Why it's compelling:** Dedicated IF apps (Zero, Fastic) have millions of users. Integrating fasting natively means users don't need a second app — and the fasting data becomes a correlatable signal (e.g. "your energy on fasting days is actually 12% higher after week 2").
+
+**Technical sketch:**
+```sql
+CREATE TABLE fasting_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  fast_start timestamptz NOT NULL,
+  fast_end timestamptz,          -- null if still active
+  target_hours int NOT NULL,
+  completed boolean DEFAULT false,
+  notes text,
+  date date NOT NULL
+);
+```
+- Timer is a client-side countdown using `fast_start` stored in Supabase
+- Push notification at eating window open and a reminder 30 minutes before window closes
+- Weekly fasting summary in the correlation engine
+
+**Effort estimate:** 2–3 days for a polished v1 with streak tracking. 1 day for a minimal timer-only MVP.
+
+---
+
+### Idea 5 — Injury & Soreness Tracker
+
+**The gap:** The app has no concept of pain, soreness, or injury. A user with knee pain doing squats gets no warning. A user tracking a tendon injury has no way to log it or see whether their training is making it better or worse.
+
+**The idea:** A body map widget (front/back silhouette) where the user taps a body region and rates soreness (0–5). This data feeds into:
+- Readiness score (high soreness in a region lowers score)
+- Workout suggestions (avoid exercises that stress that region)
+- Recovery trend (is this soreness improving, plateauing, or getting worse over time?)
+
+**Why it's compelling:** Injury prevention is a huge user pain point — literally. Even simple soreness tracking gives the AI something to say beyond generic encouragement: *"Your right shoulder soreness is at 4/5 for the 3rd day. Consider skipping overhead pressing today."*
+
+**Technical sketch:**
+```sql
+CREATE TABLE soreness_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  body_region text NOT NULL,    -- 'left_shoulder', 'lower_back', 'right_knee', etc.
+  severity int NOT NULL,        -- 0-5
+  notes text,
+  UNIQUE(user_id, date, body_region)
+);
+```
+- Body map: SVG silhouette with clickable regions (can be as simple as a 2-column list of body parts initially)
+- Wire into AI coaching context: include active soreness in the system prompt
+- Wire into progressive overload: suppress load increase recommendations for exercises affecting a sore region
+
+**Effort estimate:** 2 days for data model, body map widget, and AI context wiring. 1 additional day for the visual SVG body map (the text list is enough for v1).
+
+---
+
+### Idea 6 — Streak Insurance (Flex Days)
+
+**The gap:** Streaks are the app's main retention mechanic, but they're brittle. A single missed day — holiday, illness, travel — resets everything, which is deeply demoralising and often causes users to churn entirely ("well, I broke my streak, what's the point?").
+
+**The idea:** Users can earn "Flex Days" — buffer credits that automatically protect a streak when a day is missed. You earn 1 Flex Day for every 10 consecutive days logged. The app silently applies a Flex Day the morning after a missed day, preserving the streak, and shows a small notification: *"Your 47-day streak is safe — we used a Flex Day. You have 2 remaining."*
+
+**Why it's compelling:** This is a pure retention mechanic with no technical downside. It doesn't change what the streak means (you still have to log 47 of 48 days), but it eliminates the cliff-edge that kills motivation. Duolingo uses this pattern ("Streak Freeze") and it's one of their most cited retention levers.
+
+**Technical sketch:**
+- Add `flex_days_available int DEFAULT 0` and `flex_days_used int DEFAULT 0` to `user_stats` (or equivalent)
+- Nightly cron: if user missed yesterday AND `flex_days_available > 0`, apply a flex day, decrement available, log to audit table
+- Award: for every 10-streak milestone, grant 1 flex day (max 5 banked)
+- Surface in UI: streak card shows `🛡️ 2 Flex Days` as a sub-label
+
+**Effort estimate:** Half a day for the data logic. 1 hour for the UI update. This is a Quick Win.
+
+---
+
+### Idea 7 — Cycle-Synced Training & Nutrition Recommendations
+
+**The gap:** The app already has cycle tracking (`enable_cycle_tracking` in settings), but the data isn't used anywhere. Female athletes have well-documented performance and recovery differences across their cycle phases, and most fitness apps completely ignore this.
+
+**The idea:** When cycle tracking is enabled, the app enters a "cycle-synced" mode where:
+- **Follicular phase (days 1–13):** higher tolerance for intensity, progressive overload emphasis, higher carb intake recommended
+- **Ovulation (day 14):** peak performance window — flagged as ideal for PRs, heavy compound lifts
+- **Luteal phase (days 15–28):** reduced recovery capacity, higher protein needs, prioritise form over load, expect lower energy (and don't penalise it in readiness score)
+- **Menstruation:** adapt readiness score to de-weight energy/motivation dips that are cycle-normal
+
+**Why it's compelling:** This is an underserved market. There are no major fitness apps that genuinely personalise for the female hormonal cycle — they just treat everyone identically. This is a genuine differentiation and a feature that drives word-of-mouth.
+
+**Technical sketch:**
+- `cycle_phase(date, last_period_start, cycle_length)` — pure function, returns `'follicular' | 'ovulatory' | 'luteal' | 'menstrual'`
+- Inject phase into AI coaching context: *"User is currently in luteal phase. Expect lower energy and recovery capacity. Emphasise sleep and protein. Avoid comparing today's performance to follicular phase sessions."*
+- Readiness score: in luteal phase, reduce the energy and motivation weights and increase the sleep and recovery weights
+- Dashboard: a subtle "Phase: Luteal" indicator with a one-tap explainer ("What does this mean for training?")
+
+**Effort estimate:** 1–2 days. Most of the work is editorial (researching the recommendations) rather than technical. The cycle tracking data already exists.
+
+---
+
+### Idea 8 — AI Post-Workout Debrief
+
+**The gap:** After logging a workout, the user gets no feedback. The session just disappears into the history. A good personal trainer always debriefs after a session: what was strong, what was off, what to focus on next time.
+
+**The idea:** When a user marks a workout as complete, trigger an async Claude analysis that generates a 3-sentence debrief, cached in the workout record:
+- One sentence on volume/performance vs last session
+- One sentence on what to focus on next time (based on the progressive overload engine)
+- One sentence of encouragement tied to their goal
+
+Shown as a small card below the completed workout entry in the log.
+
+**Technical sketch:**
+- Add `ai_debrief text` to `workouts` table
+- On `PATCH /api/workouts/{id}/complete`, fire a background job (Vercel Edge Function or queue) that:
+  1. Fetches the last 3 sessions of the same workout
+  2. Calls Claude Haiku (cheap, fast) with the comparison data
+  3. Patches the `ai_debrief` field
+- UI: a dismissible card at the top of the workout summary with a robot avatar icon
+
+**Effort estimate:** 1 day. The heaviest part is already done if the progressive overload engine is built.
+
+---
+
+### Idea 9 — Data Export & Personal Health Report
+
+**The gap:** There's currently no way to export your data. This creates latent anxiety about lock-in (users wonder if they'll lose everything), and is a missed opportunity for engagement — users who see their data as a printed report feel a stronger sense of ownership.
+
+**The idea:** Two tiers of export:
+
+**Quick Export (CSV):** All `daily_logs`, `workouts`, and `body_metrics` as CSV files, zipped and downloaded. Available from Settings → Data.
+
+**Health Report PDF:** A generated 1–2 page PDF summarising the last 30 or 90 days — key stats, best streaks, top trends, progress toward goals. Generated server-side using a template (React → PDF via `@react-pdf/renderer`). Designed to be sharable with a doctor or coach.
+
+**Why it's compelling:** Data portability builds trust. Users who feel ownership of their data are less likely to leave. The PDF version is also a shareable artefact that drives organic growth ("look what my fitness app generated for me").
+
+**Effort estimate:** CSV export is 2 hours. PDF report is 2–3 days (mostly design/template work).
+
+---
+
+### Idea 10 — Smart Goal Auto-Adjustment
+
+**The gap:** The Goal Wizard is built but has no entry point and no ongoing relationship with the user's progress. Goals are set once and never revisited, which means they go stale (too easy or too hard) and lose motivational power.
+
+**The idea:** A quarterly "Goals Check-In" prompt (push notification + dashboard banner) that reviews the user's progress and suggests updated goals:
+- If protein target hit >85% of days → suggest increasing by 10g
+- If weight goal achieved → celebrate and ask "what's next?"
+- If streak rarely exceeds 3 days → suggest a gentler streak goal ("try for 5 consecutive days")
+- If workout frequency goal consistently missed → suggest reducing from 4 to 3 days/week ("sustainable > perfect")
+
+**Why it's compelling:** Goals that adapt to reality keep users engaged. A goal you're crushing feels good but gets boring; a goal you're failing feels bad and drives churn. Dynamic goals keep users in the "challenge sweet spot." The data to drive this is already being collected.
+
+**Technical sketch:**
+- A `goal_reviews` table tracking when reviews were last shown and acted on
+- Nightly cron (same as insights): check if a quarterly review is due, compute suggestion, store in `goal_reviews`
+- Dashboard banner: *"Your goals are 3 months old — here's what the data suggests updating."*
+- Tapping opens Goal Wizard pre-populated with suggested values (user can accept, reject, or customise)
+
+**Effort estimate:** 2–3 days. Requires the Goal Wizard to have a proper entry point first (that's already a Quick Win bug listed above).
+
+---
+
+## Updated Prioritisation Matrix
+
+The new ideas have been scored alongside the existing pillars. Priority reflects impact for a solo developer with the current tech stack.
+
+| Feature | Impact | Feasibility | Score | Suggested Sequencing |
+|---|---|---|---|---|
+| **Quick Wins (existing)** | Medium | Very High | ★★★★★ | Ongoing |
+| **Barcode Scanner** *(new)* | High | Very High | ★★★★★ | Quick Win — add to Sprint 1 |
+| **Hydration Tracking** *(new)* | Medium | Very High | ★★★★★ | Quick Win — add to Sprint 1 |
+| **Streak Insurance** *(new)* | High | Very High | ★★★★★ | Quick Win — add to Sprint 1 |
+| **Readiness Score** | Very High | High | ★★★★☆ | Sprint 1 |
+| **Correlation Engine** | Very High | High | ★★★★☆ | Sprint 1 |
+| **Progressive Overload Alerts** | High | High | ★★★★☆ | Sprint 1 |
+| **AI Post-Workout Debrief** *(new)* | High | High | ★★★★☆ | Sprint 2 (after overload engine) |
+| **Cycle-Synced Training** *(new)* | High | High | ★★★★☆ | Sprint 2 (data already exists) |
+| **Smart Goal Auto-Adjustment** *(new)* | High | High | ★★★★☆ | Sprint 2 (after Goal Wizard entry point) |
+| **Nutrition Planning (Saved Meals)** | High | High | ★★★☆☆ | Sprint 2 |
+| **Periodisation (Overload Alerts)** | High | High | ★★★☆☆ | Sprint 2 |
+| **Intermittent Fasting Timer** *(new)* | High | Medium | ★★★☆☆ | Sprint 2–3 |
+| **Injury & Soreness Tracker** *(new)* | High | Medium | ★★★☆☆ | Sprint 2–3 |
+| **Data Export (CSV)** *(new)* | Medium | Very High | ★★★☆☆ | Sprint 2 (quick, trust-building) |
+| **Accountability (Partner only)** | Very High | Medium | ★★★☆☆ | Sprint 3 |
+| **Withings Integration** | High | Medium | ★★★☆☆ | Sprint 3 |
+| **Oura Integration** | High | Medium | ★★★☆☆ | Sprint 3 |
+| **AI Camera Food Logging** *(new)* | Very High | Medium | ★★★☆☆ | Sprint 3 (requires Capacitor camera) |
+| **Data Export (PDF Health Report)** *(new)* | Medium | Medium | ★★★☆☆ | Sprint 3 |
+| **Nutrition Planning (Full Meal Planner)** | High | Low | ★★☆☆☆ | Sprint 4 |
+| **Group Challenges** | Medium | Medium | ★★☆☆☆ | Sprint 4 |
+| **12-Week Programs** | High | Low | ★★☆☆☆ | Sprint 4 |
+| **Apple Health / Google Fit** | Very High | Very Low | ★★☆☆☆ | Future (requires native app) |
+
+---
+
+*Updated 2026-06-18 — added 10 new feature ideas and revised prioritisation matrix.*
