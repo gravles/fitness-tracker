@@ -1,8 +1,8 @@
 # Fitness Tracker — Expanded Features PRD
 
 **Author:** Claude  
-**Date:** 2026-05-20  
-**Status:** Proposal — for review
+**Date:** 2026-05-20 (updated 2026-06-19)  
+**Status:** Living document — updated with new brainstorm batch
 
 ---
 
@@ -25,12 +25,17 @@ This document proposes six major feature pillars, each with full specifications,
 | AI coaching chat | ✅ Context-aware, 30-day window |
 | Push notifications | ✅ Server-side, custom reminders |
 | Strava sync | ✅ Manual sync |
-| Goal Wizard | ⚠️ Built but no entry point |
+| Goal Wizard | ✅ Built and accessible from Settings (as of June 2026) |
 | Progress photos | ✅ Upload + compare |
 | Body metrics | ⚠️ Measurements but no photo upload |
-| Social / sharing | 🔴 Stub only |
+| Social / sharing | ⚠️ Share modal + tokenised share links exist; no full social layer |
+| Food barcode scanner | ✅ Integrated (OpenFoodFacts API) |
+| Food photo logging | ✅ Camera + gallery capture with compression |
+| Hydration tracking | ⚠️ `water_glasses` field exists in DB; not exposed in daily log UI |
+| AI Weekly Insights | ✅ Modal exists; not yet a correlation engine |
 | Nutrition planning | 🔴 Not started |
 | Recovery / readiness | 🔴 Not started |
+| Supplement tracking | 🔴 Not started |
 | Wearable integrations | 🔴 Strava only |
 
 ---
@@ -636,6 +641,117 @@ The highest-ROI work is features that require **no new infrastructure** — they
 Total estimated effort: 7–11 days of development.
 
 This sprint alone would make the app feel dramatically more intelligent without requiring any new data collection from the user.
+
+---
+
+---
+
+---
+
+## New Feature Ideas — Brainstorm Batch (June 2026)
+
+The six pillars above set the strategic direction. The ideas below are a second-wave brainstorm — some are quick wins, some are full features, some are moonshots. None are scoped or committed; they're here for review and prioritisation.
+
+---
+
+### Cluster A — Smarter Tracking
+
+**A1. Supplement Tracker**  
+Log daily supplements (creatine, vitamin D, magnesium, omega-3, etc.) and track adherence over time. The correlation engine (Pillar 1) could then surface insights like *"Your sleep quality is 0.6 points higher on days you take magnesium."* This is a gap no mainstream app fills well. The data model is simple: a `supplement_logs` table with `date`, `supplement_name`, `dose_mg`, `taken` boolean. UI: a checkbox list below the wellness section of the daily log.
+
+**A2. Pre/Post Workout Nutrition Timing**  
+The app knows what users ate and when they trained. It doesn't yet connect the two. Surface timing intelligence: was protein consumed within 2 hours of lifting? Were carbs logged pre-workout on cardio days? A small overlay on the food log UI — *"You trained at 6pm. You had 8g protein after your session. Target: 30g in the 2-hour window."* No new data needed, just smarter presentation of what's already there.
+
+**A3. Injury & Soreness Journal**  
+A lightweight pain/soreness log: body region (dropdown), severity (1–5), type (DOMS, sharp, joint, fatigue). Logged alongside the daily wellness section. The AI can then spot patterns before they become injuries: *"You've logged right knee discomfort 3 times this week — all after squat sessions over 80kg. Consider de-loading squats next session."* This is a feature physiotherapists and serious athletes would love.
+
+**A4. Hydration UI**  
+Water tracking is already in the database (`water_glasses`). It just needs to be exposed. Add a simple tap-to-increment water tracker to the daily log — 8 glasses displayed as toggleable circles. Add a daily hydration reminder notification. Correlate water intake with energy and workout performance via the correlation engine. This is a 1-day build with immediate visible value.
+
+---
+
+### Cluster B — Intelligence Layer
+
+**B1. Adaptive Daily Calorie Targets**  
+Instead of a static calorie target, dynamically adjust based on what actually happened today: activity level logged, readiness score, whether it's a workout day. If the user burned more, the target goes up; on rest days it drops slightly. Show the adjusted target prominently: *"Today's target: 2,450 kcal (adjusted +200 for your afternoon run)."* Requires no new data — just logic applied to fields already tracked. Strongly reinforces the "intelligent coach" identity of the app.
+
+**B2. Body Composition Trajectory Projector**  
+Given current calorie deficit/surplus (7-day average), protein intake, and training volume, project where the user will be in 8 and 16 weeks — estimated weight and (roughly) body fat %. Present as a simple forward-looking chart with a confidence band. Include a toggle: "What if I hit my protein goal every day?" to show the better outcome. This turns passive tracking into active motivation. The math is basic; the framing is powerful.
+
+**B3. Nutritional Gap Radar**  
+Based on food logs, identify likely micronutrient shortfalls — not precise (the app doesn't have micronutrient data for all foods), but pattern-based: low dairy → low calcium; low oily fish/flaxseed → low omega-3; low red meat/legumes → potentially low iron. Show a simple radar chart with 6–8 nutrients and whole-food suggestions (not supplement ads). A weekly "nutrition brief" card alongside the correlation insight. Differentiates the app from calorie counters.
+
+**B4. Coach AI Persona Selector**  
+Let users pick their coaching style from 4 archetypes:
+- **Drill Sergeant** — direct, challenging, no-excuses ("You missed your protein again. That's 3 days running. Fix it.")
+- **Supportive Friend** — warm, encouraging, focuses on wins ("You've been so consistent this week — really proud of you!")
+- **Data Analyst** — numbers-only, no filler ("7-day protein average: 118g. Target: 160g. Deficit: 42g/day.")
+- **Sports Coach** — technical, program-focused ("For your hypertrophy goal, you need to increase time under tension, not just weight.")
+
+This is a prompt-layer change only — no schema changes. The persona string is stored in `user_settings` and injected into every AI system prompt. Users can switch anytime. This is a high-engagement feature that makes the AI feel genuinely personalised rather than generic.
+
+---
+
+### Cluster C — New Engagement Surfaces
+
+**C1. Morning Routine Builder**  
+A structured morning routine tracker, separate from the daily log. Users define a sequence of habits: wake time, hydration, movement (even 5 min), breakfast timing, sunlight, journaling. Each appears as a simple checklist in the morning. Completion feeds into the correlation engine: *"Your energy is 44% higher on days you complete your morning routine before 8am."* This creates a new daily touchpoint earlier in the day (currently the app skews toward evening logging) and reinforces holistic wellness beyond just fitness.
+
+**C2. Micro-Workout / Movement Snack Library**  
+For days when the user's readiness score is low, or they've logged a busy/stressful day, offer 5–15 minute "movement snacks": short targeted sessions (breathing + mobility, desk stretches, a 10-minute walk protocol, 5-min upper body activation). Built-in library of ~20 routines, each with step-by-step instructions. Keeps the habit alive on days the gym isn't happening. Logging a movement snack maintains the streak and awards partial XP. Pairs naturally with the Readiness Score (Pillar 4).
+
+**C3. Fitness Age Estimator**  
+A periodic (monthly) calculated metric that estimates the user's "fitness age" vs chronological age, based on available signals: estimated VO2 max from running pace, resting heart rate (from wearable or manually logged), strength metrics (estimated 1RM relative to bodyweight), and body composition trend. Presented as a single headline number ("Your fitness age: 28") with a trend line. This is a powerful motivational hook — people love beating their biological age. Updates monthly so changes feel meaningful.
+
+**C4. Recipe Nutrition Calculator**  
+A simple tool: enter a recipe (ingredients + quantity + number of servings), get macros per serving, save as a meal template. The saved template can then be logged in one tap (extending the Saved Meals feature from Pillar 2). Addresses the #1 gap in food tracking for home cooks: "I made chicken stir fry — I have no idea how to log this." Leverages the existing food search/database. Medium effort, very high user value.
+
+---
+
+### Cluster D — Social & Accountability (extensions to Pillar 5)
+
+**D1. One-on-One Workout Challenges**  
+A paired challenge between two users who both have the app: compete on a single metric for a set period (e.g., "Most workouts this week", "Highest 7-day protein average", "Most steps this week"). Simple leaderboard showing just the two of you. No public profiles, no likes — just pure head-to-head accountability. Invite by email or share link. Lighter than Group Challenges (Pillar 5) and more personal. Strong retention driver.
+
+**D2. Coach Notes / Training Journal**  
+After each workout, a free-text note field: technique observations, how it felt, things to work on next time. Before the next session of the same workout, the app surfaces relevant notes: *"Last time you did this workout (3 weeks ago), you noted: 'back rounded on deadlifts at 120kg — focus on bracing.'"* This closes a loop that serious athletes currently solve with a physical notebook. The notes live in a `workout_notes` field or separate table; AI can summarise patterns across notes over time.
+
+---
+
+### Cluster E — Platform Bets (longer horizon)
+
+**E1. Sleep Optimisation Protocol**  
+Beyond logging sleep quality, build a personalised sleep hygiene protocol: AI analyses logged sleep patterns, identifies what consistently precedes good vs bad nights (alcohol, screen time, late meals, stress, training intensity), and builds a custom evening protocol. *"Based on your data: avoid alcohol after 7pm, finish training by 7pm, and keep dinner light on non-workout days. Your sleep quality averages 0.9 points higher when you do all three."* Requires 30+ days of data. A premium-tier feature candidate.
+
+**E2. Annual Training Calendar**  
+A macro-cycle planning layer above the 12-week programs (Pillar 3). Users plot out the year: base building phase (Jan–Mar), strength phase (Apr–Jun), peak/competition (Jul–Aug), transition/deload (Sep), second build (Oct–Dec). Each phase links to a 12-week program. The calendar view shows current phase, weeks remaining, and auto-adjusts volume recommendations accordingly. This is what serious recreational athletes (marathon runners, powerlifters, triathletes) need to manage their year — and none of the consumer apps provide it.
+
+**E3. Garmin Connect Integration**  
+Garmin is the dominant wearable among serious athletes — runners, cyclists, triathletes. The Connect IQ API provides: HRV, training load (Garmin's own readiness model), VO2 max estimate, step count, heart rate zones, and workout auto-import. Garmin's API is REST-based (OAuth), so it's accessible from the web without a native app shell. This is arguably higher priority than Apple HealthKit for the target user (serious recreational athlete, not casual user), despite being lower-profile.
+
+---
+
+### New Feature Priority Matrix
+
+| Idea | Impact | Effort | Score | Notes |
+|---|---|---|---|---|
+| A4 — Hydration UI | Medium | Very Low | ★★★★★ | Data already exists; 1-day build |
+| B4 — Coach AI Persona | High | Very Low | ★★★★★ | Prompt change only; zero schema work |
+| A2 — Nutrition Timing | High | Low | ★★★★☆ | No new data; new presentation logic |
+| A1 — Supplement Tracker | Medium | Low | ★★★★☆ | Simple schema; strong correlation engine input |
+| C4 — Recipe Calculator | High | Medium | ★★★★☆ | High user demand; leverages existing food DB |
+| B1 — Adaptive Calorie Targets | High | Low | ★★★★☆ | Logic-only; strong "intelligent" feeling |
+| C1 — Morning Routine Builder | Medium | Medium | ★★★☆☆ | New habit surface; new daily touchpoint |
+| A3 — Injury Journal | High | Low | ★★★☆☆ | Unique differentiation; safety angle |
+| D2 — Coach Notes / Training Journal | High | Low | ★★★☆☆ | Closes a real gap for serious athletes |
+| B2 — Trajectory Projector | Very High | Medium | ★★★☆☆ | Motivational; math is simple |
+| C2 — Micro-Workout Library | Medium | Medium | ★★★☆☆ | Pairs with Readiness Score |
+| C3 — Fitness Age Estimator | High | Medium | ★★★☆☆ | Strong engagement hook |
+| D1 — 1-on-1 Challenges | High | Medium | ★★★☆☆ | Social retention driver |
+| B3 — Nutritional Gap Radar | High | High | ★★☆☆☆ | Needs micronutrient data enrichment |
+| E1 — Sleep Optimisation Protocol | Very High | High | ★★☆☆☆ | Requires 30+ days; AI-heavy |
+| E2 — Annual Training Calendar | High | High | ★★☆☆☆ | Niche but powerful for serious users |
+| E3 — Garmin Integration | Very High | Medium | ★★★☆☆ | REST API; no native shell needed |
 
 ---
 
