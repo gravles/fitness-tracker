@@ -1,7 +1,7 @@
 # Fitness Tracker — Expanded Features PRD
 
 **Author:** Claude  
-**Date:** 2026-05-20  
+**Date:** 2026-05-20 (revised 2026-06-20)  
 **Status:** Proposal — for review
 
 ---
@@ -11,6 +11,8 @@
 The app is already stronger than most consumer fitness apps: it combines a frictionless daily log, AI-powered food and workout entry, gamification, and a real coaching layer. But it's working at the level of *data capture and encouragement*. The gap between "good tracking app" and "genuinely transformative personal health tool" is **intelligence**—taking all that captured data and turning it into specific, personal, actionable guidance that actually changes behaviour.
 
 This document proposes six major feature pillars, each with full specifications, rationale, data model changes, and implementation notes. They are ordered by strategic impact, not implementation effort.
+
+A **Second Wave** of six additional feature ideas was added in June 2026, covering gaps not addressed by the original pillars: food photo/barcode logging, intermittent fasting, injury tracking, cardio analytics, supplement tracking, and AI-guided live workout sessions. These are brainstormed proposals — not yet scoped for implementation.
 
 ---
 
@@ -566,6 +568,339 @@ CREATE TABLE sleep_records (
 Every extra data source makes the correlation engine, readiness score, and AI coaching more accurate. More importantly, *automatic sync removes the single biggest source of churn*: forgetting to log. A user whose weight syncs from their scale, whose workouts come from their watch, and whose sleep comes from their ring only needs to manually log food — cutting the daily effort by 60%.
 
 ---
+
+---
+
+---
+
+## Second Wave — New Feature Ideas
+
+*Brainstormed 2026-06-20. None of these are built yet. They extend beyond the six pillars and address gaps identified after reviewing outstanding work and user behaviour patterns. Review and prioritise before implementing.*
+
+---
+
+### Idea A — Food Photo Recognition & Barcode Scanner
+
+#### The Problem
+
+Text-based food logging is the biggest source of drop-off in nutrition tracking. Typing "grilled salmon with roasted vegetables" and then editing each macro is 3–5 minutes of effort per meal. Two improvements could cut that to under 30 seconds.
+
+#### What It Does
+
+**Photo Logging**
+A camera button on the food log. The user takes a photo of their plate; it gets sent to a vision-capable Claude model which estimates the meal's components, portions, and macros. The response pre-fills the food entry form for the user to confirm or adjust. Not perfectly accurate — but close enough, and dramatically faster than manual entry.
+
+**Barcode Scanner**
+A barcode scan button on the food log. Using the device camera (via `BarcodeDetector` API or a library like `zxing-wasm`), the user scans the barcode on any packaged food. The app looks up the product in the Open Food Facts API (free, 3M+ products) and returns exact nutrition info per serving, with a serving-size selector.
+
+#### Technical Approach
+
+- Photo: `POST /api/food/analyse-photo` — multipart upload, passes base64 image to Claude with a structured prompt requesting JSON output (`{items: [{name, quantity, unit, calories, protein, carbs, fat}]}`). Use `claude-haiku-4-5` for cost efficiency.
+- Barcode: client-side scan → `GET /api/food/barcode?code=5012345678900` → hits Open Food Facts API (`world.openfoodfacts.org/api/v0/product/{barcode}.json`), maps to app's food item schema.
+- Both flows funnel into the existing `AddFoodModal` with pre-filled state — no new data model needed.
+
+#### Why This Matters
+
+MyFitnessPal's most-used feature for 15 years is the barcode scanner. It's table-stakes for a serious nutrition app. Photo logging is the emerging differentiator — it removes the "I don't know how to describe this" friction that stops people logging meals they didn't prepare themselves (restaurants, other people's cooking).
+
+---
+
+### Idea B — Intermittent Fasting Tracker
+
+#### The Problem
+
+Intermittent fasting (IF) is practiced by a significant fraction of health-conscious people, but no fitness app integrates it seamlessly with nutrition and wellness tracking. Users currently manage fasting with a separate app (Zero, Fastic) and have no way to correlate fasting behaviour with their workout performance or energy levels.
+
+#### What It Does
+
+**Fasting Timer**
+Start/stop a fast with one tap. Visual countdown showing:
+- Current phase: *"Glucose burning (0–4h)"*, *"Fat burning (8–12h)"*, *"Autophagy window (16h+)"*
+- Time elapsed, time remaining to goal
+- Historical fasts — streak of completed fasting windows
+
+**Protocol Templates**
+Pre-built protocols: 16:8, 18:6, 20:4, 5:2, OMAD. Users pick one; the app sets the daily eating window and sends a push notification when the window opens and closes.
+
+**Integration with Daily Log**
+When a fast is active, suppress food log nudges until the eating window opens. Log the fast completion as a wellness entry (feeds into the correlation engine — does fasting correlate with better sleep? lower stress?).
+
+**Fasting + Workout Interaction**
+If a workout is logged during a fasting window, the AI coach gets context: *"Nathan trained fasted today (hour 14 of a 16:8 fast). His energy was 3/5."* The readiness score gets a fasting modifier.
+
+#### New Data Model
+
+```sql
+CREATE TABLE fasting_sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  protocol text NOT NULL,        -- '16:8', '18:6', 'custom', etc.
+  started_at timestamptz NOT NULL,
+  ended_at timestamptz,          -- null while active
+  target_hours int NOT NULL,
+  completed boolean DEFAULT false,
+  notes text,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+#### Why This Matters
+
+IF users are highly engaged and data-driven — exactly the users who will love the correlation engine. This feature creates a natural home for them without requiring a second app. It also feeds uniquely useful data into the AI coach that no other feature provides.
+
+---
+
+### Idea C — Injury & Rehab Tracker
+
+#### The Problem
+
+Almost every regular exerciser is dealing with some injury or nagging pain. Yet no major fitness app addresses this. The result: users either train through pain and make things worse, or stop training entirely and churn. A good injury tracking layer could prevent both outcomes.
+
+#### What It Does
+
+**Injury Log**
+Log a current injury or pain point: body region (shoulder, lower back, knee, etc.), severity (1–5), type (acute, overuse, soreness), and a note. Set a status: *Active*, *Recovering*, *Resolved*.
+
+**AI Workout Modifications**
+When the user starts a workout session with an active injury flagged, the AI coach automatically generates modifications:
+- *"You have a left shoulder injury logged. I'll flag exercises that load the shoulder and suggest alternatives."*
+- Per-exercise tags: ✅ Safe / ⚠️ Modify / 🚫 Avoid — based on injury region and exercise muscle group mapping.
+
+**Recovery Timeline**
+For each injury, a simple log of daily check-ins: *"How is it feeling today?"* (1–5 scale). Plotted as a recovery curve. If severity increases, the app suggests rest and notes it in the readiness score.
+
+**Return-to-Sport Milestones**
+For longer injuries (2+ weeks), set milestone targets: *"Pain-free squatting"*, *"Return to full training"*. Celebrate reaching them with XP and a badge.
+
+**Correlation: Injury vs. Training Load**
+After resolution, the correlation engine can look back: *"Your lower back injury followed 3 weeks of above-average deadlift volume. Your body's signal was increased soreness in week 2."*
+
+#### New Data Model
+
+```sql
+CREATE TABLE injuries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  body_region text NOT NULL,      -- 'left_shoulder', 'lower_back', 'right_knee', etc.
+  injury_type text NOT NULL,      -- 'acute', 'overuse', 'soreness', 'tightness'
+  severity int NOT NULL,          -- 1-5
+  description text,
+  status text DEFAULT 'active',   -- 'active', 'recovering', 'resolved'
+  onset_date date NOT NULL,
+  resolved_date date,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE injury_checkins (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  injury_id uuid REFERENCES injuries(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  severity int NOT NULL,          -- 1-5
+  notes text,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(injury_id, date)
+);
+```
+
+#### Why This Matters
+
+This is the most differentiated feature idea in this document. No mainstream fitness app does injury management well. For the app's target user — someone training consistently and caring about data — this is a feature they've never had and immediately understand the value of. It also prevents the biggest source of churn: getting hurt and quitting. An app that helps you train *through* an injury (safely) is one you never abandon.
+
+---
+
+### Idea D — Running & Cardio Analytics Module
+
+#### The Problem
+
+The app's workout tracker and periodisation features are implicitly strength-focused. A meaningful fraction of fitness users are primarily runners, cyclists, or cardio-focused. Right now they get Strava sync but no analytics native to the app. They're second-class citizens.
+
+#### What It Does
+
+**Cardio Session Logging**
+When a workout type is "Run", "Cycle", or "Row", switch to a cardio-specific session view: log distance, duration, pace/split (auto-calculated), heart rate zone (if available from Strava/wearable), and a perceived effort (RPE 1–10).
+
+**Running Pace Analytics**
+A dedicated "Cardio" tab in the analytics section:
+- Pace trend over time for a given distance (e.g., average 5K pace, plotted weekly)
+- Training load: weekly mileage / duration, flagging weeks above a safe increase threshold (the "10% rule")
+- PR tracking: fastest recorded times at 1K, 5K, 10K, half marathon, marathon
+
+**Estimated VO2 Max**
+Calculate estimated VO2 max from pace and heart rate data using the Cooper formula or the Firstbeat method (if HR is available). Track it over time as a fitness indicator distinct from strength metrics.
+
+**Race Predictor**
+Using the Riegel formula (`T2 = T1 × (D2/D1)^1.06`), predict race finish times from a recent performance. *"Based on your 5K time of 24:30, your predicted marathon time is 4:18."* Can be updated as fitness improves.
+
+**Easy/Moderate/Hard Zone Classification**
+Auto-classify each run as Easy, Moderate, or Hard based on pace relative to the user's recent average. Flag if the user is doing too many hard runs without recovery (polarised training model).
+
+#### New Data Model
+
+```sql
+ALTER TABLE workouts ADD COLUMN IF NOT EXISTS cardio_type text;  -- 'run', 'cycle', 'row', 'swim'
+ALTER TABLE workouts ADD COLUMN IF NOT EXISTS distance_km numeric;
+ALTER TABLE workouts ADD COLUMN IF NOT EXISTS avg_pace_per_km interval;
+ALTER TABLE workouts ADD COLUMN IF NOT EXISTS avg_heart_rate int;
+ALTER TABLE workouts ADD COLUMN IF NOT EXISTS max_heart_rate int;
+ALTER TABLE workouts ADD COLUMN IF NOT EXISTS elevation_gain_m int;
+ALTER TABLE workouts ADD COLUMN IF NOT EXISTS rpe int;  -- 1-10 perceived effort
+
+CREATE TABLE cardio_prs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  cardio_type text NOT NULL,
+  distance_km numeric NOT NULL,
+  best_time interval NOT NULL,
+  achieved_at date NOT NULL,
+  source_workout_id uuid REFERENCES workouts(id)
+);
+```
+
+#### Why This Matters
+
+Runners are the most engaged and analytics-hungry segment of the fitness market. They obsess over pace, mileage, and performance trends. Adding dedicated cardio analytics expands the app's appeal to a large user segment currently underserved, while leveraging all the data already flowing in from Strava.
+
+---
+
+### Idea E — Supplement Stack Tracker
+
+#### The Problem
+
+Most people taking supplements have no idea whether they're actually working. They take creatine for three months, feel roughly the same, and stop. The supplement industry's dirty secret is that most users have no way to measure effectiveness — they're just following recommendations.
+
+The fitness tracker already captures performance (weights lifted, endurance metrics, energy levels, sleep quality). It's in a unique position to actually evaluate whether supplements are doing anything.
+
+#### What It Does
+
+**Supplement Log**
+A simple daily log for supplements: name, dose, timing (morning, pre-workout, with food, before bed). Preloaded library of common supplements (Creatine, Whey Protein, Vitamin D, Omega-3, Magnesium, Caffeine, Ashwagandha, etc.) with default doses and standard timing.
+
+**Daily Supplement Reminders**
+Integrate supplements into the existing push notification system: *"Time for your morning supplements: Vitamin D (2000 IU), Omega-3 (1g)"*. One-tap confirmation logs them.
+
+**Supplement Compliance Tracking**
+Dashboard showing weekly compliance per supplement (6/7 days taken). Analogous to the nutrition protein-goal hit counter — a simple visual of consistency.
+
+**Correlation with Performance Metrics**
+This is the killer feature. After 30+ days of supplement + performance data, the correlation engine can surface things like:
+- *"On days you take creatine, your total workout volume is 12% higher on average."*
+- *"Your sleep quality is 0.6 points higher on nights you take Magnesium Glycinate."*
+- *"No correlation found between your pre-workout intake and energy level — consider whether it's still working for you."*
+
+**AI Supplement Advice (Research-Based)**
+In the coach chat, users can ask *"Should I take ashwagandha?"* and get evidence-based guidance grounded in their current goals, training load, and the specific evidence tier for that supplement (Tier 1: strong evidence, Tier 2: promising, Tier 3: limited evidence).
+
+#### New Data Model
+
+```sql
+CREATE TABLE supplements (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  dose text NOT NULL,              -- '5g', '2000 IU', '500mg'
+  timing text NOT NULL,            -- 'morning', 'pre_workout', 'with_food', 'before_bed'
+  is_active boolean DEFAULT true,
+  started_at date,
+  notes text,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE supplement_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  supplement_id uuid REFERENCES supplements(id) ON DELETE CASCADE,
+  taken_at timestamptz NOT NULL,
+  date date NOT NULL,
+  UNIQUE(supplement_id, date)
+);
+```
+
+#### Why This Matters
+
+This feature is the clearest expression of the app's core promise: *"We turn your data into insight."* Users who see a real correlation between a supplement and a performance metric don't just keep using the supplement — they become evangelists for the app that showed them the connection. No other fitness app does this.
+
+---
+
+### Idea F — AI-Guided Live Workout Sessions
+
+#### The Problem
+
+The voice spotter is useful but narrow — it listens for rep counts and provides a single AI response after a set. What most people actually want when they train alone is the experience of having a personal trainer: someone who announces the exercise, tells them to rest, pushes them when they slow down, and adapts if they say they're struggling.
+
+#### What It Does
+
+**Session Mode: "Train with AI"**
+An opt-in mode for the active workout screen. When enabled:
+
+1. **Verbal announcements**: Claude (via text-to-speech) announces each exercise as the user navigates to it: *"Next up: Romanian Deadlifts, 3 sets of 12 at 70kg. Take 90 seconds rest then tap when ready."*
+
+2. **Guided rest timer**: After a set is logged, a countdown timer starts automatically. Claude gives a 10-second warning: *"10 seconds. Get ready."*
+
+3. **Mid-workout check-in**: After every 3 sets, a quick spoken check-in: *"How are you feeling? Say 'good', 'tired', or 'great'."* If the user says tired, Claude adjusts the remaining workout (reduces load or sets).
+
+4. **Motivational cues**: On the last rep of a hard set, Claude delivers a brief, context-aware push: *"This is your 4th week of progressive overload on this lift — finish it strong."*
+
+5. **End-of-session summary**: After the workout ends, a 30-second verbal summary: *"Great session. You hit a volume PR on bench press — 14% more total volume than last week. Rest well tonight."*
+
+#### Technical Approach
+
+- Text-to-speech: Web Speech API (`speechSynthesis`) for zero-cost audio output. Works in all modern browsers.
+- Speech recognition for check-in responses: Web Speech API (`SpeechRecognition`). Graceful fallback to tap-based input on unsupported browsers.
+- Session logic: a client-side state machine tracking current exercise, current set, rest state. Claude is called once at session start to generate a "coaching script" for the full workout, reducing per-set API calls to zero. The script is stored in-memory and triggered by state transitions.
+- One API call at the end for the session summary, using the actual log data.
+
+#### UI Consideration
+
+A small toggle "Train with AI" in the active workout header. Off by default — this is a mode for users who want it, not a mandatory overlay. Users who prefer the current silent mode are unaffected.
+
+#### Why This Matters
+
+This is the clearest step toward the app's aspirational positioning: not "a tracking app" but "a personal trainer in your pocket." The technology already exists (Web Speech API, Claude). The experience — having an AI coach that knows your history and guides you in real time — is genuinely novel and retention-driving. It makes solo training less lonely and more structured.
+
+---
+
+### New Quick Win Ideas
+
+*Additions to the existing Quick Wins Appendix.*
+
+| Feature | Description | Effort |
+|---|---|---|
+| Water intake tracker | Log cups/glasses throughout the day, set a daily goal (e.g. 8 glasses), get a mid-day reminder if behind. Correlates with energy in the correlation engine. | 1 day |
+| Flexible macro week view | Show weekly macro totals alongside daily view. Allows calorie banking — deficit days "credit" into higher days. | 1 day |
+| Body recomposition mode | When weight is flat but body composition is changing (measurements shifting), surface a "recomposition in progress" message instead of letting the user think they're stalling. Uses `body_metrics` + `body_measurements`. | 2h |
+| Workout difficulty rating | After each workout, ask "How hard was that? (1–5)". Store as perceived exertion. Feed into readiness score and correlation engine. | 2h |
+| Fasting mode quick toggle | Even before building the full fasting tracker (Idea B), add a simple "Fasting now" toggle on the dashboard that suppresses food-log nudges and shows a simple elapsed timer. | 2h |
+| Supplement quick-add | A simplified version of Idea E — just a free-text notes field on the daily log for supplements taken. Zero data model changes; feeds into AI coach context immediately. | 1h |
+
+---
+
+## Updated Prioritisation Matrix
+
+*Original six pillars unchanged. New ideas scored on same criteria.*
+
+| Feature | Impact | Feasibility | Score | Recommended Sequencing |
+|---|---|---|---|---|
+| **Original Pillars** | | | | |
+| Quick Wins (original) | Medium | Very High | ★★★★★ | Ongoing |
+| Readiness Score | Very High | High | ★★★★☆ | Sprint 1 |
+| Correlation Engine | Very High | High | ★★★★☆ | Sprint 1 |
+| Nutrition Planning (Saved Meals) | High | High | ★★★☆☆ | Sprint 2 |
+| Periodisation (Overload Alerts) | High | High | ★★★☆☆ | Sprint 2 |
+| Accountability (Partner only) | Very High | Medium | ★★★☆☆ | Sprint 3 |
+| Withings / Oura Integrations | High | Medium | ★★★☆☆ | Sprint 3 |
+| **New Ideas** | | | | |
+| Barcode Scanner (Idea A, partial) | Very High | High | ★★★★☆ | Sprint 2 — barcode only, no photo |
+| Photo Food Logging (Idea A, full) | Very High | Medium | ★★★☆☆ | Sprint 3 — after barcode |
+| Injury & Rehab Tracker (Idea C) | Very High | High | ★★★★☆ | Sprint 2 — highly differentiated |
+| Supplement Tracker (Idea E) | High | High | ★★★☆☆ | Sprint 3 |
+| Water Intake (Quick Win) | Medium | Very High | ★★★★☆ | Sprint 1 quick win |
+| Fasting Tracker (Idea B) | High | Medium | ★★★☆☆ | Sprint 3 |
+| AI Guided Sessions (Idea F) | Very High | Medium | ★★★☆☆ | Sprint 4 |
+| Cardio Analytics (Idea D) | High | Medium | ★★★☆☆ | Sprint 4 |
+| Full Nutrition Meal Planner | High | Low | ★★☆☆☆ | Sprint 4+ |
+| Group Challenges | Medium | Medium | ★★☆☆☆ | Sprint 4+ |
+| 12-Week Programs | High | Low | ★★☆☆☆ | Sprint 4+ |
+| Apple Health / Google Fit | Very High | Very Low | ★★☆☆☆ | Future (native app required) |
 
 ---
 
