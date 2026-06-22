@@ -639,4 +639,217 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
+---
+
+## New Feature Ideas — Brainstorm (Added 2026-06-22)
+
+The following ideas are not yet scoped or prioritised. They are organised by theme for review. Each has a brief rationale and a rough effort signal. Nothing below is committed — this is the idea backlog.
+
+---
+
+### Theme A — AI & Frictionless Input
+
+The biggest drop-off in fitness apps is logging fatigue. These features reduce the effort of getting data in.
+
+#### A1 — Food Photo Logging
+**Idea:** Snap a photo of a meal; AI estimates calories and macros automatically.  
+**Rationale:** Restaurant and home-cooked meals are the hardest to log accurately. A photo cuts entry time from ~3 minutes to 10 seconds. Apple and Lose It already do this, but it would be a significant UX upgrade here.  
+**How it would work:** Upload image to `/api/food/photo-analyze` → pass to Claude with vision capability → return structured food item list pre-populated into the log form. User reviews and confirms before saving.  
+**Effort:** Medium (Claude vision API, image upload via Supabase Storage, confirmation UI)  
+**Risk:** Accuracy will be imperfect — framing is important ("AI suggestion — please verify"). Meal photos of mixed dishes are harder than single ingredients.
+
+---
+
+#### A2 — Natural Language Full-Log Entry
+**Idea:** A single text or voice input that fills the entire daily log in one shot.  
+*"Had oatmeal and a coffee this morning, ran 5k at lunch, felt tired all day, drank 3 glasses of water, 7 hours sleep, no alcohol."*  
+**Rationale:** The daily log has ~8 fields across 3 tabs. Power users who just want to dump their day shouldn't have to navigate tabs. This is the voice note version of the log.  
+**How it would work:** Single input field (text + voice-to-text via Web Speech API) → Claude parses and returns a structured log object → user sees a preview and confirms. Any fields not mentioned stay at their current value.  
+**Effort:** Medium — parsing prompt is the hard part; the rest is mapping to existing form state.  
+**Note:** The AI chat in the coach already does something similar informally. This would be the official fast-log path.
+
+---
+
+#### A3 — Workout Auto-Suggest (On-Demand, Not a 12-Week Program)
+**Idea:** "Generate a workout for me today" — a lighter version of Pillar 3's 12-week programme, for users who just want a good session now.  
+**Rationale:** Many users don't want a structured programme. They want a smart suggestion for today based on: what they trained yesterday, how recovered they are, what equipment they have, and how long they have.  
+**How it would work:** Button on the Schedule/Workout page — "Suggest today's workout" → sends readiness score + last 3 workouts + available equipment → Claude returns a structured workout with sets/reps → user can accept, tweak, or regenerate.  
+**Effort:** Low-Medium — prompt engineering + adapting existing workout creation UI. No new DB tables required if it just creates a draft workout session.
+
+---
+
+### Theme B — Tracking Depth
+
+Features that add new data dimensions — more signal for the correlation engine and readiness score.
+
+#### B1 — Hydration Tracking
+**Idea:** Log daily water intake in glasses or ml. Show a hydration ring alongside the macro rings. Alert the user if they haven't logged water by mid-afternoon.  
+**Rationale:** Dehydration is a major and underappreciated driver of poor energy and workout performance. It's a simple log (one number) with high correlation potential. No one currently tracking hydration in this app can see whether their energy dips are hydration-related.  
+**Data model:** Add `water_ml int` to `daily_logs` (or as a standalone log entry if real-time tracking is needed — e.g., log 250ml after each glass).  
+**Effort:** Low — one new field, one new UI element, one correlation pair.
+
+---
+
+#### B2 — Injury & Soreness Tracking
+**Idea:** Log active pain points or injury status. Auto-adjust workout recommendations to avoid affected muscle groups.  
+**Rationale:** Training around injuries is where most people either quit or make things worse. If the app knows a user has a sore right shoulder, it should stop suggesting shoulder press and flag exercises that load that area.  
+**How it would work:** A body-map diagram (front/back) where users tap affected areas. Each marked area has a severity (1–3) and a "active" flag. Workout generator and overload alerts skip exercises that involve those muscle groups. Recovery recommendations replace them.  
+**Data model:**
+```sql
+CREATE TABLE injury_log (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  body_area text NOT NULL,        -- 'right_shoulder', 'lower_back', etc.
+  severity int NOT NULL,          -- 1 (mild), 2 (moderate), 3 (severe)
+  is_active boolean DEFAULT true,
+  notes text,
+  started_at date NOT NULL,
+  resolved_at date
+);
+```
+**Effort:** Medium — body-map UI is the hardest part (SVG diagram). Exercise-to-muscle-group mapping is needed for filtering (also required for Pillar 3 Volume Dashboard).
+
+---
+
+#### B3 — Mood & Focus Tracking (Separate from Stress/Energy)
+**Idea:** Add two more fields to the daily log: mood (happy → low) and focus/cognitive sharpness. Keep stress and energy as-is.  
+**Rationale:** Stress and energy don't fully capture mental state. A user might have low stress but poor focus (caffeine crash, bad sleep), or high energy but bad mood (overtraining). These extra data points also let the correlation engine surface: *"Your focus is 40% lower on days after workouts over 90 minutes"* — which is actionable for knowledge workers.  
+**Effort:** Very Low — two new 1–5 scale fields in the daily log form and `daily_logs` table.
+
+---
+
+#### B4 — Supplement & Medication Log
+**Idea:** Log daily supplements (creatine, omega-3, vitamin D, protein powder, etc.) and optionally medications. Correlate with performance and wellness metrics.  
+**Rationale:** Supplement compliance is low because users forget. A simple daily checklist ("Did you take your creatine today?") improves consistency. Over time, the correlation engine can test whether the user actually sees any signal from their supplements.  
+**Data model:** A `supplements` table for the user's supplement list + a daily checklist column in `daily_logs` (or a separate `supplement_logs` table for timestamped tracking).  
+**Effort:** Low-Medium — new table + checklist UI component.
+
+---
+
+### Theme C — Workout Experience
+
+Features that improve the in-session workout experience, not just pre/post.
+
+#### C1 — Rest Timer with Auto-Advance
+**Idea:** After logging a completed set, automatically start a configurable rest timer. When the timer ends, the app alerts the user and highlights the next set.  
+**Rationale:** Rest timing is one of the most impactful variables in strength training (3 min for strength, 60–90 sec for hypertrophy). Currently users have to run a separate timer app. This is the most-requested feature in almost every workout app review.  
+**Effort:** Low — a simple countdown timer UI component. Rest duration configurable per exercise (default 90 sec, adjustable).
+
+---
+
+#### C2 — Superset & Circuit Mode
+**Idea:** In the workout builder, allow users to group exercises as a superset (2 exercises alternated) or circuit (3+ exercises done in sequence).  
+**Rationale:** Supersets are extremely common in hypertrophy training and HIIT. Without this, users doing classic push/pull supersets have to fake it by logging exercises independently. The active workout experience should match how they actually train.  
+**Data model:** Add an optional `group_id` and `group_type` ('superset', 'circuit') to `workout_exercises`. The active workout UI renders grouped exercises differently — alternating between them instead of completing all sets of one first.  
+**Effort:** Medium — data model is simple; the UI change to the active workout flow is non-trivial.
+
+---
+
+#### C3 — Exercise Demonstration Library
+**Idea:** For every exercise in the database, provide a looping GIF or short video showing correct form.  
+**Rationale:** Most users don't know how to do every exercise correctly. Form errors cause injuries and reduce effectiveness. A tap-to-see-demo in the active workout would be a confidence booster for less experienced users.  
+**How it would work:** Use a free exercise API (e.g., ExerciseDB or wger) that provides GIFs keyed to exercise names. Store the URL mapping in the database. Show a small "?" icon next to each exercise name in the active workout view.  
+**Effort:** Low — mostly a data problem (mapping exercise names to API exercise IDs). UI is a modal with a looping GIF.
+
+---
+
+### Theme D — Gamification & Motivation
+
+Building on the existing XP and badge system.
+
+#### D1 — Personal Record Celebrations
+**Idea:** When a user logs a new estimated 1RM, longest run, or fastest pace, trigger a celebration animation in-app and a push notification.  
+**Rationale:** PRs are the most emotionally significant moments in a fitness journey. Right now they pass without acknowledgment. A celebration moment (confetti, XP bonus, badge unlock) reinforces the behaviour and is highly shareable.  
+**Effort:** Low — PR detection logic (compare new 1RM to `exercise_records` max), celebration animation (Lottie or CSS), push notification.
+
+---
+
+#### D2 — Weekly Intention Setting
+**Idea:** Every Monday morning, a prompt: "What's your focus this week?" with 3 pre-set options (nutrition / training / consistency) + a free-text field. The intention is shown on the dashboard all week and referenced in the AI coach.  
+**Rationale:** Implementation intentions ("I will do X") dramatically improve goal follow-through vs. vague goals ("I want to get fit"). A weekly focus statement is lightweight to set and gives the AI coach a hook for personalised prompts.  
+**Data model:** One new column `weekly_intention text` in `user_settings` or a lightweight `intentions` table with one row per week.  
+**Effort:** Very Low — a weekly prompt modal + one AI prompt modification.
+
+---
+
+#### D3 — Shareable Achievement Cards
+**Idea:** Generate a shareable image card from milestones: reaching a new level, hitting a 30-day streak, setting a PR, completing a challenge. Card shows the stat, a visual, and the app name. User can share to Instagram Stories, WhatsApp, etc.  
+**Rationale:** Word-of-mouth is the cheapest growth channel. A shareable card is the "Spotify Wrapped" moment — something users want to share. It's also the social layer without requiring a social network.  
+**How it would work:** Use `html2canvas` or a server-side image renderer (Vercel OG image generation) to generate a styled card. Share via the Web Share API on mobile.  
+**Effort:** Medium — design + image generation. OG image infrastructure is already on Vercel.
+
+---
+
+### Theme E — Data Portability & Trust
+
+Features that respect the user's relationship with their own data.
+
+#### E1 — Full Data Export
+**Idea:** Let users download all their data as a CSV or JSON bundle — daily logs, workouts, body metrics, food history.  
+**Rationale:** GDPR requires this for EU users, but beyond compliance it builds trust. Users who know they can leave with their data are paradoxically more likely to stay. It also makes the app more attractive to power users who like analysing their own data in Excel or Notion.  
+**Effort:** Low — one `/api/user/export` endpoint that queries all user tables and returns a ZIP of CSVs. A button in Settings.
+
+---
+
+#### E2 — Offline Mode / Local-First Logging
+**Idea:** Allow the daily log and workout tracking to work without an internet connection, syncing when connectivity is restored.  
+**Rationale:** Gyms often have poor reception. If the app fails to load in the gym, the user logs nothing. A service worker + IndexedDB write queue would make the app reliable in low-connectivity environments.  
+**How it would work:** Use a write-through cache pattern. Log writes go to IndexedDB immediately; a background sync worker flushes to Supabase when online. Conflict resolution: last-write-wins per day per user.  
+**Effort:** High — service worker architecture is non-trivial, especially with Supabase realtime. Worth scoping carefully before committing.
+
+---
+
+### Theme F — Monetisation & Growth
+
+The PRD doesn't address how the app sustains itself. These features are worth considering.
+
+#### F1 — Premium Tier (Suggested Gating)
+**Idea:** Introduce a freemium model where core logging is free but advanced features are premium.  
+**Suggested free tier:** Daily log, workout tracking, basic streaks, manual Strava sync.  
+**Suggested premium tier ($7–10/month):** AI meal planning, 12-week programmes, correlation engine, readiness score, wearable integrations, accountability partners.  
+**Rationale:** The features in Pillars 1–6 are expensive to run (AI API calls, nightly cron jobs, third-party OAuth). A premium tier makes the infrastructure sustainable. It also creates a natural upgrade moment after the user is hooked on the free tier.  
+**Effort:** Medium — Stripe integration + feature flagging system + paywall UI.
+
+---
+
+#### F2 — Trainer/Coach Account Type
+**Idea:** A professional account type where a personal trainer or nutrition coach can manage multiple client accounts.  
+**What coaches can do:** View client logs (with permission), send workout programmes directly to client accounts, comment on progress, set goals for clients.  
+**What clients get:** Their coach's notes appear in the AI chat as authoritative guidance.  
+**Rationale:** B2B2C. If trainers adopt the app as their client management tool, they bring their entire client roster with them. This is how MyFitnessPal and Trainerize grew.  
+**Effort:** High — requires a permissions model, multi-user relationship tables, and a separate coach dashboard UI.
+
+---
+
+### Revised Prioritisation (Including New Ideas)
+
+Appending new ideas to the existing matrix for reference.
+
+| Feature | Impact | Feasibility | Recommended Sprint |
+|---|---|---|---|
+| Rest Timer | High | Very High | Sprint 1 (alongside Quick Wins) |
+| Natural Language Full-Log Entry | High | High | Sprint 2 |
+| Hydration Tracking | Medium | Very High | Sprint 1 (alongside Quick Wins) |
+| Personal Record Celebrations | High | High | Sprint 2 |
+| Weekly Intention Setting | Medium | Very High | Sprint 1 (alongside Quick Wins) |
+| Mood & Focus Fields | Medium | Very High | Sprint 1 (alongside Quick Wins) |
+| Food Photo Logging | Very High | Medium | Sprint 2 |
+| Workout Auto-Suggest (on-demand) | High | Medium | Sprint 2 |
+| Full Data Export | Medium | High | Sprint 2 (trust + compliance) |
+| Exercise Demo Library | Medium | High | Sprint 2 |
+| Shareable Achievement Cards | Medium | Medium | Sprint 3 |
+| PR Celebrations | High | Medium | Sprint 2 |
+| Superset / Circuit Mode | High | Medium | Sprint 3 |
+| Injury & Soreness Tracking | High | Medium | Sprint 3 |
+| Supplement Log | Medium | Medium | Sprint 3 |
+| Premium Tier | Very High | Medium | Sprint 4 (business sustainability) |
+| Offline Mode | High | Low | Sprint 4 |
+| Trainer Account Type | Very High | Very Low | Future |
+
+---
+
+*Brainstorm added 2026-06-22. None of the above is committed to a sprint — review and prioritise as needed.*
+
+---
+
 *Document ends. Questions, pushback, or additions — flag them and I'll revise.*
