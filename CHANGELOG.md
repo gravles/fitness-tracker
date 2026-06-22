@@ -2,6 +2,46 @@
 
 All notable changes to Life Logger are documented here.
 
+## [3.0.0] — 2026-06-22
+
+### Full UI / UX Rebrand
+- New design language matching nathandavie.com: Sora + Inter typography, deep ink navy `#060a13`, gold `#e0b35a`, blue `#5b9cf6`
+- Dashboard redesigned: animated progress rings for daily goals, streak pill, next-workout bento tile, compact coach card
+- Bottom nav redesigned: raised center "+" log button; tabs renamed to Home / Train / Eat / Trends
+- Lucide icons replace emoji chrome across 25+ components (celebration emoji preserved as content)
+- Staggered card entrances, animated ring fills, count-up numerals; respects `prefers-reduced-motion`
+- App icons, splash screens, and PWA icons regenerated in new palette
+- Pinch-to-zoom re-enabled
+
+### English / French Language Support
+- Full EN/FR i18n system via a custom `LanguageProvider` React context with `localStorage` persistence
+- Covers all core UI: navigation, dashboard, daily log, settings, onboarding, and all section components
+- Switch language in Settings → Customisation
+- Language preference passed to all Claude AI calls (coaching, weekly insights, workout chat, goal wizard, recommendations)
+
+### Claude MCP Connector
+- Connect Claude.ai directly to your Life Logger data via a personal API key
+- Seven MCP tools: `get_daily_logs`, `get_workouts`, `get_body_metrics`, `get_user_profile`, `log_food`, `log_workout`, `update_daily_log`
+- Generate, copy, and revoke API keys from Settings → Claude AI Connector
+- Compliant with MCP 2024-11-05 JSON-RPC spec; CORS-enabled for Claude.ai
+
+### Workout Autosave & Edit Completed Workouts
+- Every set toggle (complete / uncomplete) writes to the database immediately — progress survives crashes and navigation
+- Lazy workout creation: DB record created on the first completed set; crash-resume reloads from DB
+- "Saving… / Saved / Save failed" status chip shown next to the timer during a session
+- "Edit Sets" button on any completed workout card opens the full logger for set-level corrections
+- Delete individual sets with a red X button directly on each set row
+
+### Bug Fixes & Polish
+- iOS push notifications: switched `aps-environment` entitlement to production; direct APNs HTTP/2 delivery (no Firebase dependency)
+- iOS black screen on TestFlight: registered `ViewController.swift` in `project.pbxproj`
+- XP bar now uses the correct exponential curve (matches the widget and streak endpoints)
+- Streak type picker added to Settings (any log / workout only / nutrition only)
+- Saved Meals tab added to the food selector
+- AI Weekly Insights: robust JSON parsing with regex extraction; 60-second Vercel timeout; retry UI
+
+---
+
 ## [2.0.0] — 2026-05-24
 
 ### Native iOS & Android Apps

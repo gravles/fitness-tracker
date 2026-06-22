@@ -46,8 +46,18 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - FCM push notifications for reminders
 - Native haptics, swipe-back navigation on iOS
 
+**Language Support**
+- English / French UI toggle (Settings → Customisation)
+- Language preference applied to all AI responses (coaching, insights, meal plans)
+
+**Claude MCP Connector**
+- Connect Claude.ai directly to your fitness data via a personal API key
+- Read workouts, daily logs, body metrics, and profile; write food entries and workout sessions
+- Manage keys in Settings → Claude AI Connector
+
 **Customisation**
 - Light / System / Dark theme
+- English / French language
 - Custom nutrition targets, habits list, available equipment
 - Accountability partners with weekly email summaries
 
@@ -77,6 +87,10 @@ npm run cap:ios        # open Xcode
 npm run cap:android    # open Android Studio
 ```
 
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md) for the full version history.
+
 ## Environment Variables
 
 ```
@@ -93,7 +107,3 @@ OURA_CLIENT_ID=
 OURA_CLIENT_SECRET=
 NEXT_PUBLIC_APP_URL=
 ```
-
-## Changelog
-
-See [CHANGELOG.md](./CHANGELOG.md) for the full version history.

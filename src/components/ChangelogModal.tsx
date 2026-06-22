@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen } from 'lucide-react';
+import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen, Paintbrush, Languages, Bot } from 'lucide-react';
 
 interface ChangelogModalProps {
     isOpen: boolean;
@@ -11,6 +11,17 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
     if (!isOpen) return null;
 
     const changes = [
+        {
+            version: "v3.0 — Rebrand, Language & MCP",
+            date: "June 22, 2026",
+            features: [
+                { icon: <Paintbrush className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Complete UI redesign: new navy & gold palette, animated dashboard with progress rings, redesigned bottom nav." },
+                { icon: <Languages className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "English / French language toggle in Settings; language preference applied to all AI responses." },
+                { icon: <Bot className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Claude MCP Connector: generate an API key to read and write fitness data directly from Claude.ai." },
+                { icon: <Dumbbell className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Workout autosave per set — progress survives crashes. Edit completed workouts from the workout history." },
+                { icon: <Zap className="w-4 h-4 text-green-500" />, text: "XP bar corrected to exponential curve; streak type picker (any / workout / nutrition); Saved Meals tab in food selector." },
+            ]
+        },
         {
             version: "v2.0 — Native Apps & Calendar",
             date: "May 24, 2026",
