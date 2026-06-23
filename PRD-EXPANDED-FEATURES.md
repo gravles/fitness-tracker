@@ -639,4 +639,380 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
-*Document ends. Questions, pushback, or additions — flag them and I'll revise.*
+---
+
+---
+
+## Brainstormed Feature Ideas — 2026-06-23
+
+*These are new ideas not covered by the six pillars above. They range from quick wins to multi-sprint efforts. None are built yet. Review and promote any to a full pillar spec if worth pursuing.*
+
+---
+
+### Idea 1 — Food Photo Logging
+
+**What It Does**
+
+User taps a camera icon in the food log and takes a photo of their meal. Claude's vision API (or a specialized model like LogMeal/Passio) identifies the food items and estimates portion sizes and macros. The result is presented as an editable food entry — the user confirms or adjusts before saving.
+
+**Why It Matters**
+
+The single biggest barrier to food logging is effort. Text entry requires knowing food names and quantities; photo logging requires only pointing a camera. This would dramatically increase logging compliance, especially for restaurant meals and home cooking where users don't weigh ingredients.
+
+**Implementation Notes**
+
+- Use Claude Sonnet's vision capability: `base64-encode the image → attach to a message → prompt: "Identify each food item in this meal, estimate portion size, and return JSON [{name, grams_estimate, calories, protein_g, carbs_g, fat_g}]"`
+- Add a `source: 'photo' | 'text' | 'voice' | 'favourite'` field to food log items for analytics
+- The camera capture is `<input type="file" accept="image/*" capture="environment">` on mobile — no native app required
+- Estimated effort: 3–4 days (UI + prompt engineering + review flow)
+
+---
+
+### Idea 2 — Whole-Day Voice Log
+
+**What It Does**
+
+A microphone button on the dashboard (distinct from the in-workout Voice Spotter) lets users narrate their day in a single take: *"Had scrambled eggs for breakfast, went for a 40-minute run, feeling 7 out of 10 energy, a bit stressed about work, slept pretty well."* AI parses the transcript and pre-fills the food log, movement, and wellness fields simultaneously. User reviews and confirms.
+
+**Why It Matters**
+
+Many users do the mental work of tracking but find the tap-by-tap form interface slow. Voice lets them capture a full day's data in 20 seconds while walking between meetings. This is a differentiated interaction model that most fitness apps don't offer.
+
+**Implementation Notes**
+
+- Use the Web Speech API (`SpeechRecognition`) for transcription — free, no round-trip to server
+- Send the transcript to Claude with a structured extraction prompt: "Extract food items, activity, energy/stress/sleep ratings, and return them as JSON matching the daily_log schema"
+- Merge extracted fields into existing log entries (don't overwrite fields the user already filled)
+- Show a diff-style review: "I heard: 40-min run ✓, eggs for breakfast ✓ — confirm?"
+- Estimated effort: 3–5 days
+
+---
+
+### Idea 3 — Supplement Stack Tracker
+
+**What It Does**
+
+A daily supplement log where users record what they took and when: creatine (morning), protein powder (post-workout), magnesium (evening), vitamin D, etc. The log is a simple checklist of the user's saved "stack." A compliance streak tracks how many days in a row the full stack was completed.
+
+The correlation engine (Pillar 1) automatically tests supplement compliance against energy, recovery, and workout performance, surfacing insights like *"On days you take creatine, your average lift volume is 12% higher."*
+
+**Why It Matters**
+
+Supplements are a core part of most serious fitness routines, yet no mainstream fitness app tracks them. This fills a gap and adds another dimension to the correlation engine, which makes both features more valuable. It also triggers a new daily engagement touchpoint (morning checklist) that's separate from the food and workout logs.
+
+**New Data Model**
+
+```sql
+CREATE TABLE supplement_stack (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  dose text,                   -- '5g', '1 capsule', etc.
+  timing text,                 -- 'morning', 'pre-workout', 'post-workout', 'evening'
+  is_active boolean DEFAULT true,
+  sort_order int DEFAULT 0
+);
+
+CREATE TABLE supplement_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  supplement_id uuid REFERENCES supplement_stack(id) ON DELETE CASCADE,
+  taken_at timestamptz,
+  UNIQUE(user_id, date, supplement_id)
+);
+```
+
+- Estimated effort: 2–3 days (stack management + daily checklist + compliance streak)
+
+---
+
+### Idea 4 — AI-Generated Warm-Up & Cool-Down
+
+**What It Does**
+
+When a user opens a planned workout or starts a new session, the app generates a 5-minute dynamic warm-up targeting the muscles in that day's session. After the last set is logged, it generates a 5-minute cool-down / stretch sequence. Both are presented as a timed list of exercises with brief instructions. The user can skip or follow along.
+
+**Why It Matters**
+
+Warm-ups and cool-downs are universally recommended but almost universally skipped because people don't know what to do. Generating them contextually (based on today's actual workout plan) removes the "I don't know where to start" excuse and reduces injury risk. No new data infrastructure needed — it only reads the workout plan.
+
+**Implementation Notes**
+
+- Prompt: `"Generate a 5-minute warm-up for a workout that includes: {exercise_list}. Return JSON [{name, duration_seconds, instructions}]"`
+- Cache the result per workout session — one AI call at session start, one at end
+- Display as a pre/post checklist with countdown timers using the same timer UI already built for HIIT
+- Estimated effort: 2–3 days
+
+---
+
+### Idea 5 — Coached Cardio / HIIT Sessions
+
+**What It Does**
+
+A new workout modality alongside strength training. User picks a cardio session type (HIIT, Steady State, Tempo Run, Zone 2) and duration. The app audio-guides them through the session: interval countdown timers, voice cues ("30 seconds left — push it"), rest prompts, and a live heart rate zone indicator (manual input or estimated). At the end, the session is logged to `workouts` as a cardio entry.
+
+A built-in library of pre-designed sessions (5×20s Tabata, 4×4 Intervals, 30-min Zone 2, etc.) requires no AI. An "AI Custom" option lets users describe what they want: *"Give me a 20-minute beginner HIIT I can do in my living room."*
+
+**Why It Matters**
+
+The workout tracker is currently strength-training-centric. Cardio users — a large segment — have little to engage with beyond logging a workout duration. Coached cardio sessions give them a reason to open the app for every run, cycle, or HIIT session, not just gym visits. This also adds value without gym equipment.
+
+**Implementation Notes**
+
+- Use the Web Audio API + `SpeechSynthesis` for voice cues — no audio files needed
+- Session templates stored as JSON: `[{phase: 'work', duration: 20, cue: 'Go!'}, {phase: 'rest', duration: 10, cue: 'Rest'}, ...]`
+- AI-generated sessions from Pillar 3's training program context or standalone
+- Log to `workouts` with `type: 'cardio'`, `duration_min`, `estimated_calories_burned`
+- Estimated effort: 4–6 days (timer engine + audio + library UI + logging)
+
+---
+
+### Idea 6 — Injury & Pain Log
+
+**What It Does**
+
+A daily optional log of pain or discomfort: body area (from a silhouette picker), severity (1–5), type (sharp/dull/DOMS/tightness), and notes. When pain is logged for a body area, the AI coach surfaces a note in the workout view: *"You reported left shoulder pain on Monday — the bench press targets your anterior deltoid. Warm up carefully or substitute with a cable fly."*
+
+The correlation engine tests pain logs against training load, sleep quality, and stress — surfacing patterns like *"Your knee pain scores are highest after consecutive running days."*
+
+**Why It Matters**
+
+Unmanaged injuries are the number-one reason people quit fitness programs. An injury log makes the app a partner in managing setbacks rather than something that makes you feel bad for not training. It also creates a medically useful data export (doctor's appointment: "here's 6 months of my knee pain log").
+
+**New Data Model**
+
+```sql
+CREATE TABLE pain_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  body_area text NOT NULL,      -- 'left_knee', 'lower_back', 'left_shoulder', etc.
+  severity int NOT NULL,        -- 1-5
+  pain_type text,               -- 'sharp', 'dull', 'doms', 'tightness', 'stiffness'
+  notes text,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+- Estimated effort: 2–3 days (body area picker + log + coach integration)
+
+---
+
+### Idea 7 — Travel Mode
+
+**What It Does**
+
+A toggleable mode (accessible from the dashboard or settings) that tells the app "I'm traveling." While active:
+- Workout suggestions shift entirely to bodyweight and hotel-room-friendly exercises
+- Calorie target adjusts down ~10% (travel = less NEAT, more sedentary time)
+- The streak system treats travel days with a "shield" — you can log a simple travel-day entry (a walk, hotel gym session, or rest) without breaking a movement streak
+- The AI coach proactively offers 3 hotel workout options when the mode is activated
+
+**Why It Matters**
+
+Travel is the single most common reason for app abandonment. When users can't follow their normal routine, they feel the app doesn't apply to them and stop opening it. A Travel Mode signals that the app understands real life and adapts, rather than silently judging a missed day.
+
+**Implementation Notes**
+
+- Add `travel_mode_until date` to `user_settings`
+- Store hotel/bodyweight exercise library as static JSON (no DB needed)
+- Coach system prompt gets a `[TRAVEL MODE ACTIVE]` flag that redirects all workout suggestions
+- Estimated effort: 1–2 days
+
+---
+
+### Idea 8 — Personal Records Wall
+
+**What It Does**
+
+A dedicated "PRs" tab (within the Workout or Profile section) showing all-time personal records for every exercise the user has logged: heaviest single lift, best estimated 1RM, most reps at a given weight, heaviest total volume in a session. Records are sorted by muscle group. When a new PR is set mid-workout, a celebration animation appears with an XP bonus.
+
+This is partially covered by Pillar 3's estimated 1RM tracking but the PR Wall is the *presentation* layer — a motivational artefact the user revisits to remind themselves of their progress.
+
+**Why It Matters**
+
+PRs are the emotional anchors of strength training. "I deadlifted 100kg" is a milestone users remember for years. Making these visible and celebratory creates a strong emotional attachment to the app and gives users a reason to brag (shareable PR cards are a natural extension).
+
+**Implementation Notes**
+
+- Query `workout_sets` grouped by `exercise_name`, find `MAX(weight)` and `MAX(estimated_1rm)` per exercise
+- PR detection: on each set save, compare to stored record — trigger confetti + XP if beaten
+- Shareable PR card: a `<canvas>`-rendered image with the PR stats, user name, date — downloadable and shareable to social media
+- Estimated effort: 2–3 days
+
+---
+
+### Idea 9 — Data Export & Annual Review
+
+**What It Does**
+
+Two related features:
+
+**Data Export** (Settings → Export): Download all your data as a ZIP of CSVs (daily_logs, workouts, body_metrics, etc.). Privacy-forward — users own their data.
+
+**Annual Review** (triggers in January, or on account anniversary): A generated visual summary of the year — total workouts, total calories logged, total weight lifted, longest streak, most improved exercise, weight change, and a personal highlight reel of PRs. Styled like a Spotify Wrapped card — shareable as an image.
+
+**Why It Matters**
+
+Data portability is a trust signal. Users who know they can export their data are more likely to put more data in. The annual review is a high-engagement moment — it's shareable (viral potential), celebratory, and reminds users how far they've come, reducing churn at the January retention cliff.
+
+**Implementation Notes**
+
+- Export: a Vercel serverless function that queries all user tables and streams a ZIP response
+- Annual Review: the AI coach generates a narrative summary; a `<canvas>` component renders the visual
+- Estimated effort: Export = 1 day; Annual Review = 2–3 days
+
+---
+
+### Idea 10 — Hydration Tracker
+
+**What It Does**
+
+A simple daily water intake counter (glasses or ml) integrated into the daily log. Users tap "+" to log a glass; a progress arc fills toward their daily target (default 8 glasses, configurable). Smart reminders nudge users to drink water after logging a workout or at intervals through the day. Hydration feeds into the correlation engine.
+
+**Why It Matters**
+
+Hydration is the most-cited daily health habit and one of the easiest to neglect. It also has measurable correlations with energy and workout performance — making it a natural correlation engine data point. The feature is tiny to build but adds a daily interaction touchpoint that users will use more often than food logging.
+
+**Implementation Notes**
+
+- Add `water_glasses int DEFAULT 0` and `water_target_glasses int DEFAULT 8` to `daily_logs` and `user_settings`
+- One-tap increment on the dashboard (no new page needed)
+- Notification: trigger a "Drink water" push if no water logged 2 hours after a workout is saved
+- Estimated effort: 1 day
+
+---
+
+### Idea 11 — Smart Notification Timing (Adaptive Reminders)
+
+**What It Does**
+
+Instead of fixed reminder times, the app learns when the user actually opens and logs. After 14 days, it analyses the distribution of log timestamps and shifts reminders to match the user's real behaviour. If a user consistently logs at 8pm despite a 7pm reminder, the reminder moves to 7:45pm. If a user ignores reminders for 5 consecutive days at a given time, the system tries a 30-minute shift.
+
+**Why It Matters**
+
+Notification timing is the biggest lever on reminder effectiveness. Fixed-time reminders quickly become invisible (notification blindness). Adaptive timing keeps them fresh and contextually relevant. This requires no new UI — it's a pure backend intelligence improvement on the existing notification infrastructure.
+
+**Implementation Notes**
+
+- Log `notification_sent_at` and `app_opened_at` (or `log_saved_at`) per user per day
+- Nightly cron: compute median log time over last 21 days; if median differs from scheduled reminder by >30 min, update the scheduled time
+- Cap the maximum adjustment at ±2 hours from the user-set base time
+- Estimated effort: 1–2 days
+
+---
+
+### Idea 12 — Eating Out / Restaurant Mode
+
+**What It Does**
+
+In the food log, a "Eating Out" tab lets users search a restaurant name (using the Nutritionix restaurant database API) and browse menu items with macro data. Tap to add items directly to the log. Falls back to AI estimation for restaurants not in the database: *"I had the chicken tikka masala at an Indian restaurant, medium portion"* → AI estimates macros with confidence range.
+
+**Why It Matters**
+
+"I ate out so I can't log it" is one of the most common reasons for log gaps. Restaurant meals are also where users most frequently exceed their targets — which is exactly when logging matters most. Reducing the friction of restaurant logging would meaningfully improve macro accuracy.
+
+**Implementation Notes**
+
+- Nutritionix has a free tier (500 requests/day) with a restaurant chain database covering most major chains
+- For independent restaurants: the existing AI food entry already handles natural-language descriptions — just add a "restaurant mode" prompt that emphasises estimation over precision and adds a wider confidence margin
+- Estimated effort: 2–3 days (API integration + UI tab)
+
+---
+
+### Idea 13 — Functional Fitness Benchmarks
+
+**What It Does**
+
+A periodic self-testing protocol (recommended monthly) for standardised fitness tests beyond gym lifts:
+- Max push-ups in 60 seconds
+- Max pull-ups (or dead hang duration)
+- 1-mile run time (or time to exhaustion on a bike)
+- Plank hold duration
+- Sit-and-reach flexibility score
+- Single-leg balance duration
+
+Results are tracked over time with a chart, and compared to age/gender normative data. AI generates a "functional fitness summary" noting which benchmarks are above or below average for the user's demographic and suggesting exercises to address weak areas.
+
+**Why It Matters**
+
+Body weight and gym PRs don't capture overall fitness. Many users care about real-world capability — can I do 20 push-ups? Can I run a mile without stopping? Benchmarks give non-gym users a structured progress metric, and they're humbling for gym users who neglect cardiovascular fitness. Monthly test prompts also create a recurring engagement anchor.
+
+**Implementation Notes**
+
+- Static JSON table of age/gender normative data (from published fitness research)
+- `fitness_benchmarks` table: `user_id, test_name, result_value, result_unit, tested_at`
+- AI prompt: "Compare these results to age/gender norms and suggest 2 focus areas"
+- No new infrastructure needed beyond a simple form and chart
+- Estimated effort: 2–3 days
+
+---
+
+### Idea 14 — Longevity Metrics Dashboard
+
+**What It Does**
+
+A separate "Health Age" view (under Analytics or Profile) that tracks markers associated with long-term health and longevity — not just aesthetics or performance:
+
+- **Estimated VO2 max** — derived from cardio session data (pace/HR) using the Cooper test formula or a running-based estimate
+- **Resting Heart Rate trend** — if logged or pulled from Apple Health / Oura (Pillar 6)
+- **HRV trend** — from wearable data
+- **Sleep consistency score** — standard deviation of sleep hours over 30 days (lower = more consistent = better)
+- **Alcohol-free day ratio** — 30-day rolling
+
+AI synthesises these into a plain-language "health trajectory" summary: *"Your resting heart rate has dropped 4 bpm over the last 3 months — a strong signal of improving cardiovascular fitness. Your sleep consistency has decreased recently; consider aiming for more regular bedtimes."*
+
+**Why It Matters**
+
+Longevity is the fastest-growing sub-niche in wellness (Attia, Huberman, etc.). Many users — especially 30–50 year olds — are shifting focus from aesthetics to health span. A longevity dashboard differentiates the app from purely aesthetic trackers and appeals to a high-engagement, high-retention demographic. It also becomes more valuable over time as data accumulates.
+
+**Implementation Notes**
+
+- VO2 max estimate: `VO2max ≈ 15 × (MaxHR / RestingHR)` — rough but useful as a trend metric
+- Sleep consistency: `stddev(sleep_hours)` over 30 days from `daily_logs`
+- Initial version uses only data already in the app — no new integrations required
+- Wearable data (Pillar 6) makes this dramatically more accurate as a phase 2
+- Estimated effort: 2–3 days (calculations + dashboard view + AI summary)
+
+---
+
+### New Quick Win Additions
+
+| Feature | Description | Effort |
+|---|---|---|
+| Hydration quick-add | One-tap water glass counter on dashboard (see Idea 10) | 1 day |
+| PR celebration animation | Confetti + XP bonus when a workout set beats a stored personal record | 2h |
+| Streak freeze / grace day | Let users "spend" 1 XP item per month to protect a streak from a missed day | 2h |
+| Dark mode OLED variant | Add a true-black (#000) theme option for OLED phone screens (battery savings + aesthetics) | 2h |
+| Calorie deficit/surplus indicator | Show net calories (intake minus estimated burn from activity) next to the calorie goal ring | 3h |
+| Workout share card | Generate a shareable image of today's workout summary (exercises, volume, PR highlights) | 1 day |
+| Rest timer | Auto-start a configurable rest timer between sets in the active workout view | 2h |
+| Log a missed day | Allow backdating entries by up to 3 days — useful when users forget to log in the evening | 2h |
+| Coach conversation starters | Preset prompt chips in the AI coach ("Plan my week", "Analyse my sleep", "Help me eat more protein") | 3h |
+| Exercise history inline | In the exercise picker, show the last session's weight/reps inline — no need to navigate away | 2h |
+
+---
+
+### Brainstorm Prioritisation Additions
+
+| Idea | Impact | Feasibility | Score | Notes |
+|---|---|---|---|---|
+| Hydration Tracker | High | Very High | ★★★★★ | Tiny build, big engagement boost |
+| Food Photo Logging | Very High | High | ★★★★☆ | Uses existing Claude vision API |
+| Travel Mode | High | Very High | ★★★★☆ | Addresses biggest churn trigger |
+| PR Wall + Celebration | High | High | ★★★★☆ | Extends Pillar 3 work |
+| AI Warm-Up / Cool-Down | High | High | ★★★★☆ | Single AI call per session |
+| Whole-Day Voice Log | High | Medium | ★★★☆☆ | Differentiating UX, some parsing complexity |
+| Smart Notification Timing | High | High | ★★★☆☆ | Pure backend, no UI |
+| Supplement Tracker | Medium | High | ★★★☆☆ | Niche but high engagement for target user |
+| Injury & Pain Log | High | High | ★★★☆☆ | Retention lever, addresses churn |
+| Eating Out Mode | High | Medium | ★★★☆☆ | API integration + fallback to AI |
+| Functional Fitness Benchmarks | Medium | High | ★★★☆☆ | Monthly engagement anchor |
+| Coached Cardio / HIIT | Very High | Medium | ★★★☆☆ | New user segment (cardio-first) |
+| Data Export & Annual Review | Medium | High | ★★★☆☆ | Trust + viral potential |
+| Longevity Dashboard | High | Medium | ★★☆☆☆ | Best with wearable data (Pillar 6 first) |
+
+---
+
+*Document updated 2026-06-23. Original six pillars unchanged above.*
