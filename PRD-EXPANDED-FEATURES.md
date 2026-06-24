@@ -35,7 +35,7 @@ This document proposes six major feature pillars, each with full specifications,
 
 ---
 
-## The Six Pillars
+## The Nine Pillars
 
 1. **Correlation Engine & Insight Feed** — surface *why* you feel good or bad
 2. **Intelligent Nutrition Planning** — close the loop from tracking to planning
@@ -43,6 +43,9 @@ This document proposes six major feature pillars, each with full specifications,
 4. **Recovery & Readiness Score** — a daily signal that answers "should I train hard today?"
 5. **Accountability Layer** — gentle social pressure without the social media toxicity
 6. **Health Platform Integrations** — Apple Health, Google Fit, Oura, Withings
+7. **Food Photo Logging** — point a camera at a meal and have it logged instantly
+8. **Fasting & Time-Restricted Eating** — IF timers, fasting-aware coaching, and metabolic tracking
+9. **Sleep Intelligence & Optimisation** — from logging sleep to actively improving it
 
 Plus an **appendix of quick wins** — bugs and small features that could ship in a day each.
 
@@ -569,6 +572,291 @@ Every extra data source makes the correlation engine, readiness score, and AI co
 
 ---
 
+---
+
+## Pillar 7 — Food Photo Logging & AI Vision Entry
+
+### The Problem
+
+Manually searching for and logging each food item is the single biggest friction point in nutrition tracking. Most users abandon food logging not because they don't want to — they do — but because looking up "homemade chicken stir fry" in a database, adjusting portion sizes, and adding each component individually takes 3–5 minutes per meal. Multiply that by three meals a day and it feels like a job. A camera-first entry flow collapses this to under 30 seconds.
+
+### What It Does
+
+**Photo → Log in One Tap**
+User opens the food log, taps a camera icon, takes a photo of their meal. Claude Vision analyses the image and returns:
+- A list of identified foods (with confidence scores)
+- Estimated portion sizes based on visual cues (plate size, context)
+- Calculated calories, protein, carbs, fat
+
+The user sees a confirmation screen — they can adjust portions or swap items — then taps "Log It." The whole flow takes under 30 seconds.
+
+**Multi-Item Recognition**
+A plate of chicken, rice, and broccoli correctly identifies three separate items, logs each individually, and sums the totals. Drinks, packaged foods with visible labels, and restaurant dishes are all in scope.
+
+**Barcode Fallback**
+If the user holds up a packaged product, the camera detects the barcode and switches to barcode-lookup mode automatically (using Open Food Facts API). No manual mode switching.
+
+**Meal History Learning**
+After a few weeks, the system recognises that the user's "morning bowl" is always oats + protein powder + banana. If a photo loosely matches a saved meal, it prompts: *"Looks like your usual breakfast — log as 'Morning Bowl'?"* One tap.
+
+**Restaurant Menu Scan**
+Point the camera at a physical or on-screen restaurant menu. The app identifies the dish name, looks it up in a restaurant nutrition database (Nutritionix, Spoonacular), and pre-fills the entry. Not perfect — but better than nothing, and users can adjust.
+
+### AI Architecture
+
+The photo logging flow sends the image to Claude's vision API with a structured prompt:
+
+```
+System: You are a professional nutritional analyst with expertise in estimating food portions visually.
+
+Given this meal photo, return a JSON array of food items. For each:
+- name: common food name
+- estimated_grams: your best estimate
+- calories_per_100g: standard reference value
+- protein_g, carbs_g, fat_g: per 100g
+- confidence: 'high' | 'medium' | 'low'
+
+Be conservative with portions — people consistently overestimate portion sizes in photos.
+When confidence is low, flag it so the user can correct it.
+```
+
+The response is validated and pre-fills the log entry form. The user's manual corrections feed back into a lightweight personal calibration (e.g. "this user always adjusts chicken up by 20% — apply as a bias").
+
+### New Data Model
+
+```sql
+-- Track photo log events for calibration and audit
+CREATE TABLE food_photo_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  photo_url text NOT NULL,           -- stored in Supabase Storage, private bucket
+  ai_response jsonb NOT NULL,        -- raw Claude response
+  user_confirmed_items jsonb,        -- what the user actually logged (may differ)
+  accuracy_delta jsonb,              -- calorie/protein delta between AI and user edit
+  logged_at timestamptz DEFAULT now()
+);
+```
+
+### New Routes
+
+- `POST /api/log/photo` — accepts image (base64 or multipart), returns AI-parsed food items
+- `POST /api/log/barcode?code=xxxxx` — barcode lookup via Open Food Facts
+- `POST /api/log/menu-scan` — restaurant menu photo → dish lookup
+
+### UI Sketch
+
+```
+┌─────────────────────────────────────────────────────┐
+│  📷  What did you eat?                               │
+│                                                      │
+│  ┌──────────────────────────────────┐               │
+│  │   [Camera Preview / Photo]        │               │
+│  └──────────────────────────────────┘               │
+│                                                      │
+│  Found 3 items:                                      │
+│  ✓ Grilled chicken breast   ~180g   220 cal  42g P  │
+│  ✓ White rice                ~150g   195 cal   4g P  │
+│  ✓ Broccoli                  ~100g    35 cal   3g P  │
+│                                                      │
+│  Total: 450 cal · 49g protein                       │
+│                            [Edit]  [Log It →]        │
+└─────────────────────────────────────────────────────┘
+```
+
+### Why This Matters
+
+This is the highest-leverage UX improvement the app could make. Logging friction is the number one reason people quit food tracking. Every other nutrition feature — correlation engine, meal planning, macro targets — is worthless if the user doesn't log. A photo flow that's genuinely fast enough to use at every meal unlocks adherence rates that are simply not achievable with manual search. This is also a strong differentiator: most competitors have attempted this but implemented it poorly.
+
+---
+
+---
+
+## Pillar 8 — Fasting & Time-Restricted Eating
+
+### The Problem
+
+Intermittent fasting (IF) and time-restricted eating (TRE) are among the most widely adopted dietary strategies, with strong evidence for metabolic health, body composition, and simplicity of adherence. Despite this, the app has no fasting support at all. Users who practice IF are currently logging in a vacuum — there's no way to set a fasting window, see their remaining fast, get coaching about fasting, or correlate fasting behaviour with their outcomes.
+
+### What It Does
+
+**Fasting Timer Widget**
+A persistent timer on the dashboard (or as a card) showing:
+- Current fasting state: Fasting / Eating Window
+- Time remaining in current state
+- Today's window: e.g. *"16:8 · Fast started at 8pm · Break at 12pm"*
+- A visual arc (like a progress ring) filling as the fast progresses
+
+**Protocol Templates**
+Pre-built fasting protocols the user can select from:
+- 16:8 (most popular — 16h fast, 8h window)
+- 18:6
+- 20:4 (OMAD-adjacent)
+- 5:2 (two low-calorie days per week)
+- Custom (user defines window manually)
+
+Once selected, the eating window anchors the daily log — food entries outside the window are flagged with a gentle note (*"This is outside your fasting window — log it anyway?"*).
+
+**Fasting-Aware Coaching**
+The AI coach becomes fasting-aware:
+- If the user is in a fasting window and asks about hunger, the coach acknowledges their protocol
+- Meal suggestions only appear for the eating window period
+- Macro targets adjust to the eating window (e.g. 40g protein at breakfast is more urgent when you only have 8h to hit 160g)
+- Electrolyte reminders during extended fasts (salt, magnesium, potassium)
+
+**Fasting Streaks & Records**
+Separate from the movement streak: a fasting consistency streak. *"14 days hitting your 16:8 window."* Longest fast record. Earns XP and specific badges (e.g. "Iron Will" for 30-day fasting streak).
+
+**Break-Fast Meal Suggestions**
+A smart prompt that fires at the end of the fasting window: *"Time to break your fast. Here's a high-protein meal to start your window well."* Suggestions prioritise protein-forward foods to maximise the post-fast anabolic window.
+
+**Correlation with Existing Data**
+The correlation engine (Pillar 1) gains a new variable: `fasting_window_hit` (boolean, daily). This immediately unlocks correlations like:
+- *"Your energy is 28% higher on days you complete your 16h fast."*
+- *"You sleep better on fasting days."*
+- *"Your workout performance doesn't differ between fasting and eating-day mornings."*
+
+### New Data Model
+
+```sql
+-- User's fasting configuration
+ALTER TABLE user_settings
+  ADD COLUMN IF NOT EXISTS fasting_protocol text,        -- '16:8', '18:6', '20:4', '5:2', 'custom'
+  ADD COLUMN IF NOT EXISTS eating_window_start time,     -- e.g. '12:00'
+  ADD COLUMN IF NOT EXISTS eating_window_end time,       -- e.g. '20:00'
+  ADD COLUMN IF NOT EXISTS fasting_enabled boolean DEFAULT false;
+
+-- Daily fasting records
+CREATE TABLE fasting_records (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  fast_start timestamptz NOT NULL,
+  fast_end timestamptz,                   -- null if still fasting
+  target_duration_hours numeric NOT NULL,
+  actual_duration_hours numeric,
+  window_hit boolean,                     -- did they complete the target?
+  notes text,
+  UNIQUE(user_id, date)
+);
+```
+
+### Why This Matters
+
+IF is not a niche — it's mainstream. A significant portion of fitness-focused users practice some form of TRE, and none of the current app's features are aware of it. Adding fasting support does three things: (1) it makes the app relevant to a large user segment currently underserved, (2) it adds a second daily engagement hook (the fasting timer) alongside the log, and (3) it creates new high-value correlations in the insight engine that users will find genuinely surprising and motivating.
+
+---
+
+---
+
+## Pillar 9 — Sleep Intelligence & Optimisation
+
+### The Problem
+
+The app currently captures a `sleep_quality` score (1–5) each day. That's a start, but it doesn't do anything *actionable* with it beyond showing a trend line. Sleep is the most impactful lever on recovery, performance, cognitive function, and emotional regulation — more so than any single supplement or training variable. A dedicated sleep intelligence layer transforms the app from "records your sleep" to "helps you sleep better."
+
+### What It Does
+
+**Bedtime Recommendation**
+Each evening, the app sends a push notification (if enabled) at the optimal bedtime for the user's next day:
+- If tomorrow is a hard training day (per schedule), suggest 8h window
+- If correlation engine has found that 7.5h+ sleep correlates with better energy, personalise to that threshold
+- If it's a rest day, suggest 7h minimum
+- Example: *"If you sleep now, you'll get 7.5h before your 6am alarm. Your best workout days follow 7h+ of sleep."*
+
+**Sleep Debt Tracker**
+Accumulates a rolling 7-day sleep debt metric. Shown as a small indicator on the dashboard:
+- Green: on target (< 1h debt)
+- Amber: mild debt (1–3h)
+- Red: significant debt (3h+)
+
+When debt is high, the readiness score (Pillar 4) is automatically suppressed — this is the connection point between the two pillars.
+
+**Wind-Down Routine Builder**
+A library of 5–15 minute wind-down routines the user can schedule as an evening reminder:
+- Progressive muscle relaxation
+- Box breathing (4-4-4-4 pattern, with animated guide in-app)
+- Gratitude journaling prompt (3 things from today)
+- Phone-down countdown ("put your phone down in 10 minutes")
+
+Not AI-generated on demand — a curated library that the app serves. Low infrastructure cost, high perceived value.
+
+**Sleep Quality Deep Dive**
+Once per week (paired with the weekly insight card), the AI generates a sleep-specific insight using recent log data:
+- *"Your worst sleep days follow high-stress days with 3+ drinks. This happened 4 times this month."*
+- *"You average 0.7 points better sleep quality on days you log movement before 7pm."*
+- *"Your sleep scores have improved from 2.8 to 3.6 over the past 6 weeks — something is working."*
+
+**Morning Check-In (Alternative to Evening Log)**
+An optional lightweight morning mode: instead of logging everything the night before, users answer 3 questions in 30 seconds when they wake up:
+1. *How did you sleep? (1–5)*
+2. *How rested do you feel? (1–5)*
+3. *Any notes?*
+
+This flows into the readiness score calculation by 7am, giving them a day-start signal rather than a day-end reflection.
+
+**Sleep Stage Integration (Phase 2)**
+When Oura or Apple Health integration (Pillar 6) is active, replace the manual sleep quality score with actual sleep stage data. The 1–5 score is derived from: `(deep_sleep_min / 90) × 0.4 + (rem_sleep_min / 90) × 0.3 + (sleep_efficiency) × 0.3`. Users who haven't connected a device keep the manual score; connected users get a richer number automatically.
+
+### New Data Model
+
+```sql
+-- Wind-down routines library (app-managed, not user-generated)
+CREATE TABLE sleep_routines (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  description text,
+  duration_min int NOT NULL,
+  category text NOT NULL,   -- 'breathing', 'relaxation', 'journaling', 'mindfulness'
+  steps jsonb NOT NULL,     -- ordered array of { type, duration_sec, instruction }
+  is_active boolean DEFAULT true
+);
+
+-- User's sleep routine usage
+CREATE TABLE sleep_routine_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  routine_id uuid REFERENCES sleep_routines(id),
+  completed_at timestamptz DEFAULT now(),
+  completed_fully boolean DEFAULT true
+);
+
+-- Morning check-in (separate from daily_logs for flexibility)
+CREATE TABLE morning_checkins (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  sleep_quality int CHECK (sleep_quality BETWEEN 1 AND 5),
+  restedness int CHECK (restedness BETWEEN 1 AND 5),
+  notes text,
+  checked_in_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, date)
+);
+
+-- User sleep settings
+ALTER TABLE user_settings
+  ADD COLUMN IF NOT EXISTS target_sleep_hours numeric DEFAULT 7.5,
+  ADD COLUMN IF NOT EXISTS bedtime_reminder_enabled boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS bedtime_reminder_time time,
+  ADD COLUMN IF NOT EXISTS morning_checkin_enabled boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS morning_checkin_time time;
+```
+
+### New Routes
+
+- `GET /api/sleep/debt` — rolling 7-day sleep debt calculation
+- `GET /api/sleep/recommendation` — tonight's target bedtime
+- `GET /api/sleep/routines` — library of wind-down routines
+- `POST /api/sleep/routine-log` — record routine completion
+- `POST /api/morning-checkin` — submit morning check-in
+
+### Why This Matters
+
+Sleep is the most undertapped vector in the app. It's already being tracked (sort of), but the data goes nowhere. This pillar closes that loop. It also creates a new *morning* engagement touchpoint — right now the app is an evening app (log your day at the end). A bedtime recommendation and morning check-in bookend the user's day and double the number of meaningful app interactions without doubling the effort. For many users, improving sleep will have a more dramatic effect on energy and performance than any training or nutrition change — the app should be the thing that makes that happen.
+
+---
+
+---
+
 ## Quick Wins Appendix
 
 These are bugs or small features that could each ship in a day or less. Not a pillar, but worth doing.
@@ -601,25 +889,92 @@ These are bugs or small features that could each ship in a day or less. Not a pi
 | Persistent macro summary bar | Sticky mini macro bar (P/C/F/Cal) visible across all log tabs | 2h |
 | Coach chat history sync | Move coach chat history from localStorage to Supabase for cross-device persistence | 1 day |
 
+### New Quick Win Ideas *(added 2026-06-24)*
+
+**Hydration Tracker**
+A simple daily water intake widget on the log page. User taps a cup icon to add 250ml (or a custom size). Progress bar shows current vs. target (default 2L, customisable). A push notification fires mid-afternoon if they're below 50% by 2pm. Zero backend complexity — just a new field (`water_ml`) in `daily_logs` and a small UI component. Estimated effort: **half a day**.
+
+**Personal Records Hall of Fame**
+A dedicated `/records` page (or sub-tab under Workout) that shows:
+- All-time best for every logged exercise (heaviest set, highest estimated 1RM, most reps)
+- A "Recent PRs" section showing records set in the last 30 days
+- A shareable PR card (image) for social sharing — just a styled screenshot of *"New PR: 120kg Squat"* with the app logo
+
+This requires no new data — it's entirely derived from `workout_exercises` + `workout_sets`. Estimated effort: **1–2 days**.
+
+**Supplement Tracker**
+A lightweight supplement log added to the daily entry form. Users can add supplements from a preset list (creatine, protein powder, omega-3, vitamin D, magnesium, caffeine) or type custom ones. Stored as a `supplements` jsonb array in `daily_logs`. The correlation engine can then pick up supplement adherence and correlate it with performance or recovery metrics. Estimated effort: **1 day**.
+
+**Injury & Soreness Log**
+A simple body-map UI (front/back silhouette with tappable regions) where users can flag muscle soreness or minor injuries with a severity (1–5) and optional note. Stored in a new `soreness_logs` table. Benefits:
+- The AI coach becomes aware of soreness when giving workout advice
+- The readiness score (Pillar 4) can optionally factor in soreness
+- Users build a history of recurring problem areas, which is medically useful
+
+The body-map doesn't need to be sophisticated — even a checkbox list of major muscle groups works for v1. Estimated effort: **1 day**.
+
+**Data Export**
+Allow users to export their data as CSV or JSON from the Settings page. Three export types:
+1. Daily logs (all fields, one row per day)
+2. Workout history (exercises, sets, weights)
+3. Body metrics history
+
+No AI required. Users can share with their doctor, trainer, or import into another tool. Also builds trust — users are more likely to commit to an app if they know they can leave with their data. Estimated effort: **1 day**.
+
+**Voice Logging (General)**
+Extend the existing voice spotter (which already transcribes speech) to handle general log entries:
+- *"I just had two scrambled eggs, a slice of toast, and a coffee"* → auto-parsed into food log items
+- *"Feeling really tired today, stress level 4, slept badly"* → auto-fills wellness fields
+- *"I drank two glasses of wine last night"* → logs alcohol
+
+Uses the same speech-to-text infrastructure already in place. The parser is a simple Claude call: *"Parse this voice note into structured log fields. Return JSON."* Estimated effort: **2 days** (mostly integration + UI).
+
+**Onboarding Walkthrough**
+A step-by-step first-run experience for new users:
+1. Set primary goal (lose fat / build muscle / improve health / train for event)
+2. Set a daily calorie and protein target (or use the Goal Wizard)
+3. Enable notifications (log reminder, streak)
+4. Tour the key screens with coach tips
+
+Currently new users land on the dashboard with no guidance. A 5-step onboarding could meaningfully reduce early churn. Estimated effort: **2 days**.
+
+**Dark / Light Mode Toggle in App**
+Add an explicit light/dark/system toggle in Settings (currently the app likely follows system preference only). Estimated effort: **2h**.
+
+**Workout Rest Timer**
+During an active workout, add an optional rest timer that starts automatically between sets. User sets default rest duration (e.g. 90s for hypertrophy, 3–5min for strength) in workout preferences. A notification vibrates when rest is over. Estimated effort: **half a day** (just a timer component and a setting).
+
 ---
 
 ## Prioritisation Matrix
 
 Scored on Impact (user value) × Feasibility (time + complexity) for a solo developer.
 
-| Pillar | Impact | Feasibility | Score | Recommended Sequencing |
+| Pillar / Feature | Impact | Feasibility | Score | Recommended Sequencing |
 |---|---|---|---|---|
-| Quick Wins | Medium | Very High | ★★★★★ | Ship first (continuous) |
+| Quick Wins (bugs) | Medium | Very High | ★★★★★ | Ship first (continuous) |
+| New Quick Wins (hydration, rest timer, records) | Medium | Very High | ★★★★★ | Ship alongside bugs |
 | Readiness Score | Very High | High | ★★★★☆ | Sprint 1 — no new tables, just logic |
 | Correlation Engine | Very High | High | ★★★★☆ | Sprint 1 — data already exists |
+| Sleep Intelligence (bedtime nudge + debt tracker) | High | High | ★★★★☆ | Sprint 1 — small UI + one push notification |
+| Fasting Timer (basic 16:8 timer + widget) | High | High | ★★★★☆ | Sprint 1 — timer + settings field only |
 | Nutrition Planning (Saved Meals only) | High | High | ★★★☆☆ | Sprint 2 — start with saved meals |
 | Periodisation (Overload Alerts only) | High | High | ★★★☆☆ | Sprint 2 — active workout is already there |
+| Food Photo Logging (v1 — Claude Vision) | Very High | Medium | ★★★☆☆ | Sprint 2 — single API route + confirmation UI |
+| Supplement Tracker | Medium | High | ★★★☆☆ | Sprint 2 — just a new log field |
+| Injury / Soreness Log | High | High | ★★★☆☆ | Sprint 2 — body map or checkbox list |
+| Data Export | Medium | Very High | ★★★☆☆ | Sprint 2 — CSV generation, no new data needed |
+| Voice Logging (general) | High | Medium | ★★★☆☆ | Sprint 2 — extends existing spotter infra |
 | Accountability (Partner only, no challenges) | Very High | Medium | ★★★☆☆ | Sprint 3 |
 | Withings Integration | High | Medium | ★★★☆☆ | Sprint 3 |
 | Oura Integration | High | Medium | ★★★☆☆ | Sprint 3 |
+| Fasting (full: 5:2, correlations, break-fast meals) | High | Medium | ★★★☆☆ | Sprint 3 |
+| Sleep Intelligence (wind-down routines, morning check-in) | High | Medium | ★★★☆☆ | Sprint 3 |
 | Nutrition Planning (Full Meal Planner) | High | Low | ★★☆☆☆ | Sprint 4 |
 | Group Challenges | Medium | Medium | ★★☆☆☆ | Sprint 4 |
 | 12-Week Programs | High | Low | ★★☆☆☆ | Sprint 4 |
+| Food Photo Logging (barcode + restaurant menu scan) | High | Low | ★★☆☆☆ | Sprint 4 |
+| Onboarding Walkthrough | Medium | Medium | ★★☆☆☆ | Sprint 4 |
 | Apple Health / Google Fit | Very High | Very Low | ★★☆☆☆ | Future (requires native app) |
 
 ---
@@ -632,11 +987,28 @@ The highest-ROI work is features that require **no new infrastructure** — they
 2. **Readiness Score v1** (2–3 days) — calculated from existing log fields, shows on dashboard
 3. **Correlation Engine v1** (3–4 days) — nightly cron, top 2–3 correlations shown in a weekly insight card
 4. **Progressive Overload Alerts** (1–2 days) — show last session + suggestion at top of each exercise in active workout
+5. **Fasting Timer v1** (1 day) — eating window setting + timer widget on dashboard
+6. **Sleep Intelligence v1** (1 day) — bedtime push notification + rolling sleep debt badge on dashboard
 
-Total estimated effort: 7–11 days of development.
+Total estimated effort: 9–14 days of development.
 
-This sprint alone would make the app feel dramatically more intelligent without requiring any new data collection from the user.
+This sprint makes the app feel dramatically more intelligent without requiring any new data collection. The fasting timer and sleep nudge are small enough to fold in without disrupting the core sprint, and they unlock a new morning and evening touchpoint with users.
 
 ---
 
-*Document ends. Questions, pushback, or additions — flag them and I'll revise.*
+## Sprint 2 Suggestions *(new features added 2026-06-24)*
+
+After Sprint 1's intelligence features ship, Sprint 2 is where new *data surfaces* open up:
+
+1. **Food Photo Logging v1** (3–4 days) — one API route + confirmation UI; the single biggest UX unlock for nutrition adherence
+2. **Supplement + Soreness quick-logs** (1–2 days) — extend the daily log form with two new lightweight fields
+3. **Personal Records page** (1–2 days) — entirely derived from existing data, high motivational value
+4. **Hydration widget** (half a day) — simple but high daily engagement
+5. **Data export** (1 day) — builds user trust, zero new infrastructure
+6. **Saved Meals** (1 day) — unlocks the meal planning pillar at low cost
+
+Total estimated Sprint 2 effort: 7–10 days.
+
+---
+
+*Last updated: 2026-06-24. Questions, pushback, or additions — flag them and I'll revise.*
