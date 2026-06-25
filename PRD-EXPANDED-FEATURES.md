@@ -639,4 +639,290 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
+---
+
+## Brainstormed Feature Ideas — Round 2
+
+*Added 2026-06-25. These are unvetted ideas for review — none are committed to the roadmap. Each includes a brief impact/effort signal and strategic rationale.*
+
+---
+
+### Idea 1 — Food Photo Logging & Barcode Scanning
+
+**The gap:** Manual text entry is the single biggest source of drop-off in nutrition tracking. Most logged meals are either skipped entirely or entered inaccurately because typing "grilled chicken with roasted sweet potato and spinach" into a search box is friction.
+
+**What it does:**
+- **Photo logging**: User snaps a photo of their plate → Claude Vision (or similar multimodal model) identifies food items, estimates portions from plate size context, and pre-populates the food log for confirmation. User reviews and edits before saving.
+- **Barcode scanner**: Tap a camera icon on the food search field → scan a product barcode → pull nutrition data from Open Food Facts (free, 3M+ products) or Nutritionix API → log instantly. No typing, exact macros.
+
+**Why it matters:** Reduces food logging time from ~2 minutes per meal to ~10 seconds. Dramatically improves log completeness, which makes every downstream feature (correlation engine, readiness score, nutrition planning) more accurate.
+
+**Effort signal:** Medium. Barcode scanning is straightforward via the browser's camera API and an open database. Photo recognition requires a vision model API call — feasible but adds per-log cost.
+
+**Dependencies:** None. Can ship as a standalone enhancement to the existing food log.
+
+---
+
+### Idea 2 — Voice Morning Check-in
+
+**The gap:** The daily wellness log (sleep quality, energy, stress, mood) requires opening the app and tapping five separate sliders. At 7am before coffee, this is more friction than many users tolerate — they skip it, or log it hours later with poor recall.
+
+**What it does:**
+- A "Morning check-in" shortcut on the dashboard (or home screen via PWA shortcut)
+- User taps, speaks a 15–30 second note: *"Slept okay, maybe 6 hours, feeling a bit groggy, work's been stressful this week"*
+- Claude transcribes and extracts structured wellness metrics: sleep quality → 3/5, energy → 2/5, stress → 4/5, mood → neutral
+- Shows extracted values for a one-tap confirm before saving — user can adjust before submitting
+- The raw transcription is also saved as a "morning note" for the AI coach to reference
+
+**Why it matters:** Captures the same data with a fraction of the friction. Also captures richer qualitative context (the reason behind the numbers) that pure sliders miss — e.g. "stressful week" is context the correlation engine can't get from a stress slider alone.
+
+**Effort signal:** Medium. Uses the browser's `SpeechRecognition` API for transcription (free, works offline on modern devices) + a single Claude call to extract structured metrics. The UI change is small.
+
+---
+
+### Idea 3 — Injury & Exercise Modification Tracker
+
+**The gap:** The app has no injury awareness. If a user has a bad shoulder, it still suggests bench press and overhead press. There's no way to log "I tweaked my lower back" and have the app respond intelligently.
+
+**What it does:**
+- **Injury log**: Users can note an injury — body region (shoulder, knee, lower back, etc.), severity (minor / moderate / significant), and onset date
+- **Active injury indicator**: A visible flag in the active workout flow when a scheduled exercise involves the injured region
+- **AI exercise substitution**: When flagged, the AI suggests alternative exercises that train the same muscle group without loading the injury (e.g. shoulder injury → swap overhead press for landmine press)
+- **Recovery timeline**: Track the injury over time; mark as resolved. The app gradually reintroduces full-range exercises as the injury clears
+- **Push notification**: Weekly "how's your [shoulder] today?" check-in while an injury is active
+
+**Why it matters:** Injuries are the #1 reason people abandon fitness routines. An app that responds intelligently to injury — rather than ignoring it — keeps users training through setbacks instead of quitting. Also a significant safety and trust differentiator vs. competitors.
+
+**Data model addition:**
+```sql
+CREATE TABLE injuries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  body_region text NOT NULL,    -- 'lower_back', 'left_shoulder', 'right_knee', etc.
+  severity text NOT NULL,       -- 'minor', 'moderate', 'significant'
+  description text,             -- user's own words
+  onset_date date NOT NULL,
+  resolved_date date,
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+**Effort signal:** Medium-High. The injury log and flag UI are straightforward. The AI substitution logic requires a good prompt with the exercise library and injury context. Full rehab protocols would be a later phase.
+
+---
+
+### Idea 4 — Intermittent Fasting Tracker
+
+**The gap:** IF is one of the most practiced nutrition strategies (16:8, 5:2, OMAD, etc.). The app tracks calories and macros but has no concept of a fasting window — it treats all hours equally.
+
+**What it does:**
+- **Fasting protocol setup**: User selects a protocol (16:8, 18:6, 5:2, custom) or sets custom eating/fasting windows
+- **Fasting timer**: A persistent widget showing current fast status: *"13h 22m into your fast — 2h 38m until eating window"* with a ring progress indicator
+- **Window-aware food logging**: A soft warning if the user tries to log food outside their eating window (not blocked — just flagged)
+- **Fasting log**: Each fasting window is recorded — start time, break time, total duration. Streaks and adherence % tracked over time
+- **Correlation integration**: Feed fasting adherence into the correlation engine — does the user feel better on days they complete their fast? Do workouts suffer when fasted?
+- **Push reminders**: Notify when the eating window opens and closes (configurable)
+
+**Why it matters:** A large segment of health-conscious users practice some form of IF. Without this, they use a separate app (Zero, Fastic) alongside the fitness tracker — two-app fatigue is a churn driver. Consolidating removes that friction.
+
+**Data model addition:**
+```sql
+CREATE TABLE fasting_protocol (
+  user_id uuid PRIMARY KEY REFERENCES auth.users(id),
+  protocol_name text,           -- '16:8', '5:2', 'custom'
+  eating_window_start time,     -- e.g. 12:00
+  eating_window_hours int,      -- e.g. 8
+  fast_days int[],              -- for 5:2, which days of week (0=Sun)
+  is_active boolean DEFAULT false,
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE fasting_sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  started_at timestamptz NOT NULL,
+  broken_at timestamptz,
+  target_hours int,
+  completed boolean DEFAULT false,
+  notes text
+);
+```
+
+**Effort signal:** Low-Medium. The timer and protocol UI are the bulk of the work. Integration with the existing log and correlation engine is incremental.
+
+---
+
+### Idea 5 — AI Coaching Personas
+
+**The gap:** The AI coach is currently one voice — thoughtful, balanced, encouraging. But different users respond to wildly different coaching styles. A competitive athlete wants directness and data. A beginner needs warmth and reassurance. A data nerd wants specifics and mechanisms.
+
+**What it does:**
+Users choose a coaching persona in Settings (can change anytime):
+
+| Persona | Style | For |
+|---|---|---|
+| **The Analyst** (default) | Data-driven, specific, balanced | Users who want evidence and numbers |
+| **The Trainer** | Direct, challenging, no fluff | Competitive users who want to be pushed |
+| **The Supporter** | Warm, gentle, encouraging | Beginners or users in a rough patch |
+| **The Scientist** | Deep explanations, research-referenced | Curious users who want to understand the "why" |
+| **The Minimalist** | Short, punchy, action-focused | Busy users who want rapid answers |
+
+Each persona maps to a system prompt modifier injected before the coaching context — it doesn't change the data or logic, only the tone, vocabulary, and format of responses.
+
+**Why it matters:** Coaching effectiveness is deeply personal. A user who finds the default voice too soft will disengage; one who finds it too harsh will quit. Personas cost very little to implement but create significant perceived personalization. Users who feel "heard" by their coach retain much longer.
+
+**Effort signal:** Very Low. This is a single user preference field + a short system prompt modifier. No new data model needed beyond adding `coaching_persona text` to `user_settings`.
+
+---
+
+### Idea 6 — Restaurant & Estimated Meal Logging
+
+**The gap:** People eat out frequently. The current food log works well for home-cooked meals with known ingredients, but restaurant meals are hard to find exactly. Most users either skip logging restaurant meals (data loss), or log something inaccurate (data noise). Either way, tracking adherence suffers on social/restaurant days.
+
+**What it does:**
+- A **"Eating out"** mode on the food entry screen
+- User types the restaurant name + what they ordered: *"Wagamama, Chicken Katsu Curry"*
+- Claude estimates macros based on: typical restaurant portion sizes, public restaurant nutrition data (many chains publish this), and general dish composition
+- The estimate is clearly flagged as approximate (e.g. *"~720 cal / ~42g protein — estimated from typical Wagamama Katsu Curry"*)
+- User can adjust the estimate before saving
+- Over time, if the user consistently adjusts a specific dish, the app remembers their personal calibration
+
+**Why it matters:** An imperfect log entry beats no entry. Capturing ~80% accurate data on restaurant meals preserves the value of daily tracking and prevents the "I ate out so there's no point logging today" spiral that breaks streaks.
+
+**Effort signal:** Low. This is essentially a specialized AI prompt — the food logging infrastructure already exists. The main addition is the restaurant-mode UI and the prompt engineering to return calibrated estimates rather than looking up a database.
+
+---
+
+### Idea 7 — AI Post-Workout Debrief
+
+**The gap:** Workouts currently end with the user pressing "finish" and returning to the dashboard. There's no moment of closure, reflection, or learning. The workout data gets stored but nothing synthesises it for the user in the moment.
+
+**What it does:**
+Immediately after finishing a workout, a brief debrief card appears (or a push notification if the user closed the app):
+
+> **Today's Session: Push Day — 52 min**
+> 
+> - New PR: Bench Press hit 80kg × 5 (estimated 1RM: 93kg — up 3% from last month)
+> - Volume: 14,400kg lifted (↑ 8% vs. last push day)
+> - Progressive overload applied on 3/4 exercises
+>
+> *Recovery note: After a heavy push session, 48h before training chest or shoulders again will maximise adaptation. Tonight, aim for 7–8h sleep.*
+
+Generated by Claude using the just-completed workout data + recent training history. Shown once, dismissable, not stored (or optionally saved as a session note).
+
+**Why it matters:** The debrief closes a motivational loop — users feel their effort was recognised and understood. It also delivers progressive overload education in context ("you should rest this pattern for 48h") where it's most actionable. This is the kind of thing a real coach says after a session; no other app does it.
+
+**Effort signal:** Low. A single API call with the workout JSON as context, triggered on workout completion. The UI is a simple modal or card.
+
+---
+
+### Idea 8 — Offline-First Logging
+
+**The gap:** Gyms frequently have poor mobile signal. The app currently requires a network connection for food logging (AI calls), workout saving, and daily log submission. If the network drops mid-workout, the user loses their session — a catastrophic trust failure.
+
+**What it does:**
+- All log forms (food, workout, wellness) queue writes locally (IndexedDB) when offline
+- A visible "offline" indicator appears in the app header, replacing the default state with local-only mode
+- Food AI features degrade gracefully offline: the barcode scanner still works (local OpenFoodFacts subset cached), AI meal suggestions are disabled with a clear message
+- On reconnect, the queue syncs automatically with conflict resolution (last-write-wins for same-day records)
+- Workouts started offline complete and sync fully when connection returns
+
+**Why it matters:** The gym is exactly where users need the app most — and where it's most likely to fail. A single "couldn't save your workout" experience erodes trust that takes weeks to rebuild. Offline-first is a reliability and retention feature disguised as a technical architecture choice.
+
+**Effort signal:** High. This requires restructuring the data layer to use an optimistic, queue-based write model (e.g. a service worker + IndexedDB queue). The complexity is in conflict resolution and the graceful degradation of AI features. Worth planning as a full sprint.
+
+---
+
+### Idea 9 — AI Recipe Generator
+
+**The gap:** The meal planner (Pillar 2) tells users *what* macros to hit and when. But it doesn't help with the actual cooking decision: *"I have chicken, broccoli, and rice — what can I make that fits my macros?"*
+
+**What it does:**
+- A **"What can I cook?"** entry point in the Nutrition section
+- User either: (a) lists ingredients they have, or (b) specifies a macro target and time budget ("30g protein, under 500 cal, ready in 20 minutes")
+- Claude generates 2–3 recipe options, each with:
+  - Full ingredient list with quantities
+  - Step-by-step instructions (5–8 steps)
+  - Macro breakdown (calories, protein, carbs, fat)
+  - One-tap button to log the recipe as a meal
+- Recipes can be saved to the `saved_meals` table (from Pillar 2) for reuse
+
+**Why it matters:** This bridges the "I know what to eat" knowledge gap with the "I don't know how to cook it" execution gap. It also dramatically increases the usefulness of the meal planner — instead of suggesting abstract meals, the app can guide users to prepare them. This feature would see very high engagement from users who cook at home.
+
+**Effort signal:** Low-Medium. A well-crafted Claude prompt with user's ingredient list + macro constraints + cooking time returns recipe JSON. The one-tap-to-log integration reuses the existing food logging pipeline. No new data model needed beyond `saved_meals` (already in Pillar 2).
+
+---
+
+### Idea 10 — Data Export & Annual Year in Review
+
+**The gap:** Users accumulate rich personal data over months and years, but they can't get it out of the app in a useful format. This creates both a trust deficit (users worry about lock-in) and a missed motivation opportunity (seeing a full year of progress is powerful).
+
+**What it does:**
+
+**Data Export:**
+- Settings → Export My Data
+- Downloads a ZIP containing:
+  - `daily_logs.csv` — every wellness check-in, nutrition day, workouts
+  - `workout_history.csv` — all exercises, sets, weights, reps
+  - `body_metrics.csv` — weight and measurement history
+  - `progress_photos/` — all uploaded photos
+  - `ai_insights.json` — stored correlation insights
+- Data is in standard formats usable by Excel, Sheets, or other apps
+
+**Year in Review (annual, automated):**
+- Every January 1st, generate a shareable one-page summary for the prior year:
+  - Total workouts: 187
+  - Total weight lifted: 1.2M kg
+  - Longest streak: 34 days
+  - Best PR: Deadlift 140kg (↑ 22.5kg from Jan 2025)
+  - Days logged: 312/365 (85%)
+  - Best week (most active): week of March 10th
+  - Top 3 most-eaten foods
+- Shareable as a PNG card (optional — user can keep private)
+
+**Why it matters:** Data export builds trust and signals confidence in the product — "we know you can leave, and we're not afraid of that." Year in Review is a high-engagement annual moment that drives social sharing, re-engagement for lapsed users, and a genuine sense of progress over time. Both features are disproportionately valuable relative to their implementation cost.
+
+**Effort signal:** Low-Medium. Export is a Supabase query + ZIP generation on a server function. Year in Review is a Claude-generated summary + a simple designed card (can start as just a formatted text page).
+
+---
+
+### Idea 11 — Smart Water & Hydration Tracking
+
+**The gap:** Hydration directly impacts energy, performance, and recovery — all things the app already tracks. But there's no water intake logging, and therefore no signal in the correlation engine for one of the most impactful daily variables.
+
+**What it does:**
+- **Quick-log water**: One-tap buttons on the dashboard for common amounts (200ml, 330ml, 500ml, 750ml) — no text entry needed
+- **Daily hydration target**: Calculated from body weight (35ml/kg is a common baseline), uplifted on workout days and hot days (if location/weather is available)
+- **Hydration ring**: A small progress ring alongside the macro rings in the daily summary
+- **Correlation integration**: `water_ml` becomes a tracked variable in the correlation engine — *"Your energy is 22% higher on days you hit your hydration target"*
+- **Smart reminder**: A gentle push notification mid-afternoon if the user is significantly under their daily target by 3pm
+
+**Why it matters:** Water is the simplest, cheapest performance lever, and it's entirely absent from the app today. Adding it with very low friction (one-tap log) and smart reminders could drive the most immediate, measurable health improvement of any feature on this list. It also enriches every other feature that uses energy and performance data.
+
+**Effort signal:** Very Low. Mostly UI — a few quick-tap buttons, a progress indicator, and a daily target calculation. The correlation engine integration is a config change (add `water_ml` to the variable list). The push reminder reuses the existing notification infrastructure.
+
+---
+
+### Updated Prioritisation Matrix
+
+*Adding Round 2 ideas alongside the original six pillars.*
+
+| Feature | Impact | Feasibility | Score | Suggested Sprint |
+|---|---|---|---|---|
+| Voice Morning Check-in | High | High | ★★★★☆ | Sprint 1 — uses existing log, low friction win |
+| Smart Hydration Tracking | High | Very High | ★★★★☆ | Sprint 1 — tiny scope, enriches correlation engine |
+| AI Coaching Personas | Medium | Very High | ★★★★☆ | Sprint 1 — single preference field + prompt tweak |
+| AI Post-Workout Debrief | High | High | ★★★★☆ | Sprint 2 — single API call, closes workout loop |
+| Restaurant Meal Logging | High | High | ★★★★☆ | Sprint 2 — AI prompt + UI mode, no new tables |
+| Food Photo + Barcode Scanning | Very High | Medium | ★★★☆☆ | Sprint 3 — reduces biggest nutrition logging friction |
+| Intermittent Fasting Tracker | High | Medium | ★★★☆☆ | Sprint 3 — serves large user segment, new tables needed |
+| AI Recipe Generator | High | Medium | ★★★☆☆ | Sprint 3 — pairs with meal planner (Pillar 2) |
+| Injury & Exercise Modification | High | Medium | ★★★☆☆ | Sprint 3 — safety critical, meaningful differentiator |
+| Data Export & Year in Review | Medium | Medium | ★★★☆☆ | Sprint 4 — trust + annual engagement moment |
+| AI Coaching Personas | Medium | Very High | ★★★★☆ | Sprint 1 |
+| Offline-First Logging | Very High | Low | ★★☆☆☆ | Future — high value, significant architectural work |
+
+---
+
 *Document ends. Questions, pushback, or additions — flag them and I'll revise.*
