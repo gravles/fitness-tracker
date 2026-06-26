@@ -639,4 +639,278 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
-*Document ends. Questions, pushback, or additions — flag them and I'll revise.*
+---
+
+---
+
+## New Feature Ideas — Brainstorm
+
+**Added:** 2026-06-26  
+**Status:** Ideas only — not scoped, not committed. Review and decide which (if any) to carry into a pillar or sprint.
+
+These ideas fill gaps not addressed by the six pillars. They're ordered roughly by perceived impact, but haven't been scored against the prioritisation matrix yet.
+
+---
+
+### Idea 1 — Food Photo Recognition (Claude Vision)
+
+**The Problem**  
+Voice logging is fast but requires knowing food names and portions. Users frequently skip logging a meal because typing "grilled salmon with roasted sweet potato and broccoli" feels like too much effort. A photo removes that friction entirely.
+
+**What It Does**  
+The user taps a camera icon in the food log section, takes a photo of their meal (or selects from gallery), and Claude Vision analyses it:
+- Identifies each food item
+- Estimates portion sizes based on plate/hand/utensil scale cues
+- Returns a structured list with estimated macros
+- User reviews and confirms (or adjusts) before logging
+
+The existing `FoodCamera` component already does *something* with images (based on recent fixes in the git log). This idea extends that to full vision-based macro estimation.
+
+**Why It's Differentiated**  
+Most apps require barcode scanning or a food database search. AI-powered photo logging is still rare in consumer apps and would be a significant differentiator — especially for restaurant meals and home-cooked food without nutrition labels.
+
+**Implementation Notes**  
+- Use Claude's `claude-haiku-4-5` or `claude-sonnet-4-6` with image input (Anthropic API supports multimodal via `image/jpeg`)
+- Prompt engineering: include calibration cues ("estimate as if the plate is a standard 10-inch dinner plate"), ask for JSON output with item name, grams estimated, cal/p/c/f
+- User confirmation step is essential — accuracy is ~70–80%, so the UI must make editing easy
+- Cost: ~$0.002 per photo with Haiku; acceptable
+- Effort: ~2–3 days if the API integration already exists
+
+**Risks**  
+Accuracy for mixed-ingredient dishes (stews, curries, salads) is lower. Frame this as a "quick estimate" not a precise count — set user expectation accordingly.
+
+---
+
+### Idea 2 — Adaptive Goals Engine
+
+**The Problem**  
+The app currently sets static goals (calorie target, protein target, workout frequency). A user who has been consistently hitting 150g protein for 4 weeks is ready to progress; one who has missed their calorie target 5 of the last 7 days might need a more achievable number. Static goals get stale — they stop being motivating and start feeling either too easy or impossible.
+
+**What It Does**  
+A weekly background job (alongside the existing insights cron) analyses goal adherence and proposes adjustments:
+
+- **Nutrition targets:** If protein hit >85% of days for 3 consecutive weeks → suggest +10g. If calorie target missed >60% of days for 2 weeks → suggest a 100–150 kcal recalibration.
+- **Workout frequency:** If scheduled 4 workouts/week but averaging 2 for a month → suggest 3/week as a more achievable step.
+- **Streak targets:** If the user has maintained a 30-day streak, auto-suggest a new "milestone" to aim for (50 days, 90 days).
+
+Proposals appear as a banner/card on the dashboard: *"Your protein hit rate this month is 89%. Ready to level up to 175g?"* with Accept/Dismiss.
+
+**Why It Matters**  
+Goals should grow with the user. Static targets are a passive experience; adaptive targets make the app feel like it's paying attention. This also reduces churn from users who feel perpetually "behind" on unrealistic goals.
+
+**Implementation Notes**  
+- No new tables needed — store proposals in `insights_cache` with `insight_type = 'goal_proposal'`
+- Threshold logic is deterministic (no AI call needed for the proposal itself)
+- Optional: use Claude to write the proposal message in a personalised, encouraging tone
+- Effort: ~2 days (logic + UI banner)
+
+---
+
+### Idea 3 — Supplement & Hydration Tracker
+
+**The Problem**  
+The daily log covers food, movement, alcohol, sleep, and wellness — but two extremely common health habits are missing: **water intake** and **supplements**. Many users take creatine, omega-3, vitamin D, magnesium, protein powder (outside of meals), or other supplements daily. There's no place to track these, and hydration is a well-documented performance variable not captured at all.
+
+**What It Does**  
+
+**Hydration:**
+- A simple water intake counter in the daily log (tap + to add 250ml / 8oz)
+- Daily target (default 2.5L, customisable)
+- Shows progress as a filling visual (water bottle or ring)
+- Optionally set reminders ("Every 2 hours between 8am and 6pm, remind me to drink water")
+
+**Supplements:**
+- A configurable list of supplements the user takes (name, dose, timing: morning / pre-workout / evening)
+- Daily checklist — did you take them today?
+- Tracks supplement consistency alongside other habits
+- Correlation potential: supplement adherence ↔ energy/recovery
+
+**Why It Matters**  
+These are tiny features with high daily-active-use value. Supplement and hydration logging give the app "completeness" — it becomes the one place to track your whole health routine, not just food and exercise. Supplement consistency also feeds the correlation engine meaningfully (does creatine improve performance? Does magnesium improve sleep quality?).
+
+**Implementation Notes**  
+- Add `water_ml` int column to `daily_logs`
+- Add a new `user_supplements` table (id, user_id, name, dose, timing, active)
+- Add `supplements_taken` jsonb column to `daily_logs` or a separate join table
+- Effort: ~2–3 days including UI
+
+```sql
+CREATE TABLE user_supplements (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  dose text,                   -- e.g. '5g', '1 capsule'
+  timing text,                 -- 'morning', 'pre_workout', 'evening', 'with_meals'
+  active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+---
+
+### Idea 4 — Injury & Symptom Log
+
+**The Problem**  
+Fitness users get hurt. Tweaked lower backs, sore knees, tight shoulders, Achilles tightness — these are common and directly affect training decisions. Right now there's no place in the app to note an injury, track recovery, or flag that certain exercises should be avoided. Users either train through pain (bad) or take unplanned rest without understanding why their performance dropped (also bad).
+
+**What It Does**  
+
+**Injury Logging:**
+- A body map (front/back silhouette) where users can tap a region and note: area, severity (1–5), type (ache, sharp pain, stiffness, soreness), and a brief note
+- Each injury entry is dated; follow-up check-ins prompt "how is your [left knee] today? Better / Same / Worse"
+
+**Workout Modifications:**
+- When an active injury exists, the AI coach and progressive overload suggestions avoid flagged muscle groups
+- E.g., "You have a lower back issue flagged — skipping deadlifts from your session today. Consider Romanian deadlifts with light weight as a rehab option."
+
+**Correlation Insights:**
+- *"Your left shoulder stiffness correlates with workouts where you bench press without a warm-up set."*
+- *"Your knee pain tends to appear after days with more than 10,000 steps."*
+
+**Why It Matters**  
+This is a significant gap in consumer fitness apps. Injury tracking makes the app genuinely useful during recovery phases — not just peak performance periods. It also positions the app more seriously as a health tool, not just a tracking tool. Injury history is also valuable data for an AI coach to have.
+
+**Implementation Notes**  
+- New `injury_log` table
+- Body map UI — SVG of a human body with clickable regions (front + back, 10–15 zones)
+- Coach system prompt should include active injuries when generating advice
+- Effort: ~3–4 days (body map UI is the most complex part)
+
+```sql
+CREATE TABLE injury_log (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  body_region text NOT NULL,    -- 'lower_back', 'left_knee', 'right_shoulder', etc.
+  severity int NOT NULL,        -- 1-5
+  injury_type text,             -- 'ache', 'sharp', 'stiffness', 'soreness', 'swelling'
+  note text,
+  logged_at timestamptz DEFAULT now(),
+  resolved_at timestamptz       -- null = still active
+);
+```
+
+---
+
+### Idea 5 — AI Weekly Letter
+
+**The Problem**  
+The current Weekly AI Analysis modal delivers a useful but generic summary. It doesn't feel personal. A user who had a hard week — hit a new bench press PR, struggled with stress, slipped on nutrition Friday — deserves a response that acknowledges those specific moments. The difference between a summary and a letter is the difference between a report card and a message from a coach who actually watched.
+
+**What It Does**  
+Every Sunday, instead of (or alongside) the existing weekly analysis, the user gets a short, personalised "letter" from their AI coach — written in first person, referencing specific data from their week:
+
+> *"This week showed what you're made of. You came in after a rough Wednesday — low energy, high stress — and still got three sessions done. That PR on the deadlift (140kg, up from 135) wasn't a fluke; it's the result of six consistent weeks. The one thing I'd push on: you hit your protein target only 3 of 7 days. I know the evenings are tough. What if you added a protein shake before bed? Let's make that the focus this week."*
+
+This is deliberately different from a structured summary — it's warm, specific, and forward-looking.
+
+**Why It Matters**  
+Emotional connection to a tool drives retention more than any feature. Users who feel *understood* by an app come back. This feature costs ~$0.01–0.02 per week per user in Claude API tokens but could have an outsized effect on long-term retention and NPS.
+
+**Implementation Notes**  
+- Runs Sunday evening alongside the existing weekly insights cron
+- Prompt includes: all daily logs from the week, workout sessions, PRs set, streak status, goal adherence rates, any anomalies (unusually low energy day, big workout, etc.)
+- Output: a 150–250 word "letter" in second person, conversational tone
+- Stored in a new `weekly_letters` table or in `insights_cache`
+- Delivered via push notification ("Your weekly letter from Coach is ready") + in-app modal
+- Effort: ~2 days (mostly prompt engineering and UI polish)
+
+---
+
+### Idea 6 — Data Export & Annual Health Report
+
+**The Problem**  
+Users accumulate months or years of detailed health data in the app. They can't easily share this with a doctor, dietitian, or personal trainer. They also can't move their data if they want to switch apps. Both of these are increasingly important to users — and lack of data portability is a trust signal.
+
+**What It Does**  
+
+**Raw Data Export:**
+- Settings page option: "Export my data"
+- Generates a ZIP containing:
+  - `daily_logs.csv` — all daily entries
+  - `workouts.json` — full workout history with exercises and sets
+  - `body_metrics.csv` — weight and measurement history
+  - `progress_photos/` — all uploaded photos
+
+**Annual Health Report (PDF):**
+- A beautifully formatted PDF generated on demand (or on Jan 1)
+- 12-month overview: total workouts, avg protein hit rate, weight change, total XP, longest streak, PRs achieved
+- Month-by-month trend charts (rendered server-side with a headless chart library or pre-built via SVG)
+- A one-page "year in fitness" summary designed to be shareable or printable for a doctor's appointment
+
+**Why It Matters**  
+Data portability builds trust — users are more willing to log sensitive health data if they know they own it. The annual report is also a viral moment: people love sharing a "year in review" and it's free marketing. The doctor-visit use case is also genuinely useful.
+
+**Implementation Notes**  
+- Export: stream data from Supabase, zip server-side, return as download. No new tables.
+- PDF: use a server-side PDF library (e.g. `@react-pdf/renderer` or `puppeteer` to render a React component)
+- Effort: Export ~1 day, PDF report ~3 days
+
+---
+
+### Idea 7 — Benchmark Workouts & Fitness Tests
+
+**The Problem**  
+Progressive overload tracks strength improvement on individual exercises. But users can't easily see "am I actually fitter than I was 6 months ago?" in a holistic sense. Weight on the bar is one signal, but cardiovascular fitness, bodyweight strength, and conditioning are all invisible in the current data model.
+
+**What It Does**  
+
+A library of standardised benchmark tests that users can periodically complete (e.g., every 4–8 weeks):
+
+**Strength benchmarks:**
+- Max push-ups in 60 seconds
+- Max pull-ups
+- Max bodyweight squats in 60 seconds
+- 1-rep max test (pairs with the existing estimated 1RM from Pillar 3)
+
+**Cardiovascular benchmarks:**
+- 1-mile run time (or 2km / 5km)
+- 12-minute Cooper test (distance covered)
+- VO₂ max estimate from run data
+
+**Mobility benchmarks:**
+- Sit-and-reach score
+- Overhead squat quality rating
+
+Results are tracked over time with a trend line. The app shows: *"Your push-up max has gone from 22 to 37 since March — a 68% improvement."* AI can also provide context: *"Your cardio benchmark improved significantly but your 1RM progress has stalled — consider adding a deload week and refocusing on strength."*
+
+**Why It Matters**  
+Benchmarks give users a moment to zoom out from weekly data and see real fitness change. They also serve as a natural re-engagement hook (a push notification saying "You haven't done a fitness test in 6 weeks — time to see how far you've come?").
+
+**Implementation Notes**  
+- New `benchmark_results` table (user_id, benchmark_type, value, unit, logged_at)
+- A `/benchmarks` page or a "Test" tab within the existing progress section
+- Benchmark library is a static config file (type, instructions, unit, direction=higher/lower)
+- AI analysis of benchmark trends uses same cron pipeline as correlation engine
+- Effort: ~2–3 days
+
+---
+
+### Smaller Ideas (Quick Win candidates)
+
+These are smaller ideas that don't need a full pillar but are worth noting for a future quick wins pass:
+
+| Idea | Description | Effort |
+|---|---|---|
+| Fasting / eating window timer | Simple IF timer (16:8, 18:6, custom) with start/stop in the log; correlates break-fast time with energy and focus | 1 day |
+| Pre-workout session planner | Night-before or morning-of: lay out tomorrow's exercises with planned sets/reps/weight. Workout becomes "tick off + adjust". | 1 day |
+| Coach persona selector | Choose AI coaching style: Motivational / Scientific / Tough Love / Gentle. Changes system prompt tone throughout. | 1h |
+| AI meal substitution | In nutrition plan: "I don't have X — what can I substitute for similar macros?" Quick single-message AI query in meal plan view. | 4h |
+| Caffeine tracker | Add coffee/pre-workout to habits section; correlate with sleep quality in the insights engine. | 4h |
+| PR celebration animation | When a new 1RM or benchmark record is set, trigger a confetti animation + share card (image + stats). | 4h |
+| Contextual onboarding program | A structured 7-day "getting started" flow that introduces one feature per day via push notification + in-app prompt. | 2 days |
+
+---
+
+### Outstanding Questions
+
+Before any of these ideas are taken forward, the following questions are worth deciding:
+
+1. **Food photo recognition** — does the existing `FoodCamera` component already call Claude Vision, or is it just a UI stub? If it's already wired, Idea 1 may be much faster.
+2. **Adaptive Goals** — does the Goal Wizard (currently built but without an entry point) already have goal-setting logic that could be reused here?
+3. **Injury Log** — is there appetite for a body map SVG interaction, or would a simple dropdown region picker be sufficient to start?
+4. **Data Export** — are there any Supabase-level restrictions on streaming large query results that need to be accounted for?
+5. **Supplement Tracker** — would this live inside the existing daily log section (alongside habits), or as a separate settings-configured checklist?
+
+---
+
+*New ideas added 2026-06-26. Questions, pushback, or additions — flag them and I'll revise.*
