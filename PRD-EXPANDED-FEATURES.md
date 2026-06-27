@@ -1,7 +1,7 @@
 # Fitness Tracker — Expanded Features PRD
 
 **Author:** Claude  
-**Date:** 2026-05-20  
+**Date:** 2026-05-20 (updated 2026-06-27 with brainstormed features)  
 **Status:** Proposal — for review
 
 ---
@@ -603,6 +603,390 @@ These are bugs or small features that could each ship in a day or less. Not a pi
 
 ---
 
+---
+
+## Brainstormed New Features — For Review
+
+The following ideas emerged from thinking about gaps in the current feature set and patterns from the existing data model. None of these are scheduled or prioritised yet — they are candidates to add to the roadmap if they resonate.
+
+---
+
+### Idea A — Food Photo Logging (AI Vision)
+
+**The Problem**  
+Manual food entry is the #1 source of friction in nutrition tracking. Most users don't give up on the app because they don't care about macros — they give up because typing "200g chicken breast, 150g sweet potato, 1 tbsp olive oil" after every meal is tedious.
+
+**What It Would Do**  
+Add a camera icon to the food log entry screen. The user snaps a photo of their meal. The image is sent to Claude's vision API, which:
+1. Identifies each food item in the image
+2. Estimates portion sizes from visual cues (plate size, hand scale, standard servings)
+3. Returns a pre-filled list of food items with estimated calories and macros
+4. The user reviews, adjusts portions if needed, and taps Log
+
+For meals that are hard to identify visually (smoothies, curries, stews), the model prompts for clarification: *"This looks like a stew — can you tell me what's in it?"*
+
+**Data Model Changes**  
+No new tables. The photo-parsed result feeds into the existing `daily_logs.food_items` jsonb field. Optionally store the image URL in Supabase Storage for audit/review purposes.
+
+**New Route**  
+`POST /api/log/photo-parse` — accepts a base64 image, returns a structured food items array.
+
+**Why It Matters**  
+Reducing the daily logging effort by 60–80% for meals is the single highest-leverage thing the app could do for retention. Users who log consistently get the data quality needed for all the intelligence features to work. This feature is the foundation everything else rests on.
+
+**Estimated Effort:** 2–3 days (API route + UI camera flow)  
+**Dependency:** Claude API vision capability (already available in claude-sonnet-4-x)
+
+---
+
+### Idea B — Adaptive TDEE Engine
+
+**The Problem**  
+Every fitness app calculates calorie targets using the Harris-Benedict or Mifflin-St Jeor formula based on height, weight, age, and an activity multiplier. These formulas are population averages — they can be off by 200–400 kcal/day for any given individual. After weeks of logging, the app has actual data to do better.
+
+**What It Would Do**  
+After the user has 14+ days of food logs and weight check-ins, run a background calculation:
+
+```
+Actual TDEE = Average Daily Calories Logged + (Weight Change Rate × 7700)
+```
+
+(7700 kcal ≈ 1 kg of body fat)
+
+If the user logged 1,800 kcal/day on average and lost 0.3 kg/week, their actual TDEE is ~2,010 kcal.
+
+Show a dashboard card:
+> *"Based on your last 28 days of data, your actual maintenance calories appear to be ~2,010 kcal — about 10% higher than your formula estimate. We recommend updating your calorie goal."*
+
+One-tap to apply the updated target. Re-runs monthly or when the user's weight trend changes.
+
+**Data Model Changes**  
+Add `actual_tdee int, tdee_confidence text, tdee_calculated_at timestamptz` to `user_settings`. No new table needed.
+
+**Why It Matters**  
+Personalised calorie targets are dramatically more effective than formula estimates. This feature makes every other nutrition feature more accurate and demonstrates that the app is learning from the user's specific biology — a powerful differentiator.
+
+**Estimated Effort:** 1–2 days (calculation function + dashboard card)
+
+---
+
+### Idea C — Habit Tracker
+
+**The Problem**  
+The daily log captures food, movement, and five wellness sliders. But many health habits don't fit those categories: taking supplements, drinking enough water, hitting 10,000 steps, meditating, limiting screen time before bed, flossing. Users who want to build these habits currently have no home for them in the app.
+
+**What It Would Do**  
+A "Daily Habits" section in the log (collapsed by default, expandable) with customisable habit checkboxes. Built-in defaults:
+
+- 💧 8 glasses of water
+- 🧘 10 minutes of mindfulness
+- 🪥 Morning / Evening routine complete
+- 💊 Supplements taken
+- 📵 No screens 1hr before bed
+- 🚶 10,000 steps
+
+Users can add custom habits with custom names and icons. Each habit shows:
+- A daily checkbox
+- A streak counter (separate from the main streak)
+- A 7-day completion grid (like GitHub's contribution graph)
+
+Completing habits earns small XP bonuses (e.g., 5 XP each, 20 XP bonus for 5+ in one day).
+
+**Data Model**
+
+```sql
+CREATE TABLE user_habits (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  emoji text,
+  is_default boolean DEFAULT false,
+  sort_order int DEFAULT 0,
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE habit_completions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  habit_id uuid REFERENCES user_habits(id) ON DELETE CASCADE,
+  completed_date date NOT NULL,
+  UNIQUE(habit_id, completed_date)
+);
+```
+
+**Why It Matters**  
+Habit tracking is one of the most requested features in health apps. It expands the app's utility beyond fitness into general wellness, increasing daily engagement. The correlation engine (Pillar 1) immediately benefits: habit completion data becomes another variable to correlate with energy and mood.
+
+**Estimated Effort:** 3–4 days (data model + UI + streaks + XP)
+
+---
+
+### Idea D — Body Weight Intelligence (Moving Average + Plateau Detection)
+
+**The Problem**  
+Daily body weight fluctuates by 1–3 kg due to water retention, sodium, glycogen, and digestive contents. This noise causes anxiety and makes it impossible to see real fat loss trends. Many users weigh themselves, see a higher number than yesterday, feel defeated, and stop logging. They're not seeing real trend — they're reacting to noise.
+
+**What It Would Do**  
+Three additions to the existing weight chart (no new tables):
+
+1. **7-Day Moving Average Line** — plotted as a smooth trend line over the daily weight scatter plot. Shows the real direction of travel, ignoring day-to-day noise.
+
+2. **Plateau Detection** — after 14+ days where the moving average variance is <0.3% and the user is logging a calorie deficit, surface an insight card:
+   > *"Your weight has been stable for 3 weeks despite an average deficit of 300 kcal/day. This is common after initial progress — your body may have adapted. Consider a 1-week refeed at maintenance, or re-measure your actual TDEE."*
+
+3. **Progress Context** — instead of just showing current weight, show:
+   > *"You're 1.4 kg below your start weight. At your current pace, you'll reach your goal in ~6 weeks."*
+
+**Why It Matters**  
+This is pure intelligence layered on data that's already being collected. It requires no new user behaviour, only smarter presentation. It directly prevents one of the most common causes of app abandonment: users seeing noise as failure.
+
+**Estimated Effort:** 1–2 days (chart enhancement + cron insight calculation)
+
+---
+
+### Idea E — Fasting & Time-Restricted Eating Tracker
+
+**The Problem**  
+Intermittent fasting (16:8, 18:6, OMAD) is one of the most popular dietary approaches among health-conscious users. Currently there is no way to track this in the app. Users who fast have no insight into their eating window compliance, fasting duration, or how it correlates with their energy and mood data.
+
+**What It Would Do**  
+A lightweight fasting timer, accessible from the daily log and optionally from the dashboard:
+
+- **Start fast / End fast** buttons that log timestamps
+- Shows current fasting duration in real time
+- Colour-coded target zones (e.g., green at 16h for 16:8)
+- Weekly eating window chart: horizontal bars per day showing when the eating window was open
+
+Optional integration with the nutrition log: if the user logs food outside their fasting window, a gentle nudge appears ("That breaks your fast at 14h 20m — still want to log it?")
+
+Fasting data feeds the correlation engine as a new variable: eating window compliance ↔ energy level, weight trend, sleep quality.
+
+**Data Model**
+
+```sql
+CREATE TABLE fasting_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  fast_start timestamptz NOT NULL,
+  fast_end timestamptz,          -- null if fast is ongoing
+  target_hours int DEFAULT 16,
+  notes text,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+**Why It Matters**  
+IF is a first-class dietary strategy for a large portion of the fitness-conscious market. Supporting it turns the app from "works best for CICO counters" to "works for me" for this entire segment.
+
+**Estimated Effort:** 2 days (data model + timer UI + weekly chart)
+
+---
+
+### Idea F — Event & Race Countdown Planner
+
+**The Problem**  
+Many fitness users train *for something* — a 5K, a marathon, a triathlon, a holiday, a wedding. But the app treats all training the same regardless of whether the user has a goal event. There is no way to tell the app "I want to run a half-marathon on October 12th" and have it plan backwards from that date.
+
+**What It Would Do**  
+A "Goal Event" field in Settings (or the Goal Wizard). The user enters:
+- Event type (5K, 10K, half marathon, marathon, triathlon, powerlifting meet, general fitness, other)
+- Event date
+- Current fitness level (beginner / intermediate / advanced)
+
+The app then:
+1. Calculates weeks until the event and displays a countdown on the dashboard
+2. Generates a phase-based training structure (base building → race-specific → taper) using Claude
+3. Week-by-week targets feed into the existing workout schedule system
+4. In the final 2 weeks, the readiness score (Pillar 4) adjusts recommendations toward taper (lower volume, maintain intensity)
+5. On event day, a special log prompt: "How did your event go?"
+
+**Data Model**
+
+```sql
+-- Add to user_goals or create standalone:
+CREATE TABLE goal_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  event_name text NOT NULL,
+  event_type text NOT NULL,   -- '5k', 'half_marathon', 'powerlifting', 'other'
+  event_date date NOT NULL,
+  fitness_level text NOT NULL,
+  training_plan jsonb,         -- AI-generated week-by-week plan
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+**Why It Matters**  
+Having a goal event dramatically increases training adherence — users with a race on the calendar have a concrete reason to show up. This feature makes the app feel like it's rooting for the user's specific ambition, not just tracking generic fitness. It also creates a natural re-engagement moment when the event date approaches.
+
+**Estimated Effort:** 3–4 days (data model + AI plan generation + countdown UI + schedule integration)
+
+---
+
+### Idea G — Sleep Coaching Module
+
+**The Problem**  
+Sleep quality is already tracked as a 1–5 slider in the daily log, and the correlation engine will surface its relationship to performance. But there is no proactive coaching around sleep — no bedtime reminders, no wind-down routine suggestions, no weekly sleep report. The app captures the data but offers no guidance on improving it.
+
+**What It Would Do**  
+A dedicated Sleep section (accessible from wellness log or the correlation insight card):
+
+**Bedtime Reminder** — an intelligent push notification that fires not at a fixed time, but calculated from the user's target wake time and their logged average sleep duration: *"Based on your patterns, you need to be asleep by 10:40 PM to hit your 7.5h goal."*
+
+**Wind-Down Routine** — a short, configurable checklist that appears with the bedtime notification. Options like: dim lights, stop screens, take magnesium, do 5 minutes of stretching. Completion tracked as a habit (ties into Idea C).
+
+**Weekly Sleep Report** — a card in the weekly analysis showing:
+- Average sleep quality score
+- Best sleep night and what preceded it (from correlation engine)
+- Worst sleep night and what preceded it
+- Trend vs. last week
+
+**Sleep Debt Tracker** — if the user has logged below their target sleep quality for 3+ consecutive nights, surface an insight: *"You've had below-target sleep for 5 days. This typically shows up as reduced energy and weaker workouts. Prioritising sleep this weekend could reset your trajectory."*
+
+**Why It Matters**  
+Sleep is the single highest-leverage health variable — it affects every other metric the app tracks. But most fitness apps treat it as an afterthought. A sleep coaching layer that uses the user's own data would be genuinely differentiated. It also gives the correlation engine more data to work with.
+
+**Estimated Effort:** 2–3 days (smart bedtime notifications + weekly report card + wind-down routine)
+
+---
+
+### Idea H — Data Export & Health Reports
+
+**The Problem**  
+Users accumulate months of detailed health data in the app but have no way to export it. This creates two problems: (1) users can't share relevant data with their doctor, dietitian, or personal trainer, and (2) users worry about data lock-in and may be reluctant to log comprehensively. Portability builds trust.
+
+**What It Would Do**  
+A "My Data" section in Settings with three export options:
+
+1. **PDF Monthly Report** — a beautifully formatted 2-page summary showing: weight trend chart, average macros, workout frequency, key habits, sleep quality trend, top insights. Shareable with a doctor or trainer. Generated server-side using a PDF library.
+
+2. **CSV Raw Export** — download all logged data (daily logs, workouts, body metrics, insights) as a CSV zip file. Full data portability.
+
+3. **Shareable Progress Link** — a time-limited read-only URL showing the user's last 30 days of progress as a public page (opt-in). Useful for sharing with a coach or accountability partner who doesn't have the app. Expires after 7 days.
+
+**New Route**  
+- `GET /api/export/pdf?month=2026-06` — generate monthly PDF  
+- `GET /api/export/csv` — generate data zip  
+- `POST /api/export/share-link` — create a time-limited read-only token
+
+**Why It Matters**  
+Data portability is increasingly a user expectation (and in some jurisdictions a legal right under GDPR/CCPA). More practically, a PDF report that users share with their doctor or trainer is free word-of-mouth marketing. Shareable progress links are a lightweight viral loop without building a full social network.
+
+**Estimated Effort:** 2–3 days (PDF generation + CSV export + share link)
+
+---
+
+### Idea I — Injury & Pain Log
+
+**The Problem**  
+Every regular exerciser eventually deals with an injury or niggle — a tweaked shoulder, knee pain, lower back tightness. When this happens, most fitness apps become useless: they still recommend bench press when the shoulder is injured, still count a missed workout as a streak break. There is no graceful handling of the "I'm hurt" scenario.
+
+**What It Would Do**  
+A simple injury logging panel (accessible from workout start screen or Settings):
+
+- User selects affected body area from a body diagram (shoulder, knee, lower back, etc.)
+- Rates severity: mild (1–2), moderate (3), severe (4–5)
+- Optional notes
+
+When an injury is active:
+- Workout suggestions automatically exclude exercises that use the affected muscle group (using a hardcoded muscle-group-to-exercise mapping, same as in Pillar 3)
+- Streaks don't break for modified/rest days during an active injury (an "Injury Mode" flag)
+- Coach chat gets context: *"[User has a moderate right knee injury logged since June 15]"*
+- For moderate injuries, a suggested return-to-training protocol appears: Week 1 rest → Week 2 bodyweight only → Week 3 light load → Week 4 resume normal
+
+**Data Model**
+
+```sql
+CREATE TABLE injury_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  body_part text NOT NULL,       -- 'left_knee', 'lower_back', 'right_shoulder', etc.
+  severity int NOT NULL,         -- 1-5
+  notes text,
+  start_date date NOT NULL,
+  end_date date,                 -- null if ongoing
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+**Why It Matters**  
+Injury is one of the top reasons people stop working out and stop using fitness apps. An app that handles injury gracefully — protecting the streak, adjusting recommendations, suggesting safe alternatives — keeps users engaged through recovery instead of losing them. This feature is high empathy at relatively low engineering cost.
+
+**Estimated Effort:** 2–3 days (data model + workout filter + streak mode + coach context injection)
+
+---
+
+### Idea J — Supplement Tracker
+
+**The Problem**  
+Many fitness users take supplements (creatine, protein, vitamins, omega-3, pre-workout, magnesium) on a daily or workout-day schedule. Compliance with supplement protocols is notoriously poor — people forget. And there's no way to correlate supplement intake with performance outcomes in the app.
+
+**What It Would Do**  
+A lightweight supplement log within the daily check-in:
+
+- User defines their supplement stack in Settings (name, dose, timing — morning / pre-workout / post-workout / evening)
+- Daily log shows supplement checkboxes at the appropriate time of day
+- Smart reminder notifications at the defined timing
+- Weekly compliance report (took creatine 6/7 days)
+- Supplement compliance added to the correlation engine as a variable
+
+**Data Model**
+
+```sql
+CREATE TABLE user_supplements (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,            -- 'Creatine Monohydrate'
+  dose text,                     -- '5g'
+  timing text NOT NULL,          -- 'morning', 'pre_workout', 'post_workout', 'evening'
+  days_of_week int[],            -- null = every day, [1,2,3,4,5] = weekdays
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE supplement_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  supplement_id uuid REFERENCES user_supplements(id) ON DELETE CASCADE,
+  taken_date date NOT NULL,
+  UNIQUE(supplement_id, taken_date)
+);
+```
+
+**Why It Matters**  
+Supplement tracking is a natural adjacent habit for the fitness-focused user. It adds another daily touchpoint without requiring new behaviour from the user — they're already opening the app to log food. The correlation engine immediately benefits: "Your energy is 22% higher on days you take your B12."
+
+**Estimated Effort:** 2 days (data model + daily log integration + reminders + compliance report)
+
+---
+
+### Summary of New Ideas
+
+| Idea | Rough Impact | Rough Effort | Best Sprint |
+|---|---|---|---|
+| A — Food Photo Logging (AI Vision) | Very High | Medium (2–3 days) | Sprint 2 |
+| B — Adaptive TDEE Engine | High | Low (1–2 days) | Sprint 2 |
+| C — Habit Tracker | High | Medium (3–4 days) | Sprint 2–3 |
+| D — Body Weight Intelligence | High | Low (1–2 days) | Sprint 1 (add to existing) |
+| E — Fasting / TRE Tracker | Medium | Low-Medium (2 days) | Sprint 3 |
+| F — Event & Race Countdown | High | Medium (3–4 days) | Sprint 3 |
+| G — Sleep Coaching Module | Very High | Medium (2–3 days) | Sprint 2 |
+| H — Data Export & Health Reports | Medium | Medium (2–3 days) | Sprint 3 |
+| I — Injury & Pain Log | High | Medium (2–3 days) | Sprint 2 |
+| J — Supplement Tracker | Medium | Low (2 days) | Sprint 3 |
+
+**Highest-priority additions to existing sprints:**
+- **Sprint 1 addition:** Idea D (Body Weight Intelligence) — pure charting upgrade on existing data, very low risk
+- **Sprint 2 candidates:** Ideas A (Photo Logging), B (Adaptive TDEE), G (Sleep Coaching), I (Injury Log)
+- **Sprint 3 candidates:** Ideas C (Habit Tracker), E (Fasting), F (Race Countdown), H (Export), J (Supplements)
+
+---
+
+---
+
 ## Prioritisation Matrix
 
 Scored on Impact (user value) × Feasibility (time + complexity) for a solo developer.
@@ -621,6 +1005,17 @@ Scored on Impact (user value) × Feasibility (time + complexity) for a solo deve
 | Group Challenges | Medium | Medium | ★★☆☆☆ | Sprint 4 |
 | 12-Week Programs | High | Low | ★★☆☆☆ | Sprint 4 |
 | Apple Health / Google Fit | Very High | Very Low | ★★☆☆☆ | Future (requires native app) |
+| **New Ideas** | | | | |
+| Food Photo Logging (AI Vision) | Very High | Medium | ★★★★☆ | Sprint 2 |
+| Body Weight Intelligence (MA + plateau) | High | Very High | ★★★★★ | Sprint 1 (add-on) |
+| Sleep Coaching Module | Very High | Medium | ★★★★☆ | Sprint 2 |
+| Injury & Pain Log | High | Medium | ★★★★☆ | Sprint 2 |
+| Adaptive TDEE Engine | High | Very High | ★★★★☆ | Sprint 2 |
+| Habit Tracker | High | Medium | ★★★☆☆ | Sprint 2–3 |
+| Event & Race Countdown | High | Medium | ★★★☆☆ | Sprint 3 |
+| Data Export & Health Reports | Medium | Medium | ★★★☆☆ | Sprint 3 |
+| Fasting / TRE Tracker | Medium | High | ★★★☆☆ | Sprint 3 |
+| Supplement Tracker | Medium | High | ★★☆☆☆ | Sprint 3–4 |
 
 ---
 
