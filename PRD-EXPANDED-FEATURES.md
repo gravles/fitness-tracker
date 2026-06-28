@@ -2,7 +2,8 @@
 
 **Author:** Claude  
 **Date:** 2026-05-20  
-**Status:** Proposal — for review
+**Last Updated:** 2026-06-28  
+**Status:** Living document — updated with implementation status and new feature brainstorm
 
 ---
 
@@ -16,6 +17,8 @@ This document proposes six major feature pillars, each with full specifications,
 
 ## Current State (What Exists)
 
+*Updated 2026-06-28 — many items marked 🔴 in the original have since shipped.*
+
 | Area | Status |
 |---|---|
 | Daily log (food, activity, wellness) | ✅ Solid, AI-assisted entry |
@@ -25,13 +28,25 @@ This document proposes six major feature pillars, each with full specifications,
 | AI coaching chat | ✅ Context-aware, 30-day window |
 | Push notifications | ✅ Server-side, custom reminders |
 | Strava sync | ✅ Manual sync |
-| Goal Wizard | ⚠️ Built but no entry point |
+| Goal Wizard | ⚠️ Built but no entry point in UI |
 | Progress photos | ✅ Upload + compare |
-| Body metrics | ⚠️ Measurements but no photo upload |
-| Social / sharing | 🔴 Stub only |
-| Nutrition planning | 🔴 Not started |
-| Recovery / readiness | 🔴 Not started |
-| Wearable integrations | 🔴 Strava only |
+| Body metrics | ✅ Measurements + photo upload |
+| Nutrition planning | ✅ Meal planner, saved meals, pantry |
+| Food photo recognition (AI) | ✅ Camera → AI food identification |
+| Barcode / nutrition label scanner | ✅ OpenFoodFacts integration |
+| Accountability partners | ✅ Weekly email summaries to partners |
+| Oura Ring integration | ✅ Readiness + sleep sync |
+| Withings Smart Scale integration | ✅ Weight + body composition sync |
+| In-workout rest timer | ✅ Presets: 30 / 60 / 90 / 180 s |
+| Offline mode | ✅ Service worker with network-first cache |
+| AI training program generator | ✅ Goal-based 12-week programs |
+| Social / community features | 🔴 Not started beyond accountability partners |
+| Correlation engine & insight feed | 🔴 Not started |
+| Recovery / readiness score (standalone) | ⚠️ Oura data surfaces in log but no score UI |
+| Progressive overload tracking | 🔴 Not started |
+| TDEE / metabolic adaptation tracking | 🔴 Not started |
+| Group challenges / leaderboards | 🔴 Not started |
+| Apple Health / Google Fit | 🔴 Not started (requires native app shell) |
 
 ---
 
@@ -636,6 +651,322 @@ The highest-ROI work is features that require **no new infrastructure** — they
 Total estimated effort: 7–11 days of development.
 
 This sprint alone would make the app feel dramatically more intelligent without requiring any new data collection from the user.
+
+---
+
+---
+
+---
+
+## June 2026 Feature Brainstorm
+
+*These ideas are new — not covered by the six pillars above. Each is a standalone candidate for a future sprint. Ordered roughly by estimated value-to-effort ratio.*
+
+---
+
+### Idea 1 — Personal Records (PR) Hall of Fame + Live Celebrations
+
+**The gap:** The workout tracker records every set, but there's no moment of recognition when a user lifts more than they ever have before. That moment — a new personal record — is intrinsically motivating and currently goes unnoticed.
+
+**What it would do:**
+
+- During an active workout, after a set is logged, compare it to the user's all-time best for that exercise (by estimated 1RM). If it's a new record, trigger a celebration: animated confetti overlay, a haptic buzz, a sound effect (opt-in), and a PR badge stamped on the set.
+- A **PR Hall of Fame** page (under Trends or a new Records tab) shows the user's all-time bests for every exercise they've ever done — weight, reps, estimated 1RM — with the date achieved. Each exercise is a card; tapping it shows the PR history graph over time.
+- PRs feed into the **Correlation Engine** (Pillar 1): *"You set 3 PRs this month — all on days after 7+ hours of sleep."*
+
+**Data model:** The `exercise_records` table proposed in Pillar 3 covers this. PR detection is a client-side calculation on save — no additional server infrastructure.
+
+**Effort:** 1–2 days. High delight, low complexity.
+
+---
+
+### Idea 2 — TDEE Learning Engine (Metabolic Adaptation Tracking)
+
+**The gap:** The app sets calorie targets based on stated goals, but those targets become stale. As users lose weight or adapt metabolically, their actual TDEE shifts — and the app never updates. Users plateau, get frustrated, and churn.
+
+**What it would do:**
+
+- **Calorie balance tracking:** Each week, compute expected weight change based on logged calories vs. the current TDEE estimate (calories in − TDEE = surplus/deficit; 7,700 kcal ≈ 1 kg of fat).
+- **Actual vs. expected comparison:** Compare that to the user's measured weight change (from Withings sync or manual log). The ratio reveals metabolic adaptation. If actual weight loss is 40% slower than expected for 3+ weeks, the algorithm adjusts the TDEE estimate down.
+- **Adaptive calorie targets:** Prompt the user when their TDEE estimate has drifted significantly from their starting assumption, and suggest a revised calorie target.
+- **Refeed / diet break detection:** If a user has been in a sustained deficit for 8+ weeks and weight loss has stalled, suggest a 1–2 week maintenance refeed. Explain the physiology briefly.
+- **Dashboard widget:** A "Calorie Balance Score" card showing: this week's estimated deficit/surplus, how it compares to target, and whether the weekly weight trend matches predictions.
+
+**Data model:** No new tables needed. The engine runs against `daily_logs` (calories) and `body_metrics` (weight). A lightweight `tdee_estimates` table could cache computed values:
+
+```sql
+CREATE TABLE tdee_estimates (
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  estimated_at date NOT NULL,
+  tdee_kcal int NOT NULL,
+  confidence text,   -- 'low' (<4 weeks data), 'medium', 'high'
+  PRIMARY KEY(user_id, estimated_at)
+);
+```
+
+**Effort:** 3–4 days. High strategic value — makes the nutrition layer genuinely adaptive.
+
+---
+
+### Idea 3 — Workout Session Debrief (RPE + Session Notes)
+
+**The gap:** After a workout is completed there's no moment to reflect. RPE (Rate of Perceived Exertion) — how hard the session actually felt on a 1–10 scale — is one of the most useful signals for readiness modelling and overtraining detection, and it's not captured at all.
+
+**What it would do:**
+
+- When a user taps "Finish Workout", show a brief debrief modal (3 questions, swipeable, takes 15 seconds):
+  1. *How hard was that session overall?* (RPE slider 1–10)
+  2. *How do you feel now?* (emoji scale: 😴 Wiped / 😐 Okay / 💪 Energised)
+  3. *Any notes?* (optional free text — pre-injury, felt off, PR day, etc.)
+- This data attaches to the workout record and feeds:
+  - **Readiness Score** (Pillar 4): high RPE + low post-feel → lower readiness tomorrow
+  - **Correlation Engine** (Pillar 1): *"Your energy is highest 24h after sessions you rated 6–7 RPE, not 9–10"*
+  - **Progressive Overload** (Pillar 3): a set completed at RPE 8 is treated differently to RPE 10 — the overload algorithm can be smarter about when to progress
+- Sessions with notes are surfaced in the workout history with a 📝 tag, making them searchable.
+
+**Data model:**
+
+```sql
+ALTER TABLE workouts
+  ADD COLUMN IF NOT EXISTS session_rpe int CHECK (session_rpe BETWEEN 1 AND 10),
+  ADD COLUMN IF NOT EXISTS post_feel text,   -- 'wiped', 'okay', 'energised'
+  ADD COLUMN IF NOT EXISTS session_notes text;
+```
+
+**Effort:** 1 day. Tiny lift, big downstream value for every intelligence feature.
+
+---
+
+### Idea 4 — Menstrual Cycle Phase Optimisation
+
+**The gap:** Cycle tracking is already in the app (and currently defaults to on, which the Quick Wins appendix flags as a bug). But the feature does nothing with the data. Research consistently shows that hormonal phases materially affect strength, energy, recovery, and nutrition needs — and nearly every fitness app ignores this entirely.
+
+**What it would do:**
+
+- **Phase detection:** From the cycle tracking start date + average cycle length, calculate the user's current phase: Menstrual (days 1–5), Follicular (days 6–13), Ovulatory (days 14–16), Luteal (days 17–28).
+- **Phase-aware coaching overlay:** A subtle banner or chip on the dashboard and in the workout view: *"Follicular phase — estrogen is rising. This is your strongest week. Good time to push intensity and try for PRs."*
+- **Adjusted recommendations per phase:**
+  - Follicular: Higher carb targets, strength-focus workouts, increase progressive overload
+  - Ovulatory: Peak strength window, high-intensity appropriate, watch ligament injury risk
+  - Luteal: Reduce intensity 10–15%, increase protein slightly, rest more, expect energy dip late in phase
+  - Menstrual: Active recovery recommended, heat packs and gentle movement, reduce volume targets
+- **Symptom correlation:** Users can log cramps, bloating, mood, and cravings. Correlation engine picks these up: *"Your energy logs are 2.1 points lower in luteal phase on average — that's hormonal, not a failure."*
+- **Readiness Score adjustment:** Automatically factor in late-luteal phase as a readiness modifier (−10 to −15 points on score, with explanation).
+
+**Data model:** No new tables if cycle data is already stored. Add phase columns:
+
+```sql
+ALTER TABLE daily_logs
+  ADD COLUMN IF NOT EXISTS cycle_phase text,  -- 'menstrual','follicular','ovulatory','luteal'
+  ADD COLUMN IF NOT EXISTS cycle_symptoms text[];  -- ['cramps','bloating','mood_low','cravings']
+```
+
+**Effort:** 3–4 days. Highly differentiated — almost no consumer fitness app does this well. Strong retention signal for a large user segment.
+
+---
+
+### Idea 5 — Voice-First Daily Log
+
+**The gap:** The voice spotter exists for workouts, but the daily log still requires tapping through multiple form fields. A single voice entry covering food, wellness, and activity would make logging genuinely frictionless — especially on busy mornings.
+
+**What it would do:**
+
+- A microphone button on the dashboard or daily log page triggers a voice session: *"Tell me about your day so far — what you ate, how you're feeling, any activity."*
+- The user speaks naturally: *"Had scrambled eggs and coffee for breakfast, drank about 2 litres of water, feeling 4 out of 5 energy, slept about 7 hours, a bit stressed with work, did a 20-minute walk at lunch."*
+- AI (Claude) parses the transcript and maps it to the structured log fields: food items with estimated macros, sleep hours, energy rating, stress rating, activity type and duration.
+- A **confirmation screen** shows the mapped values before saving — the user can tap individual fields to adjust anything. One-tap confirm saves the whole log.
+- Works entirely within the existing log data model. No new tables.
+
+**Implementation:** The same `process-intent` API route likely handles some of this already. Extension of existing patterns.
+
+**Effort:** 2–3 days. Dramatically reduces daily friction, especially for mobile users.
+
+---
+
+### Idea 6 — Training Load Analytics (Fitness-Fatigue Model)
+
+**The gap:** The app tracks individual workouts but has no view of cumulative training load over time. Serious athletes — runners, cyclists, lifters — use training load curves to balance fitness-building stress against fatigue and injury risk. No consumer app surfaces this in an approachable way.
+
+**What it would do:**
+
+- **Three metrics, calculated from workout history:**
+  - **ATL (Acute Training Load)** — 7-day exponentially weighted average of daily training stress. Represents current fatigue.
+  - **CTL (Chronic Training Load)** — 42-day exponentially weighted average. Represents accumulated fitness.
+  - **TSB (Training Stress Balance)** — CTL minus ATL. Positive = fresh/undertrained, negative = fatigued/overtrained.
+- **Training Load Chart:** A line chart in the Trends section showing all three metrics over 6 or 12 weeks. The shape tells the user whether they're building fitness sensibly or digging a hole.
+- **Plain-language interpretation:** Instead of showing raw numbers, translate: *"You've been building hard for 6 weeks (CTL trending up). Fatigue is high (ATL spike this week). TSB is −18 — you're in a training hole. Consider a 5-day deload."*
+- **Training Stress Score (TSS) per workout:** Calculated from duration × intensity (RPE or heart rate zone if wearable data exists). This is why Idea 3 (RPE Debrief) is a prerequisite.
+
+**Data model:**
+
+```sql
+CREATE TABLE training_load_history (
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  daily_tss numeric NOT NULL,
+  atl numeric NOT NULL,
+  ctl numeric NOT NULL,
+  tsb numeric NOT NULL,
+  PRIMARY KEY(user_id, date)
+);
+```
+
+**Effort:** 3–4 days. Niche but creates a very defensible moat with serious athletes. Pairs naturally with Pillar 3 (Periodisation) and Pillar 4 (Readiness).
+
+---
+
+### Idea 7 — Supplement Stack Tracker
+
+**The gap:** Many active users take supplements — creatine, protein powder, vitamins, magnesium, pre-workout, omega-3. These have measurable effects on training performance and recovery, but no fitness app connects the dots. The habit of taking supplements is also frequently inconsistent, and there's no nudge mechanism.
+
+**What it would do:**
+
+- **Supplement library:** A curated list of common supplements with evidence summaries (e.g., *"Creatine: well-evidenced for strength and muscle mass. Best taken daily, timing flexible."*). Users can add custom supplements too.
+- **Daily supplement log:** A quick tick-list within the daily log (or a separate widget). Log which supplements were taken and when (pre-workout, with food, before bed).
+- **Reminder notifications:** Schedule supplement-specific reminders — *"Time for your creatine"* at 8am, *"Magnesium before bed"* at 9:30pm.
+- **Correlation with performance:** After 4+ weeks of data, the correlation engine surfaces: *"On days you take creatine, your estimated 1RM is 3.2% higher. You've taken it 80% of days in the last month."* Or: *"Your sleep quality scores 0.6 points higher on days you take magnesium."*
+
+**Data model:**
+
+```sql
+CREATE TABLE user_supplements (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  dose_amount text,         -- '5g', '2 capsules', '1 scoop'
+  timing text[],            -- ['pre_workout', 'with_breakfast', 'before_bed']
+  reminder_times time[],
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE supplement_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  supplement_id uuid REFERENCES user_supplements(id),
+  taken_at timestamptz DEFAULT now(),
+  date date GENERATED ALWAYS AS (taken_at::date) STORED
+);
+```
+
+**Effort:** 2–3 days for core; +1 day for correlation hookup. Moderate niche appeal with high retention value for the user segment that cares.
+
+---
+
+### Idea 8 — Body Composition Projection Tool
+
+**The gap:** The app tracks weight and body fat over time but never extrapolates. Users regularly ask themselves *"If I keep going like this, when will I reach my goal?"* — and currently they can only guess. A projection view closes the loop between current trajectory and future state.
+
+**What it would do:**
+
+- On the body metrics / trends page, a **Projection Card**: *"At your current rate (−0.4kg/week), you'll reach your goal weight of 80kg in approximately 11 weeks — around September 13."*
+- **Scenario sliders:** Users can adjust their calorie target or workout frequency and see the projected timeline update in real time. *"If I add one more workout per week, I could reach it in 9 weeks."*
+- **Confidence band:** Show the projection as a shaded range (optimistic / expected / conservative), not a single line — this sets realistic expectations and prevents the "it said I'd be there by X and I'm not" disappointment.
+- **Body fat projection:** If Withings or manual body fat data is available, project body fat % alongside weight.
+- **Goal achievement moment:** When the projected date is crossed and the goal is hit (or within 1% of it), trigger a celebration — XP bonus, badge, confetti, a personalised congratulations message from the AI coach.
+
+**Data model:** No new tables. Runs purely from `body_metrics` history and `user_settings` (goal weight).
+
+**Effort:** 1–2 days. Pure data visualisation — no new data model, no API calls. High perceived value, straightforward to build.
+
+---
+
+### Idea 9 — Self-Challenge System
+
+**The gap:** The gamification layer (streaks, XP, badges) is passive — it rewards what you're already doing. There's no mechanism for a user to set a personal challenge with a deadline: *"I want to complete 20 workouts in 30 days."* Time-bounded, self-directed challenges are one of the most effective behaviour-change tools in the literature, and they're entirely absent.
+
+**What it would do:**
+
+- **Challenge Builder:** A simple flow where users define:
+  1. Challenge type: log streak, workout count, protein goal hit rate, step count, weight loss, or custom (free text with manual progress).
+  2. Target: e.g. 20 workouts.
+  3. Duration: 7 / 14 / 21 / 30 / 60 / 90 days.
+  4. Optional: share with an accountability partner (who sees progress).
+- **Active Challenge Dashboard widget:** A progress bar showing current status, days remaining, and daily requirement to stay on pace.
+- **Milestone notifications:** Push notifications at 25%, 50%, 75%, 100% completion. *"You're halfway through your 30-workout challenge. 10 down, 10 to go."*
+- **Challenge history:** A log of completed and failed challenges with completion rates — becoming a motivational record of what you've accomplished.
+- **Challenge templates:** Pre-built challenges to choose from: *"75 Hard Lite"* (log every day for 75 days), *"Protein Perfectionist"* (hit protein goal for 21 straight days), *"Beginner Month"* (complete 12 workouts in 30 days).
+
+**Data model:**
+
+```sql
+CREATE TABLE user_challenges (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  challenge_type text NOT NULL,   -- 'workout_count', 'log_streak', 'protein_days', 'custom'
+  target_value int NOT NULL,
+  start_date date NOT NULL,
+  end_date date NOT NULL,
+  current_progress int DEFAULT 0,
+  status text DEFAULT 'active',   -- 'active', 'completed', 'failed', 'abandoned'
+  template_id text,               -- slug of the template used, if any
+  created_at timestamptz DEFAULT now()
+);
+```
+
+**Effort:** 2–3 days. Extends the existing gamification system, reuses notification infrastructure, high engagement value.
+
+---
+
+### Idea 10 — Workout Partner Mode (Live Co-op Sessions)
+
+**The gap:** The accountability partner feature is asynchronous — you see weekly summaries. But many people actually work out with a friend, either in person or remotely, and want real-time shared experience. A co-op workout mode would be a genuinely differentiated social feature that doesn't require a public social graph.
+
+**What it would do:**
+
+- **Start a shared session:** From the active workout screen, tap "Work out with someone" and share a 6-digit join code (or a link). A friend opens the app and joins. No public profiles needed.
+- **Live shared view:** Both users see each other's sets logged in real time — a split panel or alternating feed. *"Alex just logged: Bench Press 3×10 @ 70kg"*
+- **Encouragement reactions:** One-tap reactions (🔥 💪 👊) visible to the partner — like a private emoji cheer during the set.
+- **Voice / text chat toggle (Phase 2):** Optional audio or text channel within the session. Phase 1 can be reactions-only for simplicity.
+- **Shared session summary:** After both users finish, a combined summary: total volume each, who hit more PRs, any highlights. Saved to both users' history.
+
+**Implementation notes:** Real-time sync requires Supabase Realtime (already available) with a `workout_sessions` live channel. The join code maps to a session ID. This is feasible without any third-party real-time infrastructure.
+
+**Effort:** 3–5 days. The most complex idea in this brainstorm, but a very compelling differentiator. Worth a dedicated sprint once the solo-user features are solid.
+
+---
+
+## Updated Prioritisation Matrix
+
+*Includes new ideas from the June 2026 brainstorm. All six original pillars remain valid; this extends the candidate list.*
+
+| Feature | Impact | Effort | Priority Score | Notes |
+|---|---|---|---|---|
+| **Quick Wins (bugs)** | Medium | Very Low | ★★★★★ | Ship continuously |
+| **Goal Wizard entry point** | Medium | Very Low | ★★★★★ | Already built, just needs a link |
+| **Readiness Score (standalone UI)** | Very High | Low | ★★★★☆ | Oura data exists, just needs the score widget |
+| **Correlation Engine** | Very High | Medium | ★★★★☆ | Data exists, logic is the work |
+| **Progressive Overload Alerts** | High | Low | ★★★★☆ | Active workout is the right place |
+| **PR Hall of Fame + Live Celebrations** | High | Very Low | ★★★★☆ | High delight, trivial data model |
+| **Workout Session Debrief (RPE)** | High | Very Low | ★★★★☆ | Unlocks readiness + overload accuracy |
+| **Body Composition Projection** | High | Low | ★★★★☆ | No new infra, pure visualisation |
+| **Voice-First Daily Log** | High | Low | ★★★☆☆ | Extends existing voice/AI infra |
+| **TDEE Learning Engine** | Very High | Medium | ★★★☆☆ | Makes nutrition adaptive |
+| **Self-Challenge System** | High | Medium | ★★★☆☆ | Extends gamification layer |
+| **Menstrual Cycle Optimisation** | Very High | Medium | ★★★☆☆ | Infra exists; high differentiation |
+| **Supplement Stack Tracker** | Medium | Medium | ★★★☆☆ | Niche but sticky |
+| **Training Load Analytics (ATL/CTL)** | High | Medium | ★★★☆☆ | Requires RPE debrief as prereq |
+| **Accountability partners (full)** | Very High | Medium | ★★★☆☆ | Core features built; enhancements TBD |
+| **Nutrition Planning (full planner)** | High | Medium | ★★★☆☆ | MVP already shipped |
+| **Group Challenges** | Medium | Medium | ★★☆☆☆ | Social features are risky; do self-challenges first |
+| **Workout Partner Mode (co-op)** | High | High | ★★☆☆☆ | Differentiator; complex; future sprint |
+| **Withings / Oura (enhancements)** | High | Low | ★★★☆☆ | Already live; surface data more in UI |
+| **Apple Health / Google Fit** | Very High | Very High | ★★☆☆☆ | Requires native app shell |
+
+---
+
+## Recommended Next Sprint (July 2026)
+
+Based on what's outstanding and the updated candidate list, the highest-ROI sprint is:
+
+1. **Quick Win bugs** (1–2 days) — Goal Wizard entry point, cycle tracking default off, browser confirm dialogs replaced
+2. **Workout Session Debrief / RPE** (1 day) — unlocks accuracy of everything downstream
+3. **PR Hall of Fame + Live PR detection** (1–2 days) — high delight, nearly free
+4. **Readiness Score standalone UI** (2–3 days) — Oura data already flows in, just needs the score widget and dashboard card
+5. **Body Composition Projection** (1–2 days) — pure visualisation, no new infra
+
+Total estimated effort: 6–10 days. Delivers a meaningfully smarter, more motivating app with no new data infrastructure required.
 
 ---
 
