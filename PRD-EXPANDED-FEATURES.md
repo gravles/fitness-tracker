@@ -1,7 +1,7 @@
 # Fitness Tracker — Expanded Features PRD
 
 **Author:** Claude  
-**Date:** 2026-05-20  
+**Date:** 2026-05-20 (revised 2026-06-29)  
 **Status:** Proposal — for review
 
 ---
@@ -603,9 +603,339 @@ These are bugs or small features that could each ship in a day or less. Not a pi
 
 ---
 
+---
+
+## New Feature Ideas — Brainstorm (Added 2026-06-29)
+
+The features below are not yet scheduled. They are organised by theme, with enough detail to assess before committing. Each entry includes a one-line rationale, a rough technical approach, and an estimated effort band.
+
+---
+
+### Idea 1 — Food Photo Recognition
+
+**One-line:** Point your camera at a meal and have AI identify the food items and estimate macros — no typing required.
+
+**The problem:** Manual food entry is the highest-friction part of the daily log. Users skip it, forget it, or give up. Photo logging removes the cognitive cost entirely.
+
+**What it does:**
+- A camera button in the food log opens the device camera (or file picker)
+- The image is sent to a multimodal AI model (Claude or GPT-4o Vision) with a prompt asking it to identify visible food items and estimate weights/portions
+- Returns a list of food items with estimated macros, pre-filled into the log for user review before saving
+- Users can adjust quantities or remove items before confirming
+
+**Technical approach:**
+- Uses the existing food-entry AI pipeline, extended with image input
+- Claude's vision capability handles the image analysis (`claude-sonnet-4-6` supports image attachments)
+- Prompt: *"Identify all visible food items in this image. For each, estimate the portion size and provide: name, estimated calories, protein (g), carbs (g), fat (g). Return JSON. If uncertain, give a range and flag it."*
+- The same `FoodEntryAI` component gains an "Upload photo" mode alongside the existing text mode
+
+**Edge cases to handle:** Multiple foods in one photo, packaged foods (lower confidence), unclear lighting. Show confidence level and always let the user edit before saving.
+
+**Effort:** 2–3 days (model is already integrated; mostly UI + prompt tuning)
+
+**Why it matters:** Reduces the #1 friction point in food tracking. Likely to increase daily log completion rates significantly.
+
+---
+
+### Idea 2 — Hydration Tracker
+
+**One-line:** Track daily water intake with a simple tap-to-add interface and smart reminders that adjust based on workout intensity and weather.
+
+**The problem:** Hydration affects energy, recovery, and cognitive function — all of which the app already tracks — but there's no way to log water. It's also one of the easiest wins for user health with very low logging effort.
+
+**What it does:**
+- A water intake section in the daily log: a visual progress ring (e.g. 6/8 glasses) with large "+1 glass" and "+500ml" tap targets
+- Daily goal defaults to 2L but adjusts: +500ml if a workout was logged, +250ml on days with high step counts
+- Hydration becomes a new variable in the Correlation Engine (dehydration vs energy, headaches, sleep quality)
+- Evening reminder if the user is below 60% of their target by 6pm
+
+**New data model:**
+```sql
+-- Add to daily_logs (or as its own lightweight table)
+ALTER TABLE daily_logs ADD COLUMN IF NOT EXISTS water_ml int DEFAULT 0;
+```
+
+**Effort:** 1 day (UI + one column)
+
+**Why it matters:** Extremely low-effort to build. Adds a new dimension to the correlation engine. Users who track water tend to drink more of it — direct health impact with minimal development cost.
+
+---
+
+### Idea 3 — Supplement Tracker
+
+**One-line:** Log daily supplements and correlate them with workout performance, recovery scores, and energy levels.
+
+**The problem:** Many users take supplements (creatine, omega-3, magnesium, vitamin D, pre-workout) but have no way to track consistency or measure whether they're working. The correlation engine has no supplement data to work with.
+
+**What it does:**
+- A "Supplements" section in the daily log — a checkbox list of the user's supplement stack
+- Users define their stack once (name + dose + timing: morning/pre-workout/evening). The log shows a checkbox per supplement per day
+- The Correlation Engine gains new variable pairs: `creatine_taken` ↔ `strength_improvement`, `magnesium_taken` ↔ `sleep_quality`, `pre_workout_taken` ↔ `workout_duration`
+- A simple compliance view: "You've taken creatine 18/21 days this month"
+
+**New data model:**
+```sql
+CREATE TABLE supplement_stack (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  dose_mg int,
+  timing text,   -- 'morning', 'pre_workout', 'post_workout', 'evening', 'with_food'
+  active boolean DEFAULT true
+);
+
+-- Track daily intake as part of daily_logs or as a join table
+CREATE TABLE supplement_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  supplement_id uuid REFERENCES supplement_stack(id) ON DELETE CASCADE,
+  taken boolean DEFAULT false,
+  UNIQUE(user_id, date, supplement_id)
+);
+```
+
+**Effort:** 1–2 days
+
+**Why it matters:** Makes the app useful for a much wider audience (supplement users are highly engaged fitness people). Also feeds the Correlation Engine with a new class of variable.
+
+---
+
+### Idea 4 — Intermittent Fasting / Eating Window Timer
+
+**One-line:** A visual countdown timer that tracks the user's fasting window, eating window, and time since last food — with configurable protocols (16:8, 18:6, 5:2).
+
+**The problem:** Intermittent fasting is one of the most popular dietary approaches but there's no native support in the app. IF users currently use a separate app for the timer, which creates fragmentation.
+
+**What it does:**
+- User selects a fasting protocol: 16:8 (fast 16h, eat in 8h window), 18:6, 5:2, or custom eating window hours
+- Dashboard widget shows: current state (fasting / eating window), a countdown ring to next state, time fasted so far
+- "Start eating" and "Stop eating" buttons log the eating window boundaries
+- At the end of each fast, the completed fast is logged and can feed the Correlation Engine (`fasting_hours` ↔ `energy_level`, ↔ `weight_trend`)
+- The Nutrition Plan (Pillar 2) becomes aware of the eating window — all meal suggestions fall within the window
+- Optionally: push notification when the eating window opens or closes
+
+**New data model:**
+```sql
+ALTER TABLE user_settings
+  ADD COLUMN IF NOT EXISTS fasting_protocol text DEFAULT null,  -- '16:8', '18:6', '5:2', 'custom'
+  ADD COLUMN IF NOT EXISTS eating_window_start time,            -- e.g. 12:00
+  ADD COLUMN IF NOT EXISTS eating_window_end time;              -- e.g. 20:00
+
+CREATE TABLE fasting_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  fast_start timestamptz NOT NULL,
+  fast_end timestamptz,
+  eating_window_end timestamptz,
+  target_hours int,
+  completed boolean DEFAULT false
+);
+```
+
+**Effort:** 2 days
+
+**Why it matters:** IF is mainstream. This is a "why doesn't this app have that?" gap that causes users to install a second app. Consolidating it improves daily active usage.
+
+---
+
+### Idea 5 — Goal Projection & Timeline
+
+**One-line:** Show users a projected date for reaching each goal based on their current trend, and flag when they're off-track.
+
+**The problem:** Users set goals (lose 5kg, bench 100kg, run 5km) but the app never tells them whether they're on pace or falling behind. Goal-setting without feedback on trajectory is motivationally hollow.
+
+**What it does:**
+- For each active goal, calculate the linear trend from the last 30 days of data and project when the user will hit the target at their current rate
+- Show on the Goals page and in the AI coaching context: *"At your current rate of ~0.4kg/week, you'll reach your goal of 75kg in about 10 weeks — by September 7th."*
+- Flag when a goal is off-track: *"You're behind pace on your protein goal — you've hit it only 40% of days, but need 70%+ to meet your target."*
+- Weekly AI Coach message includes trajectory update: "On track", "Slightly behind", "Off track"
+- A simple chart on the goal card showing actual progress vs the required rate curve
+
+**Technical approach:** Linear regression on the relevant metric (body weight from `body_metrics`, average protein from `daily_logs`, max weight from `workout_sets`). No AI needed for the calculation — pure math. AI generates the natural-language framing.
+
+**Effort:** 2 days
+
+**Why it matters:** Goals without trajectory feedback are wishes. This turns every goal into a project with a deadline and a progress indicator — the single most effective motivational frame.
+
+---
+
+### Idea 6 — Smart Contextual Push Notifications
+
+**One-line:** Replace time-based reminders with behavior-aware nudges that fire based on what the user actually does (and doesn't do), not a fixed schedule.
+
+**The problem:** The current push notification system sends reminders at fixed times set by the user. This means reminders fire even when the user has already logged, and don't fire when the user is unusually inactive relative to their own pattern.
+
+**What it does:**
+- Replace static reminder times with a smart trigger system that evaluates conditions at intervals:
+  - *"You usually log by 10am but haven't today — still want to?"* (fires at 10:30am if no log exists)
+  - *"It's 8pm and you're still below 60% of your water target."*
+  - *"Your readiness score is 88 today — best you've had this week. Great day to hit the gym."*
+  - *"You've gone 5 days without logging a workout. Your streak ends tomorrow."*
+  - *"You're 3 days from your longest streak ever (21 days). Keep going!"*
+- Users choose a notification style: "Smart" (behavior-based), "Fixed" (current system), or "Off"
+- No new data collection needed — all triggers are evaluated against existing data
+
+**Technical approach:** Nightly/hourly Vercel cron job evaluates trigger conditions per user and sends via existing VAPID push infrastructure. Conditions are a small library of evaluator functions.
+
+**Effort:** 2–3 days
+
+**Why it matters:** Push notification relevance is the #1 determinant of whether users keep notifications on. Behavior-aware nudges are far less annoying and far more effective than static reminders.
+
+---
+
+### Idea 7 — Training Balance & Injury Prevention Flags
+
+**One-line:** Detect muscle group imbalances and training gaps in the user's workout history, and surface warnings before injury patterns develop.
+
+**The problem:** The app tracks every exercise but doesn't analyse the *distribution* of training. Many users inadvertently over-train push movements (bench, shoulder press) and under-train pull movements (rows, pull-ups), or chronically skip leg day, leading to imbalances that cause injury.
+
+**What it does:**
+- A "Balance" section in the workout/gains view showing training volume by muscle group category: Push, Pull, Legs, Core, Cardio
+- Visual balance indicator: a pentagon/radar chart showing volume distribution across the 5 categories
+- Flags:
+  - *"You haven't trained your back in 12 days."*
+  - *"Push-to-pull ratio is 3:1 this month — consider adding rows or pull-ups."*
+  - *"You've trained legs every day this week — consider a rest day for lower body."*
+  - *"Same muscle groups trained 3 days in a row — risk of overuse injury."*
+- Exercise-to-muscle-group mapping stored as a lookup table (populated from a standard exercise database, or crowdsourced from the app's existing exercise library)
+- An AI-generated "Recovery Suggestion" when an imbalance is detected: *"Your posterior chain hasn't been trained this week. Consider adding Romanian deadlifts or face pulls to your next session."*
+
+**New data model:**
+```sql
+-- Muscle group mapping (can be seeded from exercise database)
+CREATE TABLE exercise_muscle_groups (
+  exercise_name text PRIMARY KEY,
+  primary_groups text[],   -- e.g. ['chest', 'triceps']
+  secondary_groups text[], -- e.g. ['front_deltoid']
+  category text NOT NULL   -- 'push', 'pull', 'legs', 'core', 'cardio'
+);
+```
+
+**Effort:** 2–3 days (mostly the exercise mapping data work and the radar chart UI)
+
+**Why it matters:** Injury prevention is one of the most concrete, high-value things a fitness app can do. It requires the historical workout data already captured — no new user input. And it creates urgency that drives re-engagement ("you haven't trained back in 12 days").
+
+---
+
+### Idea 8 — Monthly Health Report Card
+
+**One-line:** A beautiful, shareable summary of the user's month — auto-generated, highlights progress, suitable for sharing with a coach or doctor.
+
+**The problem:** Users accumulate months of data but rarely step back to see the full picture. There's no shareable artefact of their progress — nothing to show a personal trainer at a consultation, or a doctor at a checkup, or to celebrate on social media without exposing raw personal data.
+
+**What it does:**
+- On the 1st of each month, generate a Monthly Report Card for the previous month
+- Delivered as a push notification: *"Your May Report is ready — here's your month in numbers."*
+- Report includes:
+  - Days logged / streak best / total XP earned
+  - Average macros vs targets (% hit rate)
+  - Total workouts, total volume lifted, personal records broken
+  - Weight change, body composition change if tracked
+  - Top 3 AI-generated insights from the month
+  - One motivational summary sentence
+- Exportable as a PNG (shareable to Instagram Stories, WhatsApp, etc.) or PDF
+- Also shareable with accountability partners in-app
+
+**Technical approach:**
+- Claude generates the narrative summary and insight highlights
+- The PNG export uses a server-side HTML-to-image renderer (Satori or Puppeteer on Vercel) with the app's design system
+- Data is all pulled from existing tables in a single query
+
+**Effort:** 3–4 days (report generation is straightforward; the image export/renderer is the new piece)
+
+**Why it matters:** Creates a shareable, dopamine-inducing artefact. Drives word-of-mouth when users share their report cards. Also gives users a reason to keep logging — they want a complete month to show.
+
+---
+
+### Idea 9 — Fitness Age Score
+
+**One-line:** A single number that estimates your "biological fitness age" based on all captured health data — a gamified, shareable metric that motivates long-term improvement.
+
+**The problem:** Abstract health metrics (VO2 max, resting heart rate, body fat %) mean little to most people. Translating them into "your body is performing like a 28-year-old" is deeply motivating and far more shareable than raw numbers.
+
+**What it does:**
+- A computed score, displayed as "Your Fitness Age: 31" (vs chronological age)
+- Calculated from a weighted combination of available data:
+  - Resting heart rate (estimated from workouts, or from Apple Health/Oura if available)
+  - Recovery score trend (from Pillar 4)
+  - Body composition (BMI or body fat % if available)
+  - Workout frequency and progression trend
+  - Sleep quality average
+  - Nutrition consistency (protein + calorie targets hit rate)
+- The score improves as the user's habits improve — a long-run motivational north star
+- Historical chart: "Your fitness age over time" — seeing it drop from 38 to 33 over 6 months is powerful
+- Formula is transparent and explainable: the AI Coach can explain exactly which inputs are dragging the score up or down
+
+**Technical approach:** Purely algorithmic — a weighted formula based on validated reference ranges for each metric (e.g. resting HR <60 → score like a 25-year-old). No AI needed for calculation; AI generates the explanation.
+
+**Effort:** 2 days
+
+**Why it matters:** Fitness age is the ultimate gamification metric. It's instantly understandable, emotionally resonant, and improves over time in proportion to actual health — unlike XP points which reward mere consistency. Highly shareable.
+
+---
+
+### Idea 10 — Diet Protocol Mode
+
+**One-line:** First-class support for specific eating protocols (Keto, Carnivore, Vegan, High-Protein, IIFYM) that reconfigures macro targets, food suggestions, and AI coaching to match.
+
+**The problem:** The app currently treats nutrition as generic calorie/macro tracking. Users following specific protocols (keto tracks net carbs not total carbs; carnivore has almost no carbs; vegan needs B12 and iron flagging) are under-served. The AI Coach gives generic advice that contradicts their chosen approach.
+
+**What it does:**
+- A "Diet Protocol" setting (alongside the existing dietary restrictions field):
+  - **Standard / Flexible** — current behaviour
+  - **High-Protein** — protein target is 1× bodyweight in grams; de-emphasises fat
+  - **IIFYM** — strict macro tracking, daily rollover of remaining macros
+  - **Keto** — net carbs (total − fiber) replace total carbs; hard cap at 20–50g net carbs; fat target at 65–75% of calories
+  - **Carnivore** — only animal products; disables vegetable/fruit suggestions; tracks animal-source protein and fat only
+  - **Vegan / Plant-Based** — flags low B12, iron, zinc, omega-3 if not supplemented; suggests plant protein combinations
+  - **Mediterranean** — emphasises olive oil, fish, legumes, whole grains; flags processed food entries
+- Choosing a protocol reconfigures: macro rings, food entry suggestions, AI coaching system prompt, and correlation variables
+- The AI Coach is told which protocol the user is following and adjusts its advice accordingly
+
+**New data model:**
+```sql
+ALTER TABLE user_settings
+  ADD COLUMN IF NOT EXISTS diet_protocol text DEFAULT 'standard';
+  -- 'standard', 'high_protein', 'iifym', 'keto', 'carnivore', 'vegan', 'mediterranean'
+```
+
+**Effort:** 3 days (mostly the protocol-specific logic branches and AI prompt variations)
+
+**Why it matters:** Protocol-specific users are the most engaged nutrition trackers. They'll choose an app that speaks their language over a generic tracker every time. This widens the addressable user base significantly without adding complexity for users who don't opt in.
+
+---
+
+### Summary of New Ideas
+
+| Idea | Impact | Effort | Priority |
+|---|---|---|---|
+| Food Photo Recognition | Very High | 2–3 days | High — reduces the #1 friction point |
+| Hydration Tracker | Medium | 1 day | High — trivial to build, feeds correlation engine |
+| Supplement Tracker | Medium | 1–2 days | Medium — niche but engaged audience |
+| IF / Eating Window Timer | High | 2 days | High — closes a gap vs dedicated IF apps |
+| Goal Projection & Timeline | Very High | 2 days | High — makes goals feel real and urgent |
+| Smart Contextual Notifications | High | 2–3 days | High — directly improves retention |
+| Training Balance & Injury Prevention | High | 2–3 days | Medium — requires exercise mapping data |
+| Monthly Health Report Card | High | 3–4 days | Medium — shareable, drives word-of-mouth |
+| Fitness Age Score | High | 2 days | Medium — strong gamification, shareable |
+| Diet Protocol Mode | High | 3 days | Medium — widens audience, high engagement |
+
+**Highest-priority new ideas for near-term consideration:**
+1. **Goal Projection & Timeline** — uses only existing data, directly boosts motivation
+2. **Smart Contextual Notifications** — uses existing infrastructure, directly improves retention
+3. **Hydration Tracker** — one column, one day, feeds the correlation engine
+4. **Food Photo Recognition** — biggest friction reduction in the app
+
+---
+
+---
+
 ## Prioritisation Matrix
 
 Scored on Impact (user value) × Feasibility (time + complexity) for a solo developer.
+
+### Original Six Pillars
 
 | Pillar | Impact | Feasibility | Score | Recommended Sequencing |
 |---|---|---|---|---|
@@ -621,6 +951,21 @@ Scored on Impact (user value) × Feasibility (time + complexity) for a solo deve
 | Group Challenges | Medium | Medium | ★★☆☆☆ | Sprint 4 |
 | 12-Week Programs | High | Low | ★★☆☆☆ | Sprint 4 |
 | Apple Health / Google Fit | Very High | Very Low | ★★☆☆☆ | Future (requires native app) |
+
+### New Brainstorm Ideas (Added 2026-06-29)
+
+| Idea | Impact | Feasibility | Score | Suggested Sequencing |
+|---|---|---|---|---|
+| Hydration Tracker | Medium | Very High | ★★★★★ | Sprint 2 — one column, one day |
+| Goal Projection & Timeline | Very High | High | ★★★★☆ | Sprint 2 — pure maths on existing data |
+| Smart Contextual Notifications | High | High | ★★★★☆ | Sprint 2 — uses existing push infra |
+| Food Photo Recognition | Very High | High | ★★★★☆ | Sprint 3 — vision model already integrated |
+| Fitness Age Score | High | High | ★★★☆☆ | Sprint 3 — algorithmic, no new data needed |
+| IF / Eating Window Timer | High | High | ★★★☆☆ | Sprint 3 — closes gap vs dedicated IF apps |
+| Supplement Tracker | Medium | High | ★★★☆☆ | Sprint 3 — niche but engaged audience |
+| Monthly Health Report Card | High | Medium | ★★★☆☆ | Sprint 4 — image renderer is new infra |
+| Training Balance & Injury Prevention | High | Medium | ★★★☆☆ | Sprint 4 — requires exercise mapping data |
+| Diet Protocol Mode | High | Medium | ★★★☆☆ | Sprint 4 — logic branches + prompt variants |
 
 ---
 
