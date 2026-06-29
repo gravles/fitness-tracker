@@ -18,6 +18,9 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 
 **Workout Tracking**
 - Active workout logger with real-time set / rep tracking and rest timer
+- Per-set autosave: progress writes to the database on every set toggle
+- Edit any completed workout by reopening it in the full logger
+- Delete individual sets during or after a session
 - AI Coach builds and saves workouts from natural language
 - Schedule workouts on a calendar with per-session reminders
 - 1RM estimation (Epley), PR notifications, and progress analytics
@@ -48,8 +51,14 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 
 **Customisation**
 - Light / System / Dark theme
+- English / French language toggle (Settings → Customisation)
 - Custom nutrition targets, habits list, available equipment
 - Accountability partners with weekly email summaries
+
+**Claude AI Connector**
+- Connect Claude.ai to your data via the Model Context Protocol (MCP)
+- 7 tools: read logs, workouts, body metrics, and profile; log food, workouts, and wellness
+- Generate and revoke per-account API keys in Settings → Claude AI Connector
 
 ## Tech Stack
 

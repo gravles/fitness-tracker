@@ -2,6 +2,53 @@
 
 All notable changes to Life Logger are documented here.
 
+## [2.1.0] — 2026-06-29
+
+### New Look & Feel — Brand Refresh
+- Completely redesigned UI aligned with the nathandavie.com design language
+- New typography: Sora (display) + Inter (body), replacing Playfair Display
+- New colour palette: deep ink navy `#060a13`, gold `#e0b35a`, blue `#5b9cf6`
+- Redesigned dashboard: Today Hero with progress rings, streak pill, level tile, next-workout bento, compact coach card, and 3-up quick actions
+- Bottom nav redesign: raised centre "+" log button; tabs renamed to Home / Train / Eat / Trends
+- Emoji chrome replaced with Lucide icons throughout (25+ files)
+- Animated progress rings, count-up numerals, and staggered card entrances (respects `prefers-reduced-motion`)
+- App icons, splash screens, and PWA icons regenerated in new palette
+
+### English / French Language Support
+- Full EN/FR bilingual UI via a custom `LanguageProvider` React context
+- Covers navigation, dashboard, daily log, settings, onboarding, and all section components
+- Language preference persisted to `localStorage`; no URL-segment routing (works in Capacitor / PWA)
+- Toggle under Settings → Customisation
+
+### Claude AI Connector (MCP)
+- Connect Claude.ai directly to your Life Logger data via the Model Context Protocol
+- 7 built-in tools: `get_daily_logs`, `get_workouts`, `get_body_metrics`, `get_user_profile`, `log_food`, `log_workout`, `update_daily_log`
+- Per-account API keys stored with hashed values in Supabase (RLS-protected)
+- Generate, copy, and revoke keys in Settings → Claude AI Connector
+- Ask Claude "what did I eat this week?" or "log a 5 km run for me" directly from Claude.ai
+
+### Workout Logger Improvements
+- **Autosave per set**: every set completion writes to the database immediately — progress survives crashes and navigation
+- **Lazy workout creation**: the DB record is created on the first completed set; crash-resume reloads from the DB
+- **Edit completed workouts**: "Edit Sets" button on each workout card in the Movement log reopens the session in the full logger for set-level changes
+- **Delete individual sets**: red × button on each set row removes it instantly
+- Autosave status chip ("Saving…" / "Saved" / "Save failed") shown in the workout header
+
+### Food Camera
+- Restored direct camera capture button (uses `capture="environment"` for instant rear-camera launch)
+- Added separate "Gallery" button to pick from the photo library
+- Both paths run through the canvas compressor to keep image size under the API limit
+
+### Bug Fixes
+- iOS black screen on launch resolved (ViewController registration in Xcode project)
+- iOS push notifications fixed: APNs production entitlement + direct APNs delivery path
+- Food photo scan consistency issues resolved
+- AI Weekly Analysis returning no results — fixed
+- Weekly Insights JSON parsing made more robust
+- MCP daily logs query: corrected habits column name
+
+---
+
 ## [2.0.0] — 2026-05-24
 
 ### Native iOS & Android Apps

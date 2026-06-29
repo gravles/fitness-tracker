@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronRight, Smartphone, Calendar, BookOpen, Dna, Sparkles } from 'lucide-react';
+import { ChevronRight, Palette, Languages, BrainCircuit, Dumbbell } from 'lucide-react';
 
-const APP_VERSION = '2.0';
+const APP_VERSION = '2.1';
 const STORAGE_KEY = 'lifelogger_seen_version';
 
 interface Slide {
@@ -15,33 +15,27 @@ interface Slide {
 
 const SLIDES: Slide[] = [
     {
-        icon: <Smartphone className="w-6 h-6" />,
-        title: 'Now on iOS & Android',
-        body: 'Download the native app for push notifications, haptic feedback, and swipe-back navigation.',
-        accent: 'var(--color-primary)',
-    },
-    {
-        icon: <Calendar className="w-6 h-6" />,
-        title: 'Workout Calendar Feed',
-        body: 'Subscribe to your personal webcal:// link and see every scheduled workout in Apple Calendar or Google Calendar.',
+        icon: <Palette className="w-6 h-6" />,
+        title: 'Fresh New Look',
+        body: 'Life Logger has a brand-new design with progress rings, animated stats, and a redesigned dashboard. Same data — much better feel.',
         accent: 'var(--color-gold)',
     },
     {
-        icon: <BookOpen className="w-6 h-6" />,
-        title: '12-Week Training Programs',
-        body: 'AI builds a periodised program for your goal. Target weights, 1RM tracking, PR notifications, and a full adherence calendar.',
-        accent: 'var(--chart-2)',
-    },
-    {
-        icon: <Dna className="w-6 h-6" />,
-        title: 'Health Integrations',
-        body: 'Connect Strava, Withings, and Oura under Settings → Health Integrations to sync activities and body composition automatically.',
+        icon: <Languages className="w-6 h-6" />,
+        title: 'English & French',
+        body: 'Switch the entire app between English and French under Settings → Customisation. Your preference is saved across sessions.',
         accent: 'var(--color-primary)',
     },
     {
-        icon: <Sparkles className="w-6 h-6" />,
-        title: 'AI Nutrition Planner',
-        body: 'Build a pantry, set prep-time limits, and let AI generate a weekly meal plan. Log meals straight to your diary.',
+        icon: <BrainCircuit className="w-6 h-6" />,
+        title: 'Claude AI Connector',
+        body: 'Connect Claude.ai to your Life Logger data via MCP. Ask "what did I eat this week?" or log a run — right from Claude.',
+        accent: 'var(--chart-2)',
+    },
+    {
+        icon: <Dumbbell className="w-6 h-6" />,
+        title: 'Smarter Workout Logger',
+        body: 'Every set saves instantly so you never lose progress. Edit any past workout, delete individual sets, and take or pick photos for food logging.',
         accent: 'var(--color-gold)',
     },
 ];
