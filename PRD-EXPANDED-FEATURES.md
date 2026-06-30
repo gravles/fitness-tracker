@@ -2,7 +2,8 @@
 
 **Author:** Claude  
 **Date:** 2026-05-20  
-**Status:** Proposal — for review
+**Status:** Proposal — for review  
+**Revised:** 2026-06-30 — Current State table below corrected against an actual code audit (the CHANGELOG had overstated several pillars as shipped). A new brainstorm section with fresh feature ideas has been added at the end.
 
 ---
 
@@ -14,7 +15,9 @@ This document proposes six major feature pillars, each with full specifications,
 
 ---
 
-## Current State (What Exists)
+## Current State (What Exists) — corrected 2026-06-30 against a source-code audit
+
+The table below as originally written (2026-05-20) is out of date — a lot has shipped since, and not always what the CHANGELOG claimed. Verified against actual code:
 
 | Area | Status |
 |---|---|
@@ -22,29 +25,35 @@ This document proposes six major feature pillars, each with full specifications,
 | Workout tracking (exercises, sets, reps) | ✅ Full, with voice spotter |
 | Streaks & XP gamification | ✅ 15 badges, level system |
 | Trends & analytics | ✅ Charts across 5 dimensions |
-| AI coaching chat | ✅ Context-aware, 30-day window |
-| Push notifications | ✅ Server-side, custom reminders |
-| Strava sync | ✅ Manual sync |
-| Goal Wizard | ⚠️ Built but no entry point |
+| AI coaching chat | ✅ Context-aware, persisted to Supabase |
+| Push notifications | ✅ Server-side (FCM), custom reminders, per-session lead time |
+| Native iOS / Android apps | ✅ Shipped via Capacitor, App Store + Play Store |
+| Strava / Withings / Oura sync | ✅ All three OAuth-connected; consolidated in Settings |
+| Goal Wizard | ⚠️ Still built but no entry point — unchanged since May |
 | Progress photos | ✅ Upload + compare |
-| Body metrics | ⚠️ Measurements but no photo upload |
-| Social / sharing | 🔴 Stub only |
-| Nutrition planning | 🔴 Not started |
-| Recovery / readiness | 🔴 Not started |
-| Wearable integrations | 🔴 Strava only |
+| Body metrics | ✅ Weight/lbs-kg toggle, Withings overlay on Trends |
+| Social / sharing | ⚠️ Achievement cards shareable via `/share/[token]`; no feed, no following, no group challenges |
+| Nutrition planning (Pillar 2) | ✅ **Done** — `/nutrition` pantry, AI meal plans, saved meals, photo/voice pantry scan |
+| Periodisation & progressive overload (Pillar 3) | ✅ **Done** — `/programs`, 12-week AI plans, 1RM tracking, PR alerts, adherence grid |
+| Accountability layer (Pillar 5) | ⚠️ **Partial** — partner invites + one-way weekly summary email shipped; no in-app partner dashboard, no streak-shield nudges, no group challenges |
+| Correlation engine & insight feed (Pillar 1) | 🔴 **Not started** — "AI Weekly Insights" exists but is generic AI commentary, not statistical correlation. No `insights_cache` table, no correlation math anywhere. |
+| Recovery / readiness score (Pillar 4) | 🔴 **Not started — biggest gap.** Oura's real readiness score is pulled via OAuth but thrown away: it's lossily squashed into the 1–5 `energy_level` field. There is no readiness dashboard card, no scoring algorithm, no sleep-staging or HRV display anywhere in the app, despite the data already being in hand. |
+| Apple Health / Google Fit | 🔴 Not started (unchanged — still the only integration requiring a native shell, now that iOS/Android apps already exist this is more feasible than when originally scoped) |
+
+**Bottom line on priority:** of the things still outstanding, **Recovery & Readiness Score (Pillar 4) is the highest-priority item.** It was already scored Very-High-Impact/High-Feasibility in the original prioritisation matrix below, the prerequisite Oura data is already flowing into the app, and right now that data is actively being wasted rather than built on. The Correlation Engine (Pillar 1) is the next-highest priority for the same reason — no new data collection required, pure intelligence layer on top of what's already logged.
 
 ---
 
 ## The Six Pillars
 
-1. **Correlation Engine & Insight Feed** — surface *why* you feel good or bad
-2. **Intelligent Nutrition Planning** — close the loop from tracking to planning
-3. **Periodisation & Progressive Overload** — turn workout history into a training program
-4. **Recovery & Readiness Score** — a daily signal that answers "should I train hard today?"
-5. **Accountability Layer** — gentle social pressure without the social media toxicity
-6. **Health Platform Integrations** — Apple Health, Google Fit, Oura, Withings
+1. **Correlation Engine & Insight Feed** — surface *why* you feel good or bad — 🔴 not started
+2. **Intelligent Nutrition Planning** — close the loop from tracking to planning — ✅ done
+3. **Periodisation & Progressive Overload** — turn workout history into a training program — ✅ done
+4. **Recovery & Readiness Score** — a daily signal that answers "should I train hard today?" — 🔴 not started, **highest priority**
+5. **Accountability Layer** — gentle social pressure without the social media toxicity — ⚠️ partial
+6. **Health Platform Integrations** — Apple Health, Google Fit, Oura, Withings — ⚠️ Oura/Withings/Strava done, Apple/Google not started
 
-Plus an **appendix of quick wins** — bugs and small features that could ship in a day each.
+Plus an **appendix of quick wins** — bugs and small features that could ship in a day each — and a **new brainstorm section** (added 2026-06-30) at the end with fresh feature ideas for review.
 
 ---
 
@@ -603,39 +612,77 @@ These are bugs or small features that could each ship in a day or less. Not a pi
 
 ---
 
-## Prioritisation Matrix
+## Prioritisation Matrix (original, 2026-05-20)
 
-Scored on Impact (user value) × Feasibility (time + complexity) for a solo developer.
+Scored on Impact (user value) × Feasibility (time + complexity) for a solo developer. Rows marked ✅ below have since shipped — kept here for history, see the corrected status table near the top of this document for what's actually still outstanding.
 
 | Pillar | Impact | Feasibility | Score | Recommended Sequencing |
 |---|---|---|---|---|
 | Quick Wins | Medium | Very High | ★★★★★ | Ship first (continuous) |
-| Readiness Score | Very High | High | ★★★★☆ | Sprint 1 — no new tables, just logic |
-| Correlation Engine | Very High | High | ★★★★☆ | Sprint 1 — data already exists |
-| Nutrition Planning (Saved Meals only) | High | High | ★★★☆☆ | Sprint 2 — start with saved meals |
-| Periodisation (Overload Alerts only) | High | High | ★★★☆☆ | Sprint 2 — active workout is already there |
-| Accountability (Partner only, no challenges) | Very High | Medium | ★★★☆☆ | Sprint 3 |
-| Withings Integration | High | Medium | ★★★☆☆ | Sprint 3 |
-| Oura Integration | High | Medium | ★★★☆☆ | Sprint 3 |
-| Nutrition Planning (Full Meal Planner) | High | Low | ★★☆☆☆ | Sprint 4 |
-| Group Challenges | Medium | Medium | ★★☆☆☆ | Sprint 4 |
-| 12-Week Programs | High | Low | ★★☆☆☆ | Sprint 4 |
-| Apple Health / Google Fit | Very High | Very Low | ★★☆☆☆ | Future (requires native app) |
+| Readiness Score | Very High | High | ★★★★☆ | **Still outstanding — now the #1 priority** |
+| Correlation Engine | Very High | High | ★★★★☆ | **Still outstanding — #2 priority** |
+| Nutrition Planning (Saved Meals only) | High | High | ★★★☆☆ | ✅ Shipped (v1.2.0–v1.3.0) |
+| Periodisation (Overload Alerts only) | High | High | ★★★☆☆ | ✅ Shipped, and expanded into full 12-week programs (v1.5.0) |
+| Accountability (Partner only, no challenges) | Very High | Medium | ★★★☆☆ | ✅ Shipped, one-way email only (v1.4.0) |
+| Withings Integration | High | Medium | ★★★☆☆ | ✅ Shipped (v1.4.0) |
+| Oura Integration | High | Medium | ★★★☆☆ | ✅ Shipped (v1.4.0) — but the readiness/sleep data it pulls isn't used anywhere yet |
+| Nutrition Planning (Full Meal Planner) | High | Low | ★★☆☆☆ | ✅ Shipped (v1.3.0) |
+| Group Challenges | Medium | Medium | ★★☆☆☆ | Still outstanding |
+| 12-Week Programs | High | Low | ★★☆☆☆ | ✅ Shipped (v1.5.0) |
+| Apple Health / Google Fit | Very High | Very Low | ★★☆☆☆ | Still outstanding — feasibility improved now that native iOS/Android apps exist |
 
 ---
 
-## Recommended Sprint 1 (Next 2–4 Weeks)
+## Recommended Next Sprint (as of 2026-06-30)
 
-The highest-ROI work is features that require **no new infrastructure** — they use data that's already being captured and add intelligence on top:
+Most of the original Sprint 1–4 backlog has shipped. The highest-ROI work remaining is, unsurprisingly, the two items that were already flagged as needing **no new infrastructure** in the original plan — they still don't, and the Oura integration shipped since then makes the Readiness Score even easier to build well:
 
-1. **Fix all Quick Win bugs** (1–2 days) — removes friction and builds trust in the app
-2. **Readiness Score v1** (2–3 days) — calculated from existing log fields, shows on dashboard
-3. **Correlation Engine v1** (3–4 days) — nightly cron, top 2–3 correlations shown in a weekly insight card
-4. **Progressive Overload Alerts** (1–2 days) — show last session + suggestion at top of each exercise in active workout
+1. **Readiness Score v1** (2–3 days) — stop discarding Oura's readiness number; build the `readiness_scores` table and dashboard card from Pillar 4. For non-Oura users, fall back to the documented client-side weighted formula.
+2. **Correlation Engine v1** (3–4 days) — nightly cron, `insights_cache` table, top 2–3 correlations shown in a weekly insight card, replacing the current generic AI commentary.
+3. **Goal Wizard entry point** (1 hour, from the Quick Wins appendix) — it's been sitting built-but-unreachable since before v1.0.0.
+4. **In-app accountability dashboard** — partners currently only get a weekly email; a lightweight in-app view (already scoped in Pillar 5) would close the loop without much new work.
 
-Total estimated effort: 7–11 days of development.
+This sprint would make the app's most-touted integration (Oura) actually pay off, and give the correlation/insight intelligence layer that's been promised in the README's "AI Coaching" section but never built.
 
-This sprint alone would make the app feel dramatically more intelligent without requiring any new data collection from the user.
+---
+
+---
+
+---
+
+## New Feature Ideas — Brainstorm (added 2026-06-30)
+
+These are **ideas, not specs** — sized for a quick read, not a build. None of this has been implemented or scoped in detail; flag what's worth pursuing and I'll write a full spec for it the way Pillars 1–6 are written above. Ordered roughly by how directly they build on what already exists in the app today (programs, nutrition planner, Oura/Withings/Strava, accountability, native apps, gamification).
+
+### A. Sleep & Recovery Detail View
+Oura already syncs sleep staging and HRV (see Pillar 4 gap above) but none of it is shown to the user beyond a lossy single number. A dedicated "Sleep" card or tab — REM/deep/light timeline, HRV trend line, a 7-day average — would surface data the app is already paying the OAuth complexity cost for. Natural companion to fixing the Readiness Score.
+
+### B. Adaptive Program Auto-Reflow
+The 12-week programs (Pillar 3) are static once generated. If a user misses sessions, skips a week, or (once built) has consistently low readiness scores, the AI could proactively re-flow the remaining weeks — inserting a deload, redistributing volume — instead of leaving the original plan to fall out of sync with reality. Pairs naturally with Pillar 4.
+
+### C. AI Exercise Form Check via Camera
+The app already does AI camera recognition for food and has a voice spotter for workouts. Recording a short clip (or live camera feed) of a lift and having Claude's vision capability flag obvious form issues (bar path, depth, knee tracking) would extend the existing "AI sees what you're doing" pattern from food into training — a meaningfully differentiated feature versus competitors.
+
+### D. Injury / Pain Log with Smart Substitution
+A simple log of "this hurt" tagged to a body part and exercise, feeding into program generation so the AI avoids or substitutes aggravating movements (e.g. swap barbell bench for floor press after a shoulder flag). Low data-model cost — a few columns on `workout_sets` or a small `pain_flags` table — high trust payoff, since being told to avoid recently uncomfortable lifts feels like the app actually knows the user.
+
+### E. Restaurant / Menu Macro Scan
+Extends the existing barcode/photo food recognition: point the camera at a restaurant menu (or a photo of one) and get AI-ranked suggestions for what to order to hit remaining daily macros, rather than only logging after the fact. Directly addresses the "convenience eating" failure mode called out in Pillar 2 but for eating out specifically, which pantry/meal-planning doesn't cover.
+
+### F. "Year in Review" Wrapped-Style Recap
+The app already has a shareable achievement-card mechanism (`/share/[token]`) and a year's worth of trends, streak, and gamification data once it's been running a while. An annual (or quarterly) auto-generated recap — total workouts, biggest lift PR, longest streak, favourite meal, a few personalised highlights — reuses existing infra and gives a natural, low-effort viral/shareable moment.
+
+### G. Smart Notification Timing
+Reminders currently fire at fixed configured times. Using existing log timestamps, the app could learn when a given user actually tends to log (e.g. always around 9pm) and nudge the reminder time toward that pattern, or skip it entirely on days they've already logged. The "skip if already logged" half of this is already in the Quick Wins appendix above — this extends it to be adaptive rather than just on/off.
+
+### H. Mood / Free-Text Journal with Sentiment Trend
+Today wellness is captured as numeric sliders (stress, energy, sleep quality). A short optional free-text journal entry per day, with lightweight AI sentiment tagging, would catch nuance the numbers miss ("rough day at work" vs. "rough day, but proud of the workout") and feed directly into both the Correlation Engine (Pillar 1) and the AI Coach's context window.
+
+### I. Travel / Disrupted-Routine Mode
+A manual or location-triggered toggle that temporarily relaxes targets and swaps the active program for a bodyweight/hotel-gym variant for a set date range, then reverts automatically. Addresses a common real-world reason people abandon tracking apps — travel breaks the routine and they don't come back. Could reuse the existing program-generation AI with a "no equipment, time-boxed" constraint.
+
+### J. Apple Watch / Wear OS Companion
+Now that native iOS and Android apps exist (v2.0.0), a watch companion for starting/logging a workout, viewing the rest timer, and quick-logging weight or a meal becomes meaningfully more feasible than when this PRD originally scored Apple Health integration as "Very Low feasibility." Worth re-scoring alongside Apple Health/Google Fit now that the native shell already exists.
 
 ---
 
