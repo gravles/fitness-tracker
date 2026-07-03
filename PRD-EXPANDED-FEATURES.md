@@ -20,18 +20,38 @@ This document proposes six major feature pillars, each with full specifications,
 |---|---|
 | Daily log (food, activity, wellness) | ✅ Solid, AI-assisted entry |
 | Workout tracking (exercises, sets, reps) | ✅ Full, with voice spotter |
-| Streaks & XP gamification | ✅ 15 badges, level system |
+| Streaks & XP gamification | ✅ 15 badges, level system, streak-type selector |
 | Trends & analytics | ✅ Charts across 5 dimensions |
-| AI coaching chat | ✅ Context-aware, 30-day window |
-| Push notifications | ✅ Server-side, custom reminders |
-| Strava sync | ✅ Manual sync |
-| Goal Wizard | ⚠️ Built but no entry point |
-| Progress photos | ✅ Upload + compare |
-| Body metrics | ⚠️ Measurements but no photo upload |
-| Social / sharing | 🔴 Stub only |
-| Nutrition planning | 🔴 Not started |
-| Recovery / readiness | 🔴 Not started |
-| Wearable integrations | 🔴 Strava only |
+| AI coaching chat | ✅ Context-aware, Supabase-persisted across devices |
+| Push notifications | ✅ Server-side + native FCM, custom reminders |
+| Native iOS & Android apps | ✅ Capacitor shell (remote URL), haptics, splash, push |
+| Strava / Withings / Oura sync | ✅ OAuth-connected, consolidated in Settings |
+| 12-Week AI Training Programs | ✅ Shipped — periodisation, 1RM tracking, PR toasts |
+| AI Nutrition Planner & Saved Meals | ✅ Shipped — Pantry, weekly plan, photo/voice pantry scan |
+| Goal Wizard | ✅ Entry point live in Settings |
+| Progress photos & body metrics | ✅ Upload + compare, kg/lbs toggle |
+| Accountability partners | 🟡 Partner invites + weekly summary email shipped; no in-app partner view or streak-shield nudge |
+| Group challenges | 🔴 Not started |
+| Correlation Engine & Insight Feed | 🔴 Not started |
+| Recovery / Readiness Score | 🔴 Not started (Oura's own readiness syncs in, but isn't surfaced as an app-native score/explanation) |
+| Apple Health / Google Fit | 🔴 Not started — now more feasible since a native shell already exists |
+
+*(See CHANGELOG.md 1.1.0–2.0.0 for the full record of what's shipped since this PRD's original date.)*
+
+---
+
+## Status Check — 2026-07-03
+
+Since this document was drafted, four of the six original pillars have shipped in whole or in part: 12-Week Training Programs (Pillar 3), full Nutrition Planning (Pillar 2), Strava/Withings/Oura integrations (Pillar 6, minus Apple/Google), and Accountability Partners (Pillar 5, minus group challenges and the in-app partner dashboard). Nearly all of the Quick Wins list has also landed. The app additionally grew native iOS/Android shells via Capacitor, which changes the calculus on a couple of remaining items below.
+
+**What's still outstanding, in priority order:**
+
+1. **Correlation Engine & Insight Feed (Pillar 1)** — still not built, and still the single highest-leverage remaining item. Every variable it needs (sleep, energy, stress, alcohol, protein, movement) has been flowing into `daily_logs` since v1.0. This is unclaimed value sitting on data already collected, with no new UI for users to learn.
+2. **Recovery & Readiness Score (Pillar 4)** — still not built. Oura's raw readiness number syncs in, but there's no app-computed score, plain-English explanation, or training recommendation. It's arguably higher-value now than when drafted: the 12-Week Programs feature that shipped since has no mechanism to adapt day-to-day intensity, and a readiness score is the natural input for that.
+3. **Group Challenges** — the unbuilt half of Pillar 5. Partner invites and weekly emails work; the shared-leaderboard, opt-in group mechanic hasn't been touched.
+4. **Apple Health / Google Fit** — originally scored "Very Low feasibility" because it required a native shell that didn't exist. That shell now exists (Capacitor apps shipped in 2.0.0), so this should be re-scored upward — it's now HealthKit/Health Connect plugin wiring inside an existing native app, not a from-scratch native build.
+
+**Recommendation:** tackle the Correlation Engine next. It's backend/AI work against data already captured, ships without asking users to learn anything new, and it compounds the value of nutrition planning, training programs, and readiness once each of those exists.
 
 ---
 
@@ -569,6 +589,154 @@ Every extra data source makes the correlation engine, readiness score, and AI co
 
 ---
 
+## Part 2 — New Feature Brainstorm (2026-07-03)
+
+The six pillars above were the "close the obvious gaps" list. With four of them substantially shipped, here are eight new ideas that weren't in the original document — things that occurred to me looking at what the app has become rather than what it was missing. These are lighter-weight sketches than the original pillars: enough to evaluate, not full specs. Pick whichever land and I'll flesh them out properly before building anything.
+
+---
+
+### Pillar 7 — Wearable & Home Screen Presence
+
+**Problem:** The app now ships as real native iOS/Android apps (Capacitor), but it still behaves like a website wrapped in a shell — no widgets, no watch presence, no way to see your streak or next workout without opening the app.
+
+**What it does:**
+- **Home screen widgets** (iOS WidgetKit / Android App Widgets): today's streak, ring progress for calories/protein, next scheduled workout. Small, medium, and lock-screen sizes.
+- **Apple Watch companion**: a simple watch face complication showing readiness/streak, and a "log workout" watch app that writes sets/reps back via Capacitor bridge.
+- **Siri Shortcuts / Google Assistant actions**: "Hey Siri, log my weight" or "log breakfast" opens straight into the right log tab.
+
+**Why it matters:** Every one of these removes a step between "I want to log something" and "it's logged." Widgets alone are known to meaningfully lift daily-active-use in habit apps, and it's now buildable without a new app shell — the native wrapper already exists.
+
+**Rough effort:** Widgets: medium (native code per platform, but no new backend). Watch app: high. Shortcuts: low.
+
+---
+
+### Pillar 8 — Endurance & Race Training Plans
+
+**Problem:** The 12-Week AI Training Program engine (shipped) is built around strength/hypertrophy periodisation — sets, reps, load. There's no equivalent for runners, cyclists, or hybrid athletes training toward a race date rather than a rep max.
+
+**What it does:**
+- User picks a goal race (5K / 10K / Half / Marathon / triathlon) and a target date; AI generates a periodised plan (base → build → peak → taper) with pace zones instead of load %.
+- Pulls actual pace/HR from Strava-synced runs (already connected) to calibrate zones instead of asking the user to self-report fitness.
+- Reuses the existing `training_programs` table shape — this is a new `program_type` ('strength' | 'endurance') with a different weekly-plan generator, not a parallel system.
+
+**Why it matters:** A meaningful slice of users log runs/rides via Strava sync today but get nothing structured back — the app currently only "coaches" the lifting half of fitness.
+
+**Rough effort:** Medium — mostly a new prompt/generator against infrastructure that already exists (programs table, Strava data, calendar view).
+
+---
+
+### Pillar 9 — Restaurant & Menu Macro Lookup
+
+**Problem:** AI photo/voice food logging works well for home cooking, but eating out is still a guessing game — "chicken burrito bowl, medium" logged from memory is often wildly off, and it's one of the top reasons people abandon nutrition tracking.
+
+**What it does:**
+- Search or scan a restaurant menu (photo of a physical menu, or a name lookup) and get AI-estimated macros per item before ordering, with a confidence indicator.
+- One-tap log directly from the lookup result.
+- Builds a personal cache of "usual orders" per restaurant so repeat visits get instant, increasingly accurate estimates (first visit is a guess; by the third visit it's closer to a saved meal).
+
+**Why it matters:** This is squarely the moment nutrition tracking usually breaks down. Solving it well would differentiate this app from every calorie counter that just eats the "restaurant food" excuse.
+
+**Rough effort:** Medium-high — needs a menu-photo AI pipeline and a small new cache table; can start with text search only (no photo) as a cheaper v1.
+
+---
+
+### Pillar 10 — Cycle-Aware Training & Nutrition
+
+**Problem:** Cycle tracking already exists (`enable_cycle_tracking`, off by default, visible on Trends) but it's purely observational — it's charted, not acted on. Once the Readiness Score (Pillar 4) and Nutrition Planning both exist, cycle phase is a strong, evidence-backed input neither currently uses.
+
+**What it does:**
+- Feed cycle phase into the Readiness Score as an additional signal (e.g. lower luteal-phase readiness weighting, or simply surface it in the AI explanation rather than scoring against it).
+- Nutrition planner nudges: slightly higher iron-rich food suggestions and calorie awareness during menstruation, per standard sports-nutrition guidance.
+- Training program adjusts suggested intensity/deload timing around cycle phase if the user opts in.
+
+**Why it matters:** Low build cost (the data already exists and is already off-by-default/opt-in), but meaningfully improves accuracy of two other flagship features for users who enable it. This is a "wire together things we already have" feature, not a new subsystem.
+
+**Rough effort:** Low, but depends on Readiness Score (Pillar 4) shipping first.
+
+---
+
+### Pillar 11 — Year in Review
+
+**Problem:** The app now holds over a year of rich, personal data (streaks, workouts, PRs, weight trend, badges) and none of it is ever presented back as a single satisfying artifact. Spotify Wrapped-style annual recaps are one of the most effective, lowest-cost retention and organic-growth mechanics in consumer apps.
+
+**What it does:**
+- An annual (or "your year so far") generated summary: total workouts, heaviest lift progress, longest streak, favourite meal, best/worst month for consistency, total XP earned, a few AI-written highlight lines.
+- Rendered as a shareable card sequence (reuses the existing shareable level-card infra from gamification) — exportable as an image for social sharing.
+- Could ship as a simple "Recap" page callable any time, not just at year-end, using a rolling 12-month window.
+
+**Why it matters:** Pure delight feature with a viral/sharing angle, and technically cheap — it's a read-only aggregation over data and infrastructure (shareable cards) that already exist.
+
+**Rough effort:** Low-medium.
+
+---
+
+### Pillar 12 — Personal AI Calibration for Food Logging
+
+**Problem:** AI photo food logging is a headline feature, but its accuracy is fixed at "generically good" — it doesn't learn that *this* user's "large" protein shake is always 40g protein, or that their go-to lunch salad reliably comes in 100 calories lighter than the AI's first guess.
+
+**What it does:**
+- After AI estimates a meal's macros, let the user do a lightweight correction ("actually ~450 cal, not 520") instead of ignoring it or re-logging manually.
+- Store corrections; when a very similar food/photo is logged again, bias the AI's estimate toward the user's own correction history for that food rather than the generic estimate.
+- Surface it passively — no new UI screen, just a "was this right?" thumbs affordance on the existing log confirmation step.
+
+**Why it matters:** Compounding accuracy is a strong differentiator and increases trust in the AI logging flow specifically, which is the feature most likely to make or break whether nutrition data (feeding Pillars 1, 2, and 4) is trustworthy in the first place.
+
+**Rough effort:** Medium — needs a small corrections table and a retrieval step in the existing food-logging prompt, no new page.
+
+---
+
+### Pillar 13 — Injury / Pain Log & Smart Substitutions
+
+**Problem:** The Progressive Overload engine (shipped) will happily suggest "add 2.5kg" to someone with a tweaked shoulder. There's no way to tell the app "my knee hurts" and have that change anything about today's suggested workout.
+
+**What it does:**
+- A quick, optional "anything hurt today?" tag on the daily log (body area + severity 1–3), separate from general wellness fields.
+- When active, the workout suggestion / progressive-overload engine swaps or de-loads exercises that load the flagged area (using the same muscle-group mapping already built for the Volume Tracking Dashboard) and flags it in-session: *"Skipping barbell squat — knee flagged Tuesday. Try leg press at reduced load instead."*
+- Simple rehab nudges (mobility work suggestions) rather than medical advice — clearly scoped as "train around it," not diagnosis.
+
+**Why it matters:** Training through pain is the single biggest cause of long-term attrition in strength apps. This reuses the exercise/muscle-group data model already built for Pillar 3 rather than inventing a new one.
+
+**Rough effort:** Medium — mostly logic against existing exercise metadata plus one new log field.
+
+---
+
+### Pillar 14 — Full Data Export & Account Portability
+
+**Problem:** As the app accumulates more of a user's health picture (workouts, nutrition, body comp, sleep, integrations), the absence of a "get all my data out" option becomes a bigger trust liability, and it's the kind of thing worth having *before* it's asked for rather than after.
+
+**What it does:**
+- A Settings → "Export my data" action that generates a downloadable archive (CSV per table, or one combined JSON) of everything: daily logs, workouts, body metrics, programs, saved meals.
+- Optional: a clean PDF "training log" export for a date range, useful for sharing with an actual coach or physio.
+
+**Why it matters:** Low glamour, but it's the right kind of feature to ship proactively — good practice, low cost, and removes a real objection some users have to logging sensitive health data into any app.
+
+**Rough effort:** Low.
+
+---
+
+## Updated Prioritisation Note
+
+Combining what's left of the original six pillars with this new list, if I were sequencing the next stretch of work:
+
+| Item | Why it's near the top |
+|---|---|
+| Correlation Engine (Pillar 1) | Highest-leverage unclaimed value; data already exists |
+| Readiness Score (Pillar 4) | Unlocks Pillar 10 (cycle-aware training) and makes 12-Week Programs adaptive |
+| Year in Review (Pillar 11) | Cheap, high-delight, reuses existing shareable-card infra |
+| Personal AI Calibration (Pillar 12) | Strengthens trust in the flagship AI logging feature |
+| Data Export (Pillar 14) | Cheap, proactive trust-builder |
+| Apple Health / Google Fit | Re-scored upward now that a native shell exists |
+| Endurance Training Plans (Pillar 8) | Serves the "cardio half" of users currently underserved |
+| Widgets & Watch (Pillar 7) | High native-dev cost but strong habit-loop payoff |
+| Restaurant Lookup (Pillar 9) | Solves a real churn point, but higher build cost |
+| Group Challenges | Medium value, no dependency blocking it |
+| Injury Log & Substitutions (Pillar 13) | Valuable but lower urgency than the above |
+| Cycle-Aware Nutrition (Pillar 10) | Blocked on Readiness Score shipping first |
+
+This is a starting opinion, not a final ranking — flag anything you'd move.
+
+---
+
 ## Quick Wins Appendix
 
 These are bugs or small features that could each ship in a day or less. Not a pillar, but worth doing.
@@ -639,4 +807,4 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
-*Document ends. Questions, pushback, or additions — flag them and I'll revise.*
+*Document ends. Original pillars (2026-05-20), status check and new feature brainstorm added 2026-07-03. Questions, pushback, or additions — flag them and I'll revise.*
