@@ -639,4 +639,69 @@ This sprint alone would make the app feel dramatically more intelligent without 
 
 ---
 
+---
+
+## Update — 2026-07-04: Status Refresh & New Feature Brainstorm
+
+**Author:** Claude
+**Status:** Proposal — for review (nothing below has been built)
+
+Six weeks of shipping have passed since the original PRD (see `CHANGELOG.md`, versions 1.1.0–2.0.0). Most of the six pillars are now partially or fully live. This section (a) reconciles the original plan against what actually exists, (b) calls out the highest-priority work still outstanding, and (c) proposes a fresh batch of feature ideas that weren't in the original six pillars. Nothing here has been implemented — it's for your review and prioritisation.
+
+### What Actually Shipped (vs. the Six Pillars)
+
+| Pillar | Original Status | Now |
+|---|---|---|
+| 1. Correlation Engine & Insight Feed | 🔴 Not started | 🔴 **Still not started** — no `insights_cache`, no nightly correlation job |
+| 2. Intelligent Nutrition Planning | 🔴 Not started | ✅ Shipped (v1.2.0–1.3.0): `/nutrition` with Today/Plan/Pantry tabs, AI meal plans, Saved Meals, pantry photo scan |
+| 3. Periodisation & Progressive Overload | ⚠️ Partial (no do-anything logic) | ✅ Shipped (v1.5.0): full 12-week AI programs, phases, 1RM tracking (Epley), PR toasts, deload-aware scheduling |
+| 4. Recovery & Readiness Score | 🔴 Not started | 🔴 **Still not started** — Oura's own readiness number is synced, but there's no in-app computed score for non-Oura users, no AI explanation, no training recommendation |
+| 5. Accountability Layer | 🔴 Stub only | ⚠️ Partial (v1.4.0): 1:1 partners + weekly email shipped; **group challenges were never built** |
+| 6. Health Platform Integrations | 🔴 Strava only | ✅ Shipped (v1.4.0): Strava, Withings, Oura all live. Apple Health / Google Fit still not started — but this is now far more feasible than the PRD assumed, since native iOS/Android apps (Capacitor) already ship in both stores |
+
+Also shipped, outside the original PRD: native iOS/Android apps, dark/light/system theme, onboarding flow, iCal calendar feed with reminders, EN/FR language toggle, coach chat history synced to Supabase, and a per-account Claude MCP connector.
+
+### Highest Priority Outstanding Work
+
+The two biggest gaps are also the two pillars the original PRD scored highest-impact with no new infrastructure required: **Pillar 1 (Correlation Engine)** and **Pillar 4 (Readiness Score)**. Both:
+- Run entirely on data already being captured (no new user-facing data entry)
+- Were explicitly designed to need no new tables beyond a small cache table
+- Were the centrepiece of "Recommended Sprint 1" and still haven't shipped
+
+Recommendation: these two remain the single highest-leverage next step, ahead of any of the new ideas below. Group Challenges (Pillar 5) and Apple Health/Google Fit (Pillar 6) are the next tier — worth revisiting now that a native app shell already exists, which removes the original "requires a native app" blocker for HealthKit specifically.
+
+### New Feature Brainstorm
+
+Ideas not covered by the original six pillars, grouped by theme. These are intentionally kept at "elevator pitch + why" level rather than full specs — flag which ones are worth expanding into full pillars.
+
+#### Engagement & Retention
+- **Life Logger Wrapped** — an annual/monthly recap (Spotify-Wrapped style): total workouts, biggest lift PR, longest streak, favourite meal, a shareable image card. Cheap to build (reuses existing gamification/trends data), high social/shareability value, and gives dormant users a reason to reopen the app.
+- **Home screen / lock screen widgets** — now that native iOS/Android shells exist, a small widget showing today's streak, macro rings, or next scheduled workout removes the need to even open the app to check status. High retention lever for a tracking app.
+- **Apple Watch / Wear OS companion** — glanceable rest-timer + one-tap set logging mid-workout, and a "log now" complication. Natural extension of the existing active-workout/rest-timer flow; biggest lift is a watchOS/Wear target, not new backend.
+
+#### Nutrition & Body
+- **Menu / restaurant scan** — extend the existing food-photo AI to handle a restaurant menu photo, returning macro estimates per dish so users can decide *before* ordering rather than logging after the fact. Directly complements Pillar 2's "planning, not just logging" theme.
+- **Fasting / eating-window tracker** — simple start/stop timer for intermittent fasting with a fasting-streak, overlaid on the existing daily log. Frequently requested in fitness apps; small data model (a `fasting_windows` table).
+- **AI form-check from video** — user records a set on their phone, uploads it, and Claude (vision) gives qualitative feedback ("bar path drifting forward on rep 3"). High wow-factor, builds on the same AI infra already used for food photos and the voice spotter.
+- **Supplement tracking & reminders** — a simple list (creatine, protein, vitamins) with daily check-off and optional reminder notification, reusing the existing push-notification plumbing.
+
+#### Intelligence & Coaching
+- **Injury / pain log tied into programs** — let users flag "left knee sore" and have the AI program generator and progressive-overload logic route around affected movements/muscle groups for a configurable period, and suggest physio-style mobility work. Extends Pillar 3 and 4 with a safety layer that's currently missing entirely.
+- **Smarter cycle-aware coaching** — cycle tracking already exists as a data field; nothing currently *uses* it. AI coaching and the (currently unbuilt) readiness score could factor cycle phase into training/nutrition suggestions for users who have it enabled.
+- **Evening wind-down coach** — a lightweight end-of-day nudge (distinct from the log reminder) that prompts a wind-down routine on days with poor sleep trends, tying together the sleep data already tracked with actual behavioural nudging rather than just reporting.
+
+#### Data & Platform
+- **Full data export** — a "Download my data" button (CSV/JSON of all logs, workouts, metrics) in Settings. Low effort, builds trust, and is good practice regardless of any formal compliance requirement.
+- **Calendar-aware scheduling** — read busy/free from the user's connected calendar (the iCal feed already goes one direction; this would be the read-back direction) so the AI program scheduler avoids proposing a workout during a meeting.
+
+### Suggested Next Step
+
+Pick one of two paths:
+1. **Finish the highest-leverage original work first** — ship Pillar 1 (Correlation Engine) and Pillar 4 (Readiness Score) before starting anything new, since they were always the top-scored items and remain unbuilt.
+2. **Mix in a quick, high-visibility win** — e.g. Life Logger Wrapped or a home-screen widget — alongside Pillar 1/4 if you want something shippable and shareable in the near term.
+
+Flag whichever of the above you want scoped into a full spec (data model, routes, UI) and I'll write it up the same way the original six pillars were written.
+
+---
+
 *Document ends. Questions, pushback, or additions — flag them and I'll revise.*
