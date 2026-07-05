@@ -56,6 +56,11 @@ const en = {
     nextWorkout: 'Next workout',
     noneScheduled: 'None scheduled',
     level: 'Level',
+    plannedMeals: "Today's meal plan",
+    noMealsPlanned: 'No meals planned for today',
+    logAsPlanned: 'Log as planned',
+    mealLogged: 'Logged',
+    mealSkipped: 'Skipped',
   },
   goalTracker: {
     title: 'On Track Today?',
@@ -401,6 +406,11 @@ const fr: typeof en = {
     nextWorkout: 'Prochain entraînement',
     noneScheduled: 'Rien de prévu',
     level: 'Niveau',
+    plannedMeals: 'Plan de repas du jour',
+    noMealsPlanned: 'Aucun repas prévu aujourd\'hui',
+    logAsPlanned: 'Journaliser comme prévu',
+    mealLogged: 'Journalisé',
+    mealSkipped: 'Ignoré',
   },
   goalTracker: {
     title: "En bonne voie aujourd'hui ?",

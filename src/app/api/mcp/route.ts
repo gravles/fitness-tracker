@@ -21,6 +21,10 @@ export async function OPTIONS() {
 
 // ─── TOOL DEFINITIONS ────────────────────────────────────────────────────────
 
+// Extensible by editing this array alone — `slot` is a free-text DB column,
+// not a CHECK constraint, so adding a new slot here needs no migration.
+const MEAL_SLOTS = ['break_fast', 'lunch', 'snack', 'dinner', 'closer'] as const;
+
 const TOOLS = [
     {
         name: 'get_daily_logs',
@@ -64,17 +68,22 @@ const TOOLS = [
     },
     {
         name: 'log_food',
-        description: "Add a food item to the user's daily nutrition log.",
+        description:
+            "Add a food item to the user's daily nutrition log. " +
+            'Pass planned_meal_id (from get_meal_plan) to log against a planned meal — its macros are used as defaults and any of name/calories/protein/carbs/fat you also pass override just that field with what was actually eaten; the planned entry is marked logged. ' +
+            'Without planned_meal_id, name and calories are required. Defaults: date = today. ' +
+            'Example (ad-hoc): {"name": "Greek yogurt", "calories": 150, "protein": 20}. ' +
+            'Example (against a plan, ate less than planned): {"planned_meal_id": "abc-123", "calories": 380}.',
         inputSchema: {
             type: 'object',
-            required: ['name', 'calories'],
             properties: {
-                name:     { type: 'string', description: 'Food or meal name' },
-                calories: { type: 'number', description: 'Calories (kcal)' },
-                protein:  { type: 'number', description: 'Protein in grams' },
-                carbs:    { type: 'number', description: 'Carbohydrates in grams' },
-                fat:      { type: 'number', description: 'Fat in grams' },
-                date:     { type: 'string', description: 'Date YYYY-MM-DD. Defaults to today.' },
+                name:             { type: 'string', description: 'Food or meal name. Required unless planned_meal_id is given.' },
+                calories:         { type: 'number', description: 'Calories (kcal). Required unless planned_meal_id is given.' },
+                protein:          { type: 'number', description: 'Protein in grams' },
+                carbs:            { type: 'number', description: 'Carbohydrates in grams' },
+                fat:              { type: 'number', description: 'Fat in grams' },
+                date:             { type: 'string', description: 'Date YYYY-MM-DD. Defaults to today, or the planned meal\'s date if planned_meal_id is given.' },
+                planned_meal_id:  { type: 'string', description: 'Entry id from get_meal_plan. Copies its macros as defaults and marks it logged.' },
             },
         },
     },
@@ -264,6 +273,129 @@ const TOOLS = [
             },
         },
     },
+    {
+        name: 'save_meal',
+        description:
+            'Create or update a named, reusable meal. Upserts by name (case-insensitive): saving "Fajita chicken bowl" twice updates the existing meal. ' +
+            'ingredients is a plain string list for display only (not used for macro calculation) — pass calories/protein/carbs/fat directly. ' +
+            'Example: {"name": "Fajita chicken bowl", "calories": 620, "protein": 55, "carbs": 60, "fat": 15, "tags": ["lunch", "batch-cooked"], "ingredients": ["chicken breast", "rice", "peppers", "salsa"]}.',
+        inputSchema: {
+            type: 'object',
+            required: ['name', 'calories'],
+            properties: {
+                name:        { type: 'string', description: 'Meal name, e.g. "Fajita chicken bowl". Used as the upsert key.' },
+                description: { type: 'string', description: 'Optional description.' },
+                calories:    { type: 'number', description: 'Calories (kcal) for one serving.' },
+                protein:     { type: 'number', description: 'Protein in grams. Defaults to 0.' },
+                carbs:       { type: 'number', description: 'Carbohydrates in grams. Defaults to 0.' },
+                fat:         { type: 'number', description: 'Fat in grams. Defaults to 0.' },
+                tags:        { type: 'array', items: { type: 'string' }, description: 'e.g. ["lunch", "batch-cooked"]' },
+                ingredients: { type: 'array', items: { type: 'string' }, description: 'Ingredient list, display only.' },
+            },
+        },
+    },
+    {
+        name: 'get_meals',
+        description: 'List all of the user\'s saved meals with macros, tags, and ingredients. Use before plan_meal to see what meal names exist. Example: {} (no arguments).',
+        inputSchema: { type: 'object', properties: {} },
+    },
+    {
+        name: 'plan_meal',
+        description:
+            `Assign a meal to a date and slot (status starts as planned). Pass meal_name for a saved meal OR name + calories for a one-off ad-hoc meal — exactly one of the two. Slot must be one of: ${MEAL_SLOTS.join(', ')}. ` +
+            'To schedule a repeating pattern in one call, pass recurrence with days_of_week and an until date (capped at 90 days from the start date; extra dates are dropped and reported). ' +
+            'A planned meal is never counted in daily nutrition totals until it\'s logged (see log_food / log_planned_meal). ' +
+            `Example (saved meal): {"date": "2026-07-06", "meal_name": "Fajita chicken bowl", "slot": "lunch", "recurrence": {"days_of_week": ["mon", "wed", "fri"], "until": "2026-08-31"}}. ` +
+            'Example (ad-hoc): {"date": "2026-07-06", "name": "Protein shake", "calories": 220, "protein": 40, "slot": "closer", "time": "21:00"}.',
+        inputSchema: {
+            type: 'object',
+            required: ['date', 'slot'],
+            properties: {
+                date:      { type: 'string', description: 'Start date YYYY-MM-DD. With recurrence, entries are created on matching weekdays from this date.' },
+                slot:      { type: 'string', enum: [...MEAL_SLOTS], description: `Meal slot. One of: ${MEAL_SLOTS.join(', ')}.` },
+                meal_name: { type: 'string', description: 'Name of a saved meal (see get_meals). Mutually exclusive with name/calories.' },
+                name:      { type: 'string', description: 'Ad-hoc meal name. Mutually exclusive with meal_name. Requires calories.' },
+                calories:  { type: 'number', description: 'Ad-hoc meal calories. Required when using name instead of meal_name.' },
+                protein:   { type: 'number', description: 'Ad-hoc meal protein in grams. Defaults to 0.' },
+                carbs:     { type: 'number', description: 'Ad-hoc meal carbs in grams. Defaults to 0.' },
+                fat:       { type: 'number', description: 'Ad-hoc meal fat in grams. Defaults to 0.' },
+                time:      { type: 'string', description: 'Time of day HH:MM (24h). Optional.' },
+                notes:     { type: 'string', description: 'Optional notes, e.g. "double the protein today".' },
+                recurrence: {
+                    type: 'object',
+                    required: ['days_of_week', 'until'],
+                    description: 'Repeat on the given weekdays from date through until (inclusive), max 90 days.',
+                    properties: {
+                        days_of_week: {
+                            type: 'array',
+                            items: { type: 'string', enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] },
+                        },
+                        until: { type: 'string', description: 'Last date YYYY-MM-DD (inclusive).' },
+                    },
+                },
+            },
+        },
+    },
+    {
+        name: 'get_meal_plan',
+        description:
+            'Get planned meals for a date range, grouped by day with per-day planned vs. logged macro totals so a coach can compare plan to actual at a glance. ' +
+            'Each entry has status planned, logged, or skipped, and linked_food_log_id once logged. ' +
+            'Defaults: start_date = today, end_date = start_date + 6 days. Example: {"start_date": "2026-07-06", "end_date": "2026-07-12"}.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                start_date: { type: 'string', description: 'Start date YYYY-MM-DD. Defaults to today.' },
+                end_date:   { type: 'string', description: 'End date YYYY-MM-DD. Defaults to start_date + 6 days.' },
+            },
+        },
+    },
+    {
+        name: 'update_planned_meal',
+        description:
+            'Change a planned meal entry (get the id from get_meal_plan). Supports: moving it to a new date/slot/time, swapping which meal it is (meal_name), marking it skipped with a reason, or restoring it to planned. ' +
+            'Example (skip): {"planned_meal_id": "abc-123", "status": "skipped", "reason": "eating out"}. ' +
+            'Example (swap): {"planned_meal_id": "abc-123", "meal_name": "Turkey chili"}.',
+        inputSchema: {
+            type: 'object',
+            required: ['planned_meal_id'],
+            properties: {
+                planned_meal_id: { type: 'string', description: 'Entry id from get_meal_plan.' },
+                new_date:  { type: 'string', description: 'Move to this date YYYY-MM-DD.' },
+                new_slot:  { type: 'string', enum: [...MEAL_SLOTS], description: `Move to this slot. One of: ${MEAL_SLOTS.join(', ')}.` },
+                new_time:  { type: 'string', description: 'New time of day HH:MM (24h).' },
+                meal_name: { type: 'string', description: 'Swap to a different saved meal (see get_meals). Recalculates macros from that meal.' },
+                status:    { type: 'string', enum: ['planned', 'skipped'], description: 'Set skipped (include reason) or restore to planned.' },
+                reason:    { type: 'string', description: 'Why the meal was skipped. Stored and shown in get_meal_plan.' },
+                notes:     { type: 'string', description: 'Replace the entry notes.' },
+            },
+        },
+    },
+    {
+        name: 'log_planned_meal',
+        description:
+            'Convenience one-call "ate what I planned": logs a planned meal exactly as planned (or with overrides) to its own planned date, and marks it logged. Equivalent to calling log_food with planned_meal_id. ' +
+            'Example (ate exactly as planned): {"planned_meal_id": "abc-123"}. ' +
+            'Example (ate a bit more): {"planned_meal_id": "abc-123", "adjustments": {"calories": 700}}.',
+        inputSchema: {
+            type: 'object',
+            required: ['planned_meal_id'],
+            properties: {
+                planned_meal_id: { type: 'string', description: 'Entry id from get_meal_plan.' },
+                adjustments: {
+                    type: 'object',
+                    description: 'Override any of the planned macros with what was actually eaten.',
+                    properties: {
+                        name:     { type: 'string' },
+                        calories: { type: 'number' },
+                        protein:  { type: 'number' },
+                        carbs:    { type: 'number' },
+                        fat:      { type: 'number' },
+                    },
+                },
+            },
+        },
+    },
 ];
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
@@ -345,6 +477,13 @@ function assertTime(value: unknown, field: string): string {
         throw new Error(`${field} must be a time in HH:MM 24-hour format, got "${value}"`);
     }
     return value.length === 5 ? `${value}:00` : value;
+}
+
+function assertSlot(value: unknown): string {
+    if (typeof value !== 'string' || !(MEAL_SLOTS as readonly string[]).includes(value)) {
+        throw new Error(`slot must be one of: ${MEAL_SLOTS.join(', ')}. Got "${value}".`);
+    }
+    return value;
 }
 
 // MCP exercise shape ↔ workout_templates.exercises JSONB shape used by the app UI
@@ -515,13 +654,34 @@ async function getUserProfile(userId: string) {
 }
 
 async function logFood(userId: string, args: Record<string, unknown>) {
-    const date = (args.date as string) ?? todayStr();
+    // Pull defaults from the planned meal (if any) before applying caller overrides
+    let plannedMeal: { id: string; name: string; scheduled_date: string; calories: number; protein: number; carbs: number; fat: number } | null = null;
+    if (args.planned_meal_id) {
+        const { data, error } = await supabaseAdmin
+            .from('planned_meals')
+            .select('id,name,scheduled_date,calories,protein,carbs,fat')
+            .eq('id', args.planned_meal_id as string)
+            .eq('user_id', userId)
+            .maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error(`Planned meal "${args.planned_meal_id}" not found. Use get_meal_plan to find valid ids.`);
+        plannedMeal = data;
+    }
+
+    const date = (args.date as string) ?? plannedMeal?.scheduled_date ?? todayStr();
+
+    const name = (args.name as string) ?? plannedMeal?.name;
+    if (!name) throw new Error('name is required unless planned_meal_id is given.');
+    const calories = args.calories != null ? (args.calories as number) : plannedMeal?.calories;
+    if (calories == null) throw new Error('calories is required unless planned_meal_id is given.');
+
     const item = {
-        name:     args.name    as string,
-        calories: (args.calories as number) ?? 0,
-        protein:  (args.protein  as number) ?? 0,
-        carbs:    (args.carbs    as number) ?? 0,
-        fat:      (args.fat      as number) ?? 0,
+        id:       crypto.randomUUID(),
+        name,
+        calories,
+        protein: args.protein != null ? (args.protein as number) : (plannedMeal?.protein ?? 0),
+        carbs:   args.carbs   != null ? (args.carbs   as number) : (plannedMeal?.carbs   ?? 0),
+        fat:     args.fat     != null ? (args.fat     as number) : (plannedMeal?.fat     ?? 0),
     };
 
     // Fetch existing log
@@ -551,7 +711,33 @@ async function logFood(userId: string, args: Record<string, unknown>) {
         );
     if (error) throw error;
 
-    return { logged: item, day_totals: totals };
+    let linkedPlannedMeal: { id: string; name: string } | null = null;
+    if (plannedMeal) {
+        await supabaseAdmin
+            .from('planned_meals')
+            .update({
+                status:            'logged',
+                linked_food_log_id: item.id,
+                actual_calories:   item.calories,
+                actual_protein:    item.protein,
+                actual_carbs:      item.carbs,
+                actual_fat:        item.fat,
+                updated_at:        new Date().toISOString(),
+            })
+            .eq('id', plannedMeal.id);
+        linkedPlannedMeal = { id: plannedMeal.id, name: plannedMeal.name };
+    }
+
+    return { logged: item, day_totals: totals, linked_planned_meal: linkedPlannedMeal };
+}
+
+/** log_planned_meal is sugar over logFood: same macros defaulting/override logic, always dated to the plan's own day. */
+async function logPlannedMeal(userId: string, args: Record<string, unknown>) {
+    const plannedMealId = args.planned_meal_id as string;
+    if (!plannedMealId) throw new Error('planned_meal_id is required — get it from get_meal_plan.');
+
+    const adjustments = (args.adjustments as Record<string, unknown>) ?? {};
+    return logFood(userId, { planned_meal_id: plannedMealId, ...adjustments });
 }
 
 async function logWorkout(userId: string, args: Record<string, unknown>) {
@@ -903,6 +1089,324 @@ async function updateScheduledWorkoutTool(userId: string, args: Record<string, u
     };
 }
 
+// ─── COACH TOOLS: MEALS & MEAL PLAN ────────────────────────────────────────────
+
+/** Fetch the user's meals and find one by name (case-insensitive). Throws with the available names. */
+async function findMealByName(userId: string, name: string) {
+    const { data, error } = await supabaseAdmin
+        .from('mcp_meals')
+        .select('id,name,calories,protein,carbs,fat')
+        .eq('user_id', userId);
+    if (error) throw error;
+
+    const meals = data ?? [];
+    const match = meals.find(m => m.name.toLowerCase() === name.trim().toLowerCase());
+    if (!match) {
+        const names = meals.map(m => `"${m.name}"`).join(', ') || 'none';
+        throw new Error(`Meal "${name}" not found. Available meals: ${names}. Create it first with save_meal.`);
+    }
+    return match;
+}
+
+async function saveMeal(userId: string, args: Record<string, unknown>) {
+    const name = (args.name as string)?.trim();
+    if (!name) throw new Error('name is required, e.g. "Fajita chicken bowl"');
+    if (args.calories == null) throw new Error('calories is required');
+
+    const { data: existing, error: findErr } = await supabaseAdmin
+        .from('mcp_meals')
+        .select('id,name')
+        .eq('user_id', userId);
+    if (findErr) throw findErr;
+
+    const match = (existing ?? []).find(m => m.name.toLowerCase() === name.toLowerCase());
+    const fields = {
+        name,
+        description: (args.description as string) ?? null,
+        calories:    args.calories as number,
+        protein:     (args.protein as number) ?? 0,
+        carbs:       (args.carbs   as number) ?? 0,
+        fat:         (args.fat     as number) ?? 0,
+        tags:        Array.isArray(args.tags)        ? args.tags        : [],
+        ingredients: Array.isArray(args.ingredients)  ? args.ingredients : [],
+        updated_at:  new Date().toISOString(),
+    };
+
+    if (match) {
+        const { data, error } = await supabaseAdmin
+            .from('mcp_meals')
+            .update(fields)
+            .eq('id', match.id)
+            .eq('user_id', userId)
+            .select('id,name')
+            .single();
+        if (error) throw error;
+        return { action: 'updated', meal_id: data.id, name: data.name };
+    }
+
+    const { data, error } = await supabaseAdmin
+        .from('mcp_meals')
+        .insert({ ...fields, user_id: userId })
+        .select('id,name')
+        .single();
+    if (error) throw error;
+    return { action: 'created', meal_id: data.id, name: data.name };
+}
+
+async function getMeals(userId: string) {
+    const { data, error } = await supabaseAdmin
+        .from('mcp_meals')
+        .select('id,name,description,calories,protein,carbs,fat,tags,ingredients,updated_at')
+        .eq('user_id', userId)
+        .order('name', { ascending: true });
+    if (error) throw error;
+    return data ?? [];
+}
+
+async function planMeal(userId: string, args: Record<string, unknown>) {
+    const startDate = assertDate(args.date, 'date');
+    const slot      = assertSlot(args.slot);
+    const time      = args.time != null ? assertTime(args.time, 'time') : null;
+
+    const mealName = args.meal_name as string | undefined;
+    const adhocName = args.name as string | undefined;
+    if (!!mealName === !!adhocName) {
+        throw new Error('Pass exactly one of meal_name (a saved meal) or name (an ad-hoc meal, with calories).');
+    }
+
+    let mealId: string | null = null;
+    let name: string;
+    let calories: number, protein: number, carbs: number, fat: number;
+    if (mealName) {
+        const meal = await findMealByName(userId, mealName);
+        mealId   = meal.id;
+        name     = meal.name;
+        calories = meal.calories;
+        protein  = meal.protein;
+        carbs    = meal.carbs;
+        fat      = meal.fat;
+    } else {
+        if (args.calories == null) throw new Error('calories is required for an ad-hoc meal (name without meal_name).');
+        name     = adhocName!;
+        calories = args.calories as number;
+        protein  = (args.protein as number) ?? 0;
+        carbs    = (args.carbs   as number) ?? 0;
+        fat      = (args.fat     as number) ?? 0;
+    }
+
+    // Expand the date list: single date, or recurrence pattern capped at 90 days
+    let dates = [startDate];
+    let truncated = false;
+    const recurrence = args.recurrence as { days_of_week?: unknown; until?: unknown } | undefined;
+    if (recurrence) {
+        const days = recurrence.days_of_week;
+        if (!Array.isArray(days) || !days.length) {
+            throw new Error('recurrence.days_of_week must be a non-empty array of weekdays, e.g. ["mon", "wed", "fri"]');
+        }
+        const invalid = days.filter(d => !DOW.includes(d as string));
+        if (invalid.length) {
+            throw new Error(`Invalid days_of_week: ${invalid.join(', ')}. Use: mon, tue, wed, thu, fri, sat, sun.`);
+        }
+        const until = assertDate(recurrence.until, 'recurrence.until');
+        if (until < startDate) throw new Error(`recurrence.until (${until}) is before the start date (${startDate}).`);
+
+        const capEnd = format(addDays(new Date(startDate + 'T00:00:00'), RECURRENCE_CAP_DAYS), 'yyyy-MM-dd');
+        truncated = until > capEnd;
+        const end  = truncated ? capEnd : until;
+
+        dates = [];
+        for (let d = new Date(startDate + 'T00:00:00'); format(d, 'yyyy-MM-dd') <= end; d = addDays(d, 1)) {
+            if (days.includes(DOW[d.getDay()])) dates.push(format(d, 'yyyy-MM-dd'));
+        }
+        if (!dates.length) {
+            throw new Error(`No matching weekdays between ${startDate} and ${end} for days_of_week [${days.join(', ')}].`);
+        }
+    }
+
+    const rows = dates.map(d => ({
+        user_id:        userId,
+        meal_id:        mealId,
+        name,
+        calories, protein, carbs, fat,
+        scheduled_date: d,
+        slot,
+        scheduled_time: time,
+        notes:          (args.notes as string) ?? null,
+        status:         'planned',
+    }));
+
+    const { data, error } = await supabaseAdmin
+        .from('planned_meals')
+        .insert(rows)
+        .select('id,scheduled_date');
+    if (error) throw error;
+
+    return {
+        scheduled_count: data?.length ?? rows.length,
+        meal_name: name,
+        slot,
+        dates: (data ?? []).map(r => r.scheduled_date),
+        entries: data ?? [],
+        ...(truncated ? { note: `Recurrence capped at ${RECURRENCE_CAP_DAYS} days from ${startDate}; dates after that were not scheduled. Call plan_meal again later to extend.` } : {}),
+    };
+}
+
+async function getMealPlan(userId: string, args: Record<string, unknown>) {
+    const start = args.start_date != null ? assertDate(args.start_date, 'start_date') : todayStr();
+    const end   = args.end_date   != null ? assertDate(args.end_date, 'end_date')
+                                          : format(addDays(new Date(start + 'T00:00:00'), 6), 'yyyy-MM-dd');
+    if (end < start) throw new Error(`end_date (${end}) is before start_date (${start}).`);
+
+    const { data, error } = await supabaseAdmin
+        .from('planned_meals')
+        .select('id,scheduled_date,scheduled_time,slot,name,calories,protein,carbs,fat,notes,status,skipped_reason,linked_food_log_id,actual_calories,actual_protein,actual_carbs,actual_fat')
+        .eq('user_id', userId)
+        .gte('scheduled_date', start)
+        .lte('scheduled_date', end)
+        .order('scheduled_date', { ascending: true })
+        .order('scheduled_time', { ascending: true });
+    if (error) throw error;
+
+    interface PlannedMealRow {
+        id: string;
+        scheduled_date: string;
+        scheduled_time: string | null;
+        slot: string;
+        name: string;
+        calories: number;
+        protein: number;
+        carbs: number;
+        fat: number;
+        notes: string | null;
+        status: string;
+        skipped_reason: string | null;
+        linked_food_log_id: string | null;
+        actual_calories: number | null;
+        actual_protein: number | null;
+        actual_carbs: number | null;
+        actual_fat: number | null;
+    }
+
+    const byDate = new Map<string, PlannedMealRow[]>();
+    for (const m of (data ?? [])) {
+        const list = byDate.get(m.scheduled_date) ?? [];
+        list.push(m);
+        byDate.set(m.scheduled_date, list);
+    }
+
+    const zeroTotals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    const days = [];
+    for (let d = new Date(start + 'T00:00:00'); format(d, 'yyyy-MM-dd') <= end; d = addDays(d, 1)) {
+        const dateStr = format(d, 'yyyy-MM-dd');
+        const entries = byDate.get(dateStr) ?? [];
+
+        const plannedTotals = entries
+            .filter(e => e.status !== 'skipped')
+            .reduce((a, e) => ({
+                calories: a.calories + (e.calories ?? 0),
+                protein:  a.protein  + (e.protein  ?? 0),
+                carbs:    a.carbs    + (e.carbs    ?? 0),
+                fat:      a.fat      + (e.fat      ?? 0),
+            }), { ...zeroTotals });
+
+        const loggedTotals = entries
+            .filter(e => e.status === 'logged')
+            .reduce((a, e) => ({
+                calories: a.calories + (e.actual_calories ?? e.calories ?? 0),
+                protein:  a.protein  + (e.actual_protein  ?? e.protein  ?? 0),
+                carbs:    a.carbs    + (e.actual_carbs    ?? e.carbs    ?? 0),
+                fat:      a.fat      + (e.actual_fat      ?? e.fat      ?? 0),
+            }), { ...zeroTotals });
+
+        days.push({
+            date: dateStr,
+            entries: entries.map(e => ({
+                id:                   e.id,
+                date:                 dateStr,
+                slot:                 e.slot,
+                time:                 e.scheduled_time?.slice(0, 5) ?? null,
+                meal_name:            e.name,
+                calories:             e.calories,
+                protein:              e.protein,
+                carbs:                e.carbs,
+                fat:                  e.fat,
+                status:               e.status,
+                skipped_reason:       e.skipped_reason,
+                notes:                e.notes,
+                linked_food_log_id:   e.linked_food_log_id,
+            })),
+            planned_totals: plannedTotals,
+            logged_totals:  loggedTotals,
+        });
+    }
+
+    return days;
+}
+
+async function updatePlannedMeal(userId: string, args: Record<string, unknown>) {
+    const id = args.planned_meal_id as string;
+    if (!id) throw new Error('planned_meal_id is required — get it from get_meal_plan.');
+
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+    if (args.new_date != null) patch.scheduled_date = assertDate(args.new_date, 'new_date');
+    if (args.new_slot != null) patch.slot = assertSlot(args.new_slot);
+    if (args.new_time != null) patch.scheduled_time = assertTime(args.new_time, 'new_time');
+    if (args.notes    != null) patch.notes = args.notes;
+
+    if (args.meal_name != null) {
+        const meal = await findMealByName(userId, args.meal_name as string);
+        patch.meal_id  = meal.id;
+        patch.name     = meal.name;
+        patch.calories = meal.calories;
+        patch.protein  = meal.protein;
+        patch.carbs    = meal.carbs;
+        patch.fat      = meal.fat;
+    }
+
+    if (args.status != null) {
+        const status = args.status as string;
+        if (status === 'skipped') {
+            patch.status = 'skipped';
+            patch.skipped_reason = (args.reason as string) ?? null;
+        } else if (status === 'planned') {
+            patch.status = 'planned';
+            patch.skipped_reason = null;
+        } else {
+            throw new Error(`status must be "planned" or "skipped", got "${status}". Logging happens automatically via log_food / log_planned_meal.`);
+        }
+    } else if (args.reason != null) {
+        throw new Error('reason is only used together with status: "skipped".');
+    }
+
+    if (Object.keys(patch).length === 1) {
+        throw new Error('Nothing to update — pass at least one of new_date, new_slot, new_time, meal_name, status, or notes.');
+    }
+
+    const { data, error } = await supabaseAdmin
+        .from('planned_meals')
+        .update(patch)
+        .eq('id', id)
+        .eq('user_id', userId)
+        .select('id,scheduled_date,scheduled_time,slot,name,status,skipped_reason,notes')
+        .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error(`Planned meal "${id}" not found. Use get_meal_plan to list entries and their ids.`);
+
+    return {
+        updated: {
+            id:             data.id,
+            date:           data.scheduled_date,
+            time:           data.scheduled_time?.slice(0, 5) ?? null,
+            slot:           data.slot,
+            meal_name:      data.name,
+            status:         data.status,
+            skipped_reason: data.skipped_reason,
+            notes:          data.notes,
+        },
+    };
+}
+
 async function updateDailyLog(userId: string, args: Record<string, unknown>) {
     const date = (args.date as string) ?? todayStr();
     const patch: Record<string, unknown> = { user_id: userId, date, updated_at: new Date().toISOString() };
@@ -984,6 +1488,12 @@ export async function POST(req: NextRequest) {
                 case 'schedule_workout':         result = await scheduleWorkoutTool(userId, args);       break;
                 case 'get_schedule':             result = await getSchedule(userId, args);               break;
                 case 'update_scheduled_workout': result = await updateScheduledWorkoutTool(userId, args); break;
+                case 'save_meal':          result = await saveMeal(userId, args);          break;
+                case 'get_meals':          result = await getMeals(userId);                break;
+                case 'plan_meal':          result = await planMeal(userId, args);           break;
+                case 'get_meal_plan':      result = await getMealPlan(userId, args);        break;
+                case 'update_planned_meal': result = await updatePlannedMeal(userId, args); break;
+                case 'log_planned_meal':   result = await logPlannedMeal(userId, args);     break;
                 default:
                     return rpcError(id, -32601, `Unknown tool: ${name}`);
             }

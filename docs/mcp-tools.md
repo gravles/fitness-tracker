@@ -17,12 +17,21 @@ Tool errors come back as MCP tool results with `isError: true` and a plain-Engli
 | `get_body_metrics` | Weight + measurements | `days` (90, max 365) |
 | `get_workout_templates` | Saved templates with exercises and fallbacks | none |
 | `get_schedule` | Planned workouts with derived status | `start_date` (today), `end_date` (start + 6 days) |
+| `get_meals` | Saved meals with macros, tags, ingredients | none |
+| `get_meal_plan` | Planned meals per day, with plan-vs-actual totals | `start_date` (today), `end_date` (start + 6 days) |
 
 ## Write tools
 
 ### `log_food`
 Add a food item to the day's nutrition log.
-`name`*, `calories`*, `protein`, `carbs`, `fat`, `date` (today).
+`name`*, `calories`*, `protein`, `carbs`, `fat`, `date` (today), `planned_meal_id`.
+
+Pass `planned_meal_id` (from `get_meal_plan`) to log against a planned meal instead — its macros
+become the defaults, any of `name`/`calories`/`protein`/`carbs`/`fat` you also pass override just
+that field with what was actually eaten, `date` defaults to the plan's own date, and the planned
+entry is marked `logged`. `name`/`calories` are only required when `planned_meal_id` is omitted.
+A planned meal is **never** added to daily totals until logged this way — `get_daily_logs` only
+ever reports actuals.
 
 ### `log_workout`
 Log a completed session and (automatically) mark the day's scheduled entry completed.
@@ -82,9 +91,71 @@ Change one scheduled entry by `scheduled_workout_id`* (from `get_schedule`):
 - `use_fallback: true|false` — switch between the full session and the shortened fallback version
 - `status: "skipped"` + `reason`, or `status: "planned"` to restore
 
+### `save_meal`
+Create or update a reusable meal. **Upserts by name, case-insensitive.**
+
+- `name`* — e.g. `"Fajita chicken bowl"`
+- `calories`* — macros are entered directly on the meal, not derived from `ingredients`
+- `protein` (0), `carbs` (0), `fat` (0)
+- `tags` — e.g. `["lunch", "batch-cooked"]`
+- `ingredients` — plain string list, **display only**, not used for macro calculation
+
+### `plan_meal`
+Assign a meal to a date and slot (status starts as **planned**). Exactly one of:
+
+- `meal_name` — a saved meal (see `get_meals`), or
+- `name` + `calories` (+ optional `protein`/`carbs`/`fat`) — a one-off ad-hoc meal
+
+Plus: `date`*, `slot`* (see below), `time` (optional HH:MM), `notes`, and optional
+`recurrence: { days_of_week: [...], until: "YYYY-MM-DD" }`, capped at **90 days** same as
+`schedule_workout` — anything beyond is dropped and reported in the response `note`.
+
+Slots are `break_fast`, `lunch`, `snack`, `dinner`, `closer` — a plain string column, not a DB enum,
+so the list can be extended by editing `MEAL_SLOTS` in `route.ts` alone (no migration needed).
+
+```json
+{ "date": "2026-07-06", "meal_name": "Fajita chicken bowl", "slot": "lunch",
+  "recurrence": { "days_of_week": ["mon", "wed", "fri"], "until": "2026-08-31" } }
+```
+
+### `get_meal_plan`
+Returns one entry per day in range: `{ date, entries, planned_totals, logged_totals }`.
+
+Each entry has `id`, `date`, `slot`, `time`, `meal_name`, macros, `status`
+(`planned`/`logged`/`skipped`), `skipped_reason`, `notes`, `linked_food_log_id`.
+
+- `planned_totals` — sum of macros for all non-skipped entries that day (the intended plan)
+- `logged_totals` — sum of the *actual* macros recorded for entries already `logged` (may differ
+  from the plan if `log_food`/`log_planned_meal` overrode values)
+
+Planned meals are excluded from `get_daily_logs` totals until logged — no double counting.
+
+### `update_planned_meal`
+Change one planned entry by `planned_meal_id`* (from `get_meal_plan`):
+
+- `new_date`, `new_slot`, `new_time` — move it
+- `meal_name` — swap to a different saved meal (recalculates macros)
+- `status: "skipped"` + `reason`, or `status: "planned"` to restore
+- `notes`
+
+### `log_planned_meal`
+Convenience one-call "ate what I planned": equivalent to `log_food` with `planned_meal_id`, always
+dated to the plan's own date. `planned_meal_id`*, `adjustments` (partial override of
+`name`/`calories`/`protein`/`carbs`/`fat`).
+
+```json
+{ "planned_meal_id": "abc-123", "adjustments": { "calories": 700 } }
+```
+
 ## Storage
 
 Templates live in `workout_templates` (JSONB `exercises` / `fallback_exercises`), schedule entries in
 `scheduled_workouts` — the same tables the app UI reads, so coach-pushed plans appear on the
 dashboard "Next workout" tile and the Schedule week view immediately. DB migration:
 [`coach_scheduling_migration.sql`](../coach_scheduling_migration.sql).
+
+Meals live in `mcp_meals`, planned meal entries in `planned_meals` — new tables dedicated to this
+feature, kept separate from the existing pantry/AI-meal-generator tables (`meal_plans`,
+`saved_meals`, `pantry_items`), which model a different feature (weekly JSONB meal blobs generated
+from pantry contents) with no per-entry status or logging-link fields. DB migration:
+[`coach_meal_planning_migration.sql`](../coach_meal_planning_migration.sql).

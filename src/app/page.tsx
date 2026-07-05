@@ -23,6 +23,7 @@ import { getSettings } from '@/lib/api';
 import { DashboardSkeleton } from '@/components/Skeleton';
 import { TodayHero } from '@/components/TodayHero';
 import { NextWorkoutTile } from '@/components/NextWorkoutTile';
+import { PlannedMealsCard } from '@/components/PlannedMealsCard';
 import { WhatsNewModal, useWhatsNew } from '@/components/WhatsNewModal';
 
 export default function Dashboard() {
@@ -204,6 +205,9 @@ export default function Dashboard() {
             />
             <NextWorkoutTile stagger={120} />
           </div>
+
+          {/* Today's coach-planned meals — hidden entirely when none are planned */}
+          <PlannedMealsCard stagger={150} onLogged={loadData} />
 
           {/* Smart Coach */}
           <SmartCoach tip={advice} onWeeklyAnalysis={() => setShowInsightModal(true)} stagger={180} />
