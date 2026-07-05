@@ -26,27 +26,36 @@ export interface PlannedMeal {
 }
 
 /**
- * Get all planned meal entries for today, in slot/time order, regardless of status.
- * Used by the dashboard's "today's meal plan" card.
+ * Get planned meal entries for a date range, in date/time order, regardless of status.
+ * Used by the Nutrition page's week plan view.
  */
-export async function getTodaysPlannedMeals(): Promise<PlannedMeal[]> {
+export async function getPlannedMealsForRange(startDate: string, endDate: string): Promise<PlannedMeal[]> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return [];
-
-    const today = format(new Date(), 'yyyy-MM-dd');
 
     const { data, error } = await supabase
         .from('planned_meals')
         .select('*')
         .eq('user_id', session.user.id)
-        .eq('scheduled_date', today)
+        .gte('scheduled_date', startDate)
+        .lte('scheduled_date', endDate)
+        .order('scheduled_date', { ascending: true })
         .order('scheduled_time', { ascending: true });
 
     if (error) {
-        console.error('Error fetching today\'s planned meals:', error);
+        console.error('Error fetching planned meals:', error);
         return [];
     }
     return data || [];
+}
+
+/**
+ * Get all planned meal entries for today, in slot/time order, regardless of status.
+ * Used by the dashboard's "today's meal plan" card.
+ */
+export async function getTodaysPlannedMeals(): Promise<PlannedMeal[]> {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    return getPlannedMealsForRange(today, today);
 }
 
 /**

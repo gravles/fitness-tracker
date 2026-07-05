@@ -19,6 +19,8 @@ import {
     getSavedMeals, createSavedMeal, deleteSavedMeal,
     PantryItem, PlannedMeal, NutritionPrefs, DEFAULT_NUTRITION_PREFS, SavedMeal,
 } from '@/lib/api';
+import { getPlannedMealsForRange, logPlannedMealAsEaten, PlannedMeal as CoachPlannedMeal } from '@/lib/meal-plan-api';
+import { PlannedMealRow } from '@/components/PlannedMealsCard';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -172,6 +174,9 @@ export default function NutritionPage() {
     const [pantry, setPantry] = useState<PantryItem[]>([]);
     const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
     const [meals, setMeals] = useState<Record<string, PlannedMeal | null>>({});
+    // Coach-planned meals pushed via the MCP tools (planned_meals table)
+    const [coachMeals, setCoachMeals] = useState<CoachPlannedMeal[]>([]);
+    const [loggingCoachId, setLoggingCoachId] = useState<string | null>(null);
     const [prefs, setPrefs] = useState<NutritionPrefs>(DEFAULT_NUTRITION_PREFS);
     const [settings, setSettings] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -235,6 +240,30 @@ export default function NutritionPage() {
         const weekStr = format(weekStart, 'yyyy-MM-dd');
         const plan = await getMealPlan(weekStr);
         setMeals(plan?.meals ?? {});
+
+        // Coach-planned meals for the visible week, widened to always include today
+        const todayStr = format(new Date(), 'yyyy-MM-dd');
+        const weekEndStr = format(addDays(weekStart, 6), 'yyyy-MM-dd');
+        const start = weekStr < todayStr ? weekStr : todayStr;
+        const end = weekEndStr > todayStr ? weekEndStr : todayStr;
+        try {
+            setCoachMeals(await getPlannedMealsForRange(start, end));
+        } catch (e) {
+            console.error('Error loading coach meal plan:', e);
+        }
+    }
+
+    async function handleLogCoachMeal(entry: CoachPlannedMeal) {
+        setLoggingCoachId(entry.id);
+        try {
+            await logPlannedMealAsEaten(entry);
+            setCoachMeals(prev => prev.map(m => m.id === entry.id ? { ...m, status: 'logged' } : m));
+            toast.success(`${entry.name} logged!`);
+        } catch {
+            toast.error('Failed to log meal');
+        } finally {
+            setLoggingCoachId(null);
+        }
     }
 
     // ── Meal generation ────────────────────────────────────────────────────────
@@ -524,6 +553,7 @@ export default function NutritionPage() {
     // ─── Today tab ─────────────────────────────────────────────────────────────
 
     const todayStr = format(today, 'yyyy-MM-dd');
+    const todayCoachMeals = coachMeals.filter(m => m.scheduled_date === todayStr);
     const todayMeals = MEAL_TYPES.map(t => ({ type: t, meal: meals[mealKey(todayStr, t)] ?? null }));
     const todayTotals = todayMeals.reduce(
         (acc, { meal }) => ({
@@ -612,6 +642,21 @@ export default function NutritionPage() {
                         </div>
                     )}
 
+                    {/* Coach-planned meals (pushed by the AI coach via MCP) */}
+                    {todayCoachMeals.length > 0 && (
+                        <div className="space-y-2">
+                            <p className="text-xs font-bold uppercase tracking-widest px-1" style={{ color: 'var(--color-text-muted)' }}>Coach Plan</p>
+                            {todayCoachMeals.map(m => (
+                                <PlannedMealRow
+                                    key={m.id}
+                                    meal={m}
+                                    isLogging={loggingCoachId === m.id}
+                                    onLog={() => handleLogCoachMeal(m)}
+                                />
+                            ))}
+                        </div>
+                    )}
+
                     {/* Generate today button */}
                     {!hasTodayPlan && (
                         <button
@@ -689,6 +734,7 @@ export default function NutritionPage() {
                         const isToday = isSameDay(day, today);
                         const dayMeals = MEAL_TYPES.map(t => ({ type: t, meal: meals[mealKey(dateStr, t)] ?? null }));
                         const hasMeals = dayMeals.some(m => m.meal);
+                        const dayCoachMeals = coachMeals.filter(m => m.scheduled_date === dateStr);
 
                         return (
                             <div key={dateStr} className="rounded-2xl border overflow-hidden" style={{ borderColor: isToday ? 'var(--color-primary)' : 'var(--color-border-light)' }}>
@@ -717,8 +763,16 @@ export default function NutritionPage() {
                                 </div>
 
                                 {/* Meals */}
-                                {hasMeals && (
+                                {(hasMeals || dayCoachMeals.length > 0) && (
                                     <div className="p-3 space-y-2 bg-[var(--color-surface-elevated)]">
+                                        {dayCoachMeals.map(m => (
+                                            <PlannedMealRow
+                                                key={m.id}
+                                                meal={m}
+                                                isLogging={loggingCoachId === m.id}
+                                                onLog={() => handleLogCoachMeal(m)}
+                                            />
+                                        ))}
                                         {dayMeals.filter(m => m.meal).map(({ type, meal }) => (
                                             <MealCard
                                                 key={type}

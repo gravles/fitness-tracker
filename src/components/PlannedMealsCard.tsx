@@ -16,8 +16,56 @@ const SLOT_LABELS: Record<string, string> = {
     closer: 'Closer',
 };
 
-function slotLabel(slot: string): string {
+export function slotLabel(slot: string): string {
     return SLOT_LABELS[slot] ?? slot.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/** One coach-planned meal entry with a one-tap "log as planned" action.
+ *  Shared between the dashboard card and the Nutrition page plan views. */
+export function PlannedMealRow({ meal, isLogging, onLog }: { meal: PlannedMeal; isLogging: boolean; onLog: () => void }) {
+    const { t } = useLanguage();
+
+    return (
+        <div
+            className="flex items-center justify-between gap-3 p-3 rounded-xl border"
+            style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-bg-subtle)' }}
+        >
+            <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
+                    <span>{slotLabel(meal.slot)}</span>
+                    {meal.scheduled_time && <span>· {meal.scheduled_time.slice(0, 5)}</span>}
+                </div>
+                <p className="font-bold text-sm text-[var(--color-text)] truncate mt-0.5">{meal.name}</p>
+                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    {meal.calories} cal · {meal.protein}g P
+                </p>
+            </div>
+
+            {meal.status === 'planned' && (
+                <button
+                    onClick={onLog}
+                    disabled={isLogging}
+                    className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 transition-all active:scale-95"
+                    style={{ background: 'var(--color-primary)', color: 'white' }}
+                >
+                    {isLogging
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : t.dashboard.logAsPlanned
+                    }
+                </button>
+            )}
+            {meal.status === 'logged' && (
+                <span className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold" style={{ color: 'var(--color-success)' }}>
+                    <CheckCircle2 className="w-4 h-4" aria-hidden="true" /> {t.dashboard.mealLogged}
+                </span>
+            )}
+            {meal.status === 'skipped' && (
+                <span className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold" style={{ color: 'var(--color-text-muted)' }}>
+                    <XCircle className="w-4 h-4" aria-hidden="true" /> {t.dashboard.mealSkipped}
+                </span>
+            )}
+        </div>
+    );
 }
 
 export function PlannedMealsCard({ stagger, onLogged }: { stagger?: number; onLogged?: () => void }) {
@@ -59,46 +107,12 @@ export function PlannedMealsCard({ stagger, onLogged }: { stagger?: number; onLo
 
             <div className="space-y-2">
                 {meals.map(meal => (
-                    <div
+                    <PlannedMealRow
                         key={meal.id}
-                        className="flex items-center justify-between gap-3 p-3 rounded-xl border"
-                        style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-bg-subtle)' }}
-                    >
-                        <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
-                                <span>{slotLabel(meal.slot)}</span>
-                                {meal.scheduled_time && <span>· {meal.scheduled_time.slice(0, 5)}</span>}
-                            </div>
-                            <p className="font-bold text-sm text-[var(--color-text)] truncate mt-0.5">{meal.name}</p>
-                            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                                {meal.calories} cal · {meal.protein}g P
-                            </p>
-                        </div>
-
-                        {meal.status === 'planned' && (
-                            <button
-                                onClick={() => handleLog(meal)}
-                                disabled={loggingId === meal.id}
-                                className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 transition-all active:scale-95"
-                                style={{ background: 'var(--color-primary)', color: 'white' }}
-                            >
-                                {loggingId === meal.id
-                                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                    : t.dashboard.logAsPlanned
-                                }
-                            </button>
-                        )}
-                        {meal.status === 'logged' && (
-                            <span className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold" style={{ color: 'var(--color-success)' }}>
-                                <CheckCircle2 className="w-4 h-4" aria-hidden="true" /> {t.dashboard.mealLogged}
-                            </span>
-                        )}
-                        {meal.status === 'skipped' && (
-                            <span className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold" style={{ color: 'var(--color-text-muted)' }}>
-                                <XCircle className="w-4 h-4" aria-hidden="true" /> {t.dashboard.mealSkipped}
-                            </span>
-                        )}
-                    </div>
+                        meal={meal}
+                        isLogging={loggingId === meal.id}
+                        onLog={() => handleLog(meal)}
+                    />
                 ))}
             </div>
         </Card>
