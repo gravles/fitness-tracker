@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronRight, Smartphone, Calendar, BookOpen, Dna, Sparkles } from 'lucide-react';
+import { ChevronRight, Palette, Bot, CalendarCheck, Globe, Save } from 'lucide-react';
 
-const APP_VERSION = '2.0';
+const APP_VERSION = '2.1';
 const STORAGE_KEY = 'lifelogger_seen_version';
 
 interface Slide {
@@ -15,34 +15,34 @@ interface Slide {
 
 const SLIDES: Slide[] = [
     {
-        icon: <Smartphone className="w-6 h-6" />,
-        title: 'Now on iOS & Android',
-        body: 'Download the native app for push notifications, haptic feedback, and swipe-back navigation.',
-        accent: 'var(--color-primary)',
-    },
-    {
-        icon: <Calendar className="w-6 h-6" />,
-        title: 'Workout Calendar Feed',
-        body: 'Subscribe to your personal webcal:// link and see every scheduled workout in Apple Calendar or Google Calendar.',
+        icon: <Palette className="w-6 h-6" />,
+        title: 'A Whole New Look',
+        body: 'Refreshed typography, colors, and an animated Today dashboard with progress rings and quick actions.',
         accent: 'var(--color-gold)',
     },
     {
-        icon: <BookOpen className="w-6 h-6" />,
-        title: '12-Week Training Programs',
-        body: 'AI builds a periodised program for your goal. Target weights, 1RM tracking, PR notifications, and a full adherence calendar.',
+        icon: <Bot className="w-6 h-6" />,
+        title: 'Claude AI Connector',
+        body: 'Connect your own Claude account under Settings → Claude AI Connector to read and log your data from any conversation.',
+        accent: 'var(--color-primary)',
+    },
+    {
+        icon: <CalendarCheck className="w-6 h-6" />,
+        title: 'Your Coach Can Plan Ahead',
+        body: 'A connected AI coach can now schedule workouts and plan meals for you — they show up right on your calendar and Meal Planner.',
         accent: 'var(--chart-2)',
     },
     {
-        icon: <Dna className="w-6 h-6" />,
-        title: 'Health Integrations',
-        body: 'Connect Strava, Withings, and Oura under Settings → Health Integrations to sync activities and body composition automatically.',
-        accent: 'var(--color-primary)',
+        icon: <Globe className="w-6 h-6" />,
+        title: 'Now in French',
+        body: 'Switch between English and French anytime in Settings → Customisation.',
+        accent: 'var(--color-gold)',
     },
     {
-        icon: <Sparkles className="w-6 h-6" />,
-        title: 'AI Nutrition Planner',
-        body: 'Build a pantry, set prep-time limits, and let AI generate a weekly meal plan. Log meals straight to your diary.',
-        accent: 'var(--color-gold)',
+        icon: <Save className="w-6 h-6" />,
+        title: 'Smarter Workout Logging',
+        body: 'Sets autosave as you go, and you can now edit or delete sets on any completed workout.',
+        accent: 'var(--color-primary)',
     },
 ];
 

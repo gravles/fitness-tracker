@@ -4,18 +4,49 @@ All notable changes to Life Logger are documented here.
 
 ## [Unreleased]
 
-### AI Coach MCP Tools
-- New MCP tools so an AI coach can push training plans, not just log activity: `save_workout_template` (upsert by name, with a shortened `fallback_exercises` version), `get_workout_templates`, `schedule_workout` (single date or recurring weekday pattern, capped at 90 days), `get_schedule` (derived planned / completed / missed / skipped statuses), `update_scheduled_workout` (move date, swap template, switch to fallback, skip with reason)
+## [2.1.0] — 2026-07-06
+
+### Claude AI Connector
+- Personal MCP endpoint (`POST /api/mcp`, JSON-RPC 2024-11-05) so a user's own Claude (claude.ai or Claude Desktop) can read and write their Life Logger data directly
+- Settings → Claude AI Connector: generate, copy, and revoke a per-account API key (hashed at rest, RLS-scoped to the owning user)
+- Initial tool set: `get_daily_logs`, `get_workouts`, `get_body_metrics`, `get_user_profile`, `log_food`, `log_workout`, `update_daily_log`
+- Full tool reference: `docs/mcp-tools.md`
+
+### AI Coach Automation (Training Plans & Meal Planning)
+- The connected coach can now push training plans, not just log activity: `save_workout_template` (upsert by name, with a shortened `fallback_exercises` version), `get_workout_templates`, `schedule_workout` (single date or recurring weekday pattern, capped at 90 days), `get_schedule` (derived planned / completed / missed / skipped statuses), `update_scheduled_workout` (move date, swap template, switch to fallback, skip with reason)
 - `log_workout` extended with strength logging (`exercises` with per-set reps and weight) and automatic completion of the day's scheduled entry
 - Coach-scheduled workouts use the existing `scheduled_workouts` / `workout_templates` tables, so they appear on the dashboard and Schedule page with no UI changes
-- Migration: `coach_scheduling_migration.sql` (template fallbacks, skip reasons, fallback flag on scheduled entries)
 - Meal-planning counterpart: `save_meal` (upsert by name), `get_meals`, `plan_meal` (saved meal or ad-hoc, single date or recurring, capped at 90 days, configurable meal slots), `get_meal_plan` (per-day entries plus planned-vs-logged macro totals), `update_planned_meal` (move, swap meal, skip with reason)
 - `log_food` extended with `planned_meal_id` (copies plan macros as defaults, any field can be overridden with what was actually eaten, marks the entry logged) and a new `log_planned_meal` convenience tool for one-call "ate what I planned"
 - Planned meals never count toward `get_daily_logs` totals until logged — no double counting
 - New dedicated tables `mcp_meals` / `planned_meals` (kept separate from the existing pantry/AI-meal-generator tables, which model an unrelated feature)
 - Dashboard: new "Today's meal plan" card showing today's planned meals with slot/time and a one-tap "Log as planned" action (hidden entirely on days with no coach plan)
-- Migration: `coach_meal_planning_migration.sql`
-- Tool reference: `docs/mcp-tools.md`
+- Coach-planned meals now also surface inside the Nutrition page's Meal Planner: a "Coach Plan" section on the Today tab and per-day rows in the Week view, each with the same one-tap "Log as planned" action and logged/skipped status
+- Migrations: `coach_scheduling_migration.sql`, `coach_meal_planning_migration.sql`
+
+### Redesigned Look & Feel
+- Full UI refresh matching nathandavie.com: Sora + Inter typography, deep ink-navy / gold / blue palette, flat solid surfaces
+- Dashboard redesigned around a "Today" hero with animated progress rings, streak pill, and level / next-workout tiles
+- Bottom nav simplified to Home / Train / Eat / Trends with a raised center "+" log button
+- Emoji chrome replaced with Lucide icons throughout; achievement/celebration emoji kept
+- Subtle motion (staggered entrances, animated ring fills, count-up numerals), respecting `prefers-reduced-motion`
+- App icons, splash screens, and PWA icons regenerated in the new palette
+
+### Multilingual Support
+- English / French toggle in Settings → Customisation, covering navigation, dashboard, daily log, settings, and onboarding
+- Preference persisted to `localStorage`; no URL-segment routing, so it works inside the native Capacitor/PWA shell
+- AI coach conversations and weekly insights now respect the selected language
+
+### Workout Logger
+- Autosave: every set completed/uncompleted writes to the database immediately, so progress survives navigation or a crash
+- "Edit Sets" button on any completed workout card reopens it in the full logger for set-level changes
+- Delete button on individual set rows
+
+### Fixes
+- Food photo scanning: camera and gallery are now separate, reliable pickers; photos are compressed client-side before upload to avoid silent failures on large images; scan errors surface a clear "try again" message instead of a crash
+- AI Weekly Insights: more robust JSON parsing, resolving cases where analysis returned no results
+- MCP daily-logs query: fixed an incorrect habits column reference
+- iOS: fixed a black-screen launch issue and restored push notification delivery in production builds
 
 ## [2.0.0] — 2026-05-24
 

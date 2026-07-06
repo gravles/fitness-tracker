@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen } from 'lucide-react';
+import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen, Bot, Globe, Palette, Save } from 'lucide-react';
 
 interface ChangelogModalProps {
     isOpen: boolean;
@@ -11,6 +11,17 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
     if (!isOpen) return null;
 
     const changes = [
+        {
+            version: "v2.1 — AI Coach Automation & Redesign",
+            date: "July 6, 2026",
+            features: [
+                { icon: <Palette className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Redesigned look and feel with new typography, colors, and an animated Today dashboard." },
+                { icon: <Bot className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Claude AI Connector: link your own Claude account to read and log data via a personal MCP key." },
+                { icon: <Brain className="w-4 h-4 text-green-500" />, text: "Your AI coach can now schedule workouts and plan meals directly onto your calendar and Meal Planner." },
+                { icon: <Globe className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "English / French language toggle in Settings → Customisation." },
+                { icon: <Save className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Workout logger autosaves every set and lets you edit or delete sets on completed workouts." },
+            ]
+        },
         {
             version: "v2.0 — Native Apps & Calendar",
             date: "May 24, 2026",
