@@ -318,6 +318,52 @@ describe('POST /api/mcp — coach scheduling tools', () => {
             expect(isError).toBe(true);
             expect(data).toContain('before start_date');
         });
+
+        it('auto-links a stale entry to a same-day workout matching the template name', async () => {
+            // 1: initial select, 2: already-linked check, 3: update
+            queueResponse('scheduled_workouts', [
+                { id: 'sw-1', scheduled_date: day(-1), scheduled_time: '12:00:00', title: 'Session', status: 'scheduled', use_fallback: false, completed_workout_id: null, template: STORED_TEMPLATE },
+            ]);
+            queueResponse('workouts', [{ id: 'w-42', date: day(-1), activity_type: 'Upper A' }]);
+            queueResponse('scheduled_workouts', []);
+            queueResponse('scheduled_workouts', null);
+
+            const { data, isError } = await callTool('get_schedule', { start_date: day(-2), end_date: day(0) });
+
+            expect(isError).toBe(false);
+            expect(data[0].status).toBe('completed');
+            expect(data[0].completed_workout_id).toBe('w-42');
+
+            const patch = findCall('scheduled_workouts', 'update')?.payload as Record<string, unknown>;
+            expect(patch.status).toBe('completed');
+            expect(patch.completed_workout_id).toBe('w-42');
+        });
+
+        it('still reports missed when the same-day workout does not match', async () => {
+            queueResponse('scheduled_workouts', [
+                { id: 'sw-1', scheduled_date: day(-1), scheduled_time: '12:00:00', title: 'Upper A', status: 'scheduled', use_fallback: false, completed_workout_id: null, template: null },
+            ]);
+            queueResponse('workouts', [{ id: 'w-42', date: day(-1), activity_type: 'Rowing' }]);
+            queueResponse('scheduled_workouts', []);
+
+            const { data } = await callTool('get_schedule', { start_date: day(-2), end_date: day(0) });
+
+            expect(data[0].status).toBe('missed');
+            expect(findCall('scheduled_workouts', 'update')).toBeUndefined();
+        });
+
+        it('does not steal a workout already linked to another entry', async () => {
+            queueResponse('scheduled_workouts', [
+                { id: 'sw-1', scheduled_date: day(-1), scheduled_time: '12:00:00', title: 'Upper A', status: 'scheduled', use_fallback: false, completed_workout_id: null, template: null },
+            ]);
+            queueResponse('workouts', [{ id: 'w-42', date: day(-1), activity_type: 'Upper A' }]);
+            queueResponse('scheduled_workouts', [{ completed_workout_id: 'w-42' }]);
+
+            const { data } = await callTool('get_schedule', { start_date: day(-2), end_date: day(0) });
+
+            expect(data[0].status).toBe('missed');
+            expect(findCall('scheduled_workouts', 'update')).toBeUndefined();
+        });
     });
 
     describe('update_scheduled_workout', () => {

@@ -12,6 +12,7 @@ import {
     getProgramSession, completeProgramSession, saveExercise1RM,
     getAll1RMs, epley1RM, pctToWeight, ProgramSession,
 } from '@/lib/program-api';
+import { markWorkoutCompleted } from '@/lib/schedule-api';
 import { WorkoutSpotter } from '@/components/WorkoutSpotter';
 import { RestTimer } from '@/components/RestTimer';
 import { ExercisePicker } from '@/components/ExercisePicker';
@@ -38,6 +39,7 @@ export default function ActiveWorkoutPage() {
     const searchParams = useSearchParams();
     const templateId       = searchParams.get('template');
     const programSessionId = searchParams.get('programSession');
+    const scheduleId       = searchParams.get('schedule');
 
     const [loading, setLoading]             = useState(true);
     const [activeProgramSession, setActiveProgramSession] = useState<ProgramSession | null>(null);
@@ -453,6 +455,16 @@ export default function ActiveWorkoutPage() {
                             await logSet(savedEx.id, j + 1, parseFloat(s.weight) || 0, parseFloat(s.reps) || 0, true);
                         }
                     }
+                }
+            }
+
+            // ── Scheduled workout completion ──────────────────────────────────────
+            if (scheduleId && workoutId) {
+                try {
+                    await markWorkoutCompleted(scheduleId, workoutId);
+                } catch (e) {
+                    // The session itself is saved; don't fail the whole finish flow
+                    console.error('Failed to mark scheduled workout completed', e);
                 }
             }
 

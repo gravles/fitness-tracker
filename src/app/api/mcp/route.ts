@@ -977,6 +977,68 @@ async function scheduleWorkoutTool(userId: string, args: Record<string, unknown>
     };
 }
 
+/**
+ * Safety net for entries about to read as "missed": if a workout session was
+ * logged the same day with an activity_type matching the entry's template name
+ * (or title), link it and mark the entry completed instead. Mutates `rows`.
+ */
+async function autoLinkStaleEntries(
+    userId: string,
+    rows: {
+        id: string;
+        scheduled_date: string;
+        title: string;
+        status: string;
+        completed_workout_id: string | null;
+        template: { name: string } | null;
+    }[]
+) {
+    const today = todayStr();
+    const stale = rows.filter(w =>
+        (w.status === 'scheduled' || w.status === 'rescheduled') && w.scheduled_date < today
+    );
+    if (!stale.length) return;
+
+    const dates = [...new Set(stale.map(w => w.scheduled_date))];
+    const { data: sessions, error: sessErr } = await supabaseAdmin
+        .from('workouts')
+        .select('id,date,activity_type')
+        .eq('user_id', userId)
+        .in('date', dates);
+    if (sessErr || !sessions?.length) return;
+
+    // Don't re-link workouts already attached to another scheduled entry
+    const { data: linked } = await supabaseAdmin
+        .from('scheduled_workouts')
+        .select('completed_workout_id')
+        .eq('user_id', userId)
+        .in('completed_workout_id', sessions.map(s => s.id));
+    const used = new Set((linked ?? []).map(l => l.completed_workout_id));
+
+    for (const w of stale) {
+        const names = [w.template?.name, w.title]
+            .filter((n): n is string => !!n)
+            .map(n => n.toLowerCase());
+        const match = sessions.find(s =>
+            !used.has(s.id) &&
+            s.date === w.scheduled_date &&
+            names.includes((s.activity_type ?? '').toLowerCase())
+        );
+        if (!match) continue;
+
+        const { error: updErr } = await supabaseAdmin
+            .from('scheduled_workouts')
+            .update({ status: 'completed', completed_workout_id: match.id, updated_at: new Date().toISOString() })
+            .eq('id', w.id)
+            .eq('user_id', userId);
+        if (updErr) continue;
+
+        used.add(match.id);
+        w.status = 'completed';
+        w.completed_workout_id = match.id;
+    }
+}
+
 async function getSchedule(userId: string, args: Record<string, unknown>) {
     const start = args.start_date != null ? assertDate(args.start_date, 'start_date') : todayStr();
     const end   = args.end_date   != null ? assertDate(args.end_date, 'end_date')
@@ -1011,7 +1073,10 @@ async function getSchedule(userId: string, args: Record<string, unknown>) {
         template: { id: string; name: string; exercises: unknown; fallback_exercises: unknown } | null;
     }
 
-    return ((data ?? []) as unknown as ScheduleRow[]).map(w => ({
+    const rows = (data ?? []) as unknown as ScheduleRow[];
+    await autoLinkStaleEntries(userId, rows);
+
+    return rows.map(w => ({
         id:                   w.id,
         date:                 w.scheduled_date,
         time:                 w.scheduled_time?.slice(0, 5),
