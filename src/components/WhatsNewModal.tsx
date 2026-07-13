@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronRight, Smartphone, Calendar, BookOpen, Dna, Sparkles } from 'lucide-react';
+import { ChevronRight, Palette, Languages, Brain, Link2, Save } from 'lucide-react';
 
-const APP_VERSION = '2.0';
+const APP_VERSION = '2.1';
 const STORAGE_KEY = 'lifelogger_seen_version';
 
 interface Slide {
@@ -15,33 +15,33 @@ interface Slide {
 
 const SLIDES: Slide[] = [
     {
-        icon: <Smartphone className="w-6 h-6" />,
-        title: 'Now on iOS & Android',
-        body: 'Download the native app for push notifications, haptic feedback, and swipe-back navigation.',
-        accent: 'var(--color-primary)',
-    },
-    {
-        icon: <Calendar className="w-6 h-6" />,
-        title: 'Workout Calendar Feed',
-        body: 'Subscribe to your personal webcal:// link and see every scheduled workout in Apple Calendar or Google Calendar.',
+        icon: <Palette className="w-6 h-6" />,
+        title: 'A Fresh Look',
+        body: 'The whole app has been redesigned to match nathandavie.com — new typography, colors, and a redesigned dashboard.',
         accent: 'var(--color-gold)',
     },
     {
-        icon: <BookOpen className="w-6 h-6" />,
-        title: '12-Week Training Programs',
-        body: 'AI builds a periodised program for your goal. Target weights, 1RM tracking, PR notifications, and a full adherence calendar.',
-        accent: 'var(--chart-2)',
-    },
-    {
-        icon: <Dna className="w-6 h-6" />,
-        title: 'Health Integrations',
-        body: 'Connect Strava, Withings, and Oura under Settings → Health Integrations to sync activities and body composition automatically.',
+        icon: <Languages className="w-6 h-6" />,
+        title: 'Now in French, too',
+        body: 'Switch the app — and your AI Coach — to French from Settings → Customisation.',
         accent: 'var(--color-primary)',
     },
     {
-        icon: <Sparkles className="w-6 h-6" />,
-        title: 'AI Nutrition Planner',
-        body: 'Build a pantry, set prep-time limits, and let AI generate a weekly meal plan. Log meals straight to your diary.',
+        icon: <Brain className="w-6 h-6" />,
+        title: 'AI Coach Plans Your Week',
+        body: 'Your coach can now schedule workouts and plan meals for you. Find them on the Schedule page and in the Meal Planner.',
+        accent: 'var(--chart-2)',
+    },
+    {
+        icon: <Link2 className="w-6 h-6" />,
+        title: 'Connect Your Own Claude',
+        body: 'Generate a personal API key in Settings → Claude AI Connector to link your own Claude.ai account to your fitness data.',
+        accent: 'var(--color-primary)',
+    },
+    {
+        icon: <Save className="w-6 h-6" />,
+        title: 'Workouts Now Autosave',
+        body: 'Every set is saved as you complete it, so a dropped connection or an accidental navigation never costs you your progress. Completed workouts can be edited too.',
         accent: 'var(--color-gold)',
     },
 ];

@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen } from 'lucide-react';
+import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen, Palette, Languages, Link2, Save } from 'lucide-react';
 
 interface ChangelogModalProps {
     isOpen: boolean;
@@ -11,6 +11,17 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
     if (!isOpen) return null;
 
     const changes = [
+        {
+            version: "v2.1 — Rebrand, Languages & AI Coach Planning",
+            date: "July 10, 2026",
+            features: [
+                { icon: <Palette className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Full visual rebrand to match nathandavie.com — new typography, colors, and redesigned dashboard." },
+                { icon: <Languages className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "English / French language toggle in Settings, including AI coach responses." },
+                { icon: <Brain className="w-4 h-4 text-green-500" />, text: "AI Coach can now build training schedules and meal plans directly — see them in the Meal Planner and Schedule." },
+                { icon: <Link2 className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Connect your own Claude.ai account to your data with a personal API key in Settings → Claude AI Connector." },
+                { icon: <Save className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Workout logger autosaves every set and lets you edit completed workouts." },
+            ]
+        },
         {
             version: "v2.0 — Native Apps & Calendar",
             date: "May 24, 2026",
