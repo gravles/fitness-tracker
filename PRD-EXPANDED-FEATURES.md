@@ -1,8 +1,8 @@
 # Fitness Tracker — Expanded Features PRD
 
 **Author:** Claude  
-**Date:** 2026-05-20  
-**Status:** Proposal — for review
+**Date:** 2026-05-20 (originally) — **reviewed and updated 2026-07-13**  
+**Status:** Proposal — for review. See "Status Update — 2026-07-13" below for what has shipped since this was first written.
 
 ---
 
@@ -14,24 +14,50 @@ This document proposes six major feature pillars, each with full specifications,
 
 ---
 
+## Status Update — 2026-07-13
+
+Eight weeks and a lot of shipping since this was first written. Quick summary of what changed and what to focus on next — full detail is inline under each pillar below (look for the **Status:** line under each heading).
+
+**Fully shipped:** every single item in the original Quick Wins Appendix (8 bugs + 9 of 10 small features — only the persistent macro summary bar is still open).
+
+**Substantially built (partial, gaps noted inline):**
+- **Pillar 2 (Nutrition Planning)** — `/nutrition` page, meal plans, saved meals, AI-generated plans, and rich MCP coach tools (recurrence, skip/swap, plan-vs-actual) all shipped. Still missing: the Smart Grocery List and an explicit macro-cycling overlay.
+- **Pillar 3 (Periodisation & Overload)** — full AI-generated 12-week programs, Epley 1RM tracking with PR toasts, and a muscle-group volume heatmap all shipped. Still missing: the specific per-exercise progressive-overload suggestion ("try 3×10 @ 62.5kg today") and adaptive deload detection outside the pre-baked program.
+- **Pillar 5 (Accountability)** — partner invites and a weekly summary exist in Settings. Still missing: the automated Sunday cron (it's a manual "Send Summary" button today), an in-app partner dashboard, Streak Shield nudges, and Group Challenges (not started at all).
+- **Pillar 6 (Integrations)** — Oura and Withings are both fully live (OAuth + sync). Apple Health / Google Fit are still not started, though the Capacitor iOS/Android shells that would host them already exist — this lowers the effort bar the original PRD assumed.
+
+**Not started at all:** Pillar 1 (Correlation Engine & Insight Feed) and Pillar 4 (Recovery & Readiness Score). Neither has any code, table, or cron behind it yet.
+
+**Highest priority right now:** Pillars 1 and 4 were the two items the original Sprint 1 called out as highest-ROI — no new infrastructure, pure logic on top of data already being captured — and they're the only pillars with zero progress. They're also the two features most likely to make the app feel like it's actually "thinking," rather than just recording. **Recommendation: do these next**, ahead of rounding out Pillars 2/3/5/6's remaining gaps.
+
+Also worth a follow-up housekeeping item, unrelated to any pillar: `supabase/schema.sql` and the root `*_migration.sql` files are stale — several tables now live in production (`training_programs`, `exercise_records`, `accountability_partners`, `meal_plans`, `planned_meals`, `pantry_items`, `mcp_meals`, `integrations`, `coach_messages`, etc.) with no committed migration. Worth reverse-engineering a current schema dump into a proper `supabase/migrations` directory before this drifts further.
+
+New feature ideas beyond the original six pillars are brainstormed in **Pillar 7**, near the end of this document.
+
+---
+
 ## Current State (What Exists)
 
 | Area | Status |
 |---|---|
 | Daily log (food, activity, wellness) | ✅ Solid, AI-assisted entry |
 | Workout tracking (exercises, sets, reps) | ✅ Full, with voice spotter |
-| Streaks & XP gamification | ✅ 15 badges, level system |
-| Trends & analytics | ✅ Charts across 5 dimensions |
-| AI coaching chat | ✅ Context-aware, 30-day window |
-| Push notifications | ✅ Server-side, custom reminders |
+| Streaks & XP gamification | ✅ 15 badges, level system, exponential XP curve |
+| Trends & analytics | ✅ Charts across 5 dimensions + muscle-group heatmap |
+| AI coaching chat | ✅ Context-aware, MCP tools (logs, workouts, scheduling, meal planning), Supabase-synced history |
+| Push notifications | ✅ Server-side, custom reminders, smart-skip if already logged |
 | Strava sync | ✅ Manual sync |
-| Goal Wizard | ⚠️ Built but no entry point |
+| Oura / Withings sync | ✅ OAuth + automatic sync (new since May) |
+| Goal Wizard | ✅ Entry point added in Settings |
 | Progress photos | ✅ Upload + compare |
-| Body metrics | ⚠️ Measurements but no photo upload |
-| Social / sharing | 🔴 Stub only |
-| Nutrition planning | 🔴 Not started |
-| Recovery / readiness | 🔴 Not started |
-| Wearable integrations | 🔴 Strava only |
+| Body metrics | ✅ Real photo upload (Supabase Storage), body comp via Withings |
+| Nutrition planning | ✅ `/nutrition` page, meal plans, saved meals, AI planning — grocery list still missing |
+| Training programs / 1RM tracking | ✅ AI-generated 12-week programs, Epley 1RM, PR toasts — overload suggestion text still missing |
+| Accountability (partner) | ⚠️ Partner invites + manual weekly summary — not automated, no challenges |
+| Social / sharing | 🔴 Group challenges not started |
+| Correlation Engine / Insight Feed | 🔴 Not started |
+| Recovery / readiness score | 🔴 Not started |
+| Apple Health / Google Fit | 🔴 Not started (Capacitor native shell already exists though) |
 
 ---
 
@@ -51,6 +77,8 @@ Plus an **appendix of quick wins** — bugs and small features that could ship i
 ---
 
 ## Pillar 1 — Correlation Engine & Insight Feed
+
+**Status (2026-07-13): 🔴 Not started.** No `insights_cache` table, no correlation math, no cron, no "Why do I feel this way?" feature. The only related thing that exists is the pre-existing generic AI Weekly Analysis, which this pillar is meant to replace/augment. **This is the highest-priority pillar to build next** — no new infra required, and it's the biggest lever on making the app feel intelligent rather than just a logbook.
 
 ### The Problem
 
@@ -137,6 +165,8 @@ This is the feature that makes users feel *understood* rather than just *tracked
 ---
 
 ## Pillar 2 — Intelligent Nutrition Planning
+
+**Status (2026-07-13): 🟡 Substantially built.** The `/nutrition` page, `meal_plans`/`saved_meals`/`planned_meals`/`pantry_items` tables, AI-generated weekly plans, and MCP coach tools (`plan_meal`, `save_meal`, recurrence, skip/swap, plan-vs-actual comparison) are all shipped — and the MCP recurrence support goes beyond what this doc originally scoped. **Still missing:** the Smart Grocery List (zero code exists for it) and an explicit macro-cycling calendar overlay. Saved Meals is done to a fuller spec than the "quick version" originally recommended for Sprint 2.
 
 ### The Problem
 
@@ -230,6 +260,8 @@ Logging is reactive. Planning is proactive. Users who plan their meals have 3× 
 
 ## Pillar 3 — Periodisation & Progressive Overload Engine
 
+**Status (2026-07-13): 🟡 Substantially built.** `/programs` generates full AI 12-week periodised programs (accumulation/intensification/realisation/deload phases), Epley 1RM is tracked with PR toast notifications, and a muscle-group volume heatmap covers the "Volume Tracking Dashboard" concept. MCP scheduling tools (`schedule_workout`, recurrence, template swaps) are live. **Still missing:** the specific per-exercise progressive-overload suggestion text ("Last time 3×10 @ 60kg — try 62.5kg today") — there's no `suggestNextSession`-style algorithm anywhere — and adaptive 4-week deload detection outside the pre-baked program's fixed deload week. No "muscle group untouched for 7+ days" flag on the heatmap yet either.
+
 ### The Problem
 
 The workout tracker records every exercise, set, weight, and rep. But it doesn't *do anything* with that data except show a history. A user who has been doing 3×10 bench press at 60kg for 8 weeks doesn't get any signal that they should progress. Progressive overload — consistently adding load or volume over time — is the single most important principle in strength training, and right now the app ignores it.
@@ -322,6 +354,8 @@ Most fitness apps show you what you lifted. Almost none tell you what to lift ne
 
 ## Pillar 4 — Recovery & Readiness Score
 
+**Status (2026-07-13): 🔴 Not started.** No `readiness_scores` table, no daily score, no dashboard card. The Oura integration pulls Oura's own readiness/sleep data but only maps it onto the existing 1–5 `energy_level`/`sleep_quality` fields — it doesn't populate a dedicated score or run the weighted algorithm below, and has no UI surface of its own. **Along with Pillar 1, this is the highest-priority pillar to build next** — the algorithm needs no API calls and no new user input, just logic over data already captured.
+
 ### The Problem
 
 Training hard when you're under-recovered leads to injury, plateau, and burnout. But most people have no idea how recovered they actually are. They either train by schedule ("it's Monday, it's chest day") or by feel (which is unreliable under stress or poor sleep). A readiness score gives users a single daily number that synthesises all the signals already being tracked.
@@ -385,6 +419,8 @@ This is the app's most powerful daily hook. Instead of the user having to *decid
 ---
 
 ## Pillar 5 — Accountability Layer
+
+**Status (2026-07-13): 🟡 Partially built (partner only).** `accountability_partners` table, add/list/remove partner in Settings, and a "Send Summary" endpoint that gathers 7 days of stats all exist. **Still missing:** the summary send is a manual button, not an automated Sunday-evening cron (no such cron entry exists in `vercel.json`); there's no in-app partner dashboard view; no Streak Shield nudge; and Group Challenges (`challenges`/`challenge_members`) are entirely unbuilt.
 
 ### The Problem
 
@@ -474,6 +510,8 @@ Accountability is the single biggest predictor of goal adherence in the behaviou
 ---
 
 ## Pillar 6 — Health Platform Integrations
+
+**Status (2026-07-13): 🟡 Oura and Withings shipped; Apple/Google not started.** Both Oura (readiness + sleep staging) and Withings (weight + full body composition, with token refresh) are fully live via OAuth, exactly matching the schema extensions proposed below. **Still missing:** Apple HealthKit and Google Fit/Health Connect. Worth noting: the app already has Capacitor iOS/Android shells (`android/`, `ios/`) wrapping the deployed web app for push notifications — this is exactly the "native shell" prerequisite this section says HealthKit would require, so the effort bar here is now lower than originally estimated (a HealthKit/Health Connect Capacitor plugin, not a whole new native app).
 
 ### The Problem
 
@@ -573,33 +611,35 @@ Every extra data source makes the correlation engine, readiness score, and AI co
 
 These are bugs or small features that could each ship in a day or less. Not a pillar, but worth doing.
 
+**Status (2026-07-13): all 8 bugs and 9 of 10 small features are shipped.** Only "Persistent macro summary bar" remains open — see the ✅/🔴 marks below.
+
 ### Bugs to Fix
 
-| Issue | Fix |
-|---|---|
-| `/workout/builder` dead link in AI Coach | Change redirect to `/schedule?tab=templates` |
-| Help page uses hardcoded Tailwind grey classes (broken dark mode) | Replace with CSS custom properties |
-| Streak counts only `movement_completed`, not nutrition logs | Add a `getStreak(mode: 'movement' | 'log')` variant; let user choose streak type in settings |
-| `WorkoutChatModal` vs `/coach` overlap and confusion | Add a tooltip/label distinguishing them: "Quick log" vs "Full coaching session" |
-| Body metrics photo = URL text field | Replace with real Supabase Storage upload (same code as Progress Photos) |
-| Active workout uses browser `confirm()` dialogs | Replace with the app's existing modal pattern |
-| Workout Spotter fails silently on Firefox | Show a browser compatibility warning |
-| Cycle tracking is on by default | Default `enable_cycle_tracking` to false, prompt at onboarding |
+| Issue | Fix | Status |
+|---|---|---|
+| `/workout/builder` dead link in AI Coach | Change redirect to `/schedule?tab=templates` | ✅ Fixed |
+| Help page uses hardcoded Tailwind grey classes (broken dark mode) | Replace with CSS custom properties | ✅ Fixed |
+| Streak counts only `movement_completed`, not nutrition logs | Add a `getStreak(mode: 'movement' | 'log')` variant; let user choose streak type in settings | ✅ Fixed |
+| `WorkoutChatModal` vs `/coach` overlap and confusion | Add a tooltip/label distinguishing them: "Quick log" vs "Full coaching session" | ✅ Fixed |
+| Body metrics photo = URL text field | Replace with real Supabase Storage upload (same code as Progress Photos) | ✅ Fixed |
+| Active workout uses browser `confirm()` dialogs | Replace with the app's existing modal pattern | ✅ Fixed |
+| Workout Spotter fails silently on Firefox | Show a browser compatibility warning | ✅ Fixed |
+| Cycle tracking is on by default | Default `enable_cycle_tracking` to false, prompt at onboarding | ✅ Fixed |
 
 ### Small Features
 
-| Feature | Description | Effort |
-|---|---|---|
-| Goal Wizard entry point | Add a "Set Goals with AI" banner to the Settings page that opens GoalWizard | 1h |
-| Unit preference (kg/lbs) | Add `weight_unit` to `user_settings`, convert display throughout | 1 day |
-| Saved Meals (quick version) | Allow saving a group of food items as a named meal — no planning UI needed yet | 1 day |
-| Log reminder smart skip | Skip the evening log reminder automatically if user has already logged today | 2h |
-| Streak type selector | Let users choose: streak = any log, or streak = movement only | 1h |
-| Equipment quick-pick expansion | Add Barbell, Cable Machine, TRX, Medicine Ball, Battle Ropes to equipment list | 30min |
-| XP exponential curve | `xpForLevel(n) = 100 * (1.15^n)` — makes high levels feel earned | 1h |
-| Autosave indicator | Show a small "Saved ✓" or pulsing dot in DailyLogForm header when saving | 1h |
-| Persistent macro summary bar | Sticky mini macro bar (P/C/F/Cal) visible across all log tabs | 2h |
-| Coach chat history sync | Move coach chat history from localStorage to Supabase for cross-device persistence | 1 day |
+| Feature | Description | Effort | Status |
+|---|---|---|---|
+| Goal Wizard entry point | Add a "Set Goals with AI" banner to the Settings page that opens GoalWizard | 1h | ✅ Fixed |
+| Unit preference (kg/lbs) | Add `weight_unit` to `user_settings`, convert display throughout | 1 day | ✅ Fixed |
+| Saved Meals (quick version) | Allow saving a group of food items as a named meal — no planning UI needed yet | 1 day | ✅ Fixed (built to a fuller spec than "quick") |
+| Log reminder smart skip | Skip the evening log reminder automatically if user has already logged today | 2h | ✅ Fixed |
+| Streak type selector | Let users choose: streak = any log, or streak = movement only | 1h | ✅ Fixed |
+| Equipment quick-pick expansion | Add Barbell, Cable Machine, TRX, Medicine Ball, Battle Ropes to equipment list | 30min | ✅ Fixed |
+| XP exponential curve | `xpForLevel(n) = 100 * (1.15^n)` — makes high levels feel earned | 1h | ✅ Fixed |
+| Autosave indicator | Show a small "Saved ✓" or pulsing dot in DailyLogForm header when saving | 1h | ✅ Fixed |
+| Persistent macro summary bar | Sticky mini macro bar (P/C/F/Cal) visible across all log tabs | 2h | 🔴 Still open |
+| Coach chat history sync | Move coach chat history from localStorage to Supabase for cross-device persistence | 1 day | ✅ Fixed (Supabase primary, localStorage fallback) |
 
 ---
 
@@ -607,35 +647,62 @@ These are bugs or small features that could each ship in a day or less. Not a pi
 
 Scored on Impact (user value) × Feasibility (time + complexity) for a solo developer.
 
-| Pillar | Impact | Feasibility | Score | Recommended Sequencing |
+**Status as of 2026-07-13** — most of the original matrix has shipped; this table now reflects what's actually left.
+
+| Pillar / Item | Impact | Feasibility | Score | Status |
 |---|---|---|---|---|
-| Quick Wins | Medium | Very High | ★★★★★ | Ship first (continuous) |
-| Readiness Score | Very High | High | ★★★★☆ | Sprint 1 — no new tables, just logic |
-| Correlation Engine | Very High | High | ★★★★☆ | Sprint 1 — data already exists |
-| Nutrition Planning (Saved Meals only) | High | High | ★★★☆☆ | Sprint 2 — start with saved meals |
-| Periodisation (Overload Alerts only) | High | High | ★★★☆☆ | Sprint 2 — active workout is already there |
-| Accountability (Partner only, no challenges) | Very High | Medium | ★★★☆☆ | Sprint 3 |
-| Withings Integration | High | Medium | ★★★☆☆ | Sprint 3 |
-| Oura Integration | High | Medium | ★★★☆☆ | Sprint 3 |
-| Nutrition Planning (Full Meal Planner) | High | Low | ★★☆☆☆ | Sprint 4 |
-| Group Challenges | Medium | Medium | ★★☆☆☆ | Sprint 4 |
-| 12-Week Programs | High | Low | ★★☆☆☆ | Sprint 4 |
-| Apple Health / Google Fit | Very High | Very Low | ★★☆☆☆ | Future (requires native app) |
+| Quick Wins | Medium | Very High | ★★★★★ | ✅ Done (bar the macro summary bar) |
+| Readiness Score | Very High | High | ★★★★☆ | 🔴 Not started — **top priority** |
+| Correlation Engine | Very High | High | ★★★★☆ | 🔴 Not started — **top priority** |
+| Progressive Overload Alerts (suggestion text) | High | High | ★★★★☆ | 🔴 Not started — quick add-on to Pillar 3 |
+| Smart Grocery List | Medium | High | ★★★☆☆ | 🔴 Not started — quick add-on to Pillar 2 |
+| Nutrition Planning (Saved Meals + full planner) | High | High | ★★★☆☆ | ✅ Done |
+| Periodisation (12-Week Programs + 1RM) | High | Medium | ★★★☆☆ | ✅ Done |
+| Withings / Oura Integration | High | Medium | ★★★☆☆ | ✅ Done |
+| Accountability — automate weekly summary cron | Medium | Very High | ★★★★☆ | 🔴 Not started — small lift, cron already exists as a pattern |
+| Accountability — Group Challenges | Medium | Medium | ★★☆☆☆ | 🔴 Not started |
+| Apple Health / Google Fit | Very High | Low–Medium | ★★★☆☆ | 🔴 Not started, but Capacitor shell lowers the bar vs. original estimate |
+| **New ideas (Pillar 7, see below)** | — | — | — | See individual scores in that section |
 
 ---
 
-## Recommended Sprint 1 (Next 2–4 Weeks)
+## Recommended Sprint 1 (Next 2–4 Weeks) — Original, now mostly complete
 
 The highest-ROI work is features that require **no new infrastructure** — they use data that's already being captured and add intelligence on top:
 
-1. **Fix all Quick Win bugs** (1–2 days) — removes friction and builds trust in the app
-2. **Readiness Score v1** (2–3 days) — calculated from existing log fields, shows on dashboard
-3. **Correlation Engine v1** (3–4 days) — nightly cron, top 2–3 correlations shown in a weekly insight card
-4. **Progressive Overload Alerts** (1–2 days) — show last session + suggestion at top of each exercise in active workout
+1. ~~Fix all Quick Win bugs~~ (1–2 days) — ✅ **done**
+2. **Readiness Score v1** (2–3 days) — calculated from existing log fields, shows on dashboard — 🔴 **still open, do this next**
+3. **Correlation Engine v1** (3–4 days) — nightly cron, top 2–3 correlations shown in a weekly insight card — 🔴 **still open, do this next**
+4. **Progressive Overload Alerts** (1–2 days) — show last session + suggestion at top of each exercise in active workout — 🔴 **still open**
 
-Total estimated effort: 7–11 days of development.
+Everything else that shipped since May (nutrition planning, 12-week programs, Oura/Withings, accountability partners) moved *faster* than this original sprint plan anticipated — but the two items with the biggest "feels like magic" payoff (Readiness Score, Correlation Engine) haven't been touched. They remain the recommended next sprint, now joined by the smaller add-ons above (overload suggestion text, grocery list, automated accountability cron).
 
-This sprint alone would make the app feel dramatically more intelligent without requiring any new data collection from the user.
+---
+
+## Pillar 7 — New Feature Ideas (Brainstorm, 2026-07-13)
+
+These are new ideas, not in the original six pillars, surfaced while reviewing what's shipped so far. They're sized as brainstorm-level concepts for review — not full specs — so pick whichever resonate and ask for a full spec + data model before building. Ordered roughly by expected impact.
+
+| # | Idea | One-line pitch | Impact | Effort |
+|---|---|---|---|---|
+| 1 | **Cycle-Aware Coaching** | When cycle tracking is on, have the AI meal planner and program generator adjust macros/training load by cycle phase (e.g. iron-rich suggestions + lower intensity during menstrual/luteal phases) | High | Medium |
+| 2 | **Native Health Bridge (Capacitor plugin)** | Add a HealthKit / Health Connect Capacitor plugin to the existing iOS/Android shells to pull steps, active energy, and sleep automatically — the "native app" barrier is already crossed | Very High | Medium |
+| 3 | **Proactive AI Nudges** | A background job that watches for risk signals (3-day protein miss, workout gap, stalled program) and sends one specific, actionable push via the existing VAPID infra — distinct from the fixed-time reminder cron | High | Medium |
+| 4 | **Injury / Pain Log + Safe Substitution** | One-tap "this body part is sore" flag; the program generator and AI coach automatically avoid or swap exercises that load it for N days | High | Medium |
+| 5 | **Eating-Out Mode** | Extend the existing menu/pantry photo-scanning pipeline to scan a restaurant menu and get AI-ranked picks against today's remaining macros | Medium-High | Low-Medium |
+| 6 | **Year-in-Review Recap** | A shareable, opt-in "Wrapped"-style recap card (streaks, PRs, workouts, XP) exportable as an image — private-by-default social payoff without building a real social network | Medium | Low |
+| 7 | **Data Export & Ownership** | One-click CSV/PDF export of full log/workout/metrics history from Settings — trust and portability, and a quick build | Medium | Low |
+| 8 | **Companion Home-Screen Widget** | Native iOS/Android widget (via Capacitor) showing today's streak, remaining macros, and (once built) readiness score without opening the app | Medium-High | Medium |
+| 9 | **Household / Shared Plan** | A lightweight two-person mode (e.g. couples) sharing one meal plan and grocery list — a smaller, more useful slice of "social" than full Group Challenges | Medium | Medium |
+| 10 | **Additional Languages** | Extend the existing EN/FR toggle infrastructure to Spanish/German/Portuguese — low incremental cost now that the plumbing exists | Low-Medium | Low |
+
+### Notes on a few of these
+
+**#2 (Native Health Bridge)** is worth calling out specifically: the original Pillar 6 treated Apple Health as "Very High effort — requires a native app," but the Capacitor iOS/Android shells built since then for push notifications mean that prerequisite is already satisfied. This meaningfully changes Pillar 6's cost-benefit and could jump the queue.
+
+**#1 (Cycle-Aware Coaching)** turns a currently-passive setting (`enable_cycle_tracking`, off by default) into something the AI coach actively uses — closing a loop that exists in the data model today but isn't acted on anywhere.
+
+**#3 (Proactive Nudges)** and **#4 (Injury Log)** both lean on infrastructure that already exists (VAPID push, the AI coach/program generator) and would compound well with Pillar 1's Correlation Engine once that ships — a nudge like "your energy tanks after 2+ drinks, and you've had drinks 3 nights this week" is exactly the kind of thing both pillars would want to produce together.
 
 ---
 
