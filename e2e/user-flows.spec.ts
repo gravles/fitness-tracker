@@ -42,6 +42,28 @@ test.describe('Workout Partner Flow', () => {
     });
 });
 
+test.describe('Progress Photos', () => {
+    test.beforeEach(async ({ page }) => {
+        await setupAuth(page);
+        await page.goto('/progress', { waitUntil: 'domcontentloaded' });
+    });
+
+    test('upload modal offers both camera and gallery pickers', async ({ page }) => {
+        // Open the upload modal (header + button or empty-state CTA)
+        await page.locator('header button, main button').filter({ has: page.locator('svg') }).first().waitFor({ timeout: 15000 });
+        await page.getByRole('button', { name: /Add First Photo/i }).or(page.locator('header button').last()).first().click();
+
+        await expect(page.getByRole('button', { name: /Choose from Gallery/i })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByRole('button', { name: /Take Photo/i })).toBeVisible();
+
+        // Exactly two file inputs: the camera one has `capture`, the gallery one must NOT
+        const inputs = page.locator('input[type="file"]');
+        await expect(inputs).toHaveCount(2);
+        await expect(page.locator('input[type="file"][capture]')).toHaveCount(1);
+        await expect(page.locator('input[type="file"]:not([capture])')).toHaveCount(1);
+    });
+});
+
 test.describe('Daily Logging Flow', () => {
     test.beforeEach(async ({ page }) => {
         await setupAuth(page);
