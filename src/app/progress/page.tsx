@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Camera, Loader2, ChevronLeft, ChevronRight, Trash2, Plus, X, Scale } from 'lucide-react';
+import { Camera, ImageIcon, Loader2, ChevronLeft, ChevronRight, Trash2, Plus, X, Scale } from 'lucide-react';
 import { ProgressPhoto, uploadProgressPhoto, getProgressPhotos, deleteProgressPhoto } from '@/lib/features';
+import { prepareImageForUpload } from '@/lib/image-utils';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { confirm } from '@/components/ConfirmDialog';
@@ -18,7 +19,9 @@ export default function ProgressPage() {
     const [compareIndex, setCompareIndex] = useState<number>(0);
     const [showUploadModal, setShowUploadModal] = useState(false);
 
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    // Two inputs, matching FoodCamera: one forces the camera, one opens the gallery
+    const cameraInputRef = useRef<HTMLInputElement>(null);
+    const galleryInputRef = useRef<HTMLInputElement>(null);
     const [uploadFile, setUploadFile] = useState<File | null>(null);
     const [uploadWeight, setUploadWeight] = useState<string>('');
     const [uploadNotes, setUploadNotes] = useState<string>('');
@@ -38,6 +41,13 @@ export default function ProgressPage() {
         }
     }
 
+    function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (file) setUploadFile(file);
+        // Reset so the same file can be re-selected if needed
+        e.target.value = '';
+    }
+
     async function handleUpload() {
         if (!uploadFile) return;
 
@@ -45,7 +55,9 @@ export default function ProgressPage() {
         haptics.tap();
 
         try {
-            const newPhoto = await uploadProgressPhoto(uploadFile, {
+            // Downscale + normalize to JPEG (gallery picks can be huge HEIC originals)
+            const prepared = await prepareImageForUpload(uploadFile);
+            const newPhoto = await uploadProgressPhoto(prepared, {
                 weight: uploadWeight ? parseFloat(uploadWeight) : undefined,
                 notes: uploadNotes || undefined,
             });
@@ -297,33 +309,52 @@ export default function ProgressPage() {
                         </div>
 
                         <div className="p-4 space-y-4">
-                            {/* File picker */}
+                            {/* Two inputs: one forces the camera, one opens the photo library */}
                             <input
-                                ref={fileInputRef}
+                                ref={cameraInputRef}
                                 type="file"
                                 accept="image/*"
                                 capture="environment"
-                                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                                onChange={handleFileSelected}
+                                className="hidden"
+                            />
+                            <input
+                                ref={galleryInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFileSelected}
                                 className="hidden"
                             />
 
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                className="w-full aspect-video border-2 border-dashed border-[var(--color-border)] rounded-xl flex flex-col items-center justify-center gap-2 hover:border-[var(--color-primary)] transition-colors overflow-hidden"
-                            >
-                                {uploadFile ? (
+                            {uploadFile ? (
+                                <button
+                                    onClick={() => galleryInputRef.current?.click()}
+                                    className="w-full aspect-video border-2 border-dashed border-[var(--color-border)] rounded-xl flex flex-col items-center justify-center gap-2 hover:border-[var(--color-primary)] transition-colors overflow-hidden"
+                                >
                                     <img
                                         src={URL.createObjectURL(uploadFile)}
                                         alt="Preview"
                                         className="w-full h-full object-cover"
                                     />
-                                ) : (
-                                    <>
+                                </button>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        onClick={() => cameraInputRef.current?.click()}
+                                        className="aspect-square border-2 border-dashed border-[var(--color-border)] rounded-xl flex flex-col items-center justify-center gap-2 hover:border-[var(--color-primary)] transition-colors"
+                                    >
                                         <Camera className="w-8 h-8 text-[var(--color-text-muted)]" />
-                                        <span className="text-sm text-[var(--color-text-muted)]">Tap to select photo</span>
-                                    </>
-                                )}
-                            </button>
+                                        <span className="text-sm text-[var(--color-text-muted)]">Take Photo</span>
+                                    </button>
+                                    <button
+                                        onClick={() => galleryInputRef.current?.click()}
+                                        className="aspect-square border-2 border-dashed border-[var(--color-border)] rounded-xl flex flex-col items-center justify-center gap-2 hover:border-[var(--color-primary)] transition-colors"
+                                    >
+                                        <ImageIcon className="w-8 h-8 text-[var(--color-text-muted)]" />
+                                        <span className="text-sm text-[var(--color-text-muted)]">Choose from Gallery</span>
+                                    </button>
+                                </div>
+                            )}
 
                             {/* Weight input */}
                             <div>
