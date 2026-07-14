@@ -41,21 +41,8 @@ ON profiles FOR ALL
 USING (auth.uid() = id)
 WITH CHECK (auth.uid() = id);
 
--- Partners may read each other's profile (names for display).
--- Email exposure is acceptable: a partner already knows the email they
--- invited / were invited by.
-DROP POLICY IF EXISTS "Partners read profile" ON profiles;
-CREATE POLICY "Partners read profile"
-ON profiles FOR SELECT
-USING (EXISTS (
-    SELECT 1 FROM partnerships pt
-    WHERE pt.status IN ('pending', 'active', 'paused')
-      AND ((pt.inviter_id = auth.uid() AND pt.invitee_id = profiles.id)
-        OR (pt.invitee_id = auth.uid() AND pt.inviter_id = profiles.id)
-        -- Unlinked invitee (matched by verified JWT email) may see the inviter's name
-        OR (pt.inviter_id = profiles.id AND pt.invitee_id IS NULL
-            AND lower(pt.invitee_email) = lower(auth.jwt() ->> 'email')))
-));
+-- (The "Partners read profile" SELECT policy references the partnerships
+-- table, so it is created in §2 after that table exists.)
 
 
 -- ============================================================================
@@ -103,6 +90,22 @@ USING (
 -- NO client INSERT/UPDATE/DELETE policies: all mutations go through
 -- service-role API routes (per-column rules like "invitee may only set
 -- invitee_share_level" cannot be expressed in RLS).
+
+-- Partners may read each other's profile (names for display). Lives here
+-- because it references partnerships. Email exposure is acceptable: a
+-- partner already knows the email they invited / were invited by.
+DROP POLICY IF EXISTS "Partners read profile" ON profiles;
+CREATE POLICY "Partners read profile"
+ON profiles FOR SELECT
+USING (EXISTS (
+    SELECT 1 FROM partnerships pt
+    WHERE pt.status IN ('pending', 'active', 'paused')
+      AND ((pt.inviter_id = auth.uid() AND pt.invitee_id = profiles.id)
+        OR (pt.invitee_id = auth.uid() AND pt.inviter_id = profiles.id)
+        -- Unlinked invitee (matched by verified JWT email) may see the inviter's name
+        OR (pt.inviter_id = profiles.id AND pt.invitee_id IS NULL
+            AND lower(pt.invitee_email) = lower(auth.jwt() ->> 'email')))
+));
 
 
 -- ============================================================================
