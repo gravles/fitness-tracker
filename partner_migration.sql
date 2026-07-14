@@ -231,6 +231,13 @@ AS $$
     )
 $$;
 
+-- The function is used inside RLS policies, so `authenticated` needs EXECUTE;
+-- anon/public callers must not see it on the REST RPC surface (flagged by the
+-- Supabase security linter otherwise).
+REVOKE EXECUTE ON FUNCTION public.is_challenge_member(uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.is_challenge_member(uuid) FROM anon;
+GRANT EXECUTE ON FUNCTION public.is_challenge_member(uuid) TO authenticated;
+
 ALTER TABLE challenges ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Members read challenges" ON challenges;
