@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronRight, Smartphone, Calendar, BookOpen, Dna, Sparkles } from 'lucide-react';
+import { ChevronRight, Users, Heart, Gift, Trophy, Image as ImageIcon } from 'lucide-react';
 
-const APP_VERSION = '2.0';
+const APP_VERSION = '2.2';
 const STORAGE_KEY = 'lifelogger_seen_version';
 
 interface Slide {
@@ -15,34 +15,34 @@ interface Slide {
 
 const SLIDES: Slide[] = [
     {
-        icon: <Smartphone className="w-6 h-6" />,
-        title: 'Now on iOS & Android',
-        body: 'Download the native app for push notifications, haptic feedback, and swipe-back navigation.',
+        icon: <Users className="w-6 h-6" />,
+        title: 'Workout Partners',
+        body: 'Invite a friend and keep each other accountable — see each other\'s weekly stats and streaks, with privacy you each control. Find it in Settings → Workout Partners.',
         accent: 'var(--color-primary)',
     },
     {
-        icon: <Calendar className="w-6 h-6" />,
-        title: 'Workout Calendar Feed',
-        body: 'Subscribe to your personal webcal:// link and see every scheduled workout in Apple Calendar or Google Calendar.',
+        icon: <Heart className="w-6 h-6" />,
+        title: 'Cheer Each Other On',
+        body: 'Send one-tap encouragement 💪 and get a heads-up when your partner\'s streak is at risk so you can rally them.',
         accent: 'var(--color-gold)',
     },
     {
-        icon: <BookOpen className="w-6 h-6" />,
-        title: '12-Week Training Programs',
-        body: 'AI builds a periodised program for your goal. Target weights, 1RM tracking, PR notifications, and a full adherence calendar.',
+        icon: <Gift className="w-6 h-6" />,
+        title: 'Share Workouts & Meals',
+        body: 'Send a workout template or a saved meal to your partner — they can add it to their own library with one tap.',
         accent: 'var(--chart-2)',
     },
     {
-        icon: <Dna className="w-6 h-6" />,
-        title: 'Health Integrations',
-        body: 'Connect Strava, Withings, and Oura under Settings → Health Integrations to sync activities and body composition automatically.',
-        accent: 'var(--color-primary)',
+        icon: <Trophy className="w-6 h-6" />,
+        title: 'Group Challenges',
+        body: 'Challenge 2–8 friends: logging streaks, protein days, or workout counts, tracked on an anonymous leaderboard.',
+        accent: 'var(--color-gold)',
     },
     {
-        icon: <Sparkles className="w-6 h-6" />,
-        title: 'AI Nutrition Planner',
-        body: 'Build a pantry, set prep-time limits, and let AI generate a weekly meal plan. Log meals straight to your diary.',
-        accent: 'var(--color-gold)',
+        icon: <ImageIcon className="w-6 h-6" />,
+        title: 'Progress Photos from Your Gallery',
+        body: 'Add progress photos straight from your phone\'s photo library — no more camera-only. Big photos are compressed automatically.',
+        accent: 'var(--color-primary)',
     },
 ];
 

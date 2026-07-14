@@ -15,9 +15,12 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - AI Weekly Analysis: narrative breakdown of nutrition, movement, and trends
 - AI-generated and editable 12-week training programs
 - AI Nutrition Planner: generates meal plans from your pantry
+- Coach-driven scheduling and meal planning via MCP tools: an AI coach can schedule workouts and plan meals directly, which then appear on the Schedule page and in the Meal Planner (see [docs/mcp-tools.md](./docs/mcp-tools.md))
+- Personal Claude MCP Connector: generate a per-account API key in Settings → Claude AI Connector to link your own Claude.ai account to your logs, workouts, and body metrics
 
 **Workout Tracking**
 - Active workout logger with real-time set / rep tracking and rest timer
+- Per-set autosave with crash/navigation-safe recovery; edit completed workouts after the fact
 - AI Coach builds and saves workouts from natural language
 - Schedule workouts on a calendar with per-session reminders
 - 1RM estimation (Epley), PR notifications, and progress analytics
@@ -41,6 +44,13 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - Shareable level-achievement cards
 - Streak tracking
 
+**Workout Partners**
+- Invite a friend as a mutual workout partner; see each other's weekly stats and streaks with per-partnership privacy (summary vs full activity)
+- One-tap encouragement pushes and automatic streak-at-risk partner alerts
+- Share workout templates and saved meals; recipients save them to their library with one tap
+- Group challenges (2–8 people) with anonymous-by-default leaderboards
+- Progress photos support picking from the phone gallery, with client-side compression
+
 **Native Apps**
 - iOS (App Store) and Android (Play Store) via Capacitor
 - FCM push notifications for reminders
@@ -48,6 +58,7 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 
 **Customisation**
 - Light / System / Dark theme
+- English / French language toggle, including AI coach responses
 - Custom nutrition targets, habits list, available equipment
 - Accountability partners with weekly email summaries
 
@@ -58,6 +69,7 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - **AI**: Claude (Anthropic) — coaching, meal recognition, program generation
 - **Native**: Capacitor (iOS + Android), Firebase Cloud Messaging
 - **Styling**: Tailwind CSS with CSS custom properties
+- **i18n**: custom React context (`LanguageProvider`), `localStorage`-persisted, English/French
 - **Email**: Resend
 
 ## Development

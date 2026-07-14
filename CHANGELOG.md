@@ -4,7 +4,50 @@ All notable changes to Life Logger are documented here.
 
 ## [Unreleased]
 
-### AI Coach MCP Tools
+## [2.2.0] — 2026-07-14
+
+### Workout Partners
+- Invite a friend who uses the app by email and connect as mutual workout partners; invites to non-users send a signup email and auto-link when they join
+- Partner hub at `/partner`: pending invites, partner cards, shared-items inbox, encouragements feed, and challenges
+- Per-partner dashboard: weekly stats (streak, days logged, workouts, protein-goal days, avg sleep, level) and their latest note
+- Privacy is per-partnership and per-person: choose what *you* share — Summary (weekly stats only, default) or Full activity (recent workouts and nutrition too); pause or end a partnership anytime
+- All cross-user reads go through a single service-role API route that enforces the share level server-side; row-level security on personal data stays owner-only
+- Existing email-only accountability partners (weekly summary email) keep working unchanged
+- Migration: `partner_migration.sql`
+
+### Encouragement Nudges
+- One-tap encouragement (💪 🔥 👏) sends a push notification to your partner (rate-limited to one per hour per partnership)
+- Streak-at-risk alerts: if your partner logged yesterday but nothing today by 8pm their time, you get a push so you can cheer them on (deduped to once per day)
+
+### Share Workouts & Meals
+- "Send to partner" on workout templates (Schedule page) and saved meals (Nutrition page)
+- Shares are snapshots with an optional message; the recipient gets a push and a one-tap "Save to my library" in their partner inbox
+
+### Group Challenges
+- Create challenges with 2–8 people from your active partners: logging streak, protein-goal days, or workout count, over a chosen date window
+- Anonymous-by-default leaderboard ("Athlete A/B/…") with progress bars; reveal names optionally
+- Daily progress updates with milestone and final-results push notifications
+
+### Progress Photos
+- Choose existing photos from your phone's gallery ("Choose from Gallery") alongside the camera option
+- Photos are downscaled and converted to JPEG client-side before upload, so large iPhone HEIC originals upload fast and render everywhere
+
+## [2.1.0] — 2026-07-10
+
+### Rebrand & Design Refresh
+- Full UI/UX refresh aligning the app with the nathandavie.com brand: Sora + Inter typography (replacing Playfair Display serif), deep ink navy `#060a13`, gold `#e0b35a`, blue `#5b9cf6`, flat solid surfaces
+- New shared UI primitives: `Card`, `Button`, `Input` / `Select` / `Textarea`, `ProgressRing`, `StatTile`
+- Dashboard redesigned: Today hero with progress rings, streak pill, level + next-workout bento tiles, compact coach card, 3-up quick actions including a barcode deep link
+- Bottom nav raised with a center "+" log button; destinations renamed Home / Train / Eat / Trends
+- Emoji chrome replaced with Lucide icons app-wide (achievement/celebration emoji kept as content); motion respects `prefers-reduced-motion`
+- App icons, splash screens, and PWA icons regenerated in the new palette
+
+### Multi-language Support (English / French)
+- Language toggle in Settings → Customisation, backed by a `localStorage`-persisted React context (no URL-segment routing, so it keeps working in the native/Capacitor app)
+- Full translation coverage: navigation, dashboard, daily log, settings, onboarding, and all section components
+- AI features now respond in the selected language: Smart Coach, AI Weekly Analysis, workout chat, goal wizard, and workout recommendations
+
+### AI Coach MCP Tools (training plans, scheduling & meal planning)
 - New MCP tools so an AI coach can push training plans, not just log activity: `save_workout_template` (upsert by name, with a shortened `fallback_exercises` version), `get_workout_templates`, `schedule_workout` (single date or recurring weekday pattern, capped at 90 days), `get_schedule` (derived planned / completed / missed / skipped statuses), `update_scheduled_workout` (move date, swap template, switch to fallback, skip with reason)
 - `log_workout` extended with strength logging (`exercises` with per-set reps and weight) and automatic completion of the day's scheduled entry
 - Coach-scheduled workouts use the existing `scheduled_workouts` / `workout_templates` tables, so they appear on the dashboard and Schedule page with no UI changes
@@ -14,8 +57,29 @@ All notable changes to Life Logger are documented here.
 - Planned meals never count toward `get_daily_logs` totals until logged — no double counting
 - New dedicated tables `mcp_meals` / `planned_meals` (kept separate from the existing pantry/AI-meal-generator tables, which model an unrelated feature)
 - Dashboard: new "Today's meal plan" card showing today's planned meals with slot/time and a one-tap "Log as planned" action (hidden entirely on days with no coach plan)
+- Meal Planner page: coach-pushed meals now render inline — a "Coach Plan" section on the Today tab and per-day rows in the Week view, each with a one-tap "Log as planned" action and logged/skipped status
+- Starting a scheduled workout from inside the app now correctly marks the schedule entry complete on finish; `get_schedule` also self-heals stale entries by matching same-day completed sessions before reporting them missed
 - Migration: `coach_meal_planning_migration.sql`
 - Tool reference: `docs/mcp-tools.md`
+
+### Personal Claude MCP Connector
+- New "Claude AI Connector" section in Settings: generate a personal API key and connect your own Claude.ai account directly to your fitness data
+- `POST /api/mcp` — MCP 2024-11-05 JSON-RPC server exposing 7 tools: read (`get_daily_logs`, `get_workouts`, `get_body_metrics`, `get_user_profile`) and write (`log_food`, `log_workout`, `update_daily_log`)
+- Keys are hashed at rest (`mcp_api_keys` table, RLS-enabled); generate, copy, and revoke from Settings
+
+### Workout Logger Reliability
+- Autosave: every set toggle now writes to the database immediately, so progress survives navigation or a crash; a "Saving… / Saved / Save failed" chip shows next to the timer
+- Completed workouts can be edited after the fact
+- Delete button on individual set rows, with ids re-indexed so autosave stays in sync
+
+### Nutrition & AI Fixes
+- Fixed inconsistent food photo scans caused by oversized camera images — photos are now compressed client-side (max 1024px, 82% JPEG) before upload, with a "Processing image…" indicator
+- Restored direct camera capture and added a separate Gallery picker in FoodCamera
+- Fixed AI Weekly Analysis timing out or returning no results (function duration limit, log windowing, more robust JSON parsing and error/retry UI)
+
+### Native App Fixes (iOS)
+- Fixed TestFlight black screen caused by `ViewController.swift` never being registered in the Xcode project
+- Fixed iOS push notifications: switched to the production APNs entitlement and added direct APNs delivery for iOS tokens (FCM only ever worked for Android)
 
 ## [2.0.0] — 2026-05-24
 
