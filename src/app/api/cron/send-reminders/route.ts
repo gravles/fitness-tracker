@@ -1,96 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
-import http2 from 'http2';
-
-// ─── Web Push (VAPID) ────────────────────────────────────────────────────────
-webpush.setVapidDetails(
-    process.env.VAPID_EMAIL!,
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-    process.env.VAPID_PRIVATE_KEY!
-);
-
-// ─── Apple Push Notification service (APNs) ─────────────────────────────────
-// Required env vars: APNS_KEY_ID, APNS_TEAM_ID, APNS_BUNDLE_ID, APNS_PRIVATE_KEY
-// APNS_PRIVATE_KEY is the full contents of the .p8 file (newlines as \n or literal)
-
-function makeApnsJwt(): string {
-    const keyId  = process.env.APNS_KEY_ID!;
-    const teamId = process.env.APNS_TEAM_ID!;
-    const p8     = (process.env.APNS_PRIVATE_KEY ?? '').replace(/\\n/g, '\n');
-
-    const header  = Buffer.from(JSON.stringify({ alg: 'ES256', kid: keyId })).toString('base64url');
-    const payload = Buffer.from(JSON.stringify({ iss: teamId, iat: Math.floor(Date.now() / 1000) })).toString('base64url');
-    const unsigned = `${header}.${payload}`;
-
-    const sig = crypto.sign('SHA256', Buffer.from(unsigned), { key: p8, dsaEncoding: 'ieee-p1363' });
-    return `${unsigned}.${sig.toString('base64url')}`;
-}
-
-function sendApnsMessage(
-    deviceToken: string,
-    title: string,
-    body: string,
-    data: Record<string, string>,
-): Promise<{ ok: boolean; expired: boolean }> {
-    return new Promise((resolve) => {
-        const bundleId = process.env.APNS_BUNDLE_ID ?? 'com.nathandavie.fitnesstracker';
-        const apnsJwt  = makeApnsJwt();
-        const payload  = JSON.stringify({
-            aps: { alert: { title, body }, badge: 1, sound: 'default' },
-            ...data,
-        });
-
-        const client = http2.connect('https://api.push.apple.com');
-        client.on('error', () => resolve({ ok: false, expired: false }));
-
-        const req = client.request({
-            ':method': 'POST',
-            ':path':   `/3/device/${deviceToken}`,
-            'authorization':    `bearer ${apnsJwt}`,
-            'apns-topic':       bundleId,
-            'apns-push-type':   'alert',
-            'apns-priority':    '10',
-            'content-type':     'application/json',
-            'content-length':   String(Buffer.byteLength(payload)),
-        });
-
-        req.write(payload);
-        req.end();
-
-        let statusCode = 0;
-        req.on('response', (headers) => { statusCode = Number(headers[':status']); });
-        req.on('end', () => {
-            client.close();
-            resolve({ ok: statusCode === 200, expired: statusCode === 410 });
-        });
-        req.on('error', () => { client.close(); resolve({ ok: false, expired: false }); });
-    });
-}
-
-// ─── Firebase Admin (FCM) — Android only ────────────────────────────────────
-let firebaseMessaging: import('firebase-admin/messaging').Messaging | null = null;
-
-async function getMessaging() {
-    if (firebaseMessaging) return firebaseMessaging;
-    if (!process.env.FIREBASE_SERVICE_ACCOUNT) return null;
-
-    try {
-        const { initializeApp, getApps, cert } = await import('firebase-admin/app');
-        const { getMessaging: _getMsg }         = await import('firebase-admin/messaging');
-        if (!getApps().length) {
-            const sa = JSON.parse(
-                Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString('utf-8')
-            );
-            initializeApp({ credential: cert(sa) });
-        }
-        firebaseMessaging = _getMsg();
-    } catch (e) {
-        console.error('[FCM] Failed to initialise Firebase Admin:', e);
-    }
-    return firebaseMessaging;
-}
+import { ensureVapid, sendApnsMessage, getMessaging, sendPushToUser } from '@/lib/push-server';
+import { computeChallengeProgress, ChallengeType } from '@/lib/partner-summary';
 
 // ─── Supabase ────────────────────────────────────────────────────────────────
 function getSupabaseAdmin() {
@@ -136,6 +48,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+        ensureVapid();
         const supabase      = getSupabaseAdmin();
         const messaging     = await getMessaging();
         const now           = new Date();
@@ -323,6 +236,201 @@ export async function GET(request: NextRequest) {
                     .from('scheduled_workouts')
                     .update({ reminder_sent: true })
                     .in('id', notifiedIds);
+            }
+        }
+
+        // ── 4. Partner streak-at-risk nudges (hourly) ─────────────────────
+        // At 20:00 local time, if a user logged yesterday but nothing today,
+        // ping their workout partner(s) so they can send encouragement.
+        if (currentMinute === 0) {
+            const { data: activePartnerships } = await supabase
+                .from('partnerships')
+                .select('id, inviter_id, invitee_id')
+                .eq('status', 'active')
+                .not('invitee_id', 'is', null);
+
+            if (activePartnerships && activePartnerships.length > 0) {
+                const partnerUserIds = Array.from(new Set(
+                    activePartnerships.flatMap(p => [p.inviter_id, p.invitee_id as string])
+                ));
+
+                const [{ data: partnerSettings }, { data: partnerProfiles }] = await Promise.all([
+                    supabase.from('user_settings').select('user_id, timezone').in('user_id', partnerUserIds),
+                    supabase.from('profiles').select('id, full_name, email').in('id', partnerUserIds),
+                ]);
+
+                const tzOf: Record<string, string> = {};
+                for (const s of (partnerSettings ?? [])) tzOf[s.user_id] = s.timezone ?? 'UTC';
+                const nameOf: Record<string, string> = {};
+                for (const p of (partnerProfiles ?? [])) {
+                    nameOf[p.id] = p.full_name?.split(' ')[0] || p.email?.split('@')[0] || 'Your partner';
+                }
+
+                function localParts(tz: string): { date: string; hour: number } {
+                    try {
+                        const s = now.toLocaleString('sv-SE', { timeZone: tz }); // "YYYY-MM-DD HH:mm:ss"
+                        return { date: s.slice(0, 10), hour: Number(s.slice(11, 13)) };
+                    } catch {
+                        return { date: now.toISOString().slice(0, 10), hour: now.getUTCHours() };
+                    }
+                }
+
+                // Users whose local time is 20:00 right now
+                type AtRiskCandidate = { userId: string; localDate: string; yesterday: string };
+                const candidates = new Map<string, AtRiskCandidate>();
+                for (const userId of partnerUserIds) {
+                    const { date, hour } = localParts(tzOf[userId] ?? 'UTC');
+                    if (hour === 20) {
+                        const yesterday = new Date(new Date(`${date}T12:00:00Z`).getTime() - 86_400_000)
+                            .toISOString().slice(0, 10);
+                        candidates.set(userId, { userId, localDate: date, yesterday });
+                    }
+                }
+
+                if (candidates.size > 0) {
+                    const candidateIds = Array.from(candidates.keys());
+                    const allDates = Array.from(new Set(
+                        Array.from(candidates.values()).flatMap(c => [c.localDate, c.yesterday])
+                    ));
+                    const { data: candidateLogs } = await supabase
+                        .from('daily_logs')
+                        .select('user_id, date, movement_completed, nutrition_logged, calories')
+                        .in('user_id', candidateIds)
+                        .in('date', allDates);
+
+                    const loggedKeys = new Set(
+                        (candidateLogs ?? [])
+                            .filter(l => l.movement_completed || l.nutrition_logged || (l.calories && l.calories > 0))
+                            .map(l => `${l.user_id}:${l.date}`)
+                    );
+
+                    for (const c of candidates.values()) {
+                        const loggedToday = loggedKeys.has(`${c.userId}:${c.localDate}`);
+                        const loggedYesterday = loggedKeys.has(`${c.userId}:${c.yesterday}`);
+                        if (loggedToday || !loggedYesterday) continue; // no streak at risk
+
+                        for (const p of activePartnerships) {
+                            if (p.inviter_id !== c.userId && p.invitee_id !== c.userId) continue;
+                            const partnerId = p.inviter_id === c.userId ? (p.invitee_id as string) : p.inviter_id;
+
+                            // Partial unique index dedups repeat runs; 23505 = already sent today
+                            const { error: nudgeError } = await supabase.from('partner_nudges').insert({
+                                partnership_id: p.id,
+                                from_user_id: null,
+                                to_user_id: partnerId,
+                                nudge_type: 'system_not_logged',
+                                message: null,
+                                local_date: c.localDate,
+                            });
+                            if (nudgeError) {
+                                if (nudgeError.code !== '23505') console.error('Partner nudge insert error:', nudgeError);
+                                continue;
+                            }
+
+                            const name = nameOf[c.userId] ?? 'Your partner';
+                            const { sent: s, failed: f } = await sendPushToUser(supabase, partnerId, {
+                                title: `🔥 ${name}'s streak is at risk`,
+                                body: `${name} hasn't logged today — send some encouragement?`,
+                                url: `/partner/${p.id}`,
+                                tag: 'partner-streak-risk',
+                            });
+                            sent += s; failed += f;
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── 5. Group challenges — daily maintenance (06:00 UTC) ───────────
+        // Flip statuses, refresh member progress, and push milestones/results.
+        if (currentHour === 6 && currentMinute === 0) {
+            // Activate challenges whose window has started
+            await supabase.from('challenges')
+                .update({ status: 'active' })
+                .eq('status', 'upcoming')
+                .lte('start_date', todayDateStr);
+
+            const { data: activeChallenges } = await supabase
+                .from('challenges')
+                .select('*')
+                .eq('status', 'active');
+
+            for (const challenge of (activeChallenges ?? [])) {
+                const { data: memberRows } = await supabase
+                    .from('challenge_members')
+                    .select('*')
+                    .eq('challenge_id', challenge.id)
+                    .eq('status', 'joined');
+                const members = memberRows ?? [];
+                if (members.length === 0) continue;
+
+                const memberIds = members.map(m => m.user_id);
+                const [{ data: logs }, { data: challengeWorkouts }] = await Promise.all([
+                    supabase.from('daily_logs')
+                        .select('user_id, date, movement_completed, nutrition_logged, protein_grams, calories')
+                        .in('user_id', memberIds)
+                        .gte('date', challenge.start_date)
+                        .lte('date', challenge.end_date),
+                    supabase.from('workouts')
+                        .select('user_id, date')
+                        .in('user_id', memberIds)
+                        .gte('date', challenge.start_date)
+                        .lte('date', challenge.end_date),
+                ]);
+
+                for (const member of members) {
+                    const progress = computeChallengeProgress(
+                        challenge.challenge_type as ChallengeType,
+                        (logs ?? []).filter(l => l.user_id === member.user_id),
+                        (challengeWorkouts ?? []).filter(w => w.user_id === member.user_id),
+                        challenge.start_date,
+                        challenge.end_date,
+                    );
+                    member.progress = progress;
+                    await supabase.from('challenge_members')
+                        .update({ progress, progress_updated_at: now.toISOString() })
+                        .eq('challenge_id', challenge.id)
+                        .eq('user_id', member.user_id);
+
+                    // Milestone: member reached the target (notify everyone once)
+                    if (progress >= challenge.target_value && !member.milestone_notified) {
+                        await supabase.from('challenge_members')
+                            .update({ milestone_notified: true })
+                            .eq('challenge_id', challenge.id)
+                            .eq('user_id', member.user_id);
+                        for (const other of members) {
+                            const isSelf = other.user_id === member.user_id;
+                            const { sent: s, failed: f } = await sendPushToUser(supabase, other.user_id, {
+                                title: `🏆 ${challenge.name}`,
+                                body: isSelf
+                                    ? 'You hit the challenge target — amazing work!'
+                                    : `${member.display_alias} just hit the challenge target!`,
+                                url: `/partner/challenges/${challenge.id}`,
+                                tag: `challenge-milestone-${challenge.id}`,
+                            });
+                            sent += s; failed += f;
+                        }
+                    }
+                }
+
+                // Challenge window over → complete + final results push
+                if (challenge.end_date < todayDateStr) {
+                    await supabase.from('challenges')
+                        .update({ status: 'completed' })
+                        .eq('id', challenge.id);
+                    const top = [...members].sort((a, b) => (b.progress ?? 0) - (a.progress ?? 0))[0];
+                    for (const member of members) {
+                        const { sent: s, failed: f } = await sendPushToUser(supabase, member.user_id, {
+                            title: `🏁 ${challenge.name} finished`,
+                            body: top
+                                ? `${top.display_alias} leads the final board with ${top.progress}. See the results!`
+                                : 'See the final results!',
+                            url: `/partner/challenges/${challenge.id}`,
+                            tag: `challenge-complete-${challenge.id}`,
+                        });
+                        sent += s; failed += f;
+                    }
+                }
             }
         }
 

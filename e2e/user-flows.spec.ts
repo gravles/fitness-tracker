@@ -15,6 +15,33 @@ async function setupAuth(page: Page): Promise<void> {
     });
 }
 
+test.describe('Workout Partner Flow', () => {
+    test.beforeEach(async ({ page }) => {
+        await setupAuth(page);
+        await page.goto('/partner', { waitUntil: 'domcontentloaded' });
+    });
+
+    test('partner page renders with empty state and invite form', async ({ page }) => {
+        await expect(page.locator('h1', { hasText: /Workout Partners/i })).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('text=No partners yet')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('input[type="email"]')).toBeVisible();
+    });
+
+    test('invite button is disabled until an email is entered', async ({ page }) => {
+        const emailInput = page.locator('input[type="email"]');
+        await expect(emailInput).toBeVisible({ timeout: 15000 });
+        const sendButton = page.getByRole('button', { name: /Send invite/i });
+        await expect(sendButton).toBeDisabled();
+        await emailInput.fill('friend@example.com');
+        await expect(sendButton).toBeEnabled();
+    });
+
+    test('new challenge page renders from direct navigation', async ({ page }) => {
+        await page.goto('/partner/challenges/new', { waitUntil: 'domcontentloaded' });
+        await expect(page.locator('h1', { hasText: /challenge/i })).toBeVisible({ timeout: 15000 });
+    });
+});
+
 test.describe('Daily Logging Flow', () => {
     test.beforeEach(async ({ page }) => {
         await setupAuth(page);

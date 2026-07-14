@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { subDays, format, startOfWeek } from 'date-fns';
+import { subDays, format } from 'date-fns';
+import { computeWeeklySummary } from '@/lib/partner-summary';
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -57,13 +58,8 @@ export async function POST(req: NextRequest) {
             .lte('date', endStr);
 
         // Compute stats
-        const daysLogged = logs?.length ?? 0;
-        const workoutsCount = workouts?.length ?? 0;
-        const proteinDays = logs?.filter(l => l.protein_grams && l.protein_grams >= 100).length ?? 0;
-        const avgSleep = logs && logs.length > 0
-            ? (logs.reduce((s, l) => s + (l.sleep_quality || 0), 0) / logs.length).toFixed(1)
-            : '—';
-        const lastNote = logs?.findLast(l => l.daily_note)?.daily_note || '';
+        const { daysLogged, workoutsCount, proteinDays, avgSleep, lastNote } =
+            computeWeeklySummary(logs ?? [], workouts ?? []);
 
         // Get user profile for first name
         const { data: profile } = await supabaseAdmin
