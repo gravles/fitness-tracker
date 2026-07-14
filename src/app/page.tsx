@@ -25,6 +25,8 @@ import { TodayHero } from '@/components/TodayHero';
 import { NextWorkoutTile } from '@/components/NextWorkoutTile';
 import { PlannedMealsCard } from '@/components/PlannedMealsCard';
 import { WhatsNewModal, useWhatsNew } from '@/components/WhatsNewModal';
+import { PartnerCard } from '@/components/PartnerCard';
+import { ensureMyProfile } from '@/lib/partner-api';
 
 export default function Dashboard() {
   const today = new Date();
@@ -54,6 +56,13 @@ export default function Dashboard() {
     if (searchParams.get('tutorial') === 'true') {
       setShowFeatureTutorial(true);
       router.replace('/');
+    }
+    // Partner invite deep-link (from the invite email). The invite itself is
+    // matched by verified email, so we just make sure a profile exists and
+    // land the user on the partner page where the pending invite shows.
+    if (searchParams.get('invite')) {
+      ensureMyProfile().catch(() => {});
+      router.replace('/partner');
     }
   }, [searchParams, router]);
 
@@ -208,6 +217,9 @@ export default function Dashboard() {
 
           {/* Today's coach-planned meals — hidden entirely when none are planned */}
           <PlannedMealsCard stagger={150} onLogged={loadData} />
+
+          {/* Workout partners — hidden when there are no partnerships or invites */}
+          <PartnerCard stagger={165} />
 
           {/* Smart Coach */}
           <SmartCoach tip={advice} onWeeklyAnalysis={() => setShowInsightModal(true)} stagger={180} />

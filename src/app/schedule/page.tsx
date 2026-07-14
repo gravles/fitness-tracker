@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { format, addDays, startOfWeek, eachDayOfInterval, isToday } from 'date-fns';
 import {
     ChevronLeft, ChevronRight, Plus, Calendar, Clock, Dumbbell, Play, X, Trash2,
-    Loader2, LayoutGrid, Edit2, Sparkles, Star, MoreVertical, Copy, Check, Eye, Zap, Bot, Trophy, RefreshCw,
+    Loader2, LayoutGrid, Edit2, Sparkles, Star, MoreVertical, Copy, Check, Eye, Zap, Bot, Trophy, RefreshCw, Share2,
     Activity, Wind, Footprints, Flame, PersonStanding, type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,6 +13,7 @@ import { getScheduledWorkouts, deleteScheduledWorkout, skipScheduledWorkout, upd
 import { getProgramSessionsForRange, skipProgramSession, updateProgramSession, ProgramSession, SessionType } from '@/lib/program-api';
 import { getTemplates, createTemplate, deleteTemplate, updateTemplate, WorkoutTemplate } from '@/lib/workout-api';
 import { getPublicTemplates, WorkoutTemplate as PublicTemplate, WorkoutCategory } from '@/lib/features';
+import { ShareToPartnerSheet } from '@/components/ShareToPartnerSheet';
 import { ScheduleWorkoutModal } from '@/components/ScheduleWorkoutModal';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -64,6 +65,7 @@ export default function WorkoutHubPage() {
     const [menuOpen, setMenuOpen] = useState<string | null>(null);
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [previewTemplate, setPreviewTemplate] = useState<WorkoutTemplate | PublicTemplate | null>(null);
+    const [shareTemplate, setShareTemplate] = useState<WorkoutTemplate | null>(null);
     const [showAutocomplete, setShowAutocomplete] = useState(false);
     const [autocompleteResults, setAutocompleteResults] = useState<string[]>([]);
     const autocompleteRef = useRef<HTMLDivElement>(null);
@@ -904,6 +906,13 @@ export default function WorkoutHubPage() {
                                                             <Copy className="w-4 h-4" /> Duplicate
                                                         </button>
                                                         <button
+                                                            onClick={() => { setShareTemplate(template); setMenuOpen(null); }}
+                                                            className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors"
+                                                            style={{ color: 'var(--color-text)' }}
+                                                        >
+                                                            <Share2 className="w-4 h-4" /> Send to partner
+                                                        </button>
+                                                        <button
                                                             onClick={() => handleDeleteTemplate(template.id)}
                                                             className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors"
                                                             style={{ color: 'var(--color-danger)' }}
@@ -1738,6 +1747,22 @@ export default function WorkoutHubPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {shareTemplate && (
+                <ShareToPartnerSheet
+                    open={!!shareTemplate}
+                    onClose={() => setShareTemplate(null)}
+                    itemType="workout_template"
+                    payload={{
+                        name: shareTemplate.name,
+                        exercises: (shareTemplate.exercises || []).map((e: any) => ({
+                            name: e.name || e.exercise_name || '',
+                            sets: e.sets || e.target_sets || 3,
+                            reps: e.reps || e.target_reps || '10',
+                        })),
+                    }}
+                />
             )}
         </main>
 

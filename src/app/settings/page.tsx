@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { getSettings, updateSettings, getUserBadges, UserBadge, getAccountabilityPartners, addAccountabilityPartner, deleteAccountabilityPartner, AccountabilityPartner, getIntegrations, upsertIntegration, deleteIntegration, Integration } from '@/lib/api';
-import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2, Users, Trash2, Send, X, Link2, RefreshCw, User, Sun, Moon, Monitor, CalendarDays, Copy, Check, Bot, Flame, Dumbbell, Scale, Footprints, Settings as SettingsIcon, BookOpen, Watch } from 'lucide-react';
+import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2, Users, Trash2, Send, X, Link2, RefreshCw, User, Sun, Moon, Monitor, CalendarDays, Copy, Check, Bot, Flame, Dumbbell, Scale, Footprints, Settings as SettingsIcon, BookOpen, Watch, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLanguage } from '@/components/LanguageProvider';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -984,6 +985,19 @@ export default function SettingsPage() {
                         {t.settings.partners.title}
                     </h3>
                 </div>
+                {/* In-app workout partners */}
+                <Link
+                    href="/partner"
+                    className="flex items-center justify-between p-3 rounded-xl transition-all hover:shadow-md"
+                    style={{ background: 'var(--color-gold-muted)', border: '1px solid var(--color-gold-border)' }}
+                >
+                    <div>
+                        <p className="font-bold text-sm" style={{ color: 'var(--color-gold-text)' }}>{t.partner.title}</p>
+                        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t.partner.subtitle}</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4" style={{ color: 'var(--color-gold-text)' }} />
+                </Link>
+
                 <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                     {t.settings.partners.desc}
                 </p>

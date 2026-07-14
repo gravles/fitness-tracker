@@ -6,8 +6,9 @@ import {
     Plus, Trash2, Loader2, Sparkles, ChevronLeft, ChevronRight,
     Clock, CheckCircle2, RefreshCw, Settings2, UtensilsCrossed,
     Camera, Mic, MicOff, X, BookMarked, PlayCircle,
-    Sunrise, Sun, Moon, Apple, Soup, ShoppingCart,
+    Sunrise, Sun, Moon, Apple, Soup, ShoppingCart, Share2,
 } from 'lucide-react';
+import { ShareToPartnerSheet } from '@/components/ShareToPartnerSheet';
 import { toast } from 'sonner';
 import { confirm } from '@/components/ConfirmDialog';
 import { supabase } from '@/lib/supabase';
@@ -173,6 +174,7 @@ export default function NutritionPage() {
     // Data
     const [pantry, setPantry] = useState<PantryItem[]>([]);
     const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
+    const [shareMeal, setShareMeal] = useState<SavedMeal | null>(null);
     const [meals, setMeals] = useState<Record<string, PlannedMeal | null>>({});
     // Coach-planned meals pushed via the MCP tools (planned_meals table)
     const [coachMeals, setCoachMeals] = useState<CoachPlannedMeal[]>([]);
@@ -854,6 +856,14 @@ export default function NutritionPage() {
                                             <PlayCircle className="w-3.5 h-3.5" /> Log today
                                         </button>
                                         <button
+                                            onClick={() => setShareMeal(meal)}
+                                            className="p-2 rounded-xl transition-all"
+                                            style={{ color: 'var(--color-primary)', background: 'rgba(77,137,226,0.08)' }}
+                                            title="Send to partner"
+                                        >
+                                            <Share2 className="w-4 h-4" />
+                                        </button>
+                                        <button
                                             onClick={async () => {
                                                 if (!await confirm({ title: 'Delete Meal', message: `Delete "${meal.name}"?`, danger: true })) return;
                                                 await deleteSavedMeal(meal.id);
@@ -1264,6 +1274,15 @@ export default function NutritionPage() {
                         </button>
                     </div>
                 </div>
+            )}
+
+            {shareMeal && (
+                <ShareToPartnerSheet
+                    open={!!shareMeal}
+                    onClose={() => setShareMeal(null)}
+                    itemType="saved_meal"
+                    payload={{ name: shareMeal.name, food_items: shareMeal.food_items }}
+                />
             )}
         </main>
     );
