@@ -68,7 +68,7 @@ export function ProgramReviewModal({ program, onClose, onScheduled }: Props) {
             if (!res.ok) throw new Error(await res.text());
             const { program: updated } = await res.json();
             setCurrentProgram(updated);
-            setEditMessages(prev => [...prev, { role: 'assistant', content: '✅ Done! I\'ve updated the program. Switch to the Program tab to review the changes.' }]);
+            setEditMessages(prev => [...prev, { role: 'assistant', content: 'Done! I\'ve updated the program. Switch to the Program tab to review the changes.' }]);
         } catch (e: any) {
             setEditMessages(prev => [...prev, { role: 'assistant', content: `Sorry, I couldn't apply that change: ${e.message}` }]);
         } finally {
@@ -107,7 +107,7 @@ export function ProgramReviewModal({ program, onClose, onScheduled }: Props) {
     const endDateStr = format(addWeeks(new Date(startDate + 'T00:00:00'), currentProgram.duration_weeks), 'MMM d, yyyy');
 
     return (
-        <div className="fixed inset-0 z-[200] flex flex-col" style={{ background: 'var(--color-bg)' }}>
+        <div role="dialog" aria-modal="true" aria-label="Review program" className="fixed inset-0 flex flex-col" style={{ background: 'var(--color-bg)', zIndex: 'var(--z-modal-top)' }}>
             {/* Header */}
             <div
                 className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b"

@@ -7,10 +7,10 @@ import {
 } from 'lucide-react';
 import {
     getTrainingPrograms, createTrainingProgram, updateTrainingProgram,
-    deleteTrainingProgram, TrainingProgram, getSettings,
-} from '@/lib/api';
+    deleteTrainingProgram, TrainingProgram, getSettings, isAuthError } from '@/lib/api';
 import { getProgramStats, getProgramSessions, ProgramSession } from '@/lib/program-api';
 import { ProgramReviewModal } from '@/components/ProgramReviewModal';
+import { LoadError } from '@/components/ui';
 import { toast } from 'sonner';
 import { confirm } from '@/components/ConfirmDialog';
 import { useRouter } from 'next/navigation';
@@ -32,6 +32,7 @@ export default function ProgramsPage() {
 
     const [programs, setPrograms]             = useState<TrainingProgram[]>([]);
     const [loading, setLoading]               = useState(true);
+    const [loadError, setLoadError]           = useState(false);
     const [programStats, setProgramStats]     = useState<Record<string, { total: number; completed: number; adherence: number }>>({});
     const [userEquipment, setUserEquipment]   = useState<string[]>([]);
 
@@ -54,6 +55,7 @@ export default function ProgramsPage() {
 
     async function loadData() {
         setLoading(true);
+        setLoadError(false);
         try {
             const [programData, settings] = await Promise.all([
                 getTrainingPrograms(),
@@ -71,6 +73,7 @@ export default function ProgramsPage() {
             setProgramStats(statsMap);
         } catch (err) {
             console.error('Error loading programs:', err);
+            if (!isAuthError(err)) setLoadError(true);
         } finally {
             setLoading(false);
         }
@@ -240,6 +243,8 @@ export default function ProgramsPage() {
                 <div className="flex items-center justify-center py-16">
                     <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--color-primary)' }} />
                 </div>
+            ) : loadError ? (
+                <LoadError onRetry={loadData} />
             ) : (
                 <div className="space-y-4">
 
@@ -247,7 +252,7 @@ export default function ProgramsPage() {
                     {activeProgram && (
                         <div
                             className="p-5 rounded-2xl border space-y-4"
-                            style={{ background: 'var(--color-navy)', borderColor: 'rgba(224,179,90,0.2)' }}
+                            style={{ background: 'var(--color-navy)', borderColor: 'var(--color-gold-border)' }}
                         >
                             <div className="flex items-start justify-between">
                                 <div>

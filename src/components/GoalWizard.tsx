@@ -7,6 +7,7 @@ import { createGoal, GoalType, UserGoal } from '@/lib/features';
 import { haptics } from '@/lib/haptics';
 import { Confetti } from './Confetti';
 import { useLanguage } from '@/components/LanguageProvider';
+import { Modal } from './ui/Modal';
 
 interface GoalWizardProps {
     isOpen: boolean;
@@ -96,14 +97,13 @@ export function GoalWizard({ isOpen, onClose, onComplete, currentWeight, current
         <>
             <Confetti isActive={showConfetti} onComplete={() => setShowConfetti(false)} />
 
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-                <div className="bg-[var(--color-surface-elevated)] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <Modal isOpen onClose={onClose} aria-label="Set Your Goal" size="md" sheet={false} padding={false} className="overflow-hidden">
                     {/* Header */}
                     <div className="p-4 border-b border-[var(--color-border)] flex justify-between items-center text-white" style={{ background: 'var(--color-navy)' }}>
                         <div className="flex items-center gap-2">
                             <Target className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
                             <h3 className="font-bold">Set Your Goal</h3>
-                            <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(224,179,90,0.2)', color: 'var(--color-gold)' }}>
+                            <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--color-gold-border)', color: 'var(--color-gold)' }}>
                                 Step {step}/3
                             </span>
                         </div>
@@ -153,6 +153,7 @@ export function GoalWizard({ isOpen, onClose, onComplete, currentWeight, current
                                     </label>
                                     <input
                                         type="number"
+                                        inputMode="decimal"
                                         value={targetValue}
                                         onChange={(e) => setTargetValue(Number(e.target.value))}
                                         className={inputCls}
@@ -199,17 +200,17 @@ export function GoalWizard({ isOpen, onClose, onComplete, currentWeight, current
                                     <p className="text-xs" style={{ color: 'var(--color-primary)' }}>Daily Calories</p>
                                 </div>
                                 <div className="p-3 rounded-xl text-center border" style={{ background: 'rgba(34,197,94,0.06)', borderColor: 'rgba(34,197,94,0.15)' }}>
-                                    <p className="text-2xl font-bold text-green-600">{aiRecommendations.protein}g</p>
-                                    <p className="text-xs text-green-600/70">Daily Protein</p>
+                                    <p className="text-2xl font-bold text-[var(--color-success)]">{aiRecommendations.protein}g</p>
+                                    <p className="text-xs text-[var(--color-success)]/70">Daily Protein</p>
                                 </div>
-                                <div className="p-3 rounded-xl text-center col-span-2 border" style={{ background: 'var(--color-gold-muted)', borderColor: 'rgba(224,179,90,0.2)' }}>
+                                <div className="p-3 rounded-xl text-center col-span-2 border" style={{ background: 'var(--color-gold-muted)', borderColor: 'var(--color-gold-border)' }}>
                                     <p className="text-2xl font-bold" style={{ color: 'var(--color-gold)' }}>{aiRecommendations.weekly_workouts}x</p>
                                     <p className="text-xs" style={{ color: 'var(--color-gold)' }}>Workouts Per Week</p>
                                 </div>
                             </div>
 
                             {aiRecommendations.advice && (
-                                <div className="p-4 rounded-xl border" style={{ background: 'var(--color-gold-muted)', borderColor: 'rgba(224,179,90,0.2)' }}>
+                                <div className="p-4 rounded-xl border" style={{ background: 'var(--color-gold-muted)', borderColor: 'var(--color-gold-border)' }}>
                                     <p className="text-sm" style={{ color: 'var(--color-text)' }}>
                                         {aiRecommendations.advice}
                                     </p>
@@ -253,8 +254,7 @@ export function GoalWizard({ isOpen, onClose, onComplete, currentWeight, current
                             </button>
                         )}
                     </div>
-                </div>
-            </div>
+            </Modal>
         </>
     );
 }

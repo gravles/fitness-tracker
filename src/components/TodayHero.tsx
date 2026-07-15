@@ -101,7 +101,7 @@ export function TodayHero({ todayLog, settings, stagger }: Props) {
               <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-gold-text)' }}>{t.goalTracker.title}</p>
               <div className="flex gap-3 mt-1">
                 {checklist.map(({ done, label }) => (
-                  <span key={label} title={label} aria-label={`${label}: ${done ? '✓' : '–'}`}>
+                  <span key={label} title={label} aria-label={`${label}: ${done ? 'done' : 'not done'}`}>
                     {done
                       ? <CheckCircle2 className="w-4 h-4 text-[var(--color-success)]" aria-hidden="true" />
                       : <Circle className="w-4 h-4 text-[var(--color-text-muted)]" aria-hidden="true" />}
@@ -114,7 +114,7 @@ export function TodayHero({ todayLog, settings, stagger }: Props) {
 
         <div className={`mt-4 flex items-start gap-2 text-sm px-3 py-2.5 ${
           nudge.urgent
-            ? 'bg-orange-500/10 text-orange-700 dark:text-orange-400'
+            ? 'bg-orange-500/10 text-[var(--color-warning)] dark:text-[var(--color-warning)]'
             : 'bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)]'
         }`} style={{ borderRadius: 'var(--radius-control)' }}>
           {nudge.urgent && <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />}

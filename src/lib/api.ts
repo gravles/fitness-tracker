@@ -66,6 +66,15 @@ export interface BodyMetrics {
     created_at?: string;
 }
 
+/**
+ * True when a load failed only because there is no auth session. Pages use
+ * this to skip their "couldn't load — retry" state: retry can't fix a missing
+ * session, and AuthWrapper owns redirecting unauthenticated users.
+ */
+export function isAuthError(e: unknown): boolean {
+    return e instanceof Error && e.message === 'Not authenticated';
+}
+
 export async function getDailyLog(date: string) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');

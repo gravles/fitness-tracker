@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getSettings, updateSettings, getUserBadges, UserBadge, getAccountabilityPartners, addAccountabilityPartner, deleteAccountabilityPartner, AccountabilityPartner, getIntegrations, upsertIntegration, deleteIntegration, Integration } from '@/lib/api';
+import { getSettings, updateSettings, getUserBadges, UserBadge, getAccountabilityPartners, addAccountabilityPartner, deleteAccountabilityPartner, AccountabilityPartner, getIntegrations, upsertIntegration, deleteIntegration, Integration, isAuthError } from '@/lib/api';
 import { Loader2, Save, Target, Plus, Sparkles, Rocket, Wand2, Users, Trash2, Send, X, Link2, RefreshCw, User, Sun, Moon, Monitor, CalendarDays, Copy, Check, Bot, Flame, Dumbbell, Scale, Footprints, Settings as SettingsIcon, BookOpen, Watch, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLanguage } from '@/components/LanguageProvider';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { GoalWizard } from '@/components/GoalWizard';
+import { LoadError, Button } from '@/components/ui';
+import { SettingsSkeleton } from '@/components/Skeleton';
 import { toast } from 'sonner';
 import { TrophyCase } from '@/components/TrophyCase';
 import { ChangelogModal } from '@/components/ChangelogModal';
@@ -22,6 +24,7 @@ const sectionStyle = {
 
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [saving, setSaving] = useState(false);
     const [savingProfile, setSavingProfile] = useState(false);
     const [showChangelog, setShowChangelog] = useState(false);
@@ -112,6 +115,8 @@ export default function SettingsPage() {
     }, [searchParams]);
 
     async function loadSettings() {
+        setLoading(true);
+        setLoadError(false);
         try {
             const [data, badges, partnerList, integrationList] = await Promise.all([getSettings(), getUserBadges(), getAccountabilityPartners(), getIntegrations()]);
             setPartners(partnerList);
@@ -151,6 +156,7 @@ export default function SettingsPage() {
             }
         } catch (error) {
             console.error(error);
+            if (!isAuthError(error)) setLoadError(true);
         } finally {
             setLoading(false);
         }
@@ -217,10 +223,12 @@ export default function SettingsPage() {
         setTimeout(() => setCalendarCopied(false), 2000);
     }
 
-    if (loading) return (
-        <div className="p-12 flex justify-center">
-            <Loader2 className="animate-spin w-8 h-8" style={{ color: 'var(--color-primary)' }} />
-        </div>
+    if (loading) return <SettingsSkeleton />;
+
+    if (loadError) return (
+        <main className="p-6 pt-12 max-w-2xl mx-auto">
+            <LoadError onRetry={loadSettings} />
+        </main>
     );
 
     const inputClass = "w-full p-3 rounded-xl outline-none transition-all";
@@ -270,8 +278,6 @@ export default function SettingsPage() {
                             maxLength={40}
                             className={inputClass}
                             style={inputStyle}
-                            onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)'; }}
-                            onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
                         />
                     </div>
 
@@ -286,8 +292,6 @@ export default function SettingsPage() {
                             onChange={e => setProfile({ ...profile, dob: e.target.value })}
                             className={inputClass}
                             style={inputStyle}
-                            onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)'; }}
-                            onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
                         />
                     </div>
 
@@ -300,28 +304,26 @@ export default function SettingsPage() {
                             <div className="relative flex-1">
                                 <input
                                     type="number"
+                                    inputMode="decimal"
                                     placeholder="5"
                                     value={profile.heightFt}
                                     onChange={e => setProfile({ ...profile, heightFt: e.target.value })}
                                     min={0} max={8}
                                     className={inputClass}
                                     style={inputStyle}
-                                    onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)'; }}
-                                    onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
                                 />
                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--color-text-muted)' }}>ft</span>
                             </div>
                             <div className="relative flex-1">
                                 <input
                                     type="number"
+                                    inputMode="numeric"
                                     placeholder="10"
                                     value={profile.heightIn}
                                     onChange={e => setProfile({ ...profile, heightIn: e.target.value })}
                                     min={0} max={11}
                                     className={inputClass}
                                     style={inputStyle}
-                                    onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)'; }}
-                                    onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
                                 />
                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--color-text-muted)' }}>in</span>
                             </div>
@@ -346,7 +348,7 @@ export default function SettingsPage() {
                                     onClick={() => setProfile({ ...profile, fitnessGoal: g.id })}
                                     className="p-3 rounded-xl text-left transition-all"
                                     style={{
-                                        background: profile.fitnessGoal === g.id ? 'rgba(224,179,90,0.12)' : 'var(--color-bg-subtle)',
+                                        background: profile.fitnessGoal === g.id ? 'var(--color-gold-muted)' : 'var(--color-bg-subtle)',
                                         border: `1.5px solid ${profile.fitnessGoal === g.id ? 'var(--color-gold)' : 'var(--color-border)'}`,
                                     }}
                                 >
@@ -431,19 +433,12 @@ export default function SettingsPage() {
                             </label>
                             <input
                                 type="number"
+                                inputMode="numeric"
                                 placeholder={placeholder}
                                 value={targets[key as keyof typeof targets] as string}
                                 onChange={e => setTargets({ ...targets, [key]: e.target.value })}
                                 className={inputClass}
                                 style={inputStyle}
-                                onFocus={e => {
-                                    e.currentTarget.style.borderColor = 'var(--color-gold)';
-                                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)';
-                                }}
-                                onBlur={e => {
-                                    e.currentTarget.style.borderColor = 'var(--color-border)';
-                                    e.currentTarget.style.boxShadow = 'none';
-                                }}
                             />
                         </div>
                     ))}
@@ -500,8 +495,8 @@ export default function SettingsPage() {
                     <p className="text-sm mb-3" style={{ color: 'var(--color-text-muted)' }}>{t.settings.customization.languageDesc}</p>
                     <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
                         {([
-                            { value: 'en' as const, label: '🇬🇧 English' },
-                            { value: 'fr' as const, label: '🇫🇷 Français' },
+                            { value: 'en' as const, label: 'English' },
+                            { value: 'fr' as const, label: 'Français' },
                         ]).map(({ value, label }) => (
                             <button
                                 key={value}
@@ -613,12 +608,6 @@ export default function SettingsPage() {
                             placeholder={t.settings.customization.addHabitPlaceholder}
                             className="flex-1 p-3 rounded-xl outline-none transition-all"
                             style={inputStyle}
-                            onFocus={e => {
-                                e.currentTarget.style.borderColor = 'var(--color-gold)';
-                            }}
-                            onBlur={e => {
-                                e.currentTarget.style.borderColor = 'var(--color-border)';
-                            }}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                     const val = e.currentTarget.value.trim();
@@ -630,8 +619,9 @@ export default function SettingsPage() {
                             }}
                         />
                         <button
-                            className="px-4 rounded-xl font-bold transition-all"
-                            style={{ background: 'var(--color-navy)', color: 'var(--color-gold)' }}
+                            className="px-4 rounded-xl font-bold transition-all focus-ring tap-target"
+                            style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid var(--color-gold-border)' }}
+                            aria-label="Add habit"
                             onClick={(e) => {
                                 const input = e.currentTarget.previousElementSibling as HTMLInputElement;
                                 const val = input.value.trim();
@@ -641,7 +631,7 @@ export default function SettingsPage() {
                                 }
                             }}
                         >
-                            <Plus className="w-5 h-5" />
+                            <Plus className="w-5 h-5" aria-hidden="true" />
                         </button>
                     </div>
                 </div>
@@ -683,8 +673,6 @@ export default function SettingsPage() {
                             placeholder={t.settings.customization.addEquipmentPlaceholder}
                             className="flex-1 p-3 rounded-xl outline-none transition-all"
                             style={inputStyle}
-                            onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-gold)'; }}
-                            onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                     const val = e.currentTarget.value.trim();
@@ -696,8 +684,9 @@ export default function SettingsPage() {
                             }}
                         />
                         <button
-                            className="px-4 rounded-xl font-bold"
-                            style={{ background: 'var(--color-navy)', color: 'var(--color-gold)' }}
+                            className="px-4 rounded-xl font-bold focus-ring tap-target"
+                            style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid var(--color-gold-border)' }}
+                            aria-label="Add equipment"
                             onClick={(e) => {
                                 const input = e.currentTarget.previousElementSibling as HTMLInputElement;
                                 const val = input.value.trim();
@@ -707,7 +696,7 @@ export default function SettingsPage() {
                                 }
                             }}
                         >
-                            <Plus className="w-5 h-5" />
+                            <Plus className="w-5 h-5" aria-hidden="true" />
                         </button>
                     </div>
                     <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
@@ -740,20 +729,21 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                <button
+                <Button
+                    variant="brand"
+                    fullWidth
                     onClick={handleSave}
                     disabled={saving}
-                    className="w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
-                    style={{ background: 'var(--color-navy)', color: 'var(--color-gold)' }}
+                    className="py-4"
                 >
                     {saving ? <Loader2 className="animate-spin w-5 h-5" /> : <><Save className="w-4 h-4" /> {t.settings.customization.saveAll}</>}
-                </button>
+                </Button>
             </section>
 
             {/* Goal Wizard */}
-            <section className="p-5 rounded-2xl border shadow-sm" style={{ ...sectionStyle, background: 'var(--color-navy)', borderColor: 'rgba(224,179,90,0.2)' }}>
+            <section className="p-5 rounded-2xl border shadow-sm" style={{ ...sectionStyle, background: 'var(--color-navy)', borderColor: 'var(--color-gold-border)' }}>
                 <div className="flex items-center gap-4">
-                    <div className="p-2.5 rounded-xl flex-shrink-0" style={{ background: 'rgba(224,179,90,0.15)' }}>
+                    <div className="p-2.5 rounded-xl flex-shrink-0" style={{ background: 'var(--color-gold-muted)' }}>
                         <Wand2 className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -808,7 +798,7 @@ export default function SettingsPage() {
                         style={{
                             background: 'var(--color-gold-muted)',
                             color: 'var(--color-gold)',
-                            borderColor: 'rgba(224,179,90,0.2)',
+                            borderColor: 'var(--color-gold-border)',
                         }}
                     >
                         <Rocket className="w-5 h-5" /> {t.settings.help.whatsNew}

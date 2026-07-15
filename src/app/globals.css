@@ -16,7 +16,7 @@
   --color-gold-light:  #ecc77e;
   --color-gold-muted:  rgba(224, 179, 90, 0.14);
   --color-gold-border: rgba(224, 179, 90, 0.30);
-  --color-gold-text:   #9c7426;
+  --color-gold-text:   #8a661f;
 
   /* Primary */
   --color-primary:       #2a6fd6;
@@ -48,10 +48,10 @@
   --color-surface:          #ffffff;
   --color-surface-elevated: #ffffff;
 
-  /* Light mode text */
+  /* Light mode text — muted must stay ≥4.5:1 (WCAG AA) on all light surfaces */
   --color-text:           #0b1220;
   --color-text-secondary: #3d4f63;
-  --color-text-muted:     #8294a8;
+  --color-text-muted:     #576982;
 
   /* Light mode borders */
   --color-border:       #d8dee7;
@@ -67,46 +67,19 @@
   --shadow-lg: 0 10px 25px -4px rgb(6 10 19 / 0.12), 0 4px 8px -2px rgb(6 10 19 / 0.06);
   --shadow-gold: 0 0 24px -6px rgba(224, 179, 90, 0.45);
   --shadow-glow: 0 0 20px -5px;
+
+  /* Layering scale — keep every fixed overlay on one of these tiers */
+  --z-nav:       50;   /* bottom nav, sticky headers */
+  --z-modal:     100;  /* standard dialogs/sheets */
+  --z-modal-top: 300;  /* confirm dialogs & pickers opened above another modal */
 }
 
-/* ── Dark mode token block (shared by media query and .dark class) ── */
-
-@media (prefers-color-scheme: dark) {
-  html:not(.light) {
-    --color-primary:       #5b9cf6;
-    --color-primary-light: #7eb2f8;
-    --color-primary-dark:  #3f82e8;
-    --color-primary-muted: rgba(91, 156, 246, 0.12);
-
-    --color-gold-text: #e0b35a;
-
-    --chart-1: #5b9cf6;
-    --chart-2: #34c69b;
-    --chart-3: #a78bfa;
-    --chart-4: #38c5e0;
-    --chart-5: #f59e63;
-    --chart-6: #ed93b1;
-
-    --color-bg:               #060a13;
-    --color-bg-subtle:        #0a101f;
-    --color-bg-muted:         #101828;
-    --color-surface:          #0c1322;
-    --color-surface-elevated: #101a2c;
-
-    --color-text:           #e8edf5;
-    --color-text-secondary: #97a5b8;
-    --color-text-muted:     #66758a;
-
-    --color-border:       rgba(255, 255, 255, 0.10);
-    --color-border-light: rgba(255, 255, 255, 0.06);
-
-    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.3);
-    --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.35), 0 2px 4px -1px rgb(0 0 0 / 0.2);
-    --shadow-lg: 0 10px 25px -4px rgb(0 0 0 / 0.45), 0 4px 8px -2px rgb(0 0 0 / 0.25);
-  }
-}
-
-/* Force dark — overrides OS light preference */
+/*
+ * Dark tokens live ONLY here. The theme class (`dark`/`light`) is always
+ * stamped on <html> — by the inline script in layout.tsx before first paint,
+ * and by ThemeProvider afterwards (including while following the OS setting) —
+ * so no @media duplicate of this block is needed.
+ */
 html.dark {
   --color-primary:       #5b9cf6;
   --color-primary-light: #7eb2f8;
@@ -130,7 +103,7 @@ html.dark {
 
   --color-text:           #e8edf5;
   --color-text-secondary: #97a5b8;
-  --color-text-muted:     #66758a;
+  --color-text-muted:     #7d8da3; /* ≥4.5:1 on every dark surface (WCAG AA) */
 
   --color-border:       rgba(255, 255, 255, 0.10);
   --color-border-light: rgba(255, 255, 255, 0.06);
@@ -147,7 +120,7 @@ html.light {
   --color-primary-dark:  #1f5ab4;
   --color-primary-muted: rgba(42, 111, 214, 0.10);
 
-  --color-gold-text: #9c7426;
+  --color-gold-text: #8a661f;
 
   --chart-1: #2a6fd6;
   --chart-2: #0f9d76;
@@ -164,7 +137,7 @@ html.light {
 
   --color-text:           #0b1220;
   --color-text-secondary: #3d4f63;
-  --color-text-muted:     #8294a8;
+  --color-text-muted:     #576982;
 
   --color-border:       #d8dee7;
   --color-border-light: #e9edf2;

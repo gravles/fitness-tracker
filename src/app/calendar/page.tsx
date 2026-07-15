@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getMonthlyLogs, DailyLog } from '@/lib/api';
+import { getMonthlyLogs, DailyLog, isAuthError } from '@/lib/api';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths, subMonths, getDay } from 'date-fns';
 import { ChevronLeft, ChevronRight, Loader2, Dumbbell, Utensils, Star, X } from 'lucide-react';
+import { LoadError } from '@/components/ui';
 
 export default function CalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [logs, setLogs] = useState<Record<string, DailyLog>>({});
     const [stats, setStats] = useState({ totalMovement: 0, avgProtein: 0, perfectDays: 0 });
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
 
     useEffect(() => {
         fetchMonthData();
@@ -18,6 +20,7 @@ export default function CalendarPage() {
 
     async function fetchMonthData() {
         setLoading(true);
+        setLoadError(false);
         const start = startOfMonth(currentDate);
         const end = endOfMonth(currentDate);
 
@@ -48,6 +51,7 @@ export default function CalendarPage() {
             });
         } catch (error) {
             console.error(error);
+            if (!isAuthError(error)) setLoadError(true);
         } finally {
             setLoading(false);
         }
@@ -140,7 +144,7 @@ export default function CalendarPage() {
                     className="p-4 rounded-2xl border flex flex-col items-center justify-center text-center"
                     style={{
                         background: 'var(--color-gold-muted)',
-                        borderColor: 'rgba(224,179,90,0.25)',
+                        borderColor: 'var(--color-gold-border)',
                     }}
                 >
                     <Star className="w-5 h-5 mb-1" style={{ color: 'var(--color-gold)' }} />
@@ -246,6 +250,8 @@ export default function CalendarPage() {
                     </div>
                 )}
             </div>
+
+            {loadError && !loading && <LoadError onRetry={fetchMonthData} />}
 
             {/* Legend */}
             <div

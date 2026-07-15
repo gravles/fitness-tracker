@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { upsertBodyMetrics, getBodyMetricsHistory, getSettings, updateSettings } from '@/lib/api';
+import { upsertBodyMetrics, getBodyMetricsHistory, getSettings, updateSettings, isAuthError } from '@/lib/api';
 import { Loader2, Scale, Camera, ImageIcon, Activity, Zap, TrendingUp, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+import { LoadError } from '@/components/ui';
 
 const KG_PER_LB = 0.453592;
 const LB_PER_KG = 2.20462;
@@ -24,6 +25,7 @@ const WITHINGS_CONFIG: Record<string, { label: string; color: string; isMass: bo
 
 export default function BodyMetricsPage() {
     const [loading, setLoading]     = useState(false);
+    const [historyError, setHistoryError] = useState(false);
     const [weight, setWeight]       = useState<string>('');
     const [photoUrl, setPhotoUrl]   = useState('');
     const [photoUploading, setPhotoUploading] = useState(false);
@@ -101,11 +103,13 @@ export default function BodyMetricsPage() {
     async function loadHistory() {
         const end   = new Date();
         const start = subDays(end, 90);
+        setHistoryError(false);
         try {
             const data = await getBodyMetricsHistory(format(start, 'yyyy-MM-dd'), format(end, 'yyyy-MM-dd'));
             setHistory(data.reverse());
         } catch (error) {
             console.error(error);
+            if (!isAuthError(error)) setHistoryError(true);
         }
     }
 
@@ -281,6 +285,7 @@ export default function BodyMetricsPage() {
                     </label>
                     <input
                         type="number"
+                        inputMode="decimal"
                         step="0.1"
                         placeholder="0.0"
                         value={weight}
@@ -290,14 +295,6 @@ export default function BodyMetricsPage() {
                             background: 'var(--color-bg-subtle)',
                             border: '1px solid var(--color-border)',
                             color: 'var(--color-text)',
-                        }}
-                        onFocus={e => {
-                            e.currentTarget.style.borderColor = 'var(--color-gold)';
-                            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)';
-                        }}
-                        onBlur={e => {
-                            e.currentTarget.style.borderColor = 'var(--color-border)';
-                            e.currentTarget.style.boxShadow = 'none';
                         }}
                     />
                 </div>
@@ -317,6 +314,7 @@ export default function BodyMetricsPage() {
                             </label>
                             <input
                                 type="number"
+                                inputMode="decimal"
                                 step="0.1"
                                 placeholder="0"
                                 className="w-full p-2 rounded-lg text-center outline-none transition-all"
@@ -457,7 +455,10 @@ export default function BodyMetricsPage() {
                             </div>
                         );
                     })}
-                    {history.length === 0 && (
+                    {history.length === 0 && historyError && (
+                        <LoadError onRetry={loadHistory} />
+                    )}
+                    {history.length === 0 && !historyError && (
                         <p className="text-center py-8 text-sm" style={{ color: 'var(--color-text-muted)' }}>
                             No measurements yet. Log one above or sync from Withings in Settings.
                         </p>

@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { addFavoriteFood, deleteFavoriteFood, getFavoriteFoods, FavoriteFood } from '@/lib/api';
 import { confirm } from '@/components/ConfirmDialog';
 import { useLanguage } from '@/components/LanguageProvider';
+import { Modal } from '@/components/ui';
 
 interface NutritionSectionProps {
     nutrition: {
@@ -74,13 +75,13 @@ function MacroRing({ value, target, label, color, trackColor, unit }: MacroRingP
                     />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center leading-tight">
-                    <span className={`text-lg font-black ${over ? 'text-orange-500' : 'text-[var(--color-text)]'}`}>{value}</span>
+                    <span className={`text-lg font-black ${over ? 'text-[var(--color-warning)]' : 'text-[var(--color-text)]'}`}>{value}</span>
                     <span className="text-[10px] text-[var(--color-text-muted)] font-medium">{unit}</span>
                 </div>
             </div>
             <p className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">{label}</p>
             {target > 0 ? (
-                <p className={`text-[11px] font-semibold ${over ? 'text-orange-500' : 'text-[var(--color-text-muted)]'}`}>
+                <p className={`text-[11px] font-semibold ${over ? 'text-[var(--color-warning)]' : 'text-[var(--color-text-muted)]'}`}>
                     {over ? `${value - target} ${t.nutrition.over}` : `${remaining} ${t.nutrition.left}`}
                 </p>
             ) : (
@@ -212,15 +213,7 @@ export function NutritionSection({
         <>
             {/* Edit Modal Overlay */}
             {editingIndex !== null && editForm && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="bg-[var(--color-surface-elevated)] rounded-3xl w-full max-w-sm shadow-2xl p-6 animate-in zoom-in-95">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-bold text-[var(--color-text)]">{t.nutrition.editFoodItem}</h3>
-                            <button onClick={() => setEditingIndex(null)} className="p-2 hover:bg-[var(--color-bg-subtle)] rounded-full">
-                                <X className="w-5 h-5 text-[var(--color-text-muted)]" />
-                            </button>
-                        </div>
-
+                <Modal isOpen onClose={() => setEditingIndex(null)} title={t.nutrition.editFoodItem} size="sm" sheet={false} zTier="top">
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase mb-1">{t.nutrition.name}</label>
@@ -251,6 +244,7 @@ export function NutritionSection({
                                     <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase mb-1">{t.nutrition.quantity}</label>
                                     <input
                                         type="number"
+                                        inputMode="decimal"
                                         step="0.1"
                                         value={editForm.quantity}
                                         onChange={e => setEditForm({ ...editForm, quantity: parseFloat(e.target.value) || 0 })}
@@ -266,6 +260,7 @@ export function NutritionSection({
                                     <label className="block text-xs font-bold uppercase mb-1" style={{ color: 'var(--chart-5)' }}>{t.nutrition.calPerUnit}</label>
                                     <input
                                         type="number"
+                                        inputMode="decimal"
                                         value={editForm.calories}
                                         onChange={e => setEditForm({ ...editForm, calories: parseFloat(e.target.value) || 0 })}
                                         className="w-full p-3 rounded-xl border text-sm font-bold text-[var(--color-text)] bg-[var(--color-bg-subtle)] border-[var(--color-border)]"
@@ -275,6 +270,7 @@ export function NutritionSection({
                                     <label className="block text-xs font-bold uppercase mb-1" style={{ color: 'var(--chart-1)' }}>{t.nutrition.proteinG}</label>
                                     <input
                                         type="number"
+                                        inputMode="decimal"
                                         value={editForm.protein}
                                         onChange={e => setEditForm({ ...editForm, protein: parseFloat(e.target.value) || 0 })}
                                         className="w-full p-3 rounded-xl border text-sm font-bold text-[var(--color-text)] bg-[var(--color-bg-subtle)] border-[var(--color-border)]"
@@ -284,6 +280,7 @@ export function NutritionSection({
                                     <label className="block text-xs font-bold uppercase mb-1" style={{ color: 'var(--color-warning)' }}>{t.nutrition.carbsG}</label>
                                     <input
                                         type="number"
+                                        inputMode="decimal"
                                         value={editForm.carbs}
                                         onChange={e => setEditForm({ ...editForm, carbs: parseFloat(e.target.value) || 0 })}
                                         className="w-full p-3 rounded-xl border text-sm font-bold text-[var(--color-text)] bg-[var(--color-bg-subtle)] border-[var(--color-border)]"
@@ -293,6 +290,7 @@ export function NutritionSection({
                                     <label className="block text-xs font-bold uppercase mb-1" style={{ color: 'var(--chart-3)' }}>{t.nutrition.fatG}</label>
                                     <input
                                         type="number"
+                                        inputMode="decimal"
                                         value={editForm.fat}
                                         onChange={e => setEditForm({ ...editForm, fat: parseFloat(e.target.value) || 0 })}
                                         className="w-full p-3 rounded-xl border text-sm font-bold text-[var(--color-text)] bg-[var(--color-bg-subtle)] border-[var(--color-border)]"
@@ -308,8 +306,7 @@ export function NutritionSection({
                                 {t.nutrition.saveChanges}
                             </button>
                         </div>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             <section className="bg-[var(--color-surface-elevated)] p-6 rounded-2xl border border-[var(--color-border-light)] shadow-sm relative overflow-hidden">
@@ -333,7 +330,7 @@ export function NutritionSection({
                                     <div className="w-3 h-3 rounded-full bg-red-500 animate-ping absolute" />
                                     <div className="w-3 h-3 rounded-full bg-red-500 relative" />
                                 </div>
-                                <span className="text-sm font-bold text-red-500">{t.nutrition.listening}</span>
+                                <span className="text-sm font-bold text-[var(--color-danger)]">{t.nutrition.listening}</span>
                             </>
                         ) : (
                             <>
@@ -412,7 +409,7 @@ export function NutritionSection({
                                     </div>
                                 </div>
                                 <span className={`text-[10px] font-bold max-[320px]:hidden leading-tight ${
-                                    isListening ? 'text-red-500' :
+                                    isListening ? 'text-[var(--color-danger)]' :
                                     isProcessing ? 'text-[var(--color-primary)]' :
                                     'text-[var(--color-text-muted)]'
                                 }`}>
@@ -446,7 +443,7 @@ export function NutritionSection({
                         onClick={() => setShowMenuScanner(true)}
                         className="flex flex-col items-center gap-1 w-full"
                     >
-                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'var(--color-gold-muted)', color: 'var(--color-gold)', borderColor: 'rgba(224,179,90,0.3)' }}>
+                        <div className="w-full aspect-square max-w-[52px] mx-auto rounded-2xl flex items-center justify-center shadow-sm border" style={{ background: 'var(--color-gold-muted)', color: 'var(--color-gold)', borderColor: 'var(--color-gold-border)' }}>
                             <ChefHat className="w-5 h-5" />
                         </div>
                         <span className="text-[10px] font-bold text-[var(--color-text-muted)] max-[320px]:hidden leading-tight">{t.nutrition.actions.scanner}</span>
@@ -601,6 +598,7 @@ export function NutritionSection({
                                             <label className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">{t.nutrition.qty}</label>
                                             <input
                                                 type="number"
+                                                inputMode="decimal"
                                                 min="0"
                                                 step="0.1"
                                                 value={item.quantity !== undefined ? item.quantity : 1}
@@ -620,7 +618,7 @@ export function NutritionSection({
                                             </button>
                                             <button
                                                 onClick={() => removeFoodItem(index)}
-                                                className="p-2 text-[var(--color-text-muted)] hover:text-red-500 rounded-lg hover:bg-red-50 transition-all tap-target"
+                                                className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] rounded-lg hover:bg-red-50 transition-all tap-target"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
@@ -628,7 +626,7 @@ export function NutritionSection({
                                         <button
                                             onClick={() => toggleFavorite(item)}
                                             className={`p-2 transition-colors ${isFavorite(item.name)
-                                                ? 'text-red-500 bg-red-50 hover:bg-red-100'
+                                                ? 'text-[var(--color-danger)] bg-red-50 hover:bg-red-100'
                                                 : 'text-gray-300 hover:text-pink-500'
                                                 }`}
                                             title={isFavorite(item.name) ? "Remove from Favorites" : "Save to Favorites"}
@@ -669,21 +667,21 @@ export function NutritionSection({
                 {/* Log Complete Toggle */}
                 <div className={`mt-6 p-4 rounded-xl border flex items-center justify-between transition-colors ${
                     nutrition.logged
-                        ? 'bg-green-500/10 border-green-500/20'
+                        ? 'bg-[var(--color-success)]/10 border-green-500/20'
                         : 'bg-[var(--color-bg-subtle)] border-[var(--color-border-light)]'
                 }`}>
                     <div>
-                        <h4 className={`font-bold text-sm ${nutrition.logged ? 'text-green-700 dark:text-green-400' : 'text-[var(--color-text)]'}`}>
+                        <h4 className={`font-bold text-sm ${nutrition.logged ? 'text-[var(--color-success)] dark:text-[var(--color-success)]' : 'text-[var(--color-text)]'}`}>
                             {t.nutrition.allLogged}
                         </h4>
-                        <p className={`text-xs mt-0.5 ${nutrition.logged ? 'text-green-600 dark:text-green-500' : 'text-[var(--color-text-muted)]'}`}>
+                        <p className={`text-xs mt-0.5 ${nutrition.logged ? 'text-[var(--color-success)] dark:text-[var(--color-success)]' : 'text-[var(--color-text-muted)]'}`}>
                             {nutrition.logged ? t.nutrition.markedComplete : t.nutrition.toggleWhenDone}
                         </p>
                     </div>
                     <button
                         onClick={() => setNutrition({ ...nutrition, logged: !nutrition.logged })}
                         aria-label={nutrition.logged ? 'Mark nutrition as incomplete' : 'Mark nutrition as complete'}
-                        className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${nutrition.logged ? 'bg-green-500' : 'bg-[var(--color-bg-muted)]'}`}
+                        className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${nutrition.logged ? 'bg-[var(--color-success)]' : 'bg-[var(--color-bg-muted)]'}`}
                     >
                         <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm ${nutrition.logged ? 'translate-x-6' : ''}`} />
                     </button>

@@ -104,3 +104,32 @@ export function DashboardSkeleton() {
         </div>
     );
 }
+
+/**
+ * Tab-page skeleton: mirrors the common "tab bar + stacked cards" layout of
+ * schedule/nutrition/trends so page loads don't shift content.
+ */
+export function TabPageSkeleton({ cards = 3 }: { cards?: number }) {
+    return (
+        <div className="space-y-4" aria-hidden="true">
+            <Skeleton variant="rectangular" width="100%" height={44} className="rounded-xl" />
+            {Array.from({ length: cards }).map((_, i) => (
+                <Skeleton key={i} variant="rectangular" width="100%" height={i === 0 ? 220 : 110} className="rounded-2xl" />
+            ))}
+        </div>
+    );
+}
+
+/**
+ * Settings skeleton: header + stacked section cards.
+ */
+export function SettingsSkeleton() {
+    return (
+        <div className="p-6 pt-12 space-y-5 max-w-2xl mx-auto" aria-hidden="true">
+            <Skeleton variant="text" width={160} height={28} />
+            {[220, 180, 260, 140].map((h, i) => (
+                <Skeleton key={i} variant="rectangular" width="100%" height={h} className="rounded-2xl" />
+            ))}
+        </div>
+    );
+}

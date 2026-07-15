@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/components/LanguageProvider';
-import { Button, Input, Select, Textarea } from '@/components/ui';
+import { Button, Input, Select, Textarea, Modal } from '@/components/ui';
 
 export function RecentLogs({ logs }: { logs: DailyLog[] }) {
     const router = useRouter();
@@ -87,7 +87,7 @@ export function RecentLogs({ logs }: { logs: DailyLog[] }) {
                 {recent.map(log => (
                     <div key={log.date} className="bg-[var(--color-surface-elevated)] p-4 rounded-xl border border-[var(--color-border-light)] shadow-sm flex items-center justify-between group">
                         <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-full ${log.movement_completed ? 'bg-green-500/10 text-green-500' : 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]'}`}>
+                            <div className={`p-2 rounded-full ${log.movement_completed ? 'bg-[var(--color-success)]/10 text-[var(--color-success)]' : 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]'}`}>
                                 <Activity className="w-4 h-4" />
                             </div>
                             <div>
@@ -111,15 +111,7 @@ export function RecentLogs({ logs }: { logs: DailyLog[] }) {
             </div>
 
             {editingLog && editForm && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="bg-[var(--color-surface-elevated)] rounded-2xl w-full max-w-md shadow-2xl p-6">
-                        <div className="flex justify-between items-center mb-5">
-                            <h3 className="font-bold text-lg text-[var(--color-text)]">{t.recentLogs.editWorkout}</h3>
-                            <button onClick={() => setEditingLog(null)} className="p-2 hover:bg-[var(--color-bg-muted)] rounded-full text-[var(--color-text-muted)] transition-colors">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
+                <Modal isOpen onClose={() => setEditingLog(null)} title={t.recentLogs.editWorkout} size="md" sheet={false}>
                         <div className="space-y-4">
                             <Input
                                 label={t.recentLogs.activity}
@@ -130,6 +122,7 @@ export function RecentLogs({ logs }: { logs: DailyLog[] }) {
                                 <Input
                                     label={t.recentLogs.duration}
                                     type="number"
+                                    inputMode="numeric"
                                     value={editForm.duration}
                                     onChange={e => setEditForm({ ...editForm, duration: e.target.value })}
                                 />
@@ -154,8 +147,7 @@ export function RecentLogs({ logs }: { logs: DailyLog[] }) {
                                 {loadingEdit ? t.recentLogs.saving : t.recentLogs.saveChanges}
                             </Button>
                         </div>
-                    </div>
-                </div>
+                </Modal>
             )}
         </div>
     );

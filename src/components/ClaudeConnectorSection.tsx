@@ -94,7 +94,7 @@ export function ClaudeConnectorSection() {
             {newKeyUrl && (
                 <div className="p-4 rounded-xl border-2 space-y-3" style={{ background: 'rgba(34,197,94,0.05)', borderColor: 'rgba(34,197,94,0.3)' }}>
                     <p className="text-xs font-bold" style={{ color: 'var(--color-success)' }}>
-                        ✓ Key generated — copy your MCP URL below. It won&apos;t be shown again.
+                        Key generated — copy your MCP URL below. It won&apos;t be shown again.
                     </p>
                     <div className="flex gap-2 items-stretch">
                         <div

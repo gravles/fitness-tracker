@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import { WorkoutChatState } from '@/lib/ai';
 import { useLanguage } from '@/components/LanguageProvider';
+import { Modal } from './ui/Modal';
 
 interface WorkoutChatModalProps {
     isOpen: boolean;
@@ -110,13 +111,12 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
     if (!mounted || !isOpen) return null;
 
     const content = (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-14">
-            <div className="bg-[var(--color-surface-elevated)] rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+        <Modal isOpen onClose={onClose} aria-label="Quick Workout Builder" size="md" sheet={false} padding={false} className="flex flex-col max-h-[80dvh] overflow-hidden">
 
                 {/* Header */}
                 <div className="p-4 flex justify-between items-center text-white" style={{ background: 'var(--color-navy)' }}>
                     <div className="flex items-center gap-2">
-                        <div className="p-2 rounded-full" style={{ background: 'rgba(224,179,90,0.2)' }}>
+                        <div className="p-2 rounded-full" style={{ background: 'var(--color-gold-border)' }}>
                             <Sparkles className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
                         </div>
                         <div>
@@ -220,8 +220,7 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
                         </div>
                     </div>
                 )}
-            </div>
-        </div>
+        </Modal>
     );
 
     return createPortal(content, document.body);

@@ -2,7 +2,7 @@
 
 import { ButtonHTMLAttributes, ReactNode } from 'react';
 
-type Variant = 'primary' | 'gold' | 'ghost' | 'danger';
+type Variant = 'brand' | 'primary' | 'gold' | 'ghost' | 'danger';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -11,6 +11,12 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<Variant, React.CSSProperties> = {
+  // The signature CTA: navy surface with gold text — use for the page's main action
+  brand: {
+    background: 'var(--color-navy)',
+    color: 'var(--color-gold)',
+    border: '1px solid var(--color-gold-border)',
+  },
   primary: {
     background: 'var(--color-primary)',
     color: '#ffffff',

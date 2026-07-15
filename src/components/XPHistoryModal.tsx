@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { format, subDays, parseISO } from 'date-fns';
 import { getMonthlyLogs, getSettings, recalculateTotalXP } from '@/lib/api';
 import { confirm } from '@/components/ConfirmDialog';
+import { Modal } from './ui/Modal';
 import { calculateXP, XPTargets } from '@/lib/gamification';
 
 interface XPHistoryModalProps {
@@ -95,17 +96,16 @@ export function XPHistoryModal({ isOpen, onClose, lifetimeXP, currentLevel, onSy
     const showSync = totalRecentXP > lifetimeXP;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-[var(--color-surface-elevated)] rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+        <Modal isOpen onClose={onClose} aria-label="XP History" size="md" sheet={false} padding={false} className="flex flex-col max-h-[80dvh]">
                 <div className="p-4 border-b border-[var(--color-border-light)] flex justify-between items-center bg-[var(--color-bg-subtle)]">
                     <div className="flex items-center gap-2">
-                        <Trophy className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
+                        <Trophy className="w-5 h-5" style={{ color: 'var(--color-gold)' }} aria-hidden="true" />
                         <h3 className="font-bold text-[var(--color-text)]">
                             XP History <span className="text-xs font-normal text-[var(--color-text-muted)]">(Last 30 Days)</span>
                         </h3>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-[var(--color-bg-muted)] rounded-full transition-colors">
-                        <X className="w-5 h-5 text-[var(--color-text-muted)]" />
+                    <button onClick={onClose} aria-label="Close" className="p-2 hover:bg-[var(--color-bg-muted)] rounded-full transition-colors focus-ring">
+                        <X className="w-5 h-5 text-[var(--color-text-muted)]" aria-hidden="true" />
                     </button>
                 </div>
 
@@ -164,7 +164,6 @@ export function XPHistoryModal({ isOpen, onClose, lifetimeXP, currentLevel, onSy
                         ))
                     )}
                 </div>
-            </div>
-        </div>
+        </Modal>
     );
 }

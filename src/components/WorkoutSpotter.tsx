@@ -231,7 +231,7 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => { setIsActive(false); window.speechSynthesis.cancel(); }}
-                        className="p-2 bg-white/10 rounded-full hover:bg-white/20 text-red-400 border border-white/10"
+                        className="p-2 bg-white/10 rounded-full hover:bg-white/20 text-[var(--color-danger)] border border-white/10"
                         title="Stop Spotter"
                     >
                         <StopCircle className="w-6 h-6" />
@@ -244,7 +244,7 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
                     className="text-xs font-bold px-3 py-1 rounded-full shadow-sm animate-in fade-in"
                     style={{ color: 'var(--color-success)', background: 'rgba(34,197,94,0.08)' }}
                 >
-                    ✓ {lastAction}
+                    {lastAction}
                 </div>
             )}
         </div>,

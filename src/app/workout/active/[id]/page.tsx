@@ -17,6 +17,7 @@ import { WorkoutSpotter } from '@/components/WorkoutSpotter';
 import { RestTimer } from '@/components/RestTimer';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { ExerciseHistoryModal } from '@/components/ExerciseHistoryModal';
+import { Modal } from '@/components/ui';
 
 const DRAFT_KEY = 'workout_active_draft';
 
@@ -499,7 +500,7 @@ export default function ActiveWorkoutPage() {
                 if (improved.length > 0) {
                     const names = improved.slice(0, 3).join(', ');
                     const extra = improved.length > 3 ? ` +${improved.length - 3} more` : '';
-                    toast.success(`🏆 New 1RM PR! ${names}${extra}`);
+                    toast.success(`New 1RM PR! ${names}${extra}`);
                 }
             }
 
@@ -794,11 +795,13 @@ export default function ActiveWorkoutPage() {
                                             </div>
                                             <div className="col-span-3">
                                                 <input
-                                                    type="tel"
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    aria-label={`Set ${si + 1} weight in pounds`}
                                                     placeholder={prevSet ? String(prevSet.weight) : '0'}
                                                     value={set.weight}
                                                     onChange={e => updateSet(i, si, 'weight', e.target.value)}
-                                                    className="w-full text-center p-2 rounded-md outline-none"
+                                                    className="w-full text-center p-2 rounded-md outline-none min-h-[44px]"
                                                     style={{
                                                         background: 'var(--color-surface-elevated)',
                                                         border: '1px solid var(--color-border)',
@@ -808,11 +811,13 @@ export default function ActiveWorkoutPage() {
                                             </div>
                                             <div className="col-span-3">
                                                 <input
-                                                    type="tel"
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    aria-label={`Set ${si + 1} reps`}
                                                     placeholder={prevSet ? String(prevSet.reps) : '0'}
                                                     value={set.reps}
                                                     onChange={e => updateSet(i, si, 'reps', e.target.value)}
-                                                    className="w-full text-center p-2 rounded-md outline-none"
+                                                    className="w-full text-center p-2 rounded-md outline-none min-h-[44px]"
                                                     style={{
                                                         background: 'var(--color-surface-elevated)',
                                                         border: '1px solid var(--color-border)',
@@ -823,7 +828,9 @@ export default function ActiveWorkoutPage() {
                                             <div className="col-span-3 flex justify-center">
                                                 <button
                                                     onClick={() => toggleSet(i, si)}
-                                                    className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                                                    aria-label={`Mark set ${si + 1} ${set.completed ? 'incomplete' : 'complete'}`}
+                                                    aria-pressed={set.completed}
+                                                    className="w-11 h-11 rounded-full flex items-center justify-center transition-all"
                                                     style={
                                                         set.completed
                                                             ? {
@@ -837,17 +844,18 @@ export default function ActiveWorkoutPage() {
                                                             }
                                                     }
                                                 >
-                                                    <Check className="w-4 h-4" />
+                                                    <Check className="w-5 h-5" aria-hidden="true" />
                                                 </button>
                                             </div>
                                             <div className="col-span-2 flex justify-center">
                                                 <button
                                                     onClick={() => deleteSet(i, si)}
-                                                    className="w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90"
-                                                    style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171' }}
+                                                    aria-label={`Remove set ${si + 1}`}
+                                                    className="w-11 h-11 rounded-full flex items-center justify-center transition-all active:scale-90"
+                                                    style={{ color: 'var(--color-danger)' }}
                                                     title="Remove set"
                                                 >
-                                                    <X className="w-3.5 h-3.5" />
+                                                    <X className="w-4 h-4" aria-hidden="true" />
                                                 </button>
                                             </div>
                                         </div>
@@ -919,37 +927,27 @@ export default function ActiveWorkoutPage() {
 
             {/* Inline confirm modal */}
             {confirmModal && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center px-6"
-                    style={{ background: 'rgba(0,0,0,0.5)' }}
-                    onClick={() => setConfirmModal(null)}
-                >
-                    <div
-                        className="w-full max-w-sm rounded-2xl p-6 space-y-4 shadow-xl"
-                        style={{ background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-light)' }}
-                        onClick={e => e.stopPropagation()}
-                    >
+                <Modal isOpen onClose={() => setConfirmModal(null)} aria-label="Confirm" size="sm" sheet={false} zTier="top" className="space-y-4">
                         <p className="font-semibold text-center" style={{ color: 'var(--color-text)' }}>
                             {confirmModal.message}
                         </p>
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setConfirmModal(null)}
-                                className="flex-1 py-2.5 rounded-xl font-semibold text-sm"
+                                className="flex-1 py-2.5 rounded-xl font-semibold text-sm focus-ring"
                                 style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={confirmModal.onConfirm}
-                                className="flex-1 py-2.5 rounded-xl font-bold text-sm"
+                                className="flex-1 py-2.5 rounded-xl font-bold text-sm focus-ring"
                                 style={{ background: 'var(--color-primary)', color: 'white' }}
                             >
                                 Confirm
                             </button>
                         </div>
-                    </div>
-                </div>
+                </Modal>
             )}
         </main>
     );

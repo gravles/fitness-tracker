@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Loader2, RefreshCw, Trophy } from 'lucide-react';
 import { BADGES, BadgeDefinition, getNewlyEarnedBadges } from '@/lib/gamification';
 import { UserBadge, getUserBadges, getStreak, getMonthlyLogs, awardBadge, getSettings, getLifetimeLogCount } from '@/lib/api';
 import { toast } from 'sonner';
@@ -39,7 +39,7 @@ export function TrophyCase({ earnedBadges: initialBadges, onBadgesUpdated }: Tro
             }, alreadyEarned);
 
             if (newBadges.length === 0) {
-                toast('No new badges — keep logging to unlock more!', { icon: '🏆' });
+                toast('No new badges — keep logging to unlock more!');
             } else {
                 await Promise.all(newBadges.map((b: BadgeDefinition) => awardBadge(b.id)));
                 newBadges.forEach((b: BadgeDefinition) =>
@@ -63,7 +63,7 @@ export function TrophyCase({ earnedBadges: initialBadges, onBadgesUpdated }: Tro
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-[var(--color-text)] flex items-center gap-2">
-                    🏆 Trophy Case
+                    <Trophy className="w-5 h-5" style={{ color: 'var(--color-gold-text)' }} aria-hidden="true" /> Trophy Case
                     <span className="text-xs font-normal text-[var(--color-text-muted)] bg-[var(--color-bg-subtle)] px-2 py-1 rounded-full">
                         {earnedIds.size} / {BADGES.length}
                     </span>
