@@ -1,12 +1,14 @@
 'use client';
 
+import { isAuthError } from '@/lib/api';
+
 import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, Users, Mail, Inbox, Dumbbell, UtensilsCrossed, Apple, Check, X, Heart, Trophy, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useLanguage } from '@/components/LanguageProvider';
-import { Card, Button, Input } from '@/components/ui';
+import { Card, Button, Input, LoadError } from '@/components/ui';
 import { haptics } from '@/lib/haptics';
 import {
     Partnership, SharedItem, Nudge, ChallengeListItem,
@@ -24,6 +26,7 @@ const ITEM_ICONS = {
 export default function PartnerPage() {
     const { t } = useLanguage();
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [partnerships, setPartnerships] = useState<Partnership[]>([]);
     const [inbox, setInbox] = useState<SharedItem[]>([]);
     const [nudges, setNudges] = useState<Nudge[]>([]);
@@ -33,6 +36,7 @@ export default function PartnerPage() {
     const [busyId, setBusyId] = useState<string | null>(null);
 
     const load = useCallback(async () => {
+        setLoadError(false);
         try {
             const [partnershipList, inboxItems, nudgeList, challengeList] = await Promise.all([
                 getPartnerships(),
@@ -46,6 +50,7 @@ export default function PartnerPage() {
             setChallenges(challengeList);
         } catch (error) {
             console.error('Failed to load partnerships', error);
+            if (!isAuthError(error)) setLoadError(true);
         } finally {
             setLoading(false);
         }
@@ -176,6 +181,8 @@ export default function PartnerPage() {
                     <div className="flex justify-center py-20">
                         <Loader2 className="w-8 h-8 animate-spin text-[var(--color-primary)]" />
                     </div>
+                ) : loadError ? (
+                    <LoadError onRetry={load} className="my-10" />
                 ) : (
                     <>
                         {/* Incoming invites */}

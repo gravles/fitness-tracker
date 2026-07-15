@@ -1,6 +1,7 @@
 'use client';
 
 import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen } from 'lucide-react';
+import { Modal } from './ui/Modal';
 
 interface ChangelogModalProps {
     isOpen: boolean;
@@ -17,7 +18,7 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
             features: [
                 { icon: <Smartphone className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "iOS and Android native apps published to the App Store and Play Store." },
                 { icon: <Calendar className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Subscribe to your workout calendar in Apple Calendar or Google Calendar via a personal webcal:// link." },
-                { icon: <Bell className="w-4 h-4 text-green-500" />, text: "Push notifications for scheduled workouts — configurable lead time (5 min to 1 day before)." },
+                { icon: <Bell className="w-4 h-4 text-[var(--color-success)]" />, text: "Push notifications for scheduled workouts — configurable lead time (5 min to 1 day before)." },
                 { icon: <Sun className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Light / System / Dark theme toggle in Settings." },
                 { icon: <Rocket className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Onboarding flow for new users: name, birthday, height, weight, and fitness goal." },
             ]
@@ -28,7 +29,7 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
             features: [
                 { icon: <BookOpen className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "AI generates a full periodised 12-week training plan tailored to your goal and equipment." },
                 { icon: <Dumbbell className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Workout logger pre-loads target weights from your 1RM; notifies you of new PRs." },
-                { icon: <BarChart2 className="w-4 h-4 text-green-500" />, text: "Program adherence dot grid and schedule calendar with color-coded session types." },
+                { icon: <BarChart2 className="w-4 h-4 text-[var(--color-success)]" />, text: "Program adherence dot grid and schedule calendar with color-coded session types." },
             ]
         },
         {
@@ -37,7 +38,7 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
             features: [
                 { icon: <Dna className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Connect Strava, Withings, and Oura in Settings → Health Integrations." },
                 { icon: <Apple className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Withings body-composition data (fat %, muscle mass) shown on Trends and Body tabs." },
-                { icon: <Zap className="w-4 h-4 text-green-500" />, text: "lbs / kg unit preference saved to your profile and synced across devices." },
+                { icon: <Zap className="w-4 h-4 text-[var(--color-success)]" />, text: "lbs / kg unit preference saved to your profile and synced across devices." },
             ]
         },
         {
@@ -52,7 +53,7 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
             version: "v1.2 — Saved Meals & Coach Memory",
             date: "May 21, 2026",
             features: [
-                { icon: <Rocket className="w-4 h-4 text-green-500" />, text: "Save meals and re-log them with one tap." },
+                { icon: <Rocket className="w-4 h-4 text-[var(--color-success)]" />, text: "Save meals and re-log them with one tap." },
                 { icon: <Brain className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "AI Coach history persists across devices via Supabase." },
                 { icon: <Moon className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Progress photos and full body-metrics history in the new Body tab." },
             ]
@@ -62,7 +63,7 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
             date: "May 20, 2026",
             features: [
                 { icon: <Dumbbell className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Workout builder with active session tracker and rest timer." },
-                { icon: <Brain className="w-4 h-4 text-green-500" />, text: "AI Coach can build and save workouts from natural language." },
+                { icon: <Brain className="w-4 h-4 text-[var(--color-success)]" />, text: "AI Coach can build and save workouts from natural language." },
                 { icon: <Sparkles className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "AI Weekly Insights with trends across nutrition, movement, and alcohol." },
             ]
         },
@@ -77,8 +78,7 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
     ];
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-10">
-            <div className="bg-[var(--color-surface-elevated)] rounded-3xl w-full max-w-lg shadow-xl overflow-hidden flex flex-col max-h-[80vh]">
+        <Modal isOpen onClose={onClose} aria-label="Changelog" size="lg" sheet={false} padding={false} className="overflow-hidden flex flex-col max-h-[80dvh]">
 
                 <div className="p-6 text-white flex justify-between items-center" style={{ background: 'var(--color-navy)' }}>
                     <div>
@@ -124,7 +124,6 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
                     </button>
                 </div>
 
-            </div>
-        </div>
+        </Modal>
     );
 }

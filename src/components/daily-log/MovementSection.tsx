@@ -178,6 +178,7 @@ export function MovementSection({
                                                     <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">{t.movement.duration}</label>
                                                     <input
                                                         type="number"
+                                                        inputMode="numeric"
                                                         value={editForm.duration}
                                                         onChange={e => setEditForm({ ...editForm, duration: parseInt(e.target.value) || 0 })}
                                                         className="w-full p-2 bg-[var(--color-surface-elevated)] text-[var(--color-text)] rounded-lg border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-primary)]"
@@ -221,7 +222,7 @@ export function MovementSection({
                                                     <div className="flex items-center gap-2">
                                                         <h4 className="font-bold text-[var(--color-text)]">{workout.activity_type}</h4>
                                                         {workout.source === 'strava' && (
-                                                            <span className="text-[10px] bg-orange-500/10 text-orange-500 px-1.5 py-0.5 rounded-full font-bold">Strava</span>
+                                                            <span className="text-[10px] bg-orange-500/10 text-[var(--color-warning)] px-1.5 py-0.5 rounded-full font-bold">Strava</span>
                                                         )}
                                                     </div>
                                                     <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-muted)] mt-1">
@@ -263,7 +264,7 @@ export function MovementSection({
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteWorkout(workout.id!)}
-                                                    className="p-2 text-[var(--color-text-muted)] hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                    className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-red-500/10 rounded-lg transition-colors"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
@@ -333,6 +334,7 @@ export function MovementSection({
                                     <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">{t.movement.durationShort}</label>
                                     <input
                                         type="number"
+                                        inputMode="numeric"
                                         value={newWorkout.duration}
                                         onChange={e => setNewWorkout({ ...newWorkout, duration: parseInt(e.target.value) || 0 })}
                                         className="w-full mt-1 p-3 bg-[var(--color-surface-elevated)] text-[var(--color-text)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
@@ -362,7 +364,7 @@ export function MovementSection({
                     )}
                     <div className="pt-4 border-t border-[var(--color-border-light)]">
                         <button
-                            onClick={() => router.push('/workout')}
+                            onClick={() => router.push('/schedule')}
                             className="w-full py-4 bg-[var(--color-text)] text-[var(--color-bg)] rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
                         >
                             <Dumbbell className="w-5 h-5" aria-hidden="true" />

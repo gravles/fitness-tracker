@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Flame, Mic, Camera, Barcode, Settings } from 'lucide-react';
+import { Flame, Mic, Camera, Barcode, Menu } from 'lucide-react';
 import { useLanguage } from '@/components/LanguageProvider';
 import { format, subDays } from 'date-fns';
-import { getStreak, getMonthlyLogs, getBodyMetricsHistory, DailyLog, UserSettings } from '@/lib/api';
+import { getStreak, getMonthlyLogs, getBodyMetricsHistory, DailyLog, UserSettings, isAuthError } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import { checkReminders, checkScheduledWorkouts } from '@/lib/notifications';
 import { SmartCoach } from '@/components/SmartCoach';
@@ -21,6 +21,7 @@ import { XPHistoryModal } from '@/components/XPHistoryModal';
 import { ShareModal } from '@/components/ShareModal';
 import { getSettings } from '@/lib/api';
 import { DashboardSkeleton } from '@/components/Skeleton';
+import { LoadError } from '@/components/ui';
 import { TodayHero } from '@/components/TodayHero';
 import { NextWorkoutTile } from '@/components/NextWorkoutTile';
 import { PlannedMealsCard } from '@/components/PlannedMealsCard';
@@ -35,6 +36,7 @@ export default function Dashboard() {
   const [showWhatsNew, dismissWhatsNew] = useWhatsNew();
 
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [streak, setStreak] = useState(0);
   const [logs, setLogs] = useState<any[]>([]);
   const [advice, setAdvice] = useState<CoachingTip | null>(null);
@@ -72,6 +74,7 @@ export default function Dashboard() {
 
   async function loadData() {
     setIsLoading(true);
+    setLoadError(false);
     try {
       const start = format(subDays(today, 7), 'yyyy-MM-dd');
       const end = format(today, 'yyyy-MM-dd');
@@ -136,6 +139,7 @@ export default function Dashboard() {
 
     } catch (error) {
       console.error(error);
+      if (!isAuthError(error)) setLoadError(true);
       // Ensure SmartCoach always has a tip even when data loading fails
       setAdvice(getSmartAdvice([], 0, undefined));
     } finally {
@@ -187,11 +191,11 @@ export default function Dashboard() {
             </div>
           )}
           <Link
-            href="/settings"
+            href="/more"
             className="p-2.5 bg-[var(--color-surface-elevated)] rounded-full border border-[var(--color-border-light)] shadow-sm text-[var(--color-text-muted)] hover:text-[var(--color-gold-text)] transition-all focus-ring tap-target"
-            aria-label="Settings"
+            aria-label="More — coach, partners, progress, settings"
           >
-            <Settings className="w-5 h-5" aria-hidden="true" />
+            <Menu className="w-5 h-5" aria-hidden="true" />
           </Link>
         </div>
       </header>
@@ -199,6 +203,8 @@ export default function Dashboard() {
       {/* Loading State */}
       {isLoading ? (
         <DashboardSkeleton />
+      ) : loadError ? (
+        <LoadError onRetry={loadData} />
       ) : (
         <>
           {/* Today hero — rings for protein / calories / checklist */}

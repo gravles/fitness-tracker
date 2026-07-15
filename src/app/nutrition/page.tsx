@@ -11,6 +11,9 @@ import {
 import { ShareToPartnerSheet } from '@/components/ShareToPartnerSheet';
 import { toast } from 'sonner';
 import { confirm } from '@/components/ConfirmDialog';
+import { LoadError, Modal, Button } from '@/components/ui';
+import { useTabParam } from '@/lib/useTabParam';
+import { TabPageSkeleton } from '@/components/Skeleton';
 import { supabase } from '@/lib/supabase';
 import {
     getPantryItems, addPantryItem, deletePantryItem,
@@ -18,8 +21,7 @@ import {
     getNutritionPrefs, saveNutritionPrefs,
     getSettings, getDailyLog, upsertDailyLog,
     getSavedMeals, createSavedMeal, deleteSavedMeal,
-    PantryItem, PlannedMeal, NutritionPrefs, DEFAULT_NUTRITION_PREFS, SavedMeal,
-} from '@/lib/api';
+    PantryItem, PlannedMeal, NutritionPrefs, DEFAULT_NUTRITION_PREFS, SavedMeal, isAuthError } from '@/lib/api';
 import { getPlannedMealsForRange, logPlannedMealAsEaten, PlannedMeal as CoachPlannedMeal } from '@/lib/meal-plan-api';
 import { PlannedMealRow } from '@/components/PlannedMealsCard';
 
@@ -169,7 +171,7 @@ function MealCard({
 
 export default function NutritionPage() {
     const today = new Date();
-    const [tab, setTab] = useState<'today' | 'plan' | 'meals' | 'pantry'>('today');
+    const [tab, setTab] = useTabParam(['today', 'plan', 'meals', 'pantry'] as const, 'today');
 
     // Data
     const [pantry, setPantry] = useState<PantryItem[]>([]);
@@ -182,6 +184,7 @@ export default function NutritionPage() {
     const [prefs, setPrefs] = useState<NutritionPrefs>(DEFAULT_NUTRITION_PREFS);
     const [settings, setSettings] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
 
     // Week navigation (Plan tab)
     const [weekStart, setWeekStart] = useState(getMondayOfWeek(today));
@@ -221,6 +224,7 @@ export default function NutritionPage() {
 
     async function loadAll() {
         setIsLoading(true);
+        setLoadError(false);
         try {
             const [p, pr, s, sm] = await Promise.all([
                 getPantryItems(),
@@ -233,6 +237,9 @@ export default function NutritionPage() {
             setEditPrefs(pr);
             setSettings(s);
             setSavedMeals(sm);
+        } catch (e) {
+            console.error('Error loading nutrition data:', e);
+            if (!isAuthError(e)) setLoadError(true);
         } finally {
             setIsLoading(false);
         }
@@ -584,8 +591,16 @@ export default function NutritionPage() {
 
     if (isLoading) {
         return (
-            <main className="p-6 pt-12 pb-24 flex items-center justify-center min-h-screen">
-                <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--color-primary)' }} />
+            <main className="p-6 pt-12 pb-24 space-y-5 max-w-2xl mx-auto">
+                <TabPageSkeleton cards={4} />
+            </main>
+        );
+    }
+
+    if (loadError) {
+        return (
+            <main className="p-6 pt-12 pb-24 max-w-2xl mx-auto">
+                <LoadError onRetry={loadAll} className="my-10" />
             </main>
         );
     }
@@ -661,17 +676,19 @@ export default function NutritionPage() {
 
                     {/* Generate today button */}
                     {!hasTodayPlan && (
-                        <button
+                        <Button
+                            variant="brand"
+                            fullWidth
                             onClick={() => generateMeals([todayStr])}
                             disabled={!!generating}
-                            className="w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2.5 transition-all active:scale-[0.98]"
-                            style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid rgba(224,179,90,0.2)' }}
+                            className="py-4"
+                            style={{ borderRadius: '16px' }}
                         >
                             {generating === todayStr
                                 ? <><Loader2 className="w-5 h-5 animate-spin" /> Planning your meals…</>
                                 : <><Sparkles className="w-5 h-5" /> Plan Today's Meals</>
                             }
-                        </button>
+                        </Button>
                     )}
 
                     {/* Meal cards */}
@@ -718,17 +735,19 @@ export default function NutritionPage() {
                         </button>
                     </div>
 
-                    <button
+                    <Button
+                        variant="brand"
+                        fullWidth
                         onClick={() => generateMeals(weekDays.map(d => format(d, 'yyyy-MM-dd')))}
                         disabled={!!generating}
-                        className="w-full py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2.5 transition-all active:scale-[0.98]"
-                        style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid rgba(224,179,90,0.2)' }}
+                        className="py-3.5"
+                        style={{ borderRadius: '16px' }}
                     >
                         {generating === 'week'
                             ? <><Loader2 className="w-5 h-5 animate-spin" /> Building week plan…</>
                             : <><Sparkles className="w-5 h-5" /> Generate Full Week</>
                         }
-                    </button>
+                    </Button>
 
                     {/* Day-by-day list */}
                     {weekDays.map(day => {
@@ -925,15 +944,16 @@ export default function NutritionPage() {
                     {!showAddItem && (
                         <div className="space-y-2">
                             <div className="grid grid-cols-2 gap-2">
-                                <button
+                                <Button
+                                    variant="brand"
                                     onClick={() => photoInputRef.current?.click()}
                                     disabled={scanning || recording}
-                                    className="py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                                    style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid rgba(224,179,90,0.2)' }}
+                                    className="py-3.5"
+                                    style={{ borderRadius: '16px' }}
                                 >
                                     {scanning ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
                                     {scanning ? 'Scanning…' : 'Scan Photo'}
-                                </button>
+                                </Button>
                                 <button
                                     onClick={handleVoiceToggle}
                                     disabled={scanning}
@@ -1093,7 +1113,7 @@ export default function NutritionPage() {
 
             {/* ── REVIEW MODAL (scan results) ───────────────────────────────────── */}
             {showReview && (
-                <div className="fixed inset-0 z-[100] flex flex-col" style={{ background: 'var(--color-bg)' }}>
+                <div role="dialog" aria-modal="true" aria-label="Review scanned items" className="fixed inset-0 flex flex-col" style={{ background: 'var(--color-bg)', zIndex: 'var(--z-modal)' }}>
                     {/* Header */}
                     <div className="flex items-center justify-between px-4 py-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
                         <div>
@@ -1193,37 +1213,26 @@ export default function NutritionPage() {
 
                     {/* Footer — sits above the bottom nav */}
                     <div className="px-4 pt-4 pb-6 border-t flex-shrink-0" style={{ borderColor: 'var(--color-border)' }}>
-                        <button
+                        <Button
+                            variant="brand"
+                            fullWidth
                             onClick={handleBulkAdd}
                             disabled={bulkAdding || reviewItems.filter(i => i.selected).length === 0}
-                            className="w-full py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                            style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid rgba(224,179,90,0.2)' }}
+                            className="py-3.5"
+                            style={{ borderRadius: '16px' }}
                         >
                             {bulkAdding
                                 ? <><Loader2 className="w-5 h-5 animate-spin" /> Adding…</>
                                 : <><Plus className="w-5 h-5" /> Add {reviewItems.filter(i => i.selected).length} Items to Pantry</>
                             }
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}
 
             {/* ── PREFS BOTTOM SHEET ─────────────────────────────────────────────── */}
             {showPrefs && (
-                <div
-                    className="fixed inset-0 z-50 flex items-end justify-center"
-                    style={{ background: 'rgba(0,0,0,0.4)' }}
-                    onClick={() => setShowPrefs(false)}
-                >
-                    <div
-                        className="w-full max-w-2xl rounded-t-3xl p-6 space-y-5 pb-safe"
-                        style={{ background: 'var(--color-surface-elevated)' }}
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="flex items-center justify-between">
-                            <h3 className="font-bold text-lg text-[var(--color-text)]">Meal Planning Preferences</h3>
-                            <button onClick={() => setShowPrefs(false)} className="text-[var(--color-text-muted)]" aria-label="Close"><X className="w-5 h-5" aria-hidden="true" /></button>
-                        </div>
+                <Modal isOpen onClose={() => setShowPrefs(false)} title="Meal Planning Preferences" size="lg" className="space-y-5">
 
                         <p className="text-sm text-[var(--color-text-muted)]">Set how much time you have to prep each meal. The AI will only suggest meals that fit.</p>
 
@@ -1264,16 +1273,17 @@ export default function NutritionPage() {
                             />
                         </div>
 
-                        <button
+                        <Button
+                            variant="brand"
+                            fullWidth
                             onClick={handleSavePrefs}
                             disabled={savingPrefs}
-                            className="w-full py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2"
-                            style={{ background: 'var(--color-navy)', color: 'var(--color-gold)' }}
+                            className="py-3.5"
+                            style={{ borderRadius: '16px' }}
                         >
                             {savingPrefs ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Preferences'}
-                        </button>
-                    </div>
-                </div>
+                        </Button>
+                </Modal>
             )}
 
             {shareMeal && (

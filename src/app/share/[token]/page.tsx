@@ -1,6 +1,7 @@
 import { getSharedAchievement } from '@/lib/features';
 import { notFound } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
+import { Trophy, BicepsFlexed, Flame, Target, Star, type LucideIcon } from 'lucide-react';
 
 interface PageProps {
     params: Promise<{ token: string }>;
@@ -21,22 +22,23 @@ export default async function SharePage({ params }: PageProps) {
         stats?: { label: string; value: string | number }[];
     };
 
-    const typeEmojis = {
-        badge: '🏆',
-        pr: '💪',
-        streak: '🔥',
-        goal: '🎯',
-        level: '⭐',
+    const typeIcons: Record<string, LucideIcon> = {
+        badge: Trophy,
+        pr: BicepsFlexed,
+        streak: Flame,
+        goal: Target,
+        level: Star,
     };
+    const TypeIcon = typeIcons[achievement.achievement_type] ?? Trophy;
 
     return (
-        <main className="min-h-screen bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center p-4">
+        <main className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #060a13 0%, #101a2c 100%)' }}>
             <div className="w-full max-w-sm">
                 {/* Achievement Card */}
                 <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
                     <div className="p-8 text-center">
-                        <div className="text-6xl mb-4">
-                            {data.emoji || typeEmojis[achievement.achievement_type]}
+                        <div className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: 'rgba(224,179,90,0.14)' }}>
+                            <TypeIcon className="w-10 h-10" style={{ color: '#9c7426' }} aria-hidden="true" />
                         </div>
                         <h1 className="text-2xl font-black text-gray-900 mb-2">
                             {data.title}
@@ -71,14 +73,15 @@ export default async function SharePage({ params }: PageProps) {
                     </p>
                     <a
                         href="/"
-                        className="inline-block px-6 py-3 bg-white text-purple-600 rounded-xl font-bold shadow-lg hover:shadow-xl transition-shadow"
+                        className="inline-block px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-shadow"
+                        style={{ background: '#e0b35a', color: '#060a13' }}
                     >
                         Get Started Free
                     </a>
                 </div>
 
                 {/* View count */}
-                <p className="text-center text-white/50 text-xs mt-6">
+                <p className="text-center text-white/80 text-xs mt-6">
                     {achievement.view_count} views
                 </p>
             </div>

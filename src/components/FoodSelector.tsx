@@ -5,6 +5,7 @@ import { getFavoriteFoods, getRecentFoods, deleteFavoriteFood, createSavedMeal, 
 import { confirm } from '@/components/ConfirmDialog';
 import { Search, Check, Trash2, Loader2, X, BookMarked, UtensilsCrossed } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { Modal } from './ui/Modal';
 
 interface FoodSelectorProps {
     onClose: () => void;
@@ -92,17 +93,13 @@ export function FoodSelector({ onClose, onSelect }: FoodSelectorProps) {
     if (!mounted) return null;
 
     const content = (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-end justify-center animate-in fade-in sm:items-center sm:p-4">
-            <div
-                className="bg-[var(--color-surface-elevated)] w-full max-w-md shadow-2xl animate-in slide-in-from-bottom sm:animate-in sm:zoom-in-95 sm:rounded-2xl overflow-hidden flex flex-col"
-                style={{ maxHeight: '85vh', borderRadius: '20px 20px 0 0' }}
-            >
+        <Modal isOpen onClose={onClose} aria-label="Select food" size="md" zTier="top" padding={false} className="flex flex-col max-h-[85dvh] overflow-hidden">
                 {/* Header */}
                 <div className="p-4 border-b border-[var(--color-border-light)] flex justify-between items-center bg-[var(--color-bg-subtle)] flex-shrink-0">
                     <div className="flex bg-[var(--color-bg-muted)] p-1 rounded-lg">
                         <button
                             onClick={() => setTab('favorites')}
-                            className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${tab === 'favorites' ? 'bg-[var(--color-surface-elevated)] shadow-sm text-red-500' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+                            className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${tab === 'favorites' ? 'bg-[var(--color-surface-elevated)] shadow-sm text-[var(--color-danger)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
                         >
                             Favorites
                         </button>
@@ -191,7 +188,7 @@ export function FoodSelector({ onClose, onSelect }: FoodSelectorProps) {
                                             await deleteSavedMeal(meal.id);
                                             setSavedMeals(prev => prev.filter(m => m.id !== meal.id));
                                         }}
-                                        className="w-7 h-7 rounded-full bg-red-50 text-red-400 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                                        className="w-7 h-7 rounded-full bg-red-50 text-[var(--color-danger)] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
                                     >
                                         <Trash2 className="w-3.5 h-3.5" />
                                     </button>
@@ -251,7 +248,7 @@ export function FoodSelector({ onClose, onSelect }: FoodSelectorProps) {
                                     {tab === 'favorites' && (
                                         <button
                                             onClick={(e) => handleDeleteFavorite(e, item.id)}
-                                            className="w-8 h-8 rounded-full bg-red-50 text-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-100 flex-shrink-0 ml-2"
+                                            className="w-8 h-8 rounded-full bg-red-50 text-[var(--color-danger)] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-100 flex-shrink-0 ml-2"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
@@ -288,7 +285,7 @@ export function FoodSelector({ onClose, onSelect }: FoodSelectorProps) {
                                             setMealName('');
                                         } catch { } finally { setSavingMeal(false); }
                                     }
-                                    if (e.key === 'Escape') { setMealNamePrompt(false); setMealName(''); }
+                                    if (e.key === 'Escape') { e.stopPropagation(); setMealNamePrompt(false); setMealName(''); }
                                 }}
                             />
                             <button
@@ -336,8 +333,7 @@ export function FoodSelector({ onClose, onSelect }: FoodSelectorProps) {
                         )}
                     </div>
                 </div>}
-            </div>
-        </div>
+        </Modal>
     );
 
     return createPortal(content, document.body);

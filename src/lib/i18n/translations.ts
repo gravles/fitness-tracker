@@ -27,6 +27,9 @@ const en = {
     start: 'Start',
     done: 'Done',
     skip: 'Skip for now',
+    loadErrorTitle: "Couldn't load this page",
+    loadErrorMessage: 'Check your connection and try again.',
+    retry: 'Retry',
   },
   dashboard: {
     greeting: {
@@ -479,6 +482,9 @@ const fr: typeof en = {
     start: 'Démarrer',
     done: 'Terminé',
     skip: "Passer pour l'instant",
+    loadErrorTitle: 'Impossible de charger cette page',
+    loadErrorMessage: 'Vérifiez votre connexion et réessayez.',
+    retry: 'Réessayer',
   },
   dashboard: {
     greeting: {

@@ -43,7 +43,7 @@ export function Auth() {
                 {/* Subtle background glow */}
                 <div
                     className="absolute inset-0 pointer-events-none"
-                    style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(224,179,90,0.06) 0%, transparent 65%)' }}
+                    style={{ background: 'radial-gradient(ellipse at 50% 0%, var(--color-gold-muted) 0%, transparent 65%)' }}
                 />
 
                 <div className="w-full max-w-xs relative">
@@ -53,7 +53,7 @@ export function Auth() {
                             className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5"
                             style={{
                                 background: 'var(--color-gold-muted)',
-                                border: '1px solid rgba(224,179,90,0.25)',
+                                border: '1px solid var(--color-gold-border)',
                             }}
                         >
                             <Mail className="w-6 h-6" style={{ color: 'var(--color-gold)' }} />
@@ -87,14 +87,6 @@ export function Auth() {
                                 background: 'var(--color-bg-subtle)',
                                 border: '1px solid var(--color-border)',
                                 color: 'var(--color-text)',
-                            }}
-                            onFocus={e => {
-                                e.currentTarget.style.borderColor = 'var(--color-gold)';
-                                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)';
-                            }}
-                            onBlur={e => {
-                                e.currentTarget.style.borderColor = 'var(--color-border)';
-                                e.currentTarget.style.boxShadow = 'none';
                             }}
                             placeholder="00000000"
                             maxLength={8}
@@ -145,7 +137,7 @@ export function Auth() {
                         className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-5"
                         style={{
                             background: 'var(--color-gold-muted)',
-                            border: '1px solid rgba(224,179,90,0.25)',
+                            border: '1px solid var(--color-gold-border)',
                         }}
                     >
                         <span
@@ -189,14 +181,6 @@ export function Auth() {
                                 background: 'var(--color-bg-subtle)',
                                 border: '1px solid var(--color-border)',
                                 color: 'var(--color-text)',
-                            }}
-                            onFocus={e => {
-                                e.currentTarget.style.borderColor = 'var(--color-gold)';
-                                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)';
-                            }}
-                            onBlur={e => {
-                                e.currentTarget.style.borderColor = 'var(--color-border)';
-                                e.currentTarget.style.boxShadow = 'none';
                             }}
                             placeholder="you@example.com"
                             autoComplete="email"

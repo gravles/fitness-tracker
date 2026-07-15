@@ -42,7 +42,7 @@ export function RestTimer() {
         if ('Notification' in window && Notification.permission === 'granted') {
             try {
                 if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-                new Notification('Rest Completed! ⚡️', {
+                new Notification('Rest completed', {
                     body: 'Time to crush your next set!',
                     icon: '/icon-192x192.png',
                     tag: 'rest-timer'
@@ -72,13 +72,14 @@ export function RestTimer() {
                 className="flex items-center gap-2 text-white px-3 py-1.5 rounded-full font-mono text-sm shadow-lg font-bold animate-in fade-in slide-in-from-top-2"
                 style={{ background: 'var(--color-primary)' }}
             >
-                <Timer className="w-4 h-4 animate-pulse" />
+                <Timer className="w-4 h-4 animate-pulse" aria-hidden="true" />
                 {formatTime(timeLeft)}
                 <button
                     onClick={() => { setIsRunning(false); setTimeLeft(0); }}
-                    className="ml-2 rounded-full p-1 hover:bg-white/20"
+                    aria-label="Cancel rest timer"
+                    className="ml-1 -my-2 -mr-2 rounded-full p-3 hover:bg-white/20"
                 >
-                    <X className="w-3 h-3" />
+                    <X className="w-4 h-4" aria-hidden="true" />
                 </button>
             </div>
         );

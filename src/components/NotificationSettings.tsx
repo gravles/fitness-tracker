@@ -37,8 +37,8 @@ function localToUtc(localTime: string): string {
 
 // Defaults stored in UTC — displayed in the user's local time automatically.
 const DEFAULT_REMINDERS: Reminder[] = [
-    { id: randomId(), label: "Log your day 📝", time: '00:00', enabled: true },  // 8 PM ET
-    { id: randomId(), label: "Time to move 💪", time: '13:00', enabled: true },  // 9 AM ET
+    { id: randomId(), label: "Log your day", time: '00:00', enabled: true },  // 8 PM ET
+    { id: randomId(), label: "Time to move", time: '13:00', enabled: true },  // 9 AM ET
 ];
 
 // ─── Native helpers ────────────────────────────────────────────────────────
@@ -123,10 +123,10 @@ export function NotificationSettings() {
                 const old = JSON.parse(oldSaved);
                 const migrated: Reminder[] = [];
                 if (old.logReminderEnabled !== false) {
-                    migrated.push({ id: randomId(), label: "Log your day 📝", time: old.logReminderTime || '20:00', enabled: old.logReminderEnabled ?? true });
+                    migrated.push({ id: randomId(), label: "Log your day", time: old.logReminderTime || '20:00', enabled: old.logReminderEnabled ?? true });
                 }
                 if (old.moveReminderEnabled !== false) {
-                    migrated.push({ id: randomId(), label: "Time to move 💪", time: old.moveReminderTime || '09:00', enabled: old.moveReminderEnabled ?? true });
+                    migrated.push({ id: randomId(), label: "Time to move", time: old.moveReminderTime || '09:00', enabled: old.moveReminderEnabled ?? true });
                 }
                 setEnabled(old.enabled ?? false);
                 if (migrated.length) setReminders(migrated);
@@ -282,7 +282,7 @@ export function NotificationSettings() {
         return (
             <div className="p-4 rounded-2xl border" style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.2)' }}>
                 <div className="flex items-center gap-3">
-                    <BellOff className="w-5 h-5 text-red-500" />
+                    <BellOff className="w-5 h-5 text-[var(--color-danger)]" />
                     <div>
                         <p className="font-medium text-[var(--color-text)]">Notifications Blocked</p>
                         <p className="text-sm text-[var(--color-text-muted)]">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { getMonthlyLogs, getBodyMetricsHistory, getSettings } from '@/lib/api';
+import { getMonthlyLogs, getBodyMetricsHistory, getSettings, isAuthError } from '@/lib/api';
 import { subDays, format } from 'date-fns';
 import {
     LineChart, Line, BarChart, Bar, ComposedChart,
@@ -10,6 +10,9 @@ import {
 import { Loader2, TrendingUp, Scale, Camera, Calendar, Activity, RefreshCw, Flame, Moon, Beer, Flower2, ChartNoAxesColumn, BicepsFlexed, Zap, Bone, Hexagon } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { LoadError } from '@/components/ui';
+import { useTabParam } from '@/lib/useTabParam';
+import { TabPageSkeleton } from '@/components/Skeleton';
 import { ExerciseProgressChart } from '@/components/analytics/ExerciseProgressChart';
 import { PersonalRecordsList } from '@/components/analytics/PersonalRecordsList';
 import { MuscleHeatmap } from '@/components/analytics/MuscleHeatmap';
@@ -57,6 +60,7 @@ const tooltipStyle = {
 
 export default function TrendsPage() {
     const [loading, setLoading]             = useState(true);
+    const [loadError, setLoadError]         = useState(false);
     const [range, setRange]                 = useState<RangeDays>(30);
     const [rawMetrics, setRawMetrics]       = useState<any[]>([]);
     const [proteinData, setProteinData]     = useState<any[]>([]);
@@ -70,7 +74,7 @@ export default function TrendsPage() {
         avgProtein: 0, avgCalories: 0, totalWorkouts: 0,
         avgSleep: 0, perfectDays: 0, loggedDays: 0,
     });
-    const [activeTab, setActiveTab] = useState<'overview' | 'body' | 'gains' | 'heatmap'>('overview');
+    const [activeTab, setActiveTab] = useTabParam(['overview', 'body', 'gains', 'heatmap'] as const, 'overview');
     const [workouts, setWorkouts]   = useState<any[]>([]);
     const [unit, setUnit]           = useState<'imperial' | 'metric'>('imperial');
     const [syncingWithings, setSyncingWithings] = useState(false);
@@ -170,6 +174,7 @@ export default function TrendsPage() {
 
     async function fetchData(days: RangeDays) {
         setLoading(true);
+        setLoadError(false);
         const end      = new Date();
         const start    = subDays(end, days);
         const startStr = format(start, 'yyyy-MM-dd');
@@ -260,6 +265,7 @@ export default function TrendsPage() {
             });
         } catch (error) {
             console.error(error);
+            if (!isAuthError(error)) setLoadError(true);
         } finally {
             setLoading(false);
         }
@@ -332,8 +338,8 @@ export default function TrendsPage() {
                     </Link>
                     <Link
                         href="/metrics"
-                        className="text-xs font-bold px-3 py-2 rounded-lg"
-                        style={{ background: 'var(--color-navy)', color: 'var(--color-gold)' }}
+                        className="text-xs font-bold px-3 py-2 rounded-lg focus-ring"
+                        style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid var(--color-gold-border)' }}
                     >
                         Log Body
                     </Link>
@@ -380,9 +386,9 @@ export default function TrendsPage() {
             </div>
 
             {loading ? (
-                <div className="p-12 flex justify-center">
-                    <Loader2 className="animate-spin w-8 h-8" style={{ color: 'var(--color-primary)' }} />
-                </div>
+                <TabPageSkeleton cards={4} />
+            ) : loadError ? (
+                <LoadError onRetry={() => fetchData(range)} />
             ) : (
                 <>
                     {/* ── Overview Tab ── */}

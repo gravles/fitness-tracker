@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Loader2, Users, Send } from 'lucide-react';
+import { Loader2, Users, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '@/components/LanguageProvider';
-import { Button, Textarea } from '@/components/ui';
+import { Button, Textarea, Modal } from '@/components/ui';
 import { haptics } from '@/lib/haptics';
 import {
     Partnership, SharedItemType,
@@ -66,18 +66,7 @@ export function ShareToPartnerSheet({ open, onClose, itemType, payload }: ShareT
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true">
-            <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-            <div
-                className="relative w-full max-w-md rounded-t-3xl p-6 pb-8 space-y-4 animate-in"
-                style={{ background: 'var(--color-surface-elevated)' }}
-            >
-                <div className="flex items-center justify-between">
-                    <h2 className="font-bold text-[var(--color-text)]">{t.partner.share.title}</h2>
-                    <button onClick={onClose} className="p-2 -mr-2 rounded-full hover:bg-[var(--color-bg-subtle)]">
-                        <X className="w-5 h-5 text-[var(--color-text-muted)]" />
-                    </button>
-                </div>
+        <Modal isOpen onClose={onClose} title={t.partner.share.title} size="md" className="space-y-4">
 
                 <p className="text-sm font-semibold text-[var(--color-text-secondary)] truncate">
                     “{(payload as any).name}”
@@ -128,7 +117,6 @@ export function ShareToPartnerSheet({ open, onClose, itemType, payload }: ShareT
                         </Button>
                     </>
                 )}
-            </div>
-        </div>
+        </Modal>
     );
 }

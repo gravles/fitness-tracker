@@ -72,6 +72,7 @@ export default function CoachPage() {
                 setContext({ recentLogs: logs, recentWorkouts: workouts, userSettings: settings, templates });
             } catch (e) {
                 console.error("Failed to load context", e);
+                toast.error("Couldn't load your recent activity — coach replies may be less personalised.");
             }
         }
         loadContext();
@@ -126,8 +127,8 @@ export default function CoachPage() {
                     </div>
                     <div>
                         <h1 className="font-bold text-xl text-[var(--color-text)]">Smart Coach</h1>
-                        <p className="text-xs text-green-500 flex items-center gap-1">
-                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        <p className="text-xs text-[var(--color-success)] flex items-center gap-1">
+                            <span className="w-2 h-2 bg-[var(--color-success)] rounded-full animate-pulse" />
                             Online • Analyzing your data
                         </p>
                     </div>
@@ -156,7 +157,7 @@ export default function CoachPage() {
                                     localStorage.removeItem('coach_history');
                                 }
                             }}
-                            className="text-xs font-bold px-2.5 py-1 rounded-lg bg-red-500/10 text-red-500"
+                            className="text-xs font-bold px-2.5 py-1 rounded-lg bg-red-500/10 text-[var(--color-danger)]"
                         >Yes</button>
                         <button
                             onClick={() => setShowClearConfirm(false)}

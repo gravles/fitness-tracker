@@ -66,7 +66,7 @@ export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
 
     if (step === 'camera') {
         content = (
-            <div className="fixed inset-0 z-[100] bg-black">
+            <div role="dialog" aria-modal="true" aria-label="Scan menu" className="fixed inset-0 bg-black" style={{ zIndex: 'var(--z-modal)' }}>
                 <div className="absolute top-4 right-4 z-10">
                     <button onClick={onClose} className="p-2 bg-black/50 text-white rounded-full">
                         <X className="w-6 h-6" />
@@ -82,7 +82,7 @@ export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
         );
     } else if (step === 'analyzing') {
         content = (
-            <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur flex flex-col items-center justify-center text-white">
+            <div role="dialog" aria-modal="true" aria-label="Analyzing menu" className="fixed inset-0 bg-black/90 backdrop-blur flex flex-col items-center justify-center text-white" style={{ zIndex: 'var(--z-modal)' }}>
                 <ChefHat className="w-16 h-16 animate-bounce mb-4" style={{ color: 'var(--color-gold)' }} />
                 <h3 className="text-xl font-bold mb-2">Analyzing Menu...</h3>
                 <p className="text-white/60 text-sm">Finding high-protein gems</p>
@@ -90,7 +90,7 @@ export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
         );
     } else {
         content = (
-            <div className="fixed inset-0 z-[100] flex flex-col" style={{ background: 'var(--color-bg)' }}>
+            <div role="dialog" aria-modal="true" aria-label="Menu results" className="fixed inset-0 flex flex-col" style={{ background: 'var(--color-bg)', zIndex: 'var(--z-modal)' }}>
                 {/* Header */}
                 <div className="bg-[var(--color-surface-elevated)] p-4 border-b border-[var(--color-border-light)] flex justify-between items-center shadow-sm">
                     <h3 className="font-bold text-lg flex items-center gap-2 text-[var(--color-text)]">

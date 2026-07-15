@@ -31,7 +31,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
     };
     const focusStyle = {
         borderColor: 'var(--color-gold)',
-        boxShadow: '0 0 0 3px rgba(224,179,90,0.15)',
+        boxShadow: '0 0 0 3px var(--color-gold-muted)',
     };
 
     function cmFromFtIn() {
@@ -158,6 +158,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                             <div className="relative flex-1">
                                 <input
                                     type="number"
+                                    inputMode="numeric"
                                     placeholder="5"
                                     value={heightFt}
                                     onChange={e => setHeightFt(e.target.value)}
@@ -172,6 +173,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                             <div className="relative flex-1">
                                 <input
                                     type="number"
+                                    inputMode="numeric"
                                     placeholder="10"
                                     value={heightIn}
                                     onChange={e => setHeightIn(e.target.value)}
@@ -199,6 +201,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                         <div className="relative">
                             <input
                                 type="number"
+                                inputMode="decimal"
                                 placeholder="185"
                                 value={weightLbs}
                                 onChange={e => setWeightLbs(e.target.value)}
@@ -229,7 +232,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                                     onClick={() => setGoal(g.id)}
                                     className="p-4 rounded-2xl text-left transition-all active:scale-95"
                                     style={{
-                                        background: goal === g.id ? 'rgba(224,179,90,0.2)' : 'rgba(255,255,255,0.06)',
+                                        background: goal === g.id ? 'var(--color-gold-border)' : 'rgba(255,255,255,0.06)',
                                         border: `1.5px solid ${goal === g.id ? 'var(--color-gold)' : 'rgba(255,255,255,0.12)'}`,
                                     }}
                                 >

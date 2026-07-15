@@ -53,10 +53,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the theme class is stamped pre-paint by the
+    // inline script below, so the server HTML never matches on purpose
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* Prevent flash of wrong theme on load */}
-        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.add('light');}catch(e){}})();` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('theme');var dark=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.add(dark?'dark':'light');}catch(e){}})();` }} />
       </head>
       <body className={`${inter.variable} ${sora.variable} antialiased`}>
         <SWRegister />

@@ -187,7 +187,7 @@ function FeatureCard({ color, icon, title, children }: { color: 'success' | 'pri
     const colors = {
         success: { bg: 'rgba(34,197,94,0.07)', border: 'rgba(34,197,94,0.15)', icon: 'var(--color-success)', title: 'var(--color-success)' },
         primary: { bg: 'rgba(77,137,226,0.07)', border: 'rgba(77,137,226,0.15)', icon: 'var(--color-primary)', title: 'var(--color-primary)' },
-        gold: { bg: 'rgba(224,179,90,0.07)', border: 'rgba(224,179,90,0.2)', icon: 'var(--color-gold)', title: 'var(--color-gold)' },
+        gold: { bg: 'var(--color-gold-muted)', border: 'var(--color-gold-border)', icon: 'var(--color-gold)', title: 'var(--color-gold)' },
     }[color];
 
     return (

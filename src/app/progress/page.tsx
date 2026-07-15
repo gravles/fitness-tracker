@@ -1,18 +1,22 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { isAuthError } from '@/lib/api';
+
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Camera, ImageIcon, Loader2, ChevronLeft, ChevronRight, Trash2, Plus, X, Scale } from 'lucide-react';
 import { ProgressPhoto, uploadProgressPhoto, getProgressPhotos, deleteProgressPhoto } from '@/lib/features';
 import { prepareImageForUpload } from '@/lib/image-utils';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { confirm } from '@/components/ConfirmDialog';
+import { LoadError, Modal } from '@/components/ui';
 import { format, parseISO } from 'date-fns';
 import Link from 'next/link';
 
 export default function ProgressPage() {
     const [photos, setPhotos] = useState<ProgressPhoto[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [compareMode, setCompareMode] = useState(false);
@@ -26,16 +30,29 @@ export default function ProgressPage() {
     const [uploadWeight, setUploadWeight] = useState<string>('');
     const [uploadNotes, setUploadNotes] = useState<string>('');
 
+    const uploadPreviewUrl = useMemo(
+        () => (uploadFile ? URL.createObjectURL(uploadFile) : null),
+        [uploadFile]
+    );
+    useEffect(() => {
+        return () => {
+            if (uploadPreviewUrl) URL.revokeObjectURL(uploadPreviewUrl);
+        };
+    }, [uploadPreviewUrl]);
+
     useEffect(() => {
         loadPhotos();
     }, []);
 
     async function loadPhotos() {
+        setLoading(true);
+        setLoadError(false);
         try {
             const data = await getProgressPhotos();
             setPhotos(data);
         } catch (error) {
             console.error('Failed to load photos', error);
+            if (!isAuthError(error)) setLoadError(true);
         } finally {
             setLoading(false);
         }
@@ -89,11 +106,24 @@ export default function ProgressPage() {
         } catch (error) {
             console.error('Delete failed', error);
             haptics.error();
+            toast.error('Failed to delete photo. Please try again.');
         }
     }
 
     const selectedPhoto = selectedIndex !== null ? photos[selectedIndex] : null;
     const comparePhoto = photos[compareIndex];
+
+    // Lightbox keyboard support: Escape closes, arrows navigate
+    useEffect(() => {
+        if (selectedIndex === null) return;
+        function onKeyDown(e: KeyboardEvent) {
+            if (e.key === 'Escape') setSelectedIndex(null);
+            else if (e.key === 'ArrowLeft') setSelectedIndex(i => (i !== null && i > 0 ? i - 1 : i));
+            else if (e.key === 'ArrowRight') setSelectedIndex(i => (i !== null && i < photos.length - 1 ? i + 1 : i));
+        }
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+    }, [selectedIndex, photos.length]);
 
     return (
         <main className="min-h-screen bg-[var(--color-bg)] pb-24">
@@ -118,6 +148,8 @@ export default function ProgressPage() {
                     <div className="flex justify-center py-20">
                         <Loader2 className="w-8 h-8 animate-spin text-[var(--color-primary)]" />
                     </div>
+                ) : loadError ? (
+                    <LoadError onRetry={loadPhotos} className="my-10" />
                 ) : photos.length === 0 ? (
                     <div className="text-center py-20">
                         <Camera className="w-16 h-16 mx-auto text-[var(--color-text-muted)] mb-4" />
@@ -162,7 +194,7 @@ export default function ProgressPage() {
                                         </p>
                                         <img
                                             src={photos[0].photo_url}
-                                            alt="Latest"
+                                            alt={`Latest progress photo, ${format(parseISO(photos[0].created_at), 'MMM d, yyyy')}`}
                                             className="w-full aspect-[3/4] object-cover rounded-xl"
                                         />
                                         {photos[0].weight_at_capture && (
@@ -177,7 +209,7 @@ export default function ProgressPage() {
                                         </p>
                                         <img
                                             src={comparePhoto.photo_url}
-                                            alt="Compare"
+                                            alt={`Comparison progress photo, ${format(parseISO(comparePhoto.created_at), 'MMM d, yyyy')}`}
                                             className="w-full aspect-[3/4] object-cover rounded-xl"
                                         />
                                         {comparePhoto.weight_at_capture && (
@@ -215,7 +247,8 @@ export default function ProgressPage() {
                                 >
                                     <img
                                         src={photo.photo_url}
-                                        alt={`Progress ${idx + 1}`}
+                                        alt={`Progress photo from ${format(parseISO(photo.created_at), 'MMM d, yyyy')}`}
+                                        loading="lazy"
                                         className="w-full h-full object-cover transition-transform group-hover:scale-105"
                                     />
                                     {photo.weight_at_capture && (
@@ -232,29 +265,32 @@ export default function ProgressPage() {
 
             {/* Photo Detail Modal */}
             {selectedPhoto && (
-                <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
+                <div role="dialog" aria-modal="true" aria-label="Progress photo" className="fixed inset-0 bg-black/90 flex flex-col" style={{ zIndex: 'var(--z-modal)' }}>
                     <div className="flex justify-between items-center p-4">
                         <button
                             onClick={() => setSelectedIndex(null)}
-                            className="p-2 text-white"
+                            aria-label="Close photo"
+                            className="p-2 text-white tap-target focus-ring"
                         >
-                            <X className="w-6 h-6" />
+                            <X className="w-6 h-6" aria-hidden="true" />
                         </button>
                         <span className="text-white text-sm">
                             {format(parseISO(selectedPhoto.created_at), 'MMM d, yyyy')}
                         </span>
                         <button
                             onClick={() => handleDelete(selectedPhoto.id)}
-                            className="p-2 text-red-400"
+                            aria-label="Delete photo"
+                            className="p-2 tap-target focus-ring"
+                            style={{ color: 'var(--color-danger)' }}
                         >
-                            <Trash2 className="w-5 h-5" />
+                            <Trash2 className="w-5 h-5" aria-hidden="true" />
                         </button>
                     </div>
 
                     <div className="flex-1 flex items-center justify-center p-4">
                         <img
                             src={selectedPhoto.photo_url}
-                            alt="Progress"
+                            alt={`Progress photo from ${format(parseISO(selectedPhoto.created_at), 'MMM d, yyyy')}`}
                             className="max-h-full max-w-full object-contain rounded-xl"
                         />
                     </div>
@@ -279,17 +315,19 @@ export default function ProgressPage() {
                             {selectedIndex > 0 && (
                                 <button
                                     onClick={() => setSelectedIndex(selectedIndex - 1)}
-                                    className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-white/10 rounded-full"
+                                    aria-label="Previous photo"
+                                    className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-white/10 rounded-full tap-target focus-ring"
                                 >
-                                    <ChevronLeft className="w-6 h-6 text-white" />
+                                    <ChevronLeft className="w-6 h-6 text-white" aria-hidden="true" />
                                 </button>
                             )}
                             {selectedIndex < photos.length - 1 && (
                                 <button
                                     onClick={() => setSelectedIndex(selectedIndex + 1)}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white/10 rounded-full"
+                                    aria-label="Next photo"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white/10 rounded-full tap-target focus-ring"
                                 >
-                                    <ChevronRight className="w-6 h-6 text-white" />
+                                    <ChevronRight className="w-6 h-6 text-white" aria-hidden="true" />
                                 </button>
                             )}
                         </>
@@ -299,14 +337,7 @@ export default function ProgressPage() {
 
             {/* Upload Modal */}
             {showUploadModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-[var(--color-surface-elevated)] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-                        <div className="p-4 border-b border-[var(--color-border)] flex justify-between items-center">
-                            <h3 className="font-bold text-[var(--color-text)]">Add Progress Photo</h3>
-                            <button onClick={() => setShowUploadModal(false)} className="p-2">
-                                <X className="w-5 h-5 text-[var(--color-text-muted)]" />
-                            </button>
-                        </div>
+                <Modal isOpen onClose={() => setShowUploadModal(false)} title="Add Progress Photo" size="md" sheet={false}>
 
                         <div className="p-4 space-y-4">
                             {/* Two inputs: one forces the camera, one opens the photo library */}
@@ -326,14 +357,14 @@ export default function ProgressPage() {
                                 className="hidden"
                             />
 
-                            {uploadFile ? (
+                            {uploadFile && uploadPreviewUrl ? (
                                 <button
                                     onClick={() => galleryInputRef.current?.click()}
                                     className="w-full aspect-video border-2 border-dashed border-[var(--color-border)] rounded-xl flex flex-col items-center justify-center gap-2 hover:border-[var(--color-primary)] transition-colors overflow-hidden"
                                 >
                                     <img
-                                        src={URL.createObjectURL(uploadFile)}
-                                        alt="Preview"
+                                        src={uploadPreviewUrl}
+                                        alt="Preview of the photo to upload"
                                         className="w-full h-full object-cover"
                                     />
                                 </button>
@@ -365,6 +396,7 @@ export default function ProgressPage() {
                                     <Scale className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
                                     <input
                                         type="number"
+                                        inputMode="decimal"
                                         value={uploadWeight}
                                         onChange={(e) => setUploadWeight(e.target.value)}
                                         placeholder="Enter weight"
@@ -398,8 +430,7 @@ export default function ProgressPage() {
                                 {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Photo'}
                             </button>
                         </div>
-                    </div>
-                </div>
+                </Modal>
             )}
         </main>
     );

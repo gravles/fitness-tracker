@@ -1,5 +1,7 @@
 'use client';
 
+import { isAuthError } from '@/lib/api';
+
 import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { format, addDays, startOfWeek, eachDayOfInterval, isToday } from 'date-fns';
 import {
@@ -9,6 +11,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { confirm } from '@/components/ConfirmDialog';
+import { LoadError, Modal } from '@/components/ui';
 import { getScheduledWorkouts, deleteScheduledWorkout, skipScheduledWorkout, updateScheduledWorkout, ScheduledWorkout } from '@/lib/schedule-api';
 import { getProgramSessionsForRange, skipProgramSession, updateProgramSession, ProgramSession, SessionType } from '@/lib/program-api';
 import { getTemplates, createTemplate, deleteTemplate, updateTemplate, WorkoutTemplate } from '@/lib/workout-api';
@@ -16,6 +19,7 @@ import { getPublicTemplates, WorkoutTemplate as PublicTemplate, WorkoutCategory 
 import { ShareToPartnerSheet } from '@/components/ShareToPartnerSheet';
 import { ScheduleWorkoutModal } from '@/components/ScheduleWorkoutModal';
 import { useRouter } from 'next/navigation';
+import { useTabParam } from '@/lib/useTabParam';
 import Link from 'next/link';
 import { haptics } from '@/lib/haptics';
 import { useLanguage } from '@/components/LanguageProvider';
@@ -49,7 +53,7 @@ interface AIRecommendation { title: string; exercises: { name: string; sets: num
 export default function WorkoutHubPage() {
     const { lang } = useLanguage();
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<Tab>('schedule');
+    const [activeTab, setActiveTab] = useTabParam<Tab>(['schedule', 'templates', 'discover', 'programs'], 'schedule');
     const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
     const [scheduledWorkouts, setScheduledWorkouts] = useState<ScheduledWorkout[]>([]);
     const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -73,6 +77,7 @@ export default function WorkoutHubPage() {
     const [aiLoading, setAiLoading] = useState(false);
     const [aiError, setAiError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [saving, setSaving] = useState(false);
     const [syncingStrava, setSyncingStrava] = useState(false);
     const [programSessions, setProgramSessions]         = useState<ProgramSession[]>([]);
@@ -117,6 +122,7 @@ export default function WorkoutHubPage() {
 
     async function loadData() {
         setLoading(true);
+        setLoadError(false);
         try {
             const startStr = format(currentWeekStart, 'yyyy-MM-dd');
             const endStr = format(addDays(currentWeekStart, 6), 'yyyy-MM-dd');
@@ -132,6 +138,7 @@ export default function WorkoutHubPage() {
             if (activeTab === 'discover') setPublicTemplates(publicData);
         } catch (error) {
             console.error('Error loading data:', error);
+            if (!isAuthError(error)) setLoadError(true);
         } finally {
             setLoading(false);
         }
@@ -449,7 +456,7 @@ export default function WorkoutHubPage() {
                 style={{ background: 'var(--color-navy)' }}
             >
                 <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(224,179,90,0.2)' }}>
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-gold-border)' }}>
                         <Bot className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />
                     </div>
                     <div>
@@ -492,8 +499,11 @@ export default function WorkoutHubPage() {
                 })}
             </div>
 
+            {/* Page-load failure (distinguishes network errors from empty states) */}
+            {loadError && !loading && <LoadError onRetry={loadData} />}
+
             {/* ========== SCHEDULE TAB ========== */}
-            {activeTab === 'schedule' && (
+            {!loadError && activeTab === 'schedule' && (
                 <>
                     {/* Week Navigation */}
                     <div
@@ -642,7 +652,7 @@ export default function WorkoutHubPage() {
                                                                     {(session.scheduled_time ?? '12:00:00').slice(0, 5)}
                                                                     <span>·</span>
                                                                     {session.exercises?.length ?? 0} exercise{(session.exercises?.length ?? 0) !== 1 ? 's' : ''}
-                                                                    {isDone && <span className="ml-1" style={{ color: 'var(--color-success)' }}>✓ Completed</span>}
+                                                                    {isDone && <span className="ml-1" style={{ color: 'var(--color-success)' }}>Completed</span>}
                                                                     {isSkipped && <span className="ml-1">Skipped</span>}
                                                                     {session.status === 'rescheduled' && <span className="ml-1" style={{ color: 'var(--chart-5)' }}>Rescheduled</span>}
                                                                 </div>
@@ -699,7 +709,7 @@ export default function WorkoutHubPage() {
                                                             style={{
                                                                 background: workout.status === 'completed'
                                                                     ? 'rgba(34,197,94,0.1)'
-                                                                    : 'rgba(224,179,90,0.12)',
+                                                                    : 'var(--color-gold-muted)',
                                                             }}
                                                         >
                                                             <Dumbbell
@@ -722,7 +732,7 @@ export default function WorkoutHubPage() {
                                                                 <Clock className="w-3 h-3" />
                                                                 {workout.scheduled_time.slice(0, 5)}
                                                                 {workout.status === 'completed' && (
-                                                                    <span className="ml-2" style={{ color: 'var(--color-success)' }}>✓ Completed</span>
+                                                                    <span className="ml-2" style={{ color: 'var(--color-success)' }}>Completed</span>
                                                                 )}
                                                                 {workout.status === 'skipped' && (
                                                                     <span className="ml-2" style={{ color: 'var(--color-text-muted)' }}>Skipped</span>
@@ -806,7 +816,7 @@ export default function WorkoutHubPage() {
                         </div>
                         <div
                             className="p-4 rounded-2xl border"
-                            style={{ background: 'rgba(224,179,90,0.06)', borderColor: 'rgba(224,179,90,0.2)' }}
+                            style={{ background: 'var(--color-gold-muted)', borderColor: 'var(--color-gold-border)' }}
                         >
                             <div className="text-2xl font-black" style={{ color: 'var(--color-gold)' }}>
                                 {scheduledWorkouts.filter(w => w.status === 'scheduled').length}
@@ -818,11 +828,13 @@ export default function WorkoutHubPage() {
             )}
 
             {/* ========== TEMPLATES TAB ========== */}
-            {activeTab === 'templates' && (
+            {!loadError && activeTab === 'templates' && (
                 <div className="space-y-4">
                     {loading ? (
-                        <div className="flex items-center justify-center py-12">
-                            <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--color-primary)' }} />
+                        <div className="space-y-3" aria-hidden="true">
+                            <div className="skeleton rounded-2xl h-24 w-full" />
+                            <div className="skeleton rounded-2xl h-24 w-full" />
+                            <div className="skeleton rounded-2xl h-24 w-full" />
                         </div>
                     ) : templates.length === 0 ? (
                         <div className="rounded-2xl border p-8 text-center" style={cardStyle}>
@@ -955,7 +967,7 @@ export default function WorkoutHubPage() {
                         className="rounded-2xl border p-4"
                         style={{
                             background: 'var(--color-navy)',
-                            borderColor: 'rgba(224,179,90,0.2)',
+                            borderColor: 'var(--color-gold-border)',
                         }}
                     >
                         <h3 className="font-bold mb-1 text-white">Quick Start</h3>
@@ -965,7 +977,7 @@ export default function WorkoutHubPage() {
                             className="flex items-center justify-between w-full p-3 rounded-xl transition-all"
                             style={{
                                 background: 'rgba(255,255,255,0.07)',
-                                border: '1px solid rgba(224,179,90,0.2)',
+                                border: '1px solid var(--color-gold-border)',
                             }}
                         >
                             <div className="flex items-center gap-3">
@@ -981,12 +993,12 @@ export default function WorkoutHubPage() {
             )}
 
             {/* ========== DISCOVER TAB ========== */}
-            {activeTab === 'discover' && (
+            {!loadError && activeTab === 'discover' && (
                 <div className="space-y-4">
                     {/* AI Recommendations */}
                     <div
                         className="rounded-2xl border p-4"
-                        style={{ background: 'var(--color-navy)', borderColor: 'rgba(224,179,90,0.2)' }}
+                        style={{ background: 'var(--color-navy)', borderColor: 'var(--color-gold-border)' }}
                     >
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
@@ -1028,7 +1040,7 @@ export default function WorkoutHubPage() {
                                         className="rounded-xl p-3 border"
                                         style={{
                                             background: 'rgba(255,255,255,0.05)',
-                                            borderColor: 'rgba(224,179,90,0.2)',
+                                            borderColor: 'var(--color-gold-border)',
                                         }}
                                     >
                                         <div className="flex items-center justify-between mb-2">
@@ -1048,7 +1060,7 @@ export default function WorkoutHubPage() {
                                                 <span
                                                     key={i}
                                                     className="px-2 py-0.5 text-xs rounded"
-                                                    style={{ background: 'rgba(224,179,90,0.12)', color: 'var(--color-gold)' }}
+                                                    style={{ background: 'var(--color-gold-muted)', color: 'var(--color-gold)' }}
                                                 >
                                                     {ex.name}
                                                 </span>
@@ -1090,8 +1102,10 @@ export default function WorkoutHubPage() {
                     </div>
 
                     {loading ? (
-                        <div className="flex items-center justify-center py-12">
-                            <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--color-primary)' }} />
+                        <div className="space-y-3" aria-hidden="true">
+                            <div className="skeleton rounded-2xl h-24 w-full" />
+                            <div className="skeleton rounded-2xl h-24 w-full" />
+                            <div className="skeleton rounded-2xl h-24 w-full" />
                         </div>
                     ) : publicTemplates.length === 0 ? (
                         <div className="rounded-2xl border p-8 text-center" style={cardStyle}>
@@ -1201,7 +1215,7 @@ export default function WorkoutHubPage() {
             )}
 
             {/* ========== PROGRAMS TAB ========== */}
-            {activeTab === 'programs' && (
+            {!loadError && activeTab === 'programs' && (
                 <Link
                     href="/programs"
                     className="flex items-center justify-between p-5 rounded-2xl border transition-all active:scale-[0.98]"
@@ -1234,12 +1248,7 @@ export default function WorkoutHubPage() {
 
             {/* ========== TEMPLATE PREVIEW MODAL ========== */}
             {previewTemplate && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setPreviewTemplate(null)}>
-                    <div
-                        className="w-full max-w-md rounded-2xl max-h-[80vh] overflow-hidden flex flex-col"
-                        style={{ background: 'var(--color-surface-elevated)' }}
-                        onClick={e => e.stopPropagation()}
-                    >
+                <Modal isOpen onClose={() => setPreviewTemplate(null)} aria-label={`Preview ${previewTemplate.name}`} size="md" sheet={false} padding={false} className="max-h-[80dvh] overflow-hidden flex flex-col">
                         <div
                             className="p-4 flex items-center justify-between"
                             style={{ borderBottom: '1px solid var(--color-border-light)' }}
@@ -1309,21 +1318,12 @@ export default function WorkoutHubPage() {
                                 <Play className="w-5 h-5" /> Start Workout
                             </button>
                         </div>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             {/* ========== TEMPLATE EDITOR MODAL ========== */}
             {showEditorModal && (
-                <div
-                    className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4"
-                    onClick={() => setShowEditorModal(false)}
-                >
-                    <div
-                        className="w-full max-w-lg rounded-2xl p-6 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom"
-                        style={{ background: 'var(--color-surface-elevated)' }}
-                        onClick={e => e.stopPropagation()}
-                    >
+                <Modal isOpen onClose={() => setShowEditorModal(false)} aria-label={editingTemplate ? 'Edit Template' : 'New Template'} size="lg">
                         <h2
                             className="text-xl font-bold mb-4"
                             style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
@@ -1350,14 +1350,6 @@ export default function WorkoutHubPage() {
                                     value={formTitle}
                                     onChange={e => setFormTitle(e.target.value)}
                                     autoFocus
-                                    onFocus={e => {
-                                        e.currentTarget.style.borderColor = 'var(--color-gold)';
-                                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(224,179,90,0.15)';
-                                    }}
-                                    onBlur={e => {
-                                        e.currentTarget.style.borderColor = 'var(--color-border)';
-                                        e.currentTarget.style.boxShadow = 'none';
-                                    }}
                                 />
                             </div>
 
@@ -1428,6 +1420,7 @@ export default function WorkoutHubPage() {
                                             <span className="flex-1 font-medium" style={{ color: 'var(--color-text)' }}>{ex.name}</span>
                                             <input
                                                 type="number"
+                                                inputMode="numeric"
                                                 className="w-16 p-2 rounded-lg border text-center outline-none"
                                                 style={{
                                                     background: 'var(--color-surface-elevated)',
@@ -1490,22 +1483,12 @@ export default function WorkoutHubPage() {
                                 </button>
                             </div>
                         </div>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             {/* ── Skip Confirm Bottom Sheet ────────────────────────────────── */}
             {skipConfirmSession && (
-                <div
-                    className="fixed inset-0 z-50 flex items-end justify-center"
-                    style={{ background: 'rgba(0,0,0,0.55)' }}
-                    onClick={() => setSkipConfirmSession(null)}
-                >
-                    <div
-                        className="w-full max-w-lg rounded-t-2xl p-6 space-y-3 pb-10 shadow-2xl"
-                        style={{ background: 'var(--color-surface-elevated)' }}
-                        onClick={e => e.stopPropagation()}
-                    >
+                <Modal isOpen onClose={() => setSkipConfirmSession(null)} aria-label="Skip this session?" size="lg" className="space-y-3">
                         <div className="mb-1">
                             <p className="font-bold text-base" style={{ color: 'var(--color-text)' }}>
                                 Skip this session?
@@ -1545,22 +1528,12 @@ export default function WorkoutHubPage() {
                         >
                             Cancel
                         </button>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             {/* ── Edit Ad-hoc Workout Modal ────────────────────────────────── */}
             {editingWorkout && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center px-4"
-                    style={{ background: 'rgba(0,0,0,0.55)' }}
-                    onClick={closeEditWorkout}
-                >
-                    <div
-                        className="w-full max-w-sm rounded-2xl p-6 space-y-4 shadow-xl"
-                        style={{ background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-light)' }}
-                        onClick={e => e.stopPropagation()}
-                    >
+                <Modal isOpen onClose={closeEditWorkout} aria-label="Edit Workout" size="sm" sheet={false} className="space-y-4">
                         <p className="font-bold text-base" style={{ color: 'var(--color-text)' }}>Edit Workout</p>
 
                         {/* Title */}
@@ -1664,22 +1637,12 @@ export default function WorkoutHubPage() {
                                 {editSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
                             </button>
                         </div>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             {/* ── Reschedule Modal ─────────────────────────────────────────── */}
             {reschedulingSession && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center px-4"
-                    style={{ background: 'rgba(0,0,0,0.55)' }}
-                    onClick={() => { setReschedulingSession(null); setRescheduleDate(''); setRescheduleTime('12:00'); }}
-                >
-                    <div
-                        className="w-full max-w-sm rounded-2xl p-6 space-y-4 shadow-xl"
-                        style={{ background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-light)' }}
-                        onClick={e => e.stopPropagation()}
-                    >
+                <Modal isOpen onClose={() => { setReschedulingSession(null); setRescheduleDate(''); setRescheduleTime('12:00'); }} aria-label="Reschedule Session" size="sm" sheet={false} className="space-y-4">
                         <div>
                             <p className="font-bold text-base" style={{ color: 'var(--color-text)' }}>
                                 Reschedule Session
@@ -1745,8 +1708,7 @@ export default function WorkoutHubPage() {
                                 Reschedule
                             </button>
                         </div>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             {shareTemplate && (

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, X, Plus, Clock } from 'lucide-react';
 import { getRecentExerciseNames } from '@/lib/workout-api';
+import { Modal } from './ui/Modal';
 
 interface Props {
     onSelect: (name: string) => void;
@@ -32,11 +33,7 @@ export function ExercisePicker({ onSelect, onClose }: Props) {
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end" onClick={onClose}>
-            <div
-                className="w-full bg-[var(--color-surface-elevated)] rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 max-h-[85vh] flex flex-col"
-                onClick={e => e.stopPropagation()}
-            >
+        <Modal isOpen onClose={onClose} aria-label="Add Exercise" size="lg" padding={false} className="flex flex-col max-h-[85dvh]">
                 {/* Handle */}
                 <div className="flex justify-center pt-3 pb-1">
                     <div className="w-10 h-1 bg-[var(--color-border)] rounded-full" />
@@ -113,7 +110,6 @@ export function ExercisePicker({ onSelect, onClose }: Props) {
                 </div>
 
                 <div className="h-6" />
-            </div>
-        </div>
+        </Modal>
     );
 }

@@ -64,7 +64,7 @@ export function FeatureTutorial({ onClose, forceOpen }: FeatureTutorialProps) {
         {
             title: "Menu Scanner",
             desc: "Eating out? Scan a restaurant menu to find the high-protein, healthy gems hidden in the list.",
-            icon: <ChefHat className="w-12 h-12 text-orange-300" />,
+            icon: <ChefHat className="w-12 h-12 text-[var(--color-warning)]" />,
             bg: '#ea580c'
         },
         {
@@ -80,7 +80,7 @@ export function FeatureTutorial({ onClose, forceOpen }: FeatureTutorialProps) {
     const current = steps[step];
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-start justify-center bg-black/60 backdrop-blur-md p-6 pt-20">
+        <div role="dialog" aria-modal="true" aria-label="Feature tutorial" className="fixed inset-0 flex items-start justify-center bg-black/60 backdrop-blur-md p-6 pt-20" style={{ zIndex: 'var(--z-modal-top)' }}>
             <div className="w-full max-w-sm bg-[var(--color-surface-elevated)] rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
 
                 {/* Hero Section */}

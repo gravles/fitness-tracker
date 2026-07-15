@@ -162,12 +162,18 @@ test.describe('Settings Management', () => {
         await setupAuth(page);
     });
 
-    test('user can navigate to settings', async ({ page }) => {
+    test('user can navigate to settings via the More hub', async ({ page }) => {
         await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-        const settingsLink = page.locator('a[aria-label="Settings"]');
-        await expect(settingsLink).toBeVisible({ timeout: 10000 });
-        await settingsLink.click();
+        const moreLink = page.locator('a[aria-label^="More"]');
+        await expect(moreLink).toBeVisible({ timeout: 10000 });
+        await moreLink.click();
+
+        await expect(page).toHaveURL(/more/, { timeout: 15000 });
+
+        const settingsRow = page.locator('a[href="/settings"]');
+        await expect(settingsRow).toBeVisible({ timeout: 10000 });
+        await settingsRow.click();
 
         await expect(page).toHaveURL(/settings/, { timeout: 15000 });
     });

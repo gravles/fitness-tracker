@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { X, Calendar, Clock, Dumbbell, FileText, Loader2, Bell, Timer } from 'lucide-react';
+import { Calendar, Clock, Dumbbell, FileText, Loader2, Bell, Timer } from 'lucide-react';
 import { toast } from 'sonner';
 import { scheduleWorkout } from '@/lib/schedule-api';
 import { haptics } from '@/lib/haptics';
+import { Modal } from './ui/Modal';
 
 interface Template {
     id: string;
@@ -76,20 +77,8 @@ export function ScheduleWorkoutModal({
     }
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-[var(--color-surface-elevated)] rounded-t-3xl sm:rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-                {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-light)]">
-                    <h2 className="text-xl font-bold text-[var(--color-text)]">Schedule Workout</h2>
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-[var(--color-bg-muted)] rounded-full transition-colors text-[var(--color-text-muted)]"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="p-4 space-y-4 pb-safe">
+        <Modal isOpen onClose={onClose} title="Schedule Workout">
+                <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Date & Time */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -101,7 +90,7 @@ export function ScheduleWorkoutModal({
                                 type="date"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                                className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl"
                             />
                         </div>
                         <div>
@@ -113,7 +102,7 @@ export function ScheduleWorkoutModal({
                                 type="time"
                                 value={time}
                                 onChange={(e) => setTime(e.target.value)}
-                                className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                                className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl"
                             />
                         </div>
                     </div>
@@ -128,7 +117,7 @@ export function ScheduleWorkoutModal({
                             <select
                                 value={templateId}
                                 onChange={(e) => handleTemplateSelect(e.target.value)}
-                                className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                                className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl"
                             >
                                 <option value="">No template — custom workout</option>
                                 {templates.map(template => (
@@ -150,7 +139,7 @@ export function ScheduleWorkoutModal({
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             placeholder="e.g., Morning Strength Training"
-                            className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent placeholder:text-[var(--color-text-muted)]"
+                            className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl placeholder:text-[var(--color-text-muted)]"
                         />
                     </div>
 
@@ -165,7 +154,7 @@ export function ScheduleWorkoutModal({
                             onChange={(e) => setNotes(e.target.value)}
                             placeholder="Any notes for this workout..."
                             rows={2}
-                            className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent resize-none placeholder:text-[var(--color-text-muted)]"
+                            className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl resize-none placeholder:text-[var(--color-text-muted)]"
                         />
                     </div>
 
@@ -179,7 +168,7 @@ export function ScheduleWorkoutModal({
                         <select
                             value={durationMinutes}
                             onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                            className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                            className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl"
                         >
                             <option value={30}>30 min</option>
                             <option value={45}>45 min</option>
@@ -199,7 +188,7 @@ export function ScheduleWorkoutModal({
                         <select
                             value={remindMinutes}
                             onChange={(e) => setRemindMinutes(Number(e.target.value))}
-                            className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                            className="w-full p-3 bg-[var(--color-bg-subtle)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl"
                         >
                             <option value={0}>At start time</option>
                             <option value={5}>5 minutes before</option>
@@ -230,7 +219,6 @@ export function ScheduleWorkoutModal({
                         )}
                     </button>
                 </form>
-            </div>
-        </div>
+        </Modal>
     );
 }

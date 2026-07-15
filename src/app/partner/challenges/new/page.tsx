@@ -120,6 +120,7 @@ export default function NewChallengePage() {
                             <Input
                                 label={t.partner.challenges.target}
                                 type="number"
+                                inputMode="numeric"
                                 min={1}
                                 value={targetValue}
                                 onChange={e => setTargetValue(e.target.value)}

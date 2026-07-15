@@ -28,21 +28,23 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
-    // Apply class to <html> whenever theme changes
-    useEffect(() => {
+    // Always stamp a resolved class on <html> — the CSS dark tokens live only
+    // under html.dark (no @media fallback), so "system" must apply a class too.
+    function applyResolved(resolved: 'light' | 'dark') {
         const html = document.documentElement;
         html.classList.remove('dark', 'light');
+        html.classList.add(resolved);
+        setResolvedTheme(resolved);
+    }
 
-        if (theme === 'dark') {
-            html.classList.add('dark');
-            setResolvedTheme('dark');
-        } else if (theme === 'light') {
-            html.classList.add('light');
-            setResolvedTheme('light');
+    // Apply class to <html> whenever theme changes
+    useEffect(() => {
+        if (theme === 'dark' || theme === 'light') {
+            applyResolved(theme);
         } else {
             // system: follow OS
             const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            setResolvedTheme(dark ? 'dark' : 'light');
+            applyResolved(dark ? 'dark' : 'light');
         }
     }, [theme]);
 
@@ -50,7 +52,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (theme !== 'system') return;
         const mq = window.matchMedia('(prefers-color-scheme: dark)');
-        const handler = (e: MediaQueryListEvent) => setResolvedTheme(e.matches ? 'dark' : 'light');
+        const handler = (e: MediaQueryListEvent) => applyResolved(e.matches ? 'dark' : 'light');
         mq.addEventListener('change', handler);
         return () => mq.removeEventListener('change', handler);
     }, [theme]);

@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Share2, Copy, Check, Twitter, Loader2 } from 'lucide-react';
+import { Share2, Copy, Check, Twitter, Loader2, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import { shareAchievement, SharedAchievement } from '@/lib/features';
 import { haptics } from '@/lib/haptics';
 import { Confetti } from './Confetti';
+import { Modal } from './ui/Modal';
 
 interface ShareModalProps {
     isOpen: boolean;
@@ -88,23 +89,13 @@ export function ShareModal({ isOpen, onClose, type, data }: ShareModalProps) {
         <>
             <Confetti isActive={showConfetti} onComplete={() => setShowConfetti(false)} />
 
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-                <div className="bg-[var(--color-surface-elevated)] rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
-                    {/* Header */}
-                    <div className="p-4 border-b border-[var(--color-border)] flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                            <Share2 className="w-5 h-5 text-[var(--color-primary)]" />
-                            <h3 className="font-bold text-[var(--color-text)]">Share Achievement</h3>
-                        </div>
-                        <button onClick={onClose} className="p-2 text-[var(--color-text-muted)]">
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-
+            <Modal isOpen onClose={onClose} title="Share Achievement" size="sm" sheet={false}>
                     {/* Preview Card */}
-                    <div className="p-4">
+                    <div>
                         <div className="p-6 rounded-2xl text-white text-center shadow-lg" style={{ background: 'var(--color-navy)' }}>
-                            <div className="text-4xl mb-2">{data.emoji || '🎉'}</div>
+                            <div className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: 'var(--color-gold-border)' }}>
+                                <Trophy className="w-7 h-7" style={{ color: 'var(--color-gold)' }} aria-hidden="true" />
+                            </div>
                             <h4 className="text-xl font-bold mb-1">{data.title}</h4>
                             {data.subtitle && (
                                 <p className="text-white/80 text-sm">{data.subtitle}</p>
@@ -123,7 +114,7 @@ export function ShareModal({ isOpen, onClose, type, data }: ShareModalProps) {
                     </div>
 
                     {/* Actions */}
-                    <div className="p-4 space-y-3">
+                    <div className="pt-4 space-y-3">
                         {!shareUrl ? (
                             <button
                                 onClick={handleGenerateLink}
@@ -147,7 +138,7 @@ export function ShareModal({ isOpen, onClose, type, data }: ShareModalProps) {
                                         onClick={handleCopy}
                                         className="px-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl flex items-center gap-1 text-[var(--color-text)]"
                                     >
-                                        {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                                        {copied ? <Check className="w-4 h-4 text-[var(--color-success)]" /> : <Copy className="w-4 h-4" />}
                                     </button>
                                 </div>
 
@@ -173,8 +164,7 @@ export function ShareModal({ isOpen, onClose, type, data }: ShareModalProps) {
                             </>
                         )}
                     </div>
-                </div>
-            </div>
+            </Modal>
         </>
     );
 }

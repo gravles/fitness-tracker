@@ -62,7 +62,7 @@ export function PersonalRecordsList() {
                             <div
                                 className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs"
                                 style={i < 3
-                                    ? { background: 'rgba(224,179,90,0.15)', color: 'var(--color-gold)' }
+                                    ? { background: 'var(--color-gold-muted)', color: 'var(--color-gold)' }
                                     : { background: 'var(--color-surface-elevated)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }
                                 }
                             >

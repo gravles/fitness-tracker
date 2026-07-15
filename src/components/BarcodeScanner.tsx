@@ -161,7 +161,7 @@ export function BarcodeScanner({ onResult, onClose }: Props) {
 
                 {/* Error */}
                 {error && (
-                    <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>
+                    <p className="text-sm text-[var(--color-danger)] bg-red-50 rounded-xl px-3 py-2">{error}</p>
                 )}
 
                 {/* Result */}
@@ -173,7 +173,7 @@ export function BarcodeScanner({ onResult, onClose }: Props) {
                         </div>
                         <div className="grid grid-cols-4 gap-1.5 text-center">
                             {[
-                                { label: 'Cal',    value: result.calories,      color: 'text-orange-600' },
+                                { label: 'Cal',    value: result.calories,      color: 'text-[var(--color-warning)]' },
                                 { label: 'Protein', value: `${result.protein}g`, color: 'text-blue-600'   },
                                 { label: 'Carbs',  value: `${result.carbs}g`,   color: 'text-yellow-600' },
                                 { label: 'Fat',    value: `${result.fat}g`,     color: 'text-purple-600' },

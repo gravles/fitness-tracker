@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, Loader2, TrendingUp } from 'lucide-react';
 import { getExerciseHistory } from '@/lib/workout-api';
 import { format, parseISO } from 'date-fns';
+import { Modal } from './ui/Modal';
 
 interface Props {
     exerciseName: string;
@@ -27,11 +28,7 @@ export function ExerciseHistoryModal({ exerciseName, onClose }: Props) {
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end" onClick={onClose}>
-            <div
-                className="w-full bg-[var(--color-surface-elevated)] rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 max-h-[85vh] flex flex-col"
-                onClick={e => e.stopPropagation()}
-            >
+        <Modal isOpen onClose={onClose} aria-label={`${exerciseName} history`} size="lg" padding={false} className="flex flex-col max-h-[85dvh]">
                 {/* Handle */}
                 <div className="flex justify-center pt-3 pb-1">
                     <div className="w-10 h-1 bg-[var(--color-border)] rounded-full" />
@@ -41,13 +38,13 @@ export function ExerciseHistoryModal({ exerciseName, onClose }: Props) {
                 <div className="px-5 pt-2 pb-4 border-b border-[var(--color-border-light)] flex items-center justify-between">
                     <div>
                         <div className="flex items-center gap-2">
-                            <TrendingUp className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
+                            <TrendingUp className="w-5 h-5" style={{ color: 'var(--color-primary)' }} aria-hidden="true" />
                             <h3 className="font-bold text-lg text-[var(--color-text)]">{exerciseName}</h3>
                         </div>
                         <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Past 10 sessions</p>
                     </div>
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-[var(--color-bg-subtle)] transition-colors">
-                        <X className="w-5 h-5 text-[var(--color-text-muted)]" />
+                    <button onClick={onClose} aria-label="Close" className="p-2 rounded-full hover:bg-[var(--color-bg-subtle)] transition-colors focus-ring">
+                        <X className="w-5 h-5 text-[var(--color-text-muted)]" aria-hidden="true" />
                     </button>
                 </div>
 
@@ -96,7 +93,6 @@ export function ExerciseHistoryModal({ exerciseName, onClose }: Props) {
                 </div>
 
                 <div className="h-6" />
-            </div>
-        </div>
+        </Modal>
     );
 }

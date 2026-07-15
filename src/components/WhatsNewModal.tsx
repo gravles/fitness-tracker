@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ChevronRight, Smartphone, Calendar, BookOpen, Dna, Sparkles } from 'lucide-react';
+import { Modal } from './ui/Modal';
 
 const APP_VERSION = '2.0';
 const STORAGE_KEY = 'lifelogger_seen_version';
@@ -69,16 +70,15 @@ export function WhatsNewModal({ onClose }: WhatsNewModalProps) {
     }
 
     return (
-        <div
-            className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-md"
-            aria-modal="true"
-            role="dialog"
+        <Modal
+            isOpen
+            onClose={dismiss}
             aria-label="What's new in Life Logger"
+            size="sm"
+            padding={false}
+            className="overflow-hidden"
         >
-            <div
-                className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl"
-                style={{ background: 'var(--color-navy)' }}
-            >
+            <div style={{ background: 'var(--color-navy)', margin: '-1px' }} className="rounded-[inherit]">
                 {/* Progress dots */}
                 <div className="flex gap-1.5 justify-center pt-5 pb-1">
                     {SLIDES.map((_, i) => (
@@ -151,7 +151,7 @@ export function WhatsNewModal({ onClose }: WhatsNewModalProps) {
                     )}
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 }
 

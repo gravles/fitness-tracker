@@ -115,7 +115,7 @@ export function StravaConnect() {
                             const { error } = await supabase.from('integrations').delete().eq('provider', 'strava');
                             if (!error) setConnected(false);
                         }}
-                        className="px-4 py-3 bg-red-500/10 text-red-500 rounded-xl font-bold hover:bg-red-500/20 transition-colors"
+                        className="px-4 py-3 bg-red-500/10 text-[var(--color-danger)] rounded-xl font-bold hover:bg-red-500/20 transition-colors"
                     >
                         Disconnect
                     </button>

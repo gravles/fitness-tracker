@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { Modal } from './ui/Modal';
 
 interface ConfirmOptions {
     title?: string;
@@ -46,26 +47,25 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
     return (
         <>
             {children}
-            {state && (
-                <div
-                    className="fixed inset-0 z-[300] flex items-center justify-center p-6"
-                    style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
-                    onClick={() => handle(false)}
-                >
-                    <div
-                        className="w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4"
-                        style={{ background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-light)' }}
-                        onClick={e => e.stopPropagation()}
-                    >
+            <Modal
+                isOpen={state !== null}
+                onClose={() => handle(false)}
+                aria-label={state?.title ?? 'Confirm'}
+                size="sm"
+                sheet={false}
+                zTier="top"
+            >
+                {state && (
+                    <div className="space-y-4">
                         <div className="flex items-start gap-3">
                             <div
                                 className="p-2 rounded-xl flex-shrink-0"
                                 style={{
-                                    background: state.danger ? 'rgba(239,68,68,0.1)' : 'rgba(224,179,90,0.1)',
-                                    color: state.danger ? 'var(--color-danger)' : 'var(--color-gold)',
+                                    background: state.danger ? 'color-mix(in srgb, var(--color-danger) 10%, transparent)' : 'var(--color-gold-muted)',
+                                    color: state.danger ? 'var(--color-danger)' : 'var(--color-gold-text)',
                                 }}
                             >
-                                <AlertTriangle className="w-5 h-5" />
+                                <AlertTriangle className="w-5 h-5" aria-hidden="true" />
                             </div>
                             <div>
                                 {state.title && (
@@ -77,14 +77,14 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                         <div className="flex gap-3 pt-1">
                             <button
                                 onClick={() => handle(false)}
-                                className="flex-1 py-3 rounded-xl font-bold text-sm transition-all"
+                                className="flex-1 py-3 rounded-xl font-bold text-sm transition-all focus-ring"
                                 style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={() => handle(true)}
-                                className="flex-1 py-3 rounded-xl font-bold text-sm transition-all active:scale-95"
+                                className="flex-1 py-3 rounded-xl font-bold text-sm transition-all active:scale-95 focus-ring"
                                 style={{
                                     background: state.danger ? 'var(--color-danger)' : 'var(--color-navy)',
                                     color: state.danger ? 'white' : 'var(--color-gold)',
@@ -94,8 +94,8 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                             </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+            </Modal>
         </>
     );
 }

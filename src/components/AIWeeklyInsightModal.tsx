@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Brain, X, TrendingUp, AlertTriangle, Wine, Dumbbell, Utensils, CheckCircle2, RefreshCw } from "lucide-react";
 import { WeeklyInsight } from "@/lib/ai";
 import { useLanguage } from '@/components/LanguageProvider';
+import { Modal } from './ui/Modal';
 
 interface AIWeeklyInsightModalProps {
     isOpen: boolean;
@@ -79,8 +80,7 @@ export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightM
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-10">
-            <div className="bg-[var(--color-surface-elevated)] rounded-3xl w-full max-w-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+        <Modal isOpen onClose={onClose} aria-label="AI Weekly Analyst" size="lg" sheet={false} padding={false} className="flex flex-col">
 
                 {/* Header */}
                 <div className="p-6 text-white flex justify-between items-start" style={{ background: 'var(--color-navy)' }}>
@@ -121,7 +121,7 @@ export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightM
                         </div>
                     ) : error ? (
                         <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
-                            <AlertTriangle className="w-10 h-10 text-orange-500" />
+                            <AlertTriangle className="w-10 h-10 text-[var(--color-warning)]" />
                             <p className="font-medium text-[var(--color-text)]">Analysis failed</p>
                             <p className="text-sm text-[var(--color-text-muted)]">{error}</p>
                             <button
@@ -150,12 +150,12 @@ export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightM
                             <div className="grid md:grid-cols-2 gap-4">
                                 {/* Wins */}
                                 <div className="p-5 rounded-xl border" style={{ background: 'rgba(34,197,94,0.05)', borderColor: 'rgba(34,197,94,0.2)' }}>
-                                    <h3 className="font-bold mb-3 flex items-center gap-2 text-green-600">
+                                    <h3 className="font-bold mb-3 flex items-center gap-2 text-[var(--color-success)]">
                                         <CheckCircle2 className="w-5 h-5" /> Wins
                                     </h3>
                                     <ul className="space-y-2">
                                         {(insight.wins ?? []).map((win, i) => (
-                                            <li key={i} className="flex gap-2 text-sm text-green-700 dark:text-green-400">
+                                            <li key={i} className="flex gap-2 text-sm text-[var(--color-success)] dark:text-[var(--color-success)]">
                                                 <span>•</span> {win}
                                             </li>
                                         ))}
@@ -164,12 +164,12 @@ export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightM
 
                                 {/* Improvements */}
                                 <div className="p-5 rounded-xl border" style={{ background: 'rgba(249,115,22,0.05)', borderColor: 'rgba(249,115,22,0.2)' }}>
-                                    <h3 className="font-bold mb-3 flex items-center gap-2 text-orange-600">
+                                    <h3 className="font-bold mb-3 flex items-center gap-2 text-[var(--color-warning)]">
                                         <AlertTriangle className="w-5 h-5" /> Focus Areas
                                     </h3>
                                     <ul className="space-y-2">
                                         {(insight.improvements ?? []).map((imp, i) => (
-                                            <li key={i} className="flex gap-2 text-sm text-orange-700 dark:text-orange-400">
+                                            <li key={i} className="flex gap-2 text-sm text-[var(--color-warning)] dark:text-[var(--color-warning)]">
                                                 <span>•</span> {imp}
                                             </li>
                                         ))}
@@ -178,7 +178,7 @@ export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightM
                             </div>
 
                             {/* Alcohol Analysis */}
-                            <div className="p-5 rounded-xl border" style={{ background: 'var(--color-gold-muted)', borderColor: 'rgba(224,179,90,0.2)' }}>
+                            <div className="p-5 rounded-xl border" style={{ background: 'var(--color-gold-muted)', borderColor: 'var(--color-gold-border)' }}>
                                 <h3 className="font-bold mb-2 flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
                                     <Wine className="w-5 h-5" style={{ color: 'var(--color-gold)' }} /> Alcohol & Recovery
                                 </h3>
@@ -219,7 +219,6 @@ export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightM
                         Close Report
                     </button>
                 </div>
-            </div>
-        </div>
+        </Modal>
     );
 }
