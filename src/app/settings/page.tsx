@@ -15,6 +15,7 @@ import { TrophyCase } from '@/components/TrophyCase';
 import { ChangelogModal } from '@/components/ChangelogModal';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { ClaudeConnectorSection } from '@/components/ClaudeConnectorSection';
+import { PairDeviceSection } from '@/components/PairDeviceSection';
 import { haptics } from '@/lib/haptics';
 
 const sectionStyle = {
@@ -965,6 +966,20 @@ export default function SettingsPage() {
                     {t.settings.claude.desc}
                 </p>
                 <ClaudeConnectorSection />
+            </section>
+
+            {/* Pair a Device */}
+            <section className="p-6 rounded-2xl border shadow-sm space-y-4" style={sectionStyle}>
+                <div className="flex items-center gap-2">
+                    <Watch className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                    <h3 className="font-bold text-xs uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
+                        {t.settings.pairDevice.title}
+                    </h3>
+                </div>
+                <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                    {t.settings.pairDevice.desc}
+                </p>
+                <PairDeviceSection />
             </section>
 
             {/* Accountability Partners */}

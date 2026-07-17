@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Modal } from './ui/Modal';
+import { authHeaders } from '@/lib/supabase';
 
 interface TextLogModalProps {
     isOpen: boolean;
@@ -22,7 +23,7 @@ export function TextLogModal({ isOpen, onClose, onProcessed, onWorkoutRequest }:
         try {
             const res = await fetch('/api/ai/process-intent', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
                 body: JSON.stringify({ transcript: text })
             });
             const intent = await res.json();

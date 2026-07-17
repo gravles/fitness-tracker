@@ -8,3 +8,9 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
+
+/** Authorization header carrying the current session's JWT, for calling our own API routes. */
+export async function authHeaders(): Promise<Record<string, string>> {
+    const { data: { session } } = await supabase.auth.getSession();
+    return { Authorization: `Bearer ${session?.access_token ?? ''}` };
+}

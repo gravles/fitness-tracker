@@ -289,6 +289,10 @@ const en = {
       title: 'Claude AI Connector',
       desc: "Connect your fitness data directly to Claude. Generate a key, then add the URL as a remote MCP server in Claude's settings.",
     },
+    pairDevice: {
+      title: 'Pair a Device',
+      desc: 'Link a device like a smartwatch: enter the code shown on its screen to give it access to your account.',
+    },
     partners: {
       title: 'Accountability Partners',
       desc: 'Add up to 3 people to receive a weekly summary of your progress.',
@@ -743,6 +747,10 @@ const fr: typeof en = {
     claude: {
       title: 'Connecteur Claude IA',
       desc: "Connectez vos données fitness directement à Claude. Générez une clé, puis ajoutez l'URL comme serveur MCP distant dans les paramètres de Claude.",
+    },
+    pairDevice: {
+      title: 'Associer un appareil',
+      desc: "Associez un appareil comme une montre connectée : saisissez le code affiché sur son écran pour lui donner accès à votre compte.",
     },
     partners: {
       title: 'Partenaires de responsabilité',

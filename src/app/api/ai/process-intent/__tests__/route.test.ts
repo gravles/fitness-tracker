@@ -1,19 +1,37 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
-// Mock the AI module before importing the route
+// Mock the AI module and auth before importing the route
 vi.mock('@/lib/ai', () => ({
     processVoiceIntent: vi.fn(),
+}));
+vi.mock('@/lib/api-auth', () => ({
+    authenticateRequest: vi.fn(),
 }));
 
 import { POST } from '../route';
 import { processVoiceIntent } from '@/lib/ai';
+import { authenticateRequest } from '@/lib/api-auth';
 
 const mockedProcessVoiceIntent = vi.mocked(processVoiceIntent);
+const mockedAuthenticateRequest = vi.mocked(authenticateRequest);
 
 describe('POST /api/ai/process-intent', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockedAuthenticateRequest.mockResolvedValue('user-123');
+    });
+
+    it('returns 401 when the request is unauthenticated', async () => {
+        mockedAuthenticateRequest.mockResolvedValueOnce(null);
+
+        const req = createRequest({ transcript: 'log a run' });
+        const response = await POST(req);
+        const data = await response.json();
+
+        expect(response.status).toBe(401);
+        expect(data.error).toBe('Unauthorized');
+        expect(mockedProcessVoiceIntent).not.toHaveBeenCalled();
     });
 
     function createRequest(body: object): NextRequest {
