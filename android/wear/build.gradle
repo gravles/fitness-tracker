@@ -1,0 +1,53 @@
+apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
+
+android {
+    namespace "com.nathandavie.fitnesstracker.wear"
+    compileSdk rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        applicationId "com.nathandavie.fitnesstracker.wear"
+        minSdkVersion 30
+        targetSdkVersion 34
+        versionCode 1
+        versionName "0.1.0"
+
+        buildConfigField "String", "BASE_URL", '"https://fit.nathandavie.com"'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+dependencies {
+    implementation platform('androidx.compose:compose-bom:2025.01.00')
+    implementation 'androidx.wear.compose:compose-material:1.4.1'
+    implementation 'androidx.wear.compose:compose-foundation:1.4.1'
+    implementation 'androidx.wear.compose:compose-navigation:1.4.1'
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.activity:activity-compose:1.9.3'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.7'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+}
