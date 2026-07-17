@@ -122,13 +122,15 @@ Decisions:
 
 Problem: keys are minted via [keygen/route.ts](../src/app/api/mcp/keygen/route.ts), which requires a Supabase JWT (logged-in browser session). A watch has no browser login and typing a 44-char `ftk_` key on a 1.5" screen is a non-starter.
 
-**Design: short-code device pairing** (the standard TV-app pattern), reusing `mcp_api_keys` unchanged:
+**Design: short-code device pairing** (the standard TV-app pattern), reusing `mcp_api_keys` unchanged. The watch generates its own `ftk_` key locally and only ever sends the SHA-256 hash — **the plaintext key never touches the server or the network**:
 
-1. **Watch:** `POST /api/pair/start` → server stores `{ code, code_hash, expires_at }` in a new `pairing_requests` table and returns a **6-character code** (unambiguous alphabet, no 0/O/1/I). Watch displays it.
-2. **Phone/web (already authenticated):** Settings → a new "Pair a device" field; user types the code. `POST /api/pair/claim` (JWT-authed, same `getUserId` helper as keygen) verifies the code, mints a key exactly as keygen POST does (`ftk_` + 20 random bytes, SHA-256 into `mcp_api_keys` with `name: "Galaxy Watch"`), and attaches the plaintext key to the pairing row.
-3. **Watch:** polls `POST /api/pair/poll` (with the code) every ~3s; on claim it receives the plaintext key **once**, stores it encrypted, and the pairing row is deleted.
+1. **Watch:** generates `ftk_` + 20 random bytes locally, then `POST /api/pair/start` with `{ key_hash: sha256(key), device_name }` → server stores `{ code_hash, key_hash, expires_at }` in a `pairing_requests` table and returns a **6-character code** (unambiguous alphabet, no 0/O/1/I/L). Watch displays it.
+2. **Phone/web (already authenticated):** Settings → "Pair a device"; user types the code. `POST /api/pair/claim` (JWT-authed, same `getUserId` helper as keygen) verifies the code and inserts the stored `key_hash` into `mcp_api_keys` with the device name.
+3. **Watch:** polls `POST /api/pair/poll` (with the code) every ~3s; on `{ status: "claimed" }` it starts using the key it already holds (stored in `EncryptedSharedPreferences`); the pairing row is deleted.
 
-Codes: single-use, ~5-minute expiry, rate-limited per IP. Revocation already works — deleting the key from Settings (existing keygen DELETE) instantly de-authorizes the watch, which falls back to the pairing screen on its next 401.
+Codes: single-use, ~5-minute expiry. Revocation already works — deleting the key from Settings (existing keygen DELETE) instantly de-authorizes the watch, which falls back to the pairing screen on its next 401.
+
+*Implemented as designed (2026-07-17): `pairing_migration.sql`, [src/app/api/pair/start/route.ts](../src/app/api/pair/start/route.ts), [claim/route.ts](../src/app/api/pair/claim/route.ts), [poll/route.ts](../src/app/api/pair/poll/route.ts), helpers in [src/lib/pairing.ts](../src/lib/pairing.ts).*
 
 Rejected alternatives: typing the key on-watch (unusable), QR (watches display QR well but can't scan one, and the phone app is a WebView with no scanner wired to this flow).
 

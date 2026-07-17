@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { authHeaders } from '@/lib/supabase';
 
 interface VoiceInputProps {
     onIntentDetected: (intent: any) => void;
@@ -76,7 +77,7 @@ export function VoiceInput({ onIntentDetected, autoStart = false, customTrigger,
         try {
             const res = await fetch('/api/ai/process-intent', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
                 body: JSON.stringify({ transcript: text })
             });
             const data = await res.json();

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processVoiceIntent } from '@/lib/ai';
+import { authenticateRequest } from '@/lib/api-auth';
 
 export async function POST(req: NextRequest) {
     try {
+        const userId = await authenticateRequest(req);
+        if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const { transcript } = await req.json();
         if (!transcript) return NextResponse.json({ error: 'No transcript provided' }, { status: 400 });
 

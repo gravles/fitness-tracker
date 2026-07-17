@@ -456,6 +456,22 @@ describe('POST /api/mcp — coach scheduling tools', () => {
             expect((schedUpdate?.payload as Record<string, unknown>).completed_workout_id).toBe('w-1');
         });
 
+        it('stores heart-rate fields from a watch session', async () => {
+            queueResponse('workouts', { id: 'w-hr', date: TODAY, activity_type: 'Strength Training' });
+            queueResponse('daily_logs', null);
+            queueResponse('scheduled_workouts', []); // no scheduled entry to match
+
+            const { isError } = await callTool('log_workout', {
+                activity_type: 'Strength Training', duration_mins: 45,
+                average_heartrate: 128, max_heartrate: 171,
+            });
+
+            expect(isError).toBe(false);
+            const insert = findCall('workouts', 'insert')?.payload as Record<string, unknown>;
+            expect(insert.average_heartrate).toBe(128);
+            expect(insert.max_heartrate).toBe(171);
+        });
+
         it('marks an explicit scheduled_workout_id completed', async () => {
             queueResponse('workouts', { id: 'w-2', date: TODAY, activity_type: 'Rowing' });
             queueResponse('daily_logs', null);
