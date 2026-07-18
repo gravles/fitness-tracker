@@ -54,6 +54,7 @@ import com.nathandavie.fitnesstracker.wear.data.DeviceKeyStore
 import com.nathandavie.fitnesstracker.wear.data.FitnessRepository
 import com.nathandavie.fitnesstracker.wear.data.LoggedSet
 import com.nathandavie.fitnesstracker.wear.data.SessionManager
+import com.nathandavie.fitnesstracker.wear.data.SessionStore
 import com.nathandavie.fitnesstracker.wear.data.formatWeight
 import com.nathandavie.fitnesstracker.wear.sensors.HeartRateTracker
 import com.nathandavie.fitnesstracker.wear.ui.components.CountdownRing
@@ -84,10 +85,24 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
     }
 
     val context = LocalContext.current
-    var phase by remember { mutableStateOf<Phase>(Phase.Logging) }
-    var exerciseIndex by remember { mutableIntStateOf(0) }
-    var reps by remember { mutableIntStateOf(session.exercises.first().planned.suggestedReps) }
-    var weight by remember { mutableDoubleStateOf(session.exercises.first().planned.suggestedWeightLbs ?: 0.0) }
+    // A fully-logged restored draft goes straight to the summary
+    val allDone = session.exercises.all { it.sets.size >= it.planned.targetSets }
+    var phase by remember { mutableStateOf<Phase>(if (allDone) Phase.Summary else Phase.Logging) }
+
+    // Resume at the first exercise that still has sets to log (restored drafts)
+    val startIndex = session.exercises
+        .indexOfFirst { it.sets.size < it.planned.targetSets }
+        .let { if (it < 0) session.exercises.lastIndex else it }
+    val startExercise = session.exercises[startIndex]
+    var exerciseIndex by remember { mutableIntStateOf(startIndex) }
+    var reps by remember { mutableIntStateOf(startExercise.planned.suggestedReps) }
+    var weight by remember {
+        mutableDoubleStateOf(
+            startExercise.sets.lastOrNull()?.weightLbs
+                ?: startExercise.planned.suggestedWeightLbs
+                ?: 0.0,
+        )
+    }
     var selectedField by remember { mutableStateOf(Field.REPS) }
     var restRemaining by remember { mutableIntStateOf(0) }
     var intensity by remember { mutableStateOf("Moderate") }
@@ -105,6 +120,7 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
 
     // Keep the screen on for the whole session; start/stop HR with the screen's lifecycle
     DisposableEffect(Unit) {
+        SessionStore.save(context, session) // draft exists from the first second
         val window = (context as? Activity)?.window
         window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         permissionLauncher.launch(Manifest.permission.BODY_SENSORS)
@@ -129,6 +145,7 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
 
     fun completeSet() {
         exercise.sets.add(LoggedSet(reps = reps, weightLbs = weight))
+        SessionStore.save(context, session)
         buzz(longArrayOf(0, 40))
 
         val lastSetOfExercise = exercise.sets.size >= exercise.planned.targetSets
@@ -330,6 +347,18 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
                 ) {
                     Text("Save", fontWeight = FontWeight.Bold)
                 }
+                Text(
+                    text = "discard workout",
+                    style = MaterialTheme.typography.caption3,
+                    color = Brand.TextMuted,
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .clickable {
+                            SessionStore.clear(context)
+                            SessionManager.clear()
+                            onDone()
+                        },
+                )
             }
         }
 
@@ -343,6 +372,7 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
                 try {
                     FitnessRepository.logWorkout(McpClient(key), session, intensity)
                     buzz(longArrayOf(0, 60, 60, 60))
+                    SessionStore.clear(context)
                     SessionManager.clear()
                     onDone()
                 } catch (e: Exception) {
