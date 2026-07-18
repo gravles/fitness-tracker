@@ -12,6 +12,7 @@ import com.nathandavie.fitnesstracker.wear.data.DeviceKeyStore
 import com.nathandavie.fitnesstracker.wear.ui.ActiveWorkoutScreen
 import com.nathandavie.fitnesstracker.wear.ui.PairingScreen
 import com.nathandavie.fitnesstracker.wear.ui.TodayScreen
+import com.nathandavie.fitnesstracker.wear.ui.VoiceFoodScreen
 import com.nathandavie.fitnesstracker.wear.ui.WorkoutPickerScreen
 
 class MainActivity : ComponentActivity() {
@@ -44,6 +45,17 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             onStartWorkout = { navController.navigate("picker") },
+                            onLogFood = { navController.navigate("voice") },
+                        )
+                    }
+                    composable("voice") {
+                        VoiceFoodScreen(
+                            keyStore = keyStore,
+                            onDone = {
+                                navController.navigate("today") {
+                                    popUpTo("today") { inclusive = true }
+                                }
+                            },
                         )
                     }
                     composable("picker") {

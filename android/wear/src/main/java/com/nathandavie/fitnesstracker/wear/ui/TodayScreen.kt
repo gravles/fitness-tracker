@@ -47,6 +47,7 @@ fun TodayScreen(
     keyStore: DeviceKeyStore,
     onUnpaired: () -> Unit,
     onStartWorkout: () -> Unit,
+    onLogFood: () -> Unit,
 ) {
     var state by remember { mutableStateOf<TodayState>(TodayState.Loading) }
     var refresh by remember { mutableStateOf(0) }
@@ -113,6 +114,24 @@ fun TodayScreen(
                         modifier = Modifier.padding(top = 6.dp),
                     )
                 }
+
+                CompactChip(
+                    onClick = onLogFood,
+                    colors = ChipDefaults.chipColors(
+                        backgroundColor = Brand.Surface,
+                        contentColor = Brand.Blue,
+                    ),
+                    label = {
+                        Text(
+                            text = "say food",
+                            style = MaterialTheme.typography.caption2,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    },
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 34.dp),
+                )
 
                 CompactChip(
                     onClick = onStartWorkout,
