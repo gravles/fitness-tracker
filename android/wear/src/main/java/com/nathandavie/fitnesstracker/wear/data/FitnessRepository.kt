@@ -13,6 +13,8 @@ data class TodaySummary(
     val proteinEaten: Int,
     val proteinTarget: Int,
     val nextWorkout: WorkoutOption?,
+    val readinessScore: Int? = null,
+    val readinessLabel: String? = null,
 )
 
 object FitnessRepository {
@@ -38,12 +40,21 @@ object FitnessRepository {
             .firstOrNull { it.optString("status") == "planned" }
             ?.let { scheduleEntryToOption(it) }
 
+        // Best-effort: readiness is display-only, never block the rings on it
+        val readiness = try {
+            client.callToolObject("get_readiness")
+        } catch (e: Exception) {
+            null
+        }
+
         return TodaySummary(
             caloriesEaten = todayLog?.optInt("calories", 0) ?: 0,
             caloriesTarget = profile.optInt("target_calories", 0),
             proteinEaten = todayLog?.optInt("protein_grams", 0) ?: 0,
             proteinTarget = profile.optInt("target_protein", 0),
             nextWorkout = next,
+            readinessScore = readiness?.optInt("score", -1)?.takeIf { it >= 0 },
+            readinessLabel = readiness?.optString("label")?.takeIf { it.isNotEmpty() },
         )
     }
 

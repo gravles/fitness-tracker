@@ -57,6 +57,7 @@ import com.nathandavie.fitnesstracker.wear.data.SessionManager
 import com.nathandavie.fitnesstracker.wear.data.SessionStore
 import com.nathandavie.fitnesstracker.wear.data.formatWeight
 import com.nathandavie.fitnesstracker.wear.sensors.HeartRateTracker
+import com.nathandavie.fitnesstracker.wear.tile.TileRefresher
 import com.nathandavie.fitnesstracker.wear.ui.components.CountdownRing
 import com.nathandavie.fitnesstracker.wear.ui.theme.Brand
 import kotlinx.coroutines.delay
@@ -374,6 +375,7 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
                     buzz(longArrayOf(0, 60, 60, 60))
                     SessionStore.clear(context)
                     SessionManager.clear()
+                    TileRefresher.refresh(context)
                     onDone()
                 } catch (e: Exception) {
                     phase = Phase.SaveFailed(e.message ?: "No connection")

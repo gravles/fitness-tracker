@@ -113,6 +113,20 @@ fun TodayScreen(
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(top = 6.dp),
                     )
+
+                    if (sum.readinessScore != null && sum.readinessLabel != null) {
+                        Text(
+                            text = "readiness ${sum.readinessScore} · ${sum.readinessLabel}",
+                            style = MaterialTheme.typography.caption2,
+                            color = when (sum.readinessLabel) {
+                                "primed" -> Brand.Gold
+                                "ready" -> Brand.Blue
+                                "recovery" -> Brand.Danger
+                                else -> Brand.TextMuted
+                            },
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
                 }
 
                 CompactChip(
