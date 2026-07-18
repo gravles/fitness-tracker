@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import crypto from 'crypto';
 import { format, subDays, addDays } from 'date-fns';
+import { computeReadiness } from '@/lib/readiness';
 
 export const maxDuration = 60;
 
@@ -64,6 +65,15 @@ const TOOLS = [
         name: 'get_user_profile',
         description:
             'Get user profile: fitness goal, targets (calories, protein, goal weight), current level, XP, and available home equipment.',
+        inputSchema: { type: 'object', properties: {} },
+    },
+    {
+        name: 'get_readiness',
+        description:
+            "Today's readiness score (0-100) with label (primed | ready | steady | recovery), a training " +
+            'recommendation, and the contributing components (sleep quality, yesterday\'s energy, alcohol, ' +
+            'acute-vs-chronic training load). Computed from logged data — no wearable required. ' +
+            'Example: {} (no arguments).',
         inputSchema: { type: 'object', properties: {} },
     },
     {
@@ -750,6 +760,27 @@ async function getBodyMetrics(userId: string, args: Record<string, unknown>, tod
 
     if (error) throw error;
     return data ?? [];
+}
+
+async function getReadiness(userId: string, today: string) {
+    const start = shiftDate(today, -27);
+    const { data: logs, error } = await supabaseAdmin
+        .from('daily_logs')
+        .select('date,sleep_quality,energy_level,alcohol_drinks')
+        .eq('user_id', userId)
+        .gte('date', start)
+        .lte('date', today);
+    if (error) throw error;
+
+    const { data: workouts, error: wErr } = await supabaseAdmin
+        .from('workouts')
+        .select('date,duration,intensity')
+        .eq('user_id', userId)
+        .gte('date', start)
+        .lte('date', today);
+    if (wErr) throw wErr;
+
+    return computeReadiness(logs ?? [], workouts ?? [], today);
 }
 
 async function getUserProfile(userId: string) {
@@ -1663,6 +1694,7 @@ export async function POST(req: NextRequest) {
                 case 'get_workouts':     result = await getWorkouts(userId, args, today);     break;
                 case 'get_body_metrics': result = await getBodyMetrics(userId, args, today);  break;
                 case 'get_user_profile': result = await getUserProfile(userId);        break;
+                case 'get_readiness':    result = await getReadiness(userId, today);   break;
                 case 'log_food':         result = await logFood(userId, args, today);         break;
                 case 'log_workout':      result = await logWorkout(userId, args, today);      break;
                 case 'update_daily_log': result = await updateDailyLog(userId, args, today);  break;

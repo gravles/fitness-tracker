@@ -113,6 +113,25 @@ describe('POST /api/mcp — coach scheduling tools', () => {
         }
     });
 
+    describe('get_readiness', () => {
+        it("computes today's readiness from logged data", async () => {
+            queueResponse('daily_logs', [
+                { date: TODAY, sleep_quality: 4 },
+                { date: day(-1), energy_level: 4, alcohol_drinks: 1 },
+            ]);
+            queueResponse('workouts', []);
+
+            const { data, isError } = await callTool('get_readiness');
+
+            expect(isError).toBe(false);
+            // sleep +10, energy +4, alcohol -7 → clamped later if needed
+            expect(data.score).toBe(100); // 107 clamped to 100
+            expect(data.label).toBe('primed');
+            expect(data.components.map((c: { name: string }) => c.name)).toEqual(['sleep', 'energy', 'alcohol']);
+            expect(data.recommendation).toBeTruthy();
+        });
+    });
+
     describe('save_workout_template', () => {
         it('creates a new template with mapped exercise fields', async () => {
             queueResponse('workout_templates', []); // no existing templates

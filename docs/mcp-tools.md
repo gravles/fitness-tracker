@@ -14,6 +14,7 @@ Tool errors come back as MCP tool results with `isError: true` and a plain-Engli
 | Tool | Purpose | Arguments (defaults) |
 |---|---|---|
 | `get_user_profile` | Goal, targets, level/XP, equipment | none |
+| `get_readiness` | Today's readiness 0–100, label (`primed`/`ready`/`steady`/`recovery`), recommendation, components (sleep, energy, alcohol, training load) | none |
 | `get_daily_logs` | Nutrition, sleep, energy, notes per day | `start_date` (7 days ago), `end_date` (today) |
 | `get_workouts` | Logged sessions incl. strength sets | `start_date` (30 days ago), `end_date` (today) |
 | `get_body_metrics` | Weight + measurements | `days` (90, max 365) |

@@ -51,6 +51,7 @@ import com.nathandavie.fitnesstracker.wear.api.VoiceApi
 import com.nathandavie.fitnesstracker.wear.data.DeviceKeyStore
 import com.nathandavie.fitnesstracker.wear.data.FitnessRepository
 import com.nathandavie.fitnesstracker.wear.speech.SpeechCapture
+import com.nathandavie.fitnesstracker.wear.tile.TileRefresher
 import com.nathandavie.fitnesstracker.wear.ui.theme.Brand
 import kotlinx.coroutines.delay
 import org.json.JSONObject
@@ -174,6 +175,7 @@ fun VoiceFoodScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
             }
 
             is VoiceState.Done -> {
+                TileRefresher.refresh(context)
                 delay(900)
                 onDone()
             }
