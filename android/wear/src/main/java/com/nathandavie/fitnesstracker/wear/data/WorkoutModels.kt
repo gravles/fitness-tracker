@@ -8,9 +8,9 @@ data class PlannedExercise(
     val targetSets: Int,
     val repRange: String?,   // e.g. "8-12"
     val restSeconds: Int,
-    val lastWeightLbs: Int? = null,
+    val lastWeightLbs: Double? = null,
     val lastReps: List<Int> = emptyList(),
-    val suggestedWeightLbs: Int? = null,
+    val suggestedWeightLbs: Double? = null,
     val progression: String? = null, // "increase" | "repeat"
 ) {
     /** Lower bound of the rep range as the starting suggestion. */
@@ -23,11 +23,11 @@ data class PlannedExercise(
             targetSets = o.optInt("sets", 3).coerceAtLeast(1),
             repRange = o.optString("rep_range").takeIf { it.isNotEmpty() && it != "null" },
             restSeconds = o.optInt("rest_seconds", 60).let { if (it <= 0) 60 else it },
-            lastWeightLbs = o.optInt("last_weight_lbs", 0).takeIf { it > 0 },
+            lastWeightLbs = o.optDouble("last_weight_lbs", 0.0).takeIf { it > 0 },
             lastReps = o.optJSONArray("last_reps")?.let { arr ->
                 (0 until arr.length()).map { arr.optInt(it) }
             } ?: emptyList(),
-            suggestedWeightLbs = o.optInt("suggested_weight_lbs", 0).takeIf { it > 0 },
+            suggestedWeightLbs = o.optDouble("suggested_weight_lbs", 0.0).takeIf { it > 0 },
             progression = o.optString("progression").takeIf { it == "increase" || it == "repeat" },
         )
 
@@ -45,7 +45,11 @@ data class WorkoutOption(
     val subtitle: String?,
 )
 
-data class LoggedSet(val reps: Int, val weightLbs: Int)
+data class LoggedSet(val reps: Int, val weightLbs: Double)
+
+/** "52.5" for half-pound dumbbells, "185" for whole numbers. */
+fun formatWeight(lbs: Double): String =
+    if (lbs % 1.0 == 0.0) "%,d".format(lbs.toLong()) else "%.1f".format(lbs)
 
 data class ExerciseLog(
     val planned: PlannedExercise,
