@@ -1,8 +1,8 @@
 # Fitness Tracker — Expanded Features PRD
 
 **Author:** Claude  
-**Date:** 2026-05-20 (original proposal) — **re-audited against the live codebase on 2026-07-14**  
-**Status:** Living document — 3 of 6 original pillars now shipped; see status table below. New brainstormed ideas added at the bottom for review.
+**Date:** 2026-05-20 (original proposal) — re-audited 2026-07-14 — **re-audited against the live codebase on 2026-07-18**  
+**Status:** Living document — 3 of 6 original pillars now shipped; see status table below. An unplanned WearOS companion app (Pillar 7, outside original scope) shipped 2026-07-18. New brainstormed ideas added at the bottom for review.
 
 ---
 
@@ -14,9 +14,11 @@ This document proposes six major feature pillars, each with full specifications,
 
 **2026-07-14 update:** Since this was written, Nutrition Planning, Periodisation, and the Accountability Layer have all shipped (and the Accountability Layer went further than specced). Withings and Oura integrations are live. Every Quick Win in the appendix is done. The two pillars that matter most and remain untouched are **Correlation Engine** and **Recovery & Readiness Score** — see "What's Outstanding" below. A new "Brainstorm — New Feature Ideas" section has been added at the end for review; nothing in it has been built.
 
+**2026-07-18 update:** A full WearOS companion app shipped (device pairing, live workout tracking with heart-rate capture, voice food logging, a Today tile, and a calories complication) — see new Pillar 7 below. This wasn't part of the original six pillars. Also shipped: a UI/UX audit pass (accessible modals, shared error states, nav IA cleanup) and an auth-hardening pass on the AI API routes (one route, `recommend-workout`, still lacks enforced auth — see New Small Gaps). **Correlation Engine** and **Recovery & Readiness Score** remain the top-priority gaps; none of this work changes that ranking.
+
 ---
 
-## Current State (What Exists) — corrected 2026-07-14
+## Current State (What Exists) — corrected 2026-07-18
 
 | Area | Status |
 |---|---|
@@ -38,6 +40,7 @@ This document proposes six major feature pillars, each with full specifications,
 | Recovery / readiness | 🔴 Still not started — highest-priority gap |
 | Correlation / insight engine | 🔴 Still not started — highest-priority gap |
 | Wearable integrations | 🟡 Withings + Oura done; Apple Health / Google Fit absent (native-app blocker, as originally scoped) |
+| WearOS companion app | ✅ Native Kotlin/Compose app (`android/wear/`) — device pairing, live workout session with HR capture, voice food logging, Today tile, calories complication. Sideload-only (no Play Store listing yet); not part of the original six pillars — see Pillar 7 |
 
 **Known tech debt (not a feature, flagging for awareness):** there are now two parallel accountability systems — the original lightweight `accountability_partners` (email summary only) from this PRD, and a newer, richer `partnerships`/`challenges` system built later. They overlap in purpose. Worth consolidating at some point, but not urgent.
 
@@ -59,7 +62,7 @@ Secondary, smaller gaps worth closing opportunistically:
 
 ---
 
-## The Six Pillars
+## The Six Pillars (+ one unplanned)
 
 1. **Correlation Engine & Insight Feed** 🔴 not built — surface *why* you feel good or bad
 2. **Intelligent Nutrition Planning** ✅ shipped — close the loop from tracking to planning
@@ -67,6 +70,7 @@ Secondary, smaller gaps worth closing opportunistically:
 4. **Recovery & Readiness Score** 🔴 not built — a daily signal that answers "should I train hard today?"
 5. **Accountability Layer** ✅ shipped (and expanded) — gentle social pressure without the social media toxicity
 6. **Health Platform Integrations** 🟡 partially shipped — Apple Health, Google Fit, Oura, Withings
+7. **WearOS Companion App** ✅ shipped — outside the original scope; see below
 
 Plus an **appendix of quick wins** — bugs and small features that could ship in a day each (✅ all done as of 2026-07-14).
 
@@ -605,6 +609,25 @@ Every extra data source makes the correlation engine, readiness score, and AI co
 
 ---
 
+---
+
+## Pillar 7 — WearOS Companion App (unplanned, shipped 2026-07-18)
+
+> Not part of the original six pillars — added after a feasibility/design doc (`6404094`) prompted a full build-out. Native Kotlin/Compose-for-WearOS app at `android/wear/`, sideloaded via ADB (no Play Store listing yet).
+
+**What shipped:**
+- **Device pairing** — the watch generates a key and sends only its hash to `/api/pair/start`; claimed from Settings → Pair a Device in the web app.
+- **Live workout session** — real-time set/rep tracking with heart-rate capture from the watch's sensor.
+- **Voice food logging** — spoken input routed through `/api/ai/process-intent` into the same `log_food` MCP tool the web app uses.
+- **Today tile** — calories arc + macros remaining, dual rings, one-tap log actions.
+- **Watch-face complication** — calories-remaining, updates every 30 minutes.
+
+Everything writes through the existing MCP tools against the existing `daily_logs`/`workouts` tables — no new nutrition/workout schema. Two new migrations: `pairing_requests` (device pairing) and a `timezone` column on `user_settings` (so "today" resolves correctly on-device).
+
+**Known gap:** `android/wear/README.md` still lists live workout tracking, voice logging, and tiles as "not yet built" — stale, left over from the original scaffold commit.
+
+---
+
 ## Quick Wins Appendix
 
 > **Status (2026-07-14): ✅ All items below — every bug and every small feature — verified fixed/shipped in the current codebase.** Kept here as a record. See "New Small Gaps" underneath for the handful of freshly-identified quick wins that replace this list going forward.
@@ -639,7 +662,7 @@ These are bugs or small features that could each ship in a day or less. Not a pi
 | ✅ Persistent macro summary bar | Sticky mini macro bar (P/C/F/Cal) visible across all log tabs | 2h |
 | ✅ Coach chat history sync | Move coach chat history from localStorage to Supabase for cross-device persistence | 1 day |
 
-### New Small Gaps (identified 2026-07-14 audit — not yet built)
+### New Small Gaps (identified 2026-07-14 / 2026-07-18 audits — not yet built)
 
 | Item | Description | Effort |
 |---|---|---|
@@ -647,6 +670,7 @@ These are bugs or small features that could each ship in a day or less. Not a pi
 | Freestyle overload suggestion | Show a computed "try +2.5kg" suggestion (not just a placeholder) on ad-hoc workout sets, using the algorithm already specced in Pillar 3 | 1 day |
 | `sleep_records` table | Stop discarding Oura's sleep-staging/HRV detail into the 1–5 `sleep_quality` field; store it raw (Pillar 6 gap, also unblocks a better Readiness Score) | 1 day |
 | Consolidate accountability systems | Merge/retire the older `accountability_partners` email-only system now that `partnerships` covers its use case, to reduce maintenance surface | 1–2 days |
+| `recommend-workout` route missing enforced auth | Unlike the other 6 AI routes hardened in #31, `/api/ai/recommend-workout` reads an optional Authorization header but never 401s if it's absent — callable unauthenticated (personalization just silently degrades) | <1h |
 
 ---
 
@@ -685,7 +709,7 @@ Total estimated effort: ~7–9 days. This closes out the entire original PRD.
 
 ---
 
-## Brainstorm — New Feature Ideas (2026-07-14, for review — nothing here has been built)
+## Brainstorm — New Feature Ideas (2026-07-14, + item I added 2026-07-18, for review — nothing here has been built)
 
 These go beyond the original six pillars. They're sized as ideas, not full specs — flag which ones (if any) you want turned into a full pillar-style spec before building. Ordered roughly by how directly they build on infrastructure that already exists (cheaper/lower-risk first).
 
@@ -713,6 +737,13 @@ These go beyond the original six pillars. They're sized as ideas, not full specs
 ### H. Consolidated Grocery + Budget-Aware Meal Planning
 **Problem:** the grocery-list gap (already flagged above) is worth extending rather than doing minimally. **Idea:** beyond a plain categorized list, estimate per-item/total cost and let users set a weekly grocery budget that steers AI meal generation (e.g. "keep this week's plan under $80"). **Why now:** builds directly on the meal-plan generation prompt that already exists; budget-aware planning is a commonly requested feature this app doesn't have any story for yet. Rough effort: Medium.
 
+### I. Workout Heart-Rate Trends (extends WearOS Pillar 7)
+**Problem:** the WearOS app now captures heart rate live during workout sessions, but that data goes nowhere beyond the session itself — no trend view, no use in Progressive Overload or a future Readiness Score. **Idea:** surface average/max HR per workout in Trends, and eventually weight HR-based intensity (time-in-zone) into overload and readiness logic instead of relying on subjective "hard/moderate/light" self-report. **Why now:** the data is already being captured from a real sensor as of this WearOS ship — same "data exists, nothing reads it" pattern as the Oura sleep-staging gap. Rough effort: Small-Medium.
+
+### Considered / Not Pursued
+
+*(none yet — tracks brainstormed ideas reviewed and explicitly declined, so they aren't re-suggested in future audits.)*
+
 ---
 
-*Document living as of 2026-07-14. Original proposal author: Claude. Status audit and brainstorm section: Claude. Questions, pushback, or which brainstormed ideas to spec out further — flag them and I'll revise.*
+*Document living as of 2026-07-18. Original proposal author: Claude. Status audit and brainstorm section: Claude. Questions, pushback, or which brainstormed ideas to spec out further — flag them and I'll revise.*
