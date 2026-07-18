@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -85,8 +86,9 @@ fun TodayScreen(
                 Column(
                     modifier = Modifier
                         .align(Alignment.Center)
+                        .offset(y = (-10).dp)
                         .clickable { refresh++ }
-                        .padding(28.dp),
+                        .padding(horizontal = 28.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
