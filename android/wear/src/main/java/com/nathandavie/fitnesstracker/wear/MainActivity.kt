@@ -9,6 +9,8 @@ import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import com.nathandavie.fitnesstracker.wear.data.DeviceKeyStore
+import com.nathandavie.fitnesstracker.wear.data.SessionManager
+import com.nathandavie.fitnesstracker.wear.data.SessionStore
 import com.nathandavie.fitnesstracker.wear.ui.ActiveWorkoutScreen
 import com.nathandavie.fitnesstracker.wear.ui.PairingScreen
 import com.nathandavie.fitnesstracker.wear.ui.TodayScreen
@@ -25,10 +27,25 @@ class MainActivity : ComponentActivity() {
         setContent {
             val keyStore = remember { DeviceKeyStore(applicationContext) }
             val navController = rememberSwipeDismissableNavController()
-            val start = if (keyStore.apiKey != null) "today" else "pairing"
+
+            // A live or drafted workout always resumes first — sets must never be lost
+            val hasSession = remember {
+                SessionManager.session != null || SessionStore.load(applicationContext)?.let {
+                    SessionManager.session = it
+                    true
+                } == true
+            }
+            val start = when {
+                keyStore.apiKey == null -> "pairing"
+                hasSession -> "session"
+                else -> "today"
+            }
 
             androidx.compose.runtime.LaunchedEffect(Unit) {
-                if (keyStore.apiKey != null && (deepLink == "voice" || deepLink == "picker")) {
+                if (keyStore.apiKey != null && !hasSession && (deepLink == "voice" || deepLink == "picker")) {
+                    navController.navigate(deepLink)
+                }
+                if (keyStore.apiKey != null && hasSession && deepLink == "voice") {
                     navController.navigate(deepLink)
                 }
             }
