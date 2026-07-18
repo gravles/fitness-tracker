@@ -8,6 +8,7 @@ import { haptics } from '@/lib/haptics';
 import { Confetti } from './Confetti';
 import { useLanguage } from '@/components/LanguageProvider';
 import { Modal } from './ui/Modal';
+import { authHeaders } from '@/lib/supabase';
 
 interface GoalWizardProps {
     isOpen: boolean;
@@ -49,7 +50,7 @@ export function GoalWizard({ isOpen, onClose, onComplete, currentWeight, current
             try {
                 const response = await fetch('/api/ai/generate-goals', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
                     body: JSON.stringify({ goalType, currentWeight, currentBodyFat, targetValue, targetDate, lang }),
                 });
                 const data = await response.json();

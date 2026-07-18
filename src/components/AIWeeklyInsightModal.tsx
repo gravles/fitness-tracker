@@ -6,6 +6,7 @@ import { Brain, X, TrendingUp, AlertTriangle, Wine, Dumbbell, Utensils, CheckCir
 import { WeeklyInsight } from "@/lib/ai";
 import { useLanguage } from '@/components/LanguageProvider';
 import { Modal } from './ui/Modal';
+import { authHeaders } from '@/lib/supabase';
 
 interface AIWeeklyInsightModalProps {
     isOpen: boolean;
@@ -48,7 +49,7 @@ export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightM
         try {
             const res = await fetch('/api/ai/weekly-insights', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
                 body: JSON.stringify({ logs, lang }),
                 signal: controller.signal,
             });

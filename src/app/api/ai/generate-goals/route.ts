@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { authenticateRequest } from '@/lib/api-auth';
 
 const anthropic = new Anthropic();
 
 export async function POST(request: NextRequest) {
+    const userId = await authenticateRequest(request);
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     try {
         const { goalType, currentWeight, currentBodyFat, targetValue, targetDate, lang } = await request.json();
 

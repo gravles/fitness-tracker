@@ -5,6 +5,7 @@ import { Camera, X, Check, ChefHat, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import { FoodCamera } from './FoodCamera';
+import { authHeaders } from '@/lib/supabase';
 
 interface MenuScannerProps {
     onClose: () => void;
@@ -23,7 +24,7 @@ export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
         try {
             const res = await fetch('/api/ai/scan-menu', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
                 body: JSON.stringify({ image: imageSrc }),
                 signal: controller.signal
             });

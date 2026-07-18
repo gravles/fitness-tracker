@@ -6,14 +6,22 @@ vi.mock('@/lib/ai', () => ({
     analyzeFoodImage: vi.fn(),
 }));
 
+// Mock auth so route tests don't need Supabase credentials
+vi.mock('@/lib/api-auth', () => ({
+    authenticateRequest: vi.fn(),
+}));
+
 import { POST } from '../route';
 import { analyzeFoodImage } from '@/lib/ai';
+import { authenticateRequest } from '@/lib/api-auth';
 
 const mockedAnalyzeFoodImage = vi.mocked(analyzeFoodImage);
+const mockedAuthenticateRequest = vi.mocked(authenticateRequest);
 
 describe('POST /api/ai/analyze-food', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockedAuthenticateRequest.mockResolvedValue('user-123');
     });
 
     function createRequest(body: object): NextRequest {
@@ -22,9 +30,22 @@ describe('POST /api/ai/analyze-food', () => {
             body: JSON.stringify(body),
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': 'Bearer test-token',
             },
         });
     }
+
+    it('returns 401 when unauthenticated', async () => {
+        mockedAuthenticateRequest.mockResolvedValue(null);
+
+        const req = createRequest({ image: 'base64-image-data' });
+        const response = await POST(req);
+        const data = await response.json();
+
+        expect(response.status).toBe(401);
+        expect(data.error).toBe('Unauthorized');
+        expect(mockedAnalyzeFoodImage).not.toHaveBeenCalled();
+    });
 
     it('returns 400 when no image is provided', async () => {
         const req = createRequest({});
