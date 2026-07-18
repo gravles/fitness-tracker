@@ -35,6 +35,7 @@ import androidx.wear.compose.material.Text
 import com.nathandavie.fitnesstracker.wear.api.McpClient
 import com.nathandavie.fitnesstracker.wear.api.VoiceApi
 import com.nathandavie.fitnesstracker.wear.data.DeviceKeyStore
+import com.nathandavie.fitnesstracker.wear.data.FitnessRepository
 import com.nathandavie.fitnesstracker.wear.ui.theme.Brand
 import kotlinx.coroutines.delay
 import org.json.JSONObject
@@ -110,6 +111,7 @@ fun VoiceFoodScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
                         val args = JSONObject()
                             .put("name", item.name)
                             .put("calories", item.calories)
+                            .put("date", FitnessRepository.today())
                         if (item.protein > 0) args.put("protein", item.protein)
                         if (item.carbs > 0) args.put("carbs", item.carbs)
                         if (item.fat > 0) args.put("fat", item.fat)

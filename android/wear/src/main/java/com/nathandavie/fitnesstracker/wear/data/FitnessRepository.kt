@@ -17,7 +17,8 @@ data class TodaySummary(
 
 object FitnessRepository {
 
-    private fun today(): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    /** Device-local date. Always sent explicitly — the server's "today" default is UTC. */
+    fun today(): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
     suspend fun todaySummary(client: McpClient): TodaySummary {
         val today = today()
@@ -93,6 +94,7 @@ object FitnessRepository {
             .put("activity_type", "Strength Training")
             .put("duration_mins", session.elapsedMinutes())
             .put("intensity", intensity)
+            .put("date", today())
 
         session.scheduledWorkoutId?.let { args.put("scheduled_workout_id", it) }
 
