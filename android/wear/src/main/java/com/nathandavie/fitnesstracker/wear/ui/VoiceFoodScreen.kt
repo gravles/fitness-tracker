@@ -1,25 +1,39 @@
 package com.nathandavie.fitnesstracker.wear.ui
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -36,6 +50,7 @@ import com.nathandavie.fitnesstracker.wear.api.McpClient
 import com.nathandavie.fitnesstracker.wear.api.VoiceApi
 import com.nathandavie.fitnesstracker.wear.data.DeviceKeyStore
 import com.nathandavie.fitnesstracker.wear.data.FitnessRepository
+import com.nathandavie.fitnesstracker.wear.speech.SpeechCapture
 import com.nathandavie.fitnesstracker.wear.ui.theme.Brand
 import kotlinx.coroutines.delay
 import org.json.JSONObject
@@ -60,14 +75,32 @@ private sealed interface VoiceState {
 
 /**
  * Speak → AI parses and estimates macros → confirm card → log_food per item.
- * The system speech sheet opens immediately on entry; cancelling it returns
- * to the Today screen (which refreshes the rings on re-entry).
+ * Capture happens in-app via SpeechRecognizer (pulsing indicator + live
+ * transcript — no Google system speech activity); the system sheet remains
+ * only as a fallback when no recognition service is available.
  */
 @Composable
 fun VoiceFoodScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
+    val context = LocalContext.current
     var state by remember { mutableStateOf<VoiceState>(VoiceState.Listening) }
     var attempt by remember { mutableIntStateOf(0) }
+    var partial by remember { mutableStateOf("") }
+    var level by remember { mutableFloatStateOf(0f) }
 
+    val capture = remember {
+        SpeechCapture(
+            context,
+            onPartial = { partial = it },
+            onFinal = { state = VoiceState.Processing(it) },
+            onLevel = { level = it },
+            onError = { msg -> state = VoiceState.Failed(msg) },
+        )
+    }
+    DisposableEffect(Unit) {
+        onDispose { capture.destroy() }
+    }
+
+    // Fallback: the system speech sheet, only if no in-app recognition service exists
     val speechLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
@@ -81,13 +114,30 @@ fun VoiceFoodScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
         }
     }
 
+    val micPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) attempt++
+        else state = VoiceState.Failed("Microphone permission needed")
+    }
+
     LaunchedEffect(attempt) {
-        state = VoiceState.Listening
-        speechLauncher.launch(
-            Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                .putExtra(RecognizerIntent.EXTRA_PROMPT, "What did you eat?"),
-        )
+        partial = ""
+        when {
+            !SpeechCapture.isAvailable(context) -> {
+                speechLauncher.launch(
+                    Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                        .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        .putExtra(RecognizerIntent.EXTRA_PROMPT, "What did you eat?"),
+                )
+            }
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED -> {
+                state = VoiceState.Listening
+                capture.start()
+            }
+            else -> micPermission.launch(Manifest.permission.RECORD_AUDIO)
+        }
     }
 
     LaunchedEffect(state) {
@@ -134,7 +184,53 @@ fun VoiceFoodScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         when (val s = state) {
-            is VoiceState.Listening, is VoiceState.Processing, is VoiceState.Logging -> {
+            is VoiceState.Listening -> {
+                val pulse by animateFloatAsState(
+                    targetValue = 1f + (level.coerceIn(0f, 10f) / 10f) * 0.4f,
+                    animationSpec = tween(120),
+                    label = "pulse",
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable { capture.destroy(); onDone() }
+                        .padding(horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .scale(pulse)
+                            .clip(CircleShape)
+                            .background(Brand.Gold.copy(alpha = 0.25f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(26.dp)
+                                .clip(CircleShape)
+                                .background(Brand.Gold),
+                        )
+                    }
+                    Text(
+                        text = partial.ifEmpty { "What did you eat?" },
+                        style = MaterialTheme.typography.caption1,
+                        color = if (partial.isEmpty()) Brand.TextMuted else MaterialTheme.colors.onSurface,
+                        textAlign = TextAlign.Center,
+                        maxLines = 3,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                    Text(
+                        text = "tap to cancel",
+                        style = MaterialTheme.typography.caption3,
+                        color = Brand.TextMuted,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
+            }
+
+            is VoiceState.Processing, is VoiceState.Logging -> {
                 Column(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally,
