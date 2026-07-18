@@ -62,6 +62,7 @@ function rpcRequest(method: string, params: object = {}): NextRequest {
 /** Authorize, call one tool, and return { data, isError } from the tool result. */
 async function callTool(name: string, args: object = {}) {
     queueResponse('mcp_api_keys', { user_id: 'test-user-id' });
+    queueResponse('user_settings', null); // timezone lookup for "today" → null = server clock
     const response = await POST(rpcRequest('tools/call', { name, arguments: args }));
     const json = await response.json();
     const result = json.result;
@@ -509,6 +510,56 @@ describe('POST /api/mcp — coach scheduling tools', () => {
 
             expect(isError).toBe(false);
             expect(data.completed_scheduled_workout).toBeNull();
+        });
+    });
+
+    describe('timezone-aware today', () => {
+        it("resolves date defaults in the user's timezone, not the server clock", async () => {
+            vi.useFakeTimers();
+            try {
+                // 03:00 UTC on Jan 2 = 10 PM Jan 1 in Toronto — the exact evening-rollover bug
+                vi.setSystemTime(new Date('2026-01-02T03:00:00Z'));
+
+                queueResponse('mcp_api_keys', { user_id: 'test-user-id' });
+                queueResponse('user_settings', { timezone: 'America/Toronto' });
+                queueResponse('daily_logs', null); // existing log lookup
+                queueResponse('daily_logs', null); // upsert
+
+                const response = await POST(rpcRequest('tools/call', {
+                    name: 'log_food',
+                    arguments: { name: 'Late snack', calories: 100 },
+                }));
+                const json = await response.json();
+                expect(json.result.isError).toBeFalsy();
+
+                const upsert = findCall('daily_logs', 'upsert')?.payload as Record<string, unknown>;
+                expect(upsert.date).toBe('2026-01-01');
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('falls back to the server clock when no timezone is stored', async () => {
+            vi.useFakeTimers();
+            try {
+                vi.setSystemTime(new Date('2026-01-02T03:00:00Z'));
+
+                queueResponse('mcp_api_keys', { user_id: 'test-user-id' });
+                queueResponse('user_settings', null); // no timezone stored
+                queueResponse('daily_logs', null);
+                queueResponse('daily_logs', null);
+
+                const response = await POST(rpcRequest('tools/call', {
+                    name: 'log_food',
+                    arguments: { name: 'Late snack', calories: 100 },
+                }));
+                await response.json();
+
+                const upsert = findCall('daily_logs', 'upsert')?.payload as Record<string, unknown>;
+                expect(upsert.date).toBe(format(new Date(), 'yyyy-MM-dd'));
+            } finally {
+                vi.useRealTimers();
+            }
         });
     });
 });
