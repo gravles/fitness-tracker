@@ -3,15 +3,17 @@ package com.nathandavie.fitnesstracker.wear.tile
 import androidx.concurrent.futures.SuspendToFutureAdapter
 import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.ColorBuilders.argb
+import androidx.wear.protolayout.DimensionBuilders.dp
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.TimelineBuilders
+import androidx.wear.protolayout.material.ChipColors
 import androidx.wear.protolayout.material.CircularProgressIndicator
+import androidx.wear.protolayout.material.CompactChip
 import androidx.wear.protolayout.material.ProgressIndicatorColors
 import androidx.wear.protolayout.material.Text
 import androidx.wear.protolayout.material.Typography
-import androidx.wear.protolayout.material.layouts.EdgeContentLayout
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
@@ -25,12 +27,15 @@ import kotlinx.coroutines.Dispatchers
 private const val GOLD = 0xFFE0B35A.toInt()
 private const val BLUE = 0xFF5B9CF6.toInt()
 private const val MUTED = 0xFF9AA3B2.toInt()
+private const val SURFACE = 0xFF111827.toInt()
 private const val GOLD_TRACK = 0x2EE0B35A.toInt()
+private const val BLUE_TRACK = 0x2E5B9CF6.toInt()
 
 /**
- * Glanceable tile: gold calories arc around the edge, kcal/protein remaining
- * in the middle, next workout underneath. Refreshes at most every 30 minutes;
- * tapping anywhere opens the app.
+ * Glanceable + actionable tile mirroring the app's ring design: outer gold
+ * calories ring, inner blue protein ring, remaining values in the center, and
+ * two one-tap actions — "food" (voice logging) and "lift" (workout picker) —
+ * that deep-link into the app. Refreshes at most every 30 minutes.
  */
 class TodayTileService : TileService() {
 
@@ -77,20 +82,35 @@ class TodayTileService : TileService() {
             ResourceBuilders.Resources.Builder().setVersion("1").build()
         }
 
-    private fun openAppClickable(): ModifiersBuilders.Clickable =
-        ModifiersBuilders.Clickable.Builder()
-            .setId("open")
-            .setOnClick(
-                ActionBuilders.LaunchAction.Builder()
-                    .setAndroidActivity(
-                        ActionBuilders.AndroidActivity.Builder()
-                            .setPackageName(packageName)
-                            .setClassName(MainActivity::class.java.name)
-                            .build(),
-                    )
+    /** Launch the app, optionally deep-linked (dest = "voice" | "picker"). */
+    private fun openApp(id: String, dest: String? = null): ModifiersBuilders.Clickable {
+        val activity = ActionBuilders.AndroidActivity.Builder()
+            .setPackageName(packageName)
+            .setClassName(MainActivity::class.java.name)
+        dest?.let { activity.addKeyToExtraMapping("dest", ActionBuilders.stringExtra(it)) }
+        return ModifiersBuilders.Clickable.Builder()
+            .setId(id)
+            .setOnClick(ActionBuilders.LaunchAction.Builder().setAndroidActivity(activity.build()).build())
+            .build()
+    }
+
+    private fun ring(progress: Float, colorArgb: Int, trackArgb: Int, inset: Float): LayoutElementBuilders.LayoutElement {
+        val indicator = CircularProgressIndicator.Builder()
+            .setProgress(progress)
+            .setStartAngle(0f)
+            .setEndAngle(360f)
+            .setCircularProgressIndicatorColors(ProgressIndicatorColors(argb(colorArgb), argb(trackArgb)))
+            .build()
+        if (inset == 0f) return indicator
+        return LayoutElementBuilders.Box.Builder()
+            .setModifiers(
+                ModifiersBuilders.Modifiers.Builder()
+                    .setPadding(ModifiersBuilders.Padding.Builder().setAll(dp(inset)).build())
                     .build(),
             )
+            .addContent(indicator)
             .build()
+    }
 
     private fun summaryLayout(
         requestParams: RequestBuilders.TileRequest,
@@ -98,9 +118,26 @@ class TodayTileService : TileService() {
     ): LayoutElementBuilders.LayoutElement {
         val calsLeft = summary.caloriesTarget - summary.caloriesEaten
         val proteinLeft = summary.proteinTarget - summary.proteinEaten
-        val fraction = if (summary.caloriesTarget > 0) {
+        val calsFraction = if (summary.caloriesTarget > 0) {
             (summary.caloriesEaten.toFloat() / summary.caloriesTarget).coerceIn(0f, 1f)
         } else 0f
+        val proteinFraction = if (summary.proteinTarget > 0) {
+            (summary.proteinEaten.toFloat() / summary.proteinTarget).coerceIn(0f, 1f)
+        } else 0f
+
+        val chipRow = LayoutElementBuilders.Row.Builder()
+            .addContent(
+                CompactChip.Builder(this, "food", openApp("log-food", "voice"), requestParams.deviceConfiguration)
+                    .setChipColors(ChipColors(argb(SURFACE), argb(BLUE)))
+                    .build(),
+            )
+            .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(6f)).build())
+            .addContent(
+                CompactChip.Builder(this, "lift", openApp("start-workout", "picker"), requestParams.deviceConfiguration)
+                    .setChipColors(ChipColors(argb(SURFACE), argb(GOLD)))
+                    .build(),
+            )
+            .build()
 
         val center = LayoutElementBuilders.Column.Builder()
             .addContent(
@@ -121,31 +158,19 @@ class TodayTileService : TileService() {
                     .setColor(argb(BLUE))
                     .build(),
             )
+            .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(8f)).build())
+            .addContent(chipRow)
             .build()
 
-        return EdgeContentLayout.Builder(requestParams.deviceConfiguration)
-            .setEdgeContent(
-                CircularProgressIndicator.Builder()
-                    .setProgress(fraction)
-                    .setCircularProgressIndicatorColors(ProgressIndicatorColors(argb(GOLD), argb(GOLD_TRACK)))
+        return LayoutElementBuilders.Box.Builder()
+            .setModifiers(
+                ModifiersBuilders.Modifiers.Builder()
+                    .setClickable(openApp("open"))
                     .build(),
             )
-            .setContent(
-                LayoutElementBuilders.Box.Builder()
-                    .setModifiers(
-                        ModifiersBuilders.Modifiers.Builder()
-                            .setClickable(openAppClickable())
-                            .build(),
-                    )
-                    .addContent(center)
-                    .build(),
-            )
-            .setSecondaryLabelTextContent(
-                Text.Builder(this, summary.nextWorkout?.title ?: "no workout planned")
-                    .setTypography(Typography.TYPOGRAPHY_CAPTION2)
-                    .setColor(argb(MUTED))
-                    .build(),
-            )
+            .addContent(ring(calsFraction, GOLD, GOLD_TRACK, inset = 0f))
+            .addContent(ring(proteinFraction, BLUE, BLUE_TRACK, inset = 12f))
+            .addContent(center)
             .build()
     }
 
@@ -153,7 +178,7 @@ class TodayTileService : TileService() {
         LayoutElementBuilders.Box.Builder()
             .setModifiers(
                 ModifiersBuilders.Modifiers.Builder()
-                    .setClickable(openAppClickable())
+                    .setClickable(openApp("open"))
                     .build(),
             )
             .addContent(

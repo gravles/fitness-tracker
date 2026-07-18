@@ -19,10 +19,19 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Tile chips deep-link straight to a screen ("voice" | "picker")
+        val deepLink = intent.getStringExtra("dest")
+
         setContent {
             val keyStore = remember { DeviceKeyStore(applicationContext) }
             val navController = rememberSwipeDismissableNavController()
             val start = if (keyStore.apiKey != null) "today" else "pairing"
+
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                if (keyStore.apiKey != null && (deepLink == "voice" || deepLink == "picker")) {
+                    navController.navigate(deepLink)
+                }
+            }
 
             MaterialTheme {
                 SwipeDismissableNavHost(navController = navController, startDestination = start) {
