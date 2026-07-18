@@ -3,6 +3,7 @@ package com.nathandavie.fitnesstracker.wear.ui
 import android.Manifest
 import android.app.Activity
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -56,7 +57,14 @@ import com.nathandavie.fitnesstracker.wear.data.LoggedSet
 import com.nathandavie.fitnesstracker.wear.data.SessionManager
 import com.nathandavie.fitnesstracker.wear.data.SessionStore
 import com.nathandavie.fitnesstracker.wear.data.formatWeight
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.core.content.ContextCompat
+import com.nathandavie.fitnesstracker.wear.api.VoiceApi
 import com.nathandavie.fitnesstracker.wear.sensors.HeartRateTracker
+import com.nathandavie.fitnesstracker.wear.speech.SetParser
+import com.nathandavie.fitnesstracker.wear.speech.SpeechCapture
+import com.nathandavie.fitnesstracker.wear.speech.SpokenSet
 import com.nathandavie.fitnesstracker.wear.tile.TileRefresher
 import com.nathandavie.fitnesstracker.wear.ui.components.CountdownRing
 import com.nathandavie.fitnesstracker.wear.ui.theme.Brand
@@ -66,6 +74,9 @@ private enum class Field { REPS, WEIGHT }
 
 private sealed interface Phase {
     data object Logging : Phase
+    data object VoiceListening : Phase
+    data class VoiceParsing(val transcript: String) : Phase
+    data class VoiceFailed(val message: String) : Phase
     data class Resting(val totalSeconds: Int) : Phase
     data object Summary : Phase
     data object Saving : Phase
@@ -115,6 +126,38 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
             hrNow = bpm
         }
     }
+
+    var voicePartial by remember { mutableStateOf("") }
+    val speech = remember {
+        SpeechCapture(
+            context,
+            onPartial = { voicePartial = it },
+            onFinal = { phase = Phase.VoiceParsing(it) },
+            onLevel = { },
+            onError = { msg -> phase = Phase.VoiceFailed(msg) },
+        )
+    }
+    val micPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            voicePartial = ""
+            phase = Phase.VoiceListening
+            speech.start()
+        }
+    }
+
+    fun startVoiceSet() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            voicePartial = ""
+            phase = Phase.VoiceListening
+            speech.start()
+        } else {
+            micPermission.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted -> if (granted) tracker.start() }
@@ -128,6 +171,7 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
         onDispose {
             window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             tracker.stop()
+            speech.destroy()
         }
     }
 
@@ -304,13 +348,114 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
                 }
 
                 Text(
+                    text = "say set",
+                    style = MaterialTheme.typography.caption2,
+                    color = Brand.Gold,
+                    modifier = Modifier
+                        .padding(top = 6.dp)
+                        .clickable { startVoiceSet() },
+                )
+                Text(
                     text = "finish workout",
                     style = MaterialTheme.typography.caption3,
                     color = Brand.TextMuted,
                     modifier = Modifier
-                        .padding(top = 6.dp)
+                        .padding(top = 4.dp)
                         .clickable { if (session.totalSetsLogged > 0) phase = Phase.Summary },
                 )
+            }
+        }
+
+        is Phase.VoiceListening -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { speech.destroy(); phase = Phase.Logging }
+                    .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Brand.Gold),
+                )
+                Text(
+                    text = voicePartial.ifEmpty { "\"185 for 8\"" },
+                    style = MaterialTheme.typography.caption1,
+                    color = if (voicePartial.isEmpty()) Brand.TextMuted else MaterialTheme.colors.onSurface,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    modifier = Modifier.padding(top = 10.dp),
+                )
+                Text(
+                    text = "tap to cancel",
+                    style = MaterialTheme.typography.caption3,
+                    color = Brand.TextMuted,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+
+        is Phase.VoiceParsing -> {
+            LaunchedEffect(p) {
+                val local = SetParser.parse(p.transcript)
+                val result = local ?: try {
+                    val key = keyStore.apiKey
+                    if (key == null) null
+                    else {
+                        val parsed = VoiceApi.parseTranscript(key, p.transcript)
+                        if (parsed.optString("intent") == "log_set") {
+                            val d = parsed.optJSONObject("data")
+                            val r = d?.optInt("reps", 0) ?: 0
+                            var w = d?.optDouble("weight", 0.0) ?: 0.0
+                            if ((d?.optString("weight_unit") ?: "lbs") == "kg") w *= 2.20462
+                            if (r in 1..100) {
+                                SpokenSet(r, w.takeIf { it > 0 }?.let { kotlin.math.round(it * 2) / 2.0 })
+                            } else null
+                        } else null
+                    }
+                } catch (e: Exception) {
+                    null
+                }
+
+                if (result == null) {
+                    phase = Phase.VoiceFailed("Didn't catch a set")
+                } else {
+                    reps = result.reps
+                    result.weightLbs?.let { weight = it }
+                    completeSet()
+                }
+            }
+            Column(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                CircularProgressIndicator()
+                Text(
+                    text = "“${p.transcript}”",
+                    style = MaterialTheme.typography.caption2,
+                    color = Brand.TextMuted,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    modifier = Modifier.padding(top = 10.dp),
+                )
+            }
+        }
+
+        is Phase.VoiceFailed -> {
+            LaunchedEffect(p) {
+                delay(1_400)
+                phase = Phase.Logging
+            }
+            Column(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(text = p.message, style = MaterialTheme.typography.caption1, textAlign = TextAlign.Center)
             }
         }
 
