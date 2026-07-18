@@ -8,6 +8,10 @@ data class PlannedExercise(
     val targetSets: Int,
     val repRange: String?,   // e.g. "8-12"
     val restSeconds: Int,
+    val lastWeightLbs: Int? = null,
+    val lastReps: List<Int> = emptyList(),
+    val suggestedWeightLbs: Int? = null,
+    val progression: String? = null, // "increase" | "repeat"
 ) {
     /** Lower bound of the rep range as the starting suggestion. */
     val suggestedReps: Int
@@ -19,6 +23,12 @@ data class PlannedExercise(
             targetSets = o.optInt("sets", 3).coerceAtLeast(1),
             repRange = o.optString("rep_range").takeIf { it.isNotEmpty() && it != "null" },
             restSeconds = o.optInt("rest_seconds", 60).let { if (it <= 0) 60 else it },
+            lastWeightLbs = o.optInt("last_weight_lbs", 0).takeIf { it > 0 },
+            lastReps = o.optJSONArray("last_reps")?.let { arr ->
+                (0 until arr.length()).map { arr.optInt(it) }
+            } ?: emptyList(),
+            suggestedWeightLbs = o.optInt("suggested_weight_lbs", 0).takeIf { it > 0 },
+            progression = o.optString("progression").takeIf { it == "increase" || it == "repeat" },
         )
 
         fun listFromJson(arr: JSONArray): List<PlannedExercise> =

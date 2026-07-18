@@ -179,6 +179,58 @@ describe('POST /api/mcp — coach scheduling tools', () => {
             );
             expect(data[0].fallback_exercises[0].exercise_name).toBe('Push-ups');
         });
+
+        it('suggests +5 lbs when every set hit the top of the rep range last session', async () => {
+            queueResponse('workout_templates', [STORED_TEMPLATE]);
+            queueResponse('workouts', [{ id: 'w-1', date: day(-2) }]);
+            queueResponse('workout_exercises', [{ id: 'we-1', workout_id: 'w-1', exercise_name: 'Bench Press' }]);
+            queueResponse('workout_sets', [
+                { exercise_id: 'we-1', weight: 185, reps: 12, completed: true },
+                { exercise_id: 'we-1', weight: 185, reps: 12, completed: true },
+                { exercise_id: 'we-1', weight: 185, reps: 12, completed: true },
+                { exercise_id: 'we-1', weight: 185, reps: 12, completed: true },
+            ]);
+
+            const { data, isError } = await callTool('get_workout_templates');
+
+            expect(isError).toBe(false);
+            expect(data[0].exercises[0]).toEqual(expect.objectContaining({
+                last_weight_lbs: 185,
+                suggested_weight_lbs: 190,
+                progression: 'increase',
+            }));
+        });
+
+        it('repeats the last weight when the rep target was missed', async () => {
+            queueResponse('workout_templates', [STORED_TEMPLATE]);
+            queueResponse('workouts', [{ id: 'w-1', date: day(-2) }]);
+            queueResponse('workout_exercises', [{ id: 'we-1', workout_id: 'w-1', exercise_name: 'bench press' }]); // case-insensitive match
+            queueResponse('workout_sets', [
+                { exercise_id: 'we-1', weight: 185, reps: 12, completed: true },
+                { exercise_id: 'we-1', weight: 185, reps: 10, completed: true }, // missed the top
+                { exercise_id: 'we-1', weight: 185, reps: 9, completed: true },
+                { exercise_id: 'we-1', weight: 185, reps: 8, completed: true },
+            ]);
+
+            const { data } = await callTool('get_workout_templates');
+
+            expect(data[0].exercises[0]).toEqual(expect.objectContaining({
+                last_weight_lbs: 185,
+                last_reps: [12, 10, 9, 8],
+                suggested_weight_lbs: 185,
+                progression: 'repeat',
+            }));
+        });
+
+        it('leaves exercises untouched without weighted history', async () => {
+            queueResponse('workout_templates', [STORED_TEMPLATE]);
+            queueResponse('workouts', []); // no recent sessions
+
+            const { data } = await callTool('get_workout_templates');
+
+            expect(data[0].exercises[0].suggested_weight_lbs).toBeUndefined();
+            expect(data[0].exercises[0].progression).toBeUndefined();
+        });
     });
 
     describe('schedule_workout', () => {
