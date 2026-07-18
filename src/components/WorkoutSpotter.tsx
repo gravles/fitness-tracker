@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Mic, MicOff, Volume2, StopCircle, Zap } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 interface WorkoutSpotterProps {
     onSetDetected: (set: { exercise?: string, reps: number, weight: number, weight_unit: string }) => void;
@@ -127,9 +128,10 @@ export function WorkoutSpotter({ onSetDetected }: WorkoutSpotterProps) {
         setStatus('processing');
 
         try {
+            const { data: { session } } = await supabase.auth.getSession();
             const res = await fetch('/api/ai/process-intent', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
                 body: JSON.stringify({ transcript: text })
             });
             const data = await res.json();

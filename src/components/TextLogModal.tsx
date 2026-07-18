@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Modal } from './ui/Modal';
+import { supabase } from '@/lib/supabase';
 
 interface TextLogModalProps {
     isOpen: boolean;
@@ -20,9 +21,10 @@ export function TextLogModal({ isOpen, onClose, onProcessed, onWorkoutRequest }:
         if (!text.trim()) return;
         setLoading(true);
         try {
+            const { data: { session } } = await supabase.auth.getSession();
             const res = await fetch('/api/ai/process-intent', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
                 body: JSON.stringify({ transcript: text })
             });
             const intent = await res.json();

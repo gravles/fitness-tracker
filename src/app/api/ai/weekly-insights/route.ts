@@ -1,12 +1,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateWeeklyInsights } from '@/lib/ai';
+import { authenticateRequest } from '@/lib/api-auth';
 
 // Allow up to 60 seconds for the AI to generate insights
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
     try {
+        const userId = await authenticateRequest(req);
+        if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const body = await req.json();
         const { logs, lang } = body;
 

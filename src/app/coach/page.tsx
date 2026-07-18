@@ -7,6 +7,7 @@ import { getMonthlyLogs, getSettings, getWorkoutsRange, getCoachMessages, saveCo
 import { getTemplates, createTemplate } from '@/lib/workout-api';
 import { subDays, format } from 'date-fns';
 import { useLanguage } from '@/components/LanguageProvider';
+import { supabase } from '@/lib/supabase';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -93,9 +94,10 @@ export default function CoachPage() {
         saveCoachMessage({ role: 'user', content: input }).catch(() => {});
 
         try {
+            const { data: { session } } = await supabase.auth.getSession();
             const res = await fetch('/api/ai/coach', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
                 body: JSON.stringify({ messages: [...messages, newMsg], context, lang })
             });
 
