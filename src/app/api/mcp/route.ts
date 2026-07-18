@@ -103,6 +103,8 @@ const TOOLS = [
                 duration_mins: { type: 'number', description: 'Duration in minutes. Defaults to 45.' },
                 intensity:     { type: 'string', enum: ['Light', 'Moderate', 'Hard'], description: 'Defaults to Moderate.' },
                 calories:      { type: 'number', description: 'Estimated calories burned (optional)' },
+                average_heartrate: { type: 'number', description: 'Average heart rate (bpm) over the session, e.g. from a watch (optional)' },
+                max_heartrate:     { type: 'number', description: 'Max heart rate (bpm) during the session (optional)' },
                 notes:         { type: 'string', description: 'Optional notes' },
                 date:          { type: 'string', description: 'Date YYYY-MM-DD. Defaults to today.' },
                 exercises: {
@@ -752,6 +754,8 @@ async function logWorkout(userId: string, args: Record<string, unknown>) {
             duration:      (args.duration_mins as number) ?? 45,
             intensity:     (args.intensity     as string) ?? 'Moderate',
             calories:      (args.calories as number) ?? null,
+            average_heartrate: (args.average_heartrate as number) ?? null,
+            max_heartrate:     (args.max_heartrate     as number) ?? null,
             notes:         (args.notes    as string) ?? null,
             source:        'manual',
         })

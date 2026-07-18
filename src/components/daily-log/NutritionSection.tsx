@@ -10,7 +10,7 @@ import { addFavoriteFood, deleteFavoriteFood, getFavoriteFoods, FavoriteFood } f
 import { confirm } from '@/components/ConfirmDialog';
 import { useLanguage } from '@/components/LanguageProvider';
 import { Modal } from '@/components/ui';
-import { supabase } from '@/lib/supabase';
+import { authHeaders } from '@/lib/supabase';
 
 interface NutritionSectionProps {
     nutrition: {
@@ -486,10 +486,9 @@ export function NutritionSection({
                                 const controller = new AbortController();
                                 const timeoutId = setTimeout(() => controller.abort(), 30000);
                                 try {
-                                    const { data: { session } } = await supabase.auth.getSession();
                                     const res = await fetch('/api/ai/analyze-food', {
                                         method: 'POST',
-                                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+                                        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
                                         body: JSON.stringify({ image: img }),
                                         signal: controller.signal,
                                     });

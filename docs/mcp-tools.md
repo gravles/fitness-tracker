@@ -38,6 +38,7 @@ Log a completed session and (automatically) mark the day's scheduled entry compl
 
 - `activity_type`* — e.g. `Running`, `Strength Training`
 - `duration_mins` (45), `intensity` (`Light|Moderate|Hard`, default `Moderate`), `calories`, `notes`, `date` (today)
+- `average_heartrate`, `max_heartrate` — bpm over the session, e.g. from a watch (optional)
 - `exercises` — strength logging: `[{ exercise_name, sets: [{ reps, weight_lbs }] }]`
 - `scheduled_workout_id` — entry id from `get_schedule` to mark completed; if omitted, the first
   still-planned entry on the same date is matched.

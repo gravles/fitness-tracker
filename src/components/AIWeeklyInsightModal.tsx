@@ -6,7 +6,7 @@ import { Brain, X, TrendingUp, AlertTriangle, Wine, Dumbbell, Utensils, CheckCir
 import { WeeklyInsight } from "@/lib/ai";
 import { useLanguage } from '@/components/LanguageProvider';
 import { Modal } from './ui/Modal';
-import { supabase } from '@/lib/supabase';
+import { authHeaders } from '@/lib/supabase';
 
 interface AIWeeklyInsightModalProps {
     isOpen: boolean;
@@ -47,10 +47,9 @@ export function AIWeeklyInsightModal({ isOpen, onClose, logs }: AIWeeklyInsightM
         const timeoutId = setTimeout(() => controller.abort(), 55000); // 55s client-side timeout
 
         try {
-            const { data: { session } } = await supabase.auth.getSession();
             const res = await fetch('/api/ai/weekly-insights', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+                headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
                 body: JSON.stringify({ logs, lang }),
                 signal: controller.signal,
             });

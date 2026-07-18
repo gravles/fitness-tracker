@@ -7,7 +7,7 @@ import { createPortal } from 'react-dom';
 import { WorkoutChatState } from '@/lib/ai';
 import { useLanguage } from '@/components/LanguageProvider';
 import { Modal } from './ui/Modal';
-import { supabase } from '@/lib/supabase';
+import { authHeaders } from '@/lib/supabase';
 
 interface WorkoutChatModalProps {
     isOpen: boolean;
@@ -81,10 +81,9 @@ export function WorkoutChatModal({ isOpen, onClose, onSave, initialData }: Worko
         setInput('');
         setIsLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
             const res = await fetch('/api/ai/workout-chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+                headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
                 body: JSON.stringify({ state: chatState, message: text, lang })
             });
             const newState: WorkoutChatState = await res.json();

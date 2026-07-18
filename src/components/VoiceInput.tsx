@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase';
+import { authHeaders } from '@/lib/supabase';
 
 interface VoiceInputProps {
     onIntentDetected: (intent: any) => void;
@@ -75,10 +75,9 @@ export function VoiceInput({ onIntentDetected, autoStart = false, customTrigger,
         setIsProcessing(true);
         onStateChange?.(false, true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
             const res = await fetch('/api/ai/process-intent', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+                headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
                 body: JSON.stringify({ transcript: text })
             });
             const data = await res.json();

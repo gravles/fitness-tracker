@@ -1,12 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
-// Mock the AI module before importing the route
+// Mock the AI module and auth before importing the route
 vi.mock('@/lib/ai', () => ({
     processVoiceIntent: vi.fn(),
 }));
-
-// Mock auth so route tests don't need Supabase credentials
 vi.mock('@/lib/api-auth', () => ({
     authenticateRequest: vi.fn(),
 }));
@@ -24,19 +22,8 @@ describe('POST /api/ai/process-intent', () => {
         mockedAuthenticateRequest.mockResolvedValue('user-123');
     });
 
-    function createRequest(body: object): NextRequest {
-        return new NextRequest('http://localhost:3000/api/ai/process-intent', {
-            method: 'POST',
-            body: JSON.stringify(body),
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer test-token',
-            },
-        });
-    }
-
-    it('returns 401 when unauthenticated', async () => {
-        mockedAuthenticateRequest.mockResolvedValue(null);
+    it('returns 401 when the request is unauthenticated', async () => {
+        mockedAuthenticateRequest.mockResolvedValueOnce(null);
 
         const req = createRequest({ transcript: 'log a run' });
         const response = await POST(req);
@@ -46,6 +33,16 @@ describe('POST /api/ai/process-intent', () => {
         expect(data.error).toBe('Unauthorized');
         expect(mockedProcessVoiceIntent).not.toHaveBeenCalled();
     });
+
+    function createRequest(body: object): NextRequest {
+        return new NextRequest('http://localhost:3000/api/ai/process-intent', {
+            method: 'POST',
+            body: JSON.stringify(body),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+    }
 
     it('returns 400 when no transcript is provided', async () => {
         const req = createRequest({});
