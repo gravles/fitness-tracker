@@ -5,6 +5,8 @@ Authenticate with an API key generated in **Settings → Claude Connector**, pas
 `Authorization: Bearer <key>` or `?key=<key>`.
 
 All dates are `YYYY-MM-DD`; times are `HH:MM` 24-hour, stored in the user's local timezone.
+"Today" defaults resolve in the user's stored IANA timezone (`user_settings.timezone`, kept in
+sync by the web app), falling back to the server clock (UTC) when unset.
 Tool errors come back as MCP tool results with `isError: true` and a plain-English message.
 
 ## Read tools

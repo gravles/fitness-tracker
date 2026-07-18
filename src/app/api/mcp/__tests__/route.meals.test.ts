@@ -62,6 +62,7 @@ function rpcRequest(method: string, params: object = {}): NextRequest {
 /** Authorize, call one tool, and return { data, isError } from the tool result. */
 async function callTool(name: string, args: object = {}) {
     queueResponse('mcp_api_keys', { user_id: 'test-user-id' });
+    queueResponse('user_settings', null); // timezone lookup for "today" → null = server clock
     const response = await POST(rpcRequest('tools/call', { name, arguments: args }));
     const json = await response.json();
     const result = json.result;

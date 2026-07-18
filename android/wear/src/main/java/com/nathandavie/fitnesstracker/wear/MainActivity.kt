@@ -9,8 +9,11 @@ import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import com.nathandavie.fitnesstracker.wear.data.DeviceKeyStore
+import com.nathandavie.fitnesstracker.wear.ui.ActiveWorkoutScreen
 import com.nathandavie.fitnesstracker.wear.ui.PairingScreen
 import com.nathandavie.fitnesstracker.wear.ui.TodayScreen
+import com.nathandavie.fitnesstracker.wear.ui.VoiceFoodScreen
+import com.nathandavie.fitnesstracker.wear.ui.WorkoutPickerScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,6 +41,38 @@ class MainActivity : ComponentActivity() {
                             keyStore = keyStore,
                             onUnpaired = {
                                 navController.navigate("pairing") {
+                                    popUpTo("today") { inclusive = true }
+                                }
+                            },
+                            onStartWorkout = { navController.navigate("picker") },
+                            onLogFood = { navController.navigate("voice") },
+                        )
+                    }
+                    composable("voice") {
+                        VoiceFoodScreen(
+                            keyStore = keyStore,
+                            onDone = {
+                                navController.navigate("today") {
+                                    popUpTo("today") { inclusive = true }
+                                }
+                            },
+                        )
+                    }
+                    composable("picker") {
+                        WorkoutPickerScreen(
+                            keyStore = keyStore,
+                            onStarted = {
+                                navController.navigate("session") {
+                                    popUpTo("picker") { inclusive = true }
+                                }
+                            },
+                        )
+                    }
+                    composable("session") {
+                        ActiveWorkoutScreen(
+                            keyStore = keyStore,
+                            onDone = {
+                                navController.navigate("today") {
                                     popUpTo("today") { inclusive = true }
                                 }
                             },

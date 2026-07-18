@@ -443,6 +443,34 @@ function todayStr(): string {
     return format(new Date(), 'yyyy-MM-dd');
 }
 
+/**
+ * "Today" in the user's stored IANA timezone (user_settings.timezone, synced
+ * by the web app). Falls back to the server clock (UTC on Vercel) when unset
+ * or invalid — without this, evening logs land on tomorrow's date.
+ */
+async function todayFor(userId: string): Promise<string> {
+    const { data } = await supabaseAdmin
+        .from('user_settings')
+        .select('timezone')
+        .eq('user_id', userId)
+        .maybeSingle();
+    const tz = (data as { timezone?: string | null } | null)?.timezone;
+    if (tz) {
+        try {
+            // en-CA formats as YYYY-MM-DD
+            return new Intl.DateTimeFormat('en-CA', {
+                timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+            }).format(new Date());
+        } catch { /* invalid timezone string — fall through */ }
+    }
+    return todayStr();
+}
+
+/** dateStr ± days, on date-only strings (no timezone involvement). */
+function shiftDate(dateStr: string, days: number): string {
+    return format(addDays(new Date(dateStr + 'T00:00:00'), days), 'yyyy-MM-dd');
+}
+
 function ok(id: unknown, result: unknown) {
     return NextResponse.json({ jsonrpc: '2.0', id, result }, { headers: corsHeaders() });
 }
@@ -553,17 +581,17 @@ async function findTemplateByName(userId: string, name: string) {
 }
 
 /** DB status → MCP status. Entries still "scheduled" after the day has passed read as missed. */
-function mcpStatus(dbStatus: string, scheduledDate: string): string {
+function mcpStatus(dbStatus: string, scheduledDate: string, today: string): string {
     if (dbStatus === 'completed') return 'completed';
     if (dbStatus === 'skipped')   return 'skipped';
-    return scheduledDate < todayStr() ? 'missed' : 'planned';
+    return scheduledDate < today ? 'missed' : 'planned';
 }
 
 // ─── TOOL HANDLERS ────────────────────────────────────────────────────────────
 
-async function getDailyLogs(userId: string, args: Record<string, unknown>) {
-    const start = (args.start_date as string) ?? format(subDays(new Date(), 7), 'yyyy-MM-dd');
-    const end   = (args.end_date   as string) ?? todayStr();
+async function getDailyLogs(userId: string, args: Record<string, unknown>, today: string) {
+    const start = (args.start_date as string) ?? shiftDate(today, -7);
+    const end   = (args.end_date   as string) ?? today;
 
     const { data, error } = await supabaseAdmin
         .from('daily_logs')
@@ -583,9 +611,9 @@ async function getDailyLogs(userId: string, args: Record<string, unknown>) {
     return data ?? [];
 }
 
-async function getWorkouts(userId: string, args: Record<string, unknown>) {
-    const start = (args.start_date as string) ?? format(subDays(new Date(), 30), 'yyyy-MM-dd');
-    const end   = (args.end_date   as string) ?? todayStr();
+async function getWorkouts(userId: string, args: Record<string, unknown>, today: string) {
+    const start = (args.start_date as string) ?? shiftDate(today, -30);
+    const end   = (args.end_date   as string) ?? today;
 
     const { data: workouts, error } = await supabaseAdmin
         .from('workouts')
@@ -630,9 +658,9 @@ async function getWorkouts(userId: string, args: Record<string, unknown>) {
     });
 }
 
-async function getBodyMetrics(userId: string, args: Record<string, unknown>) {
+async function getBodyMetrics(userId: string, args: Record<string, unknown>, today: string) {
     const days  = Math.min((args.days as number) ?? 90, 365);
-    const start = format(subDays(new Date(), days), 'yyyy-MM-dd');
+    const start = shiftDate(today, -days);
 
     const { data, error } = await supabaseAdmin
         .from('body_metrics')
@@ -655,7 +683,7 @@ async function getUserProfile(userId: string) {
     return data;
 }
 
-async function logFood(userId: string, args: Record<string, unknown>) {
+async function logFood(userId: string, args: Record<string, unknown>, today: string) {
     // Pull defaults from the planned meal (if any) before applying caller overrides
     let plannedMeal: { id: string; name: string; scheduled_date: string; calories: number; protein: number; carbs: number; fat: number } | null = null;
     if (args.planned_meal_id) {
@@ -670,7 +698,7 @@ async function logFood(userId: string, args: Record<string, unknown>) {
         plannedMeal = data;
     }
 
-    const date = (args.date as string) ?? plannedMeal?.scheduled_date ?? todayStr();
+    const date = (args.date as string) ?? plannedMeal?.scheduled_date ?? today;
 
     const name = (args.name as string) ?? plannedMeal?.name;
     if (!name) throw new Error('name is required unless planned_meal_id is given.');
@@ -734,16 +762,16 @@ async function logFood(userId: string, args: Record<string, unknown>) {
 }
 
 /** log_planned_meal is sugar over logFood: same macros defaulting/override logic, always dated to the plan's own day. */
-async function logPlannedMeal(userId: string, args: Record<string, unknown>) {
+async function logPlannedMeal(userId: string, args: Record<string, unknown>, today: string) {
     const plannedMealId = args.planned_meal_id as string;
     if (!plannedMealId) throw new Error('planned_meal_id is required — get it from get_meal_plan.');
 
     const adjustments = (args.adjustments as Record<string, unknown>) ?? {};
-    return logFood(userId, { planned_meal_id: plannedMealId, ...adjustments });
+    return logFood(userId, { planned_meal_id: plannedMealId, ...adjustments }, today);
 }
 
-async function logWorkout(userId: string, args: Record<string, unknown>) {
-    const date = args.date != null ? assertDate(args.date, 'date') : todayStr();
+async function logWorkout(userId: string, args: Record<string, unknown>, today: string) {
+    const date = args.date != null ? assertDate(args.date, 'date') : today;
 
     const { data, error } = await supabaseAdmin
         .from('workouts')
@@ -995,9 +1023,9 @@ async function autoLinkStaleEntries(
         status: string;
         completed_workout_id: string | null;
         template: { name: string } | null;
-    }[]
+    }[],
+    today: string,
 ) {
-    const today = todayStr();
     const stale = rows.filter(w =>
         (w.status === 'scheduled' || w.status === 'rescheduled') && w.scheduled_date < today
     );
@@ -1043,8 +1071,8 @@ async function autoLinkStaleEntries(
     }
 }
 
-async function getSchedule(userId: string, args: Record<string, unknown>) {
-    const start = args.start_date != null ? assertDate(args.start_date, 'start_date') : todayStr();
+async function getSchedule(userId: string, args: Record<string, unknown>, today: string) {
+    const start = args.start_date != null ? assertDate(args.start_date, 'start_date') : today;
     const end   = args.end_date   != null ? assertDate(args.end_date, 'end_date')
                                           : format(addDays(new Date(start + 'T00:00:00'), 6), 'yyyy-MM-dd');
     if (end < start) throw new Error(`end_date (${end}) is before start_date (${start}).`);
@@ -1078,14 +1106,14 @@ async function getSchedule(userId: string, args: Record<string, unknown>) {
     }
 
     const rows = (data ?? []) as unknown as ScheduleRow[];
-    await autoLinkStaleEntries(userId, rows);
+    await autoLinkStaleEntries(userId, rows, today);
 
     return rows.map(w => ({
         id:                   w.id,
         date:                 w.scheduled_date,
         time:                 w.scheduled_time?.slice(0, 5),
         title:                w.title,
-        status:               mcpStatus(w.status, w.scheduled_date),
+        status:               mcpStatus(w.status, w.scheduled_date, today),
         skipped_reason:       w.skipped_reason,
         notes:                w.notes,
         duration_minutes:     w.duration_minutes,
@@ -1098,7 +1126,7 @@ async function getSchedule(userId: string, args: Record<string, unknown>) {
     }));
 }
 
-async function updateScheduledWorkoutTool(userId: string, args: Record<string, unknown>) {
+async function updateScheduledWorkoutTool(userId: string, args: Record<string, unknown>, today: string) {
     const id = args.scheduled_workout_id as string;
     if (!id) throw new Error('scheduled_workout_id is required — get it from get_schedule.');
 
@@ -1150,7 +1178,7 @@ async function updateScheduledWorkoutTool(userId: string, args: Record<string, u
             date:           data.scheduled_date,
             time:           data.scheduled_time?.slice(0, 5),
             title:          data.title,
-            status:         mcpStatus(data.status, data.scheduled_date),
+            status:         mcpStatus(data.status, data.scheduled_date, today),
             skipped_reason: data.skipped_reason,
             using_fallback: !!data.use_fallback,
             notes:          data.notes,
@@ -1320,8 +1348,8 @@ async function planMeal(userId: string, args: Record<string, unknown>) {
     };
 }
 
-async function getMealPlan(userId: string, args: Record<string, unknown>) {
-    const start = args.start_date != null ? assertDate(args.start_date, 'start_date') : todayStr();
+async function getMealPlan(userId: string, args: Record<string, unknown>, today: string) {
+    const start = args.start_date != null ? assertDate(args.start_date, 'start_date') : today;
     const end   = args.end_date   != null ? assertDate(args.end_date, 'end_date')
                                           : format(addDays(new Date(start + 'T00:00:00'), 6), 'yyyy-MM-dd');
     if (end < start) throw new Error(`end_date (${end}) is before start_date (${start}).`);
@@ -1476,8 +1504,8 @@ async function updatePlannedMeal(userId: string, args: Record<string, unknown>) 
     };
 }
 
-async function updateDailyLog(userId: string, args: Record<string, unknown>) {
-    const date = (args.date as string) ?? todayStr();
+async function updateDailyLog(userId: string, args: Record<string, unknown>, today: string) {
+    const date = (args.date as string) ?? today;
     const patch: Record<string, unknown> = { user_id: userId, date, updated_at: new Date().toISOString() };
 
     if (args.sleep_quality  != null) patch.sleep_quality  = Math.min(5, Math.max(1, args.sleep_quality  as number));
@@ -1543,26 +1571,29 @@ export async function POST(req: NextRequest) {
             const name = (params as any)?.name as string;
             const args = ((params as any)?.arguments ?? {}) as Record<string, unknown>;
 
+            // "Today" in the user's timezone — date defaults must not roll over on the server's UTC clock
+            const today = await todayFor(userId);
+
             let result: unknown;
             switch (name) {
-                case 'get_daily_logs':   result = await getDailyLogs(userId, args);   break;
-                case 'get_workouts':     result = await getWorkouts(userId, args);     break;
-                case 'get_body_metrics': result = await getBodyMetrics(userId, args);  break;
+                case 'get_daily_logs':   result = await getDailyLogs(userId, args, today);   break;
+                case 'get_workouts':     result = await getWorkouts(userId, args, today);     break;
+                case 'get_body_metrics': result = await getBodyMetrics(userId, args, today);  break;
                 case 'get_user_profile': result = await getUserProfile(userId);        break;
-                case 'log_food':         result = await logFood(userId, args);         break;
-                case 'log_workout':      result = await logWorkout(userId, args);      break;
-                case 'update_daily_log': result = await updateDailyLog(userId, args);  break;
+                case 'log_food':         result = await logFood(userId, args, today);         break;
+                case 'log_workout':      result = await logWorkout(userId, args, today);      break;
+                case 'update_daily_log': result = await updateDailyLog(userId, args, today);  break;
                 case 'save_workout_template':    result = await saveWorkoutTemplate(userId, args);       break;
                 case 'get_workout_templates':    result = await getWorkoutTemplates(userId);             break;
                 case 'schedule_workout':         result = await scheduleWorkoutTool(userId, args);       break;
-                case 'get_schedule':             result = await getSchedule(userId, args);               break;
-                case 'update_scheduled_workout': result = await updateScheduledWorkoutTool(userId, args); break;
+                case 'get_schedule':             result = await getSchedule(userId, args, today);               break;
+                case 'update_scheduled_workout': result = await updateScheduledWorkoutTool(userId, args, today); break;
                 case 'save_meal':          result = await saveMeal(userId, args);          break;
                 case 'get_meals':          result = await getMeals(userId);                break;
                 case 'plan_meal':          result = await planMeal(userId, args);           break;
-                case 'get_meal_plan':      result = await getMealPlan(userId, args);        break;
+                case 'get_meal_plan':      result = await getMealPlan(userId, args, today);        break;
                 case 'update_planned_meal': result = await updatePlannedMeal(userId, args); break;
-                case 'log_planned_meal':   result = await logPlannedMeal(userId, args);     break;
+                case 'log_planned_meal':   result = await logPlannedMeal(userId, args, today);     break;
                 default:
                     return rpcError(id, -32601, `Unknown tool: ${name}`);
             }
