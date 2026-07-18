@@ -49,6 +49,7 @@ fun TodayScreen(
     onUnpaired: () -> Unit,
     onStartWorkout: () -> Unit,
     onLogFood: () -> Unit,
+    onCheckIn: () -> Unit,
 ) {
     var state by remember { mutableStateOf<TodayState>(TodayState.Loading) }
     var refresh by remember { mutableStateOf(0) }
@@ -116,19 +117,21 @@ fun TodayScreen(
                         modifier = Modifier.padding(top = 6.dp),
                     )
 
-                    if (sum.readinessScore != null && sum.readinessLabel != null) {
-                        Text(
-                            text = "readiness ${sum.readinessScore} · ${sum.readinessLabel}",
-                            style = MaterialTheme.typography.caption2,
-                            color = when (sum.readinessLabel) {
-                                "primed" -> Brand.Gold
-                                "ready" -> Brand.Blue
-                                "recovery" -> Brand.Danger
-                                else -> Brand.TextMuted
-                            },
-                            modifier = Modifier.padding(top = 4.dp),
-                        )
-                    }
+                    Text(
+                        text = if (sum.readinessScore != null && sum.readinessLabel != null) {
+                            "readiness ${sum.readinessScore} · ${sum.readinessLabel}"
+                        } else {
+                            "morning check-in"
+                        },
+                        style = MaterialTheme.typography.caption2,
+                        color = when (sum.readinessLabel) {
+                            "primed" -> Brand.Gold
+                            "ready" -> Brand.Blue
+                            "recovery" -> Brand.Danger
+                            else -> Brand.TextMuted
+                        },
+                        modifier = Modifier.padding(top = 4.dp).clickable { onCheckIn() },
+                    )
                 }
 
                 CompactChip(

@@ -100,6 +100,55 @@ object FitnessRepository {
         )
     }
 
+    data class CheckInPrefill(val sleep: Int?, val energy: Int?, val yesterdayDrinks: Int?)
+
+    /** Existing values for the morning check-in (today's sleep/energy, yesterday's drinks). */
+    suspend fun checkInPrefill(client: McpClient): CheckInPrefill {
+        val today = today()
+        val yesterday = shiftDays(-1)
+        val logs = client.callToolArray(
+            "get_daily_logs",
+            JSONObject().put("start_date", yesterday).put("end_date", today),
+        )
+        var sleep: Int? = null
+        var energy: Int? = null
+        var drinks: Int? = null
+        (0 until logs.length()).map { logs.getJSONObject(it) }.forEach { log ->
+            when (log.optString("date")) {
+                today -> {
+                    sleep = log.optInt("sleep_quality", 0).takeIf { it in 1..5 }
+                    energy = log.optInt("energy_level", 0).takeIf { it in 1..5 }
+                }
+                yesterday -> drinks = log.optInt("alcohol_drinks", -1).takeIf { it >= 0 }
+            }
+        }
+        return CheckInPrefill(sleep, energy, drinks)
+    }
+
+    suspend fun saveCheckIn(client: McpClient, sleep: Int, energy: Int, yesterdayDrinks: Int?) {
+        client.callToolObject(
+            "update_daily_log",
+            JSONObject()
+                .put("date", today())
+                .put("sleep_quality", sleep)
+                .put("energy_level", energy),
+        )
+        if (yesterdayDrinks != null) {
+            client.callToolObject(
+                "update_daily_log",
+                JSONObject()
+                    .put("date", shiftDays(-1))
+                    .put("alcohol_drinks", yesterdayDrinks),
+            )
+        }
+    }
+
+    private fun shiftDays(days: Int): String {
+        val cal = java.util.Calendar.getInstance()
+        cal.add(java.util.Calendar.DAY_OF_YEAR, days)
+        return SimpleDateFormat("yyyy-MM-dd", Locale.US).format(cal.time)
+    }
+
     suspend fun logWorkout(client: McpClient, session: WorkoutSession, intensity: String): JSONObject {
         val args = JSONObject()
             .put("activity_type", "Strength Training")
