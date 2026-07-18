@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +54,7 @@ import com.nathandavie.fitnesstracker.wear.data.DeviceKeyStore
 import com.nathandavie.fitnesstracker.wear.data.FitnessRepository
 import com.nathandavie.fitnesstracker.wear.data.LoggedSet
 import com.nathandavie.fitnesstracker.wear.data.SessionManager
+import com.nathandavie.fitnesstracker.wear.data.formatWeight
 import com.nathandavie.fitnesstracker.wear.sensors.HeartRateTracker
 import com.nathandavie.fitnesstracker.wear.ui.components.CountdownRing
 import com.nathandavie.fitnesstracker.wear.ui.theme.Brand
@@ -85,7 +87,7 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
     var phase by remember { mutableStateOf<Phase>(Phase.Logging) }
     var exerciseIndex by remember { mutableIntStateOf(0) }
     var reps by remember { mutableIntStateOf(session.exercises.first().planned.suggestedReps) }
-    var weight by remember { mutableIntStateOf(session.exercises.first().planned.suggestedWeightLbs ?: 0) }
+    var weight by remember { mutableDoubleStateOf(session.exercises.first().planned.suggestedWeightLbs ?: 0.0) }
     var selectedField by remember { mutableStateOf(Field.REPS) }
     var restRemaining by remember { mutableIntStateOf(0) }
     var intensity by remember { mutableStateOf("Moderate") }
@@ -139,7 +141,7 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
             exerciseIndex++
             val next = session.exercises[exerciseIndex].planned
             reps = next.suggestedReps
-            weight = next.suggestedWeightLbs ?: 0
+            weight = next.suggestedWeightLbs ?: 0.0
         }
         restRemaining = exercise.planned.restSeconds
         phase = Phase.Resting(exercise.planned.restSeconds)
@@ -202,7 +204,7 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
                         val step = if (event.verticalScrollPixels > 0) 1 else -1
                         when (selectedField) {
                             Field.REPS -> reps = (reps + step).coerceIn(0, 100)
-                            Field.WEIGHT -> weight = (weight + step * 5).coerceIn(0, 1500)
+                            Field.WEIGHT -> weight = (weight + step * 2.5).coerceIn(0.0, 1500.0)
                         }
                         true
                     }
@@ -243,11 +245,12 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
 
                 exercise.planned.lastWeightLbs?.let { lw ->
                     val increase = exercise.planned.progression == "increase"
+                    val suggested = exercise.planned.suggestedWeightLbs
                     Text(
-                        text = if (increase) {
-                            "$lw → ${exercise.planned.suggestedWeightLbs} lbs, you earned it"
+                        text = if (increase && suggested != null) {
+                            "${formatWeight(lw)} → ${formatWeight(suggested)} lbs, you earned it"
                         } else {
-                            "last: $lw × ${exercise.planned.lastReps.joinToString("·")}"
+                            "last: ${formatWeight(lw)} × ${exercise.planned.lastReps.joinToString("·")}"
                         },
                         style = MaterialTheme.typography.caption2,
                         color = if (increase) Brand.Gold else Brand.TextMuted,
@@ -266,12 +269,12 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
                 )
                 ValueRow(
                     label = "lbs",
-                    value = if (weight == 0) "BW" else "$weight",
+                    value = if (weight == 0.0) "BW" else formatWeight(weight),
                     selected = selectedField == Field.WEIGHT,
                     accent = Brand.Blue,
                     onSelect = { selectedField = Field.WEIGHT },
-                    onMinus = { weight = (weight - 5).coerceAtLeast(0) },
-                    onPlus = { weight = (weight + 5).coerceAtMost(1500) },
+                    onMinus = { weight = (weight - 2.5).coerceAtLeast(0.0) },
+                    onPlus = { weight = (weight + 2.5).coerceAtMost(1500.0) },
                 )
 
                 Button(
