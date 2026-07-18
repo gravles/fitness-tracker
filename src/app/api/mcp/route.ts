@@ -187,6 +187,8 @@ const TOOLS = [
         name: 'get_workout_templates',
         description:
             'List all of the user\'s workout templates with their exercises and fallback (shortened) versions. ' +
+            'Exercises with logged history also carry last_weight_lbs, last_reps, suggested_weight_lbs and ' +
+            'progression ("increase" when every set hit the top of the rep range last time, else "repeat"). ' +
             'Use before schedule_workout to see what template names exist. Example: {} (no arguments).',
         inputSchema: { type: 'object', properties: {} },
     },
@@ -563,6 +565,83 @@ function toMcpExercises(stored: unknown): Record<string, unknown>[] {
     }));
 }
 
+// ─── PROGRESSIVE OVERLOAD ─────────────────────────────────────────────────────
+
+const PROGRESSION_INCREMENT_LBS = 5;
+
+function repRangeTop(repRange: unknown): number | null {
+    if (typeof repRange !== 'string') return null;
+    const m = repRange.match(/(\d+)\s*$/); // "8-12" → 12, "12" → 12
+    return m ? parseInt(m[1], 10) : null;
+}
+
+/**
+ * Decorate template/schedule exercises with the most recent logged
+ * performance and a double-progression suggestion: every set at the top of
+ * the rep range last time → last weight + 5 lbs, otherwise repeat it.
+ * Adds last_weight_lbs, last_reps, suggested_weight_lbs, and
+ * progression ('increase' | 'repeat'). Best-effort — exercises without
+ * usable weighted history are left untouched.
+ */
+async function attachProgression(userId: string, exercises: Record<string, unknown>[]) {
+    if (!exercises.length) return;
+
+    const since = format(subDays(new Date(), 90), 'yyyy-MM-dd');
+    const { data: workouts } = await supabaseAdmin
+        .from('workouts')
+        .select('id,date')
+        .eq('user_id', userId)
+        .gte('date', since)
+        .order('date', { ascending: false })
+        .limit(30);
+    if (!workouts?.length) return;
+
+    const { data: history } = await supabaseAdmin
+        .from('workout_exercises')
+        .select('id,workout_id,exercise_name')
+        .in('workout_id', workouts.map(w => w.id));
+    if (!history?.length) return;
+
+    const { data: sets } = await supabaseAdmin
+        .from('workout_sets')
+        .select('exercise_id,weight,reps,completed')
+        .in('exercise_id', history.map(h => h.id));
+
+    // Most recent weighted, completed sets per exercise name
+    const dateByWorkout = new Map(workouts.map(w => [w.id, w.date as string]));
+    const lastByName = new Map<string, { reps: number; weight: number }[]>();
+    const lastDate = new Map<string, string>();
+    for (const h of history) {
+        const key = (h.exercise_name as string | null)?.toLowerCase();
+        if (!key) continue;
+        const date = dateByWorkout.get(h.workout_id) ?? '';
+        const seen = lastDate.get(key);
+        if (seen != null && seen >= date) continue;
+        const own = (sets ?? [])
+            .filter(s => s.exercise_id === h.id && s.weight != null && s.reps != null && s.completed !== false)
+            .map(s => ({ reps: s.reps as number, weight: s.weight as number }));
+        if (!own.length) continue;
+        lastDate.set(key, date);
+        lastByName.set(key, own);
+    }
+
+    for (const ex of exercises) {
+        const own = lastByName.get(String(ex.exercise_name ?? '').toLowerCase());
+        if (!own?.length) continue;
+        const lastWeight = Math.max(...own.map(s => s.weight));
+        const repsAtWeight = own.filter(s => s.weight === lastWeight).map(s => s.reps);
+        const top = repRangeTop(ex.rep_range);
+        const targetSets = typeof ex.sets === 'number' ? ex.sets : null;
+        const hitAll = top != null && targetSets != null &&
+            repsAtWeight.length >= targetSets && repsAtWeight.every(r => r >= top);
+
+        ex.last_weight_lbs = lastWeight;
+        ex.last_reps = repsAtWeight;
+        ex.suggested_weight_lbs = hitAll ? lastWeight + PROGRESSION_INCREMENT_LBS : lastWeight;
+        ex.progression = hitAll ? 'increase' : 'repeat';
+    }
+}
+
 /** Fetch the user's templates and find one by name (case-insensitive). Throws with the available names. */
 async function findTemplateByName(userId: string, name: string) {
     const { data, error } = await supabaseAdmin
@@ -630,7 +709,7 @@ async function getWorkouts(userId: string, args: Record<string, unknown>, today:
     const ids = workouts.map(w => w.id);
     const { data: exercises } = await supabaseAdmin
         .from('workout_exercises')
-        .select('id,workout_id,name,order_index')
+        .select('id,workout_id,exercise_name,order_index')
         .in('workout_id', ids)
         .order('order_index');
 
@@ -649,7 +728,7 @@ async function getWorkouts(userId: string, args: Record<string, unknown>, today:
         return {
             ...w,
             exercises: wxs.map(ex => ({
-                name: ex.name,
+                name: ex.exercise_name,
                 sets: (sets ?? [])
                     .filter(s => s.exercise_id === ex.id)
                     .map(s => ({ set: s.set_number, weight: s.weight, reps: s.reps, completed: s.completed })),
@@ -916,7 +995,7 @@ async function getWorkoutTemplates(userId: string) {
         .order('name', { ascending: true });
     if (error) throw error;
 
-    return (data ?? []).map(t => ({
+    const templates = (data ?? []).map(t => ({
         id:                 t.id,
         name:               t.name,
         description:        t.description,
@@ -925,6 +1004,8 @@ async function getWorkoutTemplates(userId: string) {
         estimated_duration: t.estimated_duration,
         updated_at:         t.updated_at,
     }));
+    await attachProgression(userId, templates.flatMap(t => [...t.exercises, ...t.fallback_exercises]));
+    return templates;
 }
 
 const DOW = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -1108,7 +1189,7 @@ async function getSchedule(userId: string, args: Record<string, unknown>, today:
     const rows = (data ?? []) as unknown as ScheduleRow[];
     await autoLinkStaleEntries(userId, rows, today);
 
-    return rows.map(w => ({
+    const mapped = rows.map(w => ({
         id:                   w.id,
         date:                 w.scheduled_date,
         time:                 w.scheduled_time?.slice(0, 5),
@@ -1124,6 +1205,8 @@ async function getSchedule(userId: string, args: Record<string, unknown>, today:
             : [],
         completed_workout_id: w.completed_workout_id,
     }));
+    await attachProgression(userId, mapped.flatMap(m => m.exercises));
+    return mapped;
 }
 
 async function updateScheduledWorkoutTool(userId: string, args: Record<string, unknown>, today: string) {

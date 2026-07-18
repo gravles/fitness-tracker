@@ -85,7 +85,7 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
     var phase by remember { mutableStateOf<Phase>(Phase.Logging) }
     var exerciseIndex by remember { mutableIntStateOf(0) }
     var reps by remember { mutableIntStateOf(session.exercises.first().planned.suggestedReps) }
-    var weight by remember { mutableIntStateOf(0) }
+    var weight by remember { mutableIntStateOf(session.exercises.first().planned.suggestedWeightLbs ?: 0) }
     var selectedField by remember { mutableStateOf(Field.REPS) }
     var restRemaining by remember { mutableIntStateOf(0) }
     var intensity by remember { mutableStateOf("Moderate") }
@@ -139,7 +139,7 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
             exerciseIndex++
             val next = session.exercises[exerciseIndex].planned
             reps = next.suggestedReps
-            weight = 0
+            weight = next.suggestedWeightLbs ?: 0
         }
         restRemaining = exercise.planned.restSeconds
         phase = Phase.Resting(exercise.planned.restSeconds)
@@ -239,6 +239,20 @@ fun ActiveWorkoutScreen(keyStore: DeviceKeyStore, onDone: () -> Unit) {
                             color = Brand.Blue,
                         )
                     }
+                }
+
+                exercise.planned.lastWeightLbs?.let { lw ->
+                    val increase = exercise.planned.progression == "increase"
+                    Text(
+                        text = if (increase) {
+                            "$lw → ${exercise.planned.suggestedWeightLbs} lbs, you earned it"
+                        } else {
+                            "last: $lw × ${exercise.planned.lastReps.joinToString("·")}"
+                        },
+                        style = MaterialTheme.typography.caption2,
+                        color = if (increase) Brand.Gold else Brand.TextMuted,
+                        maxLines = 1,
+                    )
                 }
 
                 ValueRow(

@@ -17,7 +17,7 @@ Tool errors come back as MCP tool results with `isError: true` and a plain-Engli
 | `get_daily_logs` | Nutrition, sleep, energy, notes per day | `start_date` (7 days ago), `end_date` (today) |
 | `get_workouts` | Logged sessions incl. strength sets | `start_date` (30 days ago), `end_date` (today) |
 | `get_body_metrics` | Weight + measurements | `days` (90, max 365) |
-| `get_workout_templates` | Saved templates with exercises and fallbacks | none |
+| `get_workout_templates` | Saved templates with exercises and fallbacks (+ progression fields, see below) | none |
 | `get_schedule` | Planned workouts with derived status | `start_date` (today), `end_date` (start + 6 days) |
 | `get_meals` | Saved meals with macros, tags, ingredients | none |
 | `get_meal_plan` | Planned meals per day, with plan-vs-actual totals | `start_date` (today), `end_date` (start + 6 days) |
@@ -82,6 +82,11 @@ dropped and reported in the response `note`.
 ### `get_schedule`
 Returns entries with `id`, `date`, `time`, `title`, `status`, `skipped_reason`, `exercises`
 (the fallback list if the entry was swapped to it), and `completed_workout_id`.
+
+**Progression fields** (on `exercises` here and in `get_workout_templates`, when the exercise has
+weighted history in the last 90 days): `last_weight_lbs`, `last_reps` (reps at that weight, most
+recent session), `suggested_weight_lbs`, and `progression` — `increase` (+5 lbs; every set hit the
+top of the rep range last time) or `repeat`.
 
 Status is derived: `planned` → `completed` (via `log_workout`) / `skipped` (via
 `update_scheduled_workout`) / `missed` (still planned after the day has passed with no logged session).
