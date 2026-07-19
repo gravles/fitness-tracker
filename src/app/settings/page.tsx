@@ -16,6 +16,7 @@ import { ChangelogModal } from '@/components/ChangelogModal';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { ClaudeConnectorSection } from '@/components/ClaudeConnectorSection';
 import { PairDeviceSection } from '@/components/PairDeviceSection';
+import { HealthConnectSection } from '@/components/HealthConnectSection';
 import { haptics } from '@/lib/haptics';
 
 const sectionStyle = {
@@ -981,6 +982,9 @@ export default function SettingsPage() {
                 </p>
                 <PairDeviceSection />
             </section>
+
+            {/* Health Connect (Android app only — renders nothing elsewhere) */}
+            <HealthConnectSection />
 
             {/* Accountability Partners */}
             <section className="p-6 rounded-2xl border shadow-sm space-y-4" style={sectionStyle}>

@@ -77,6 +77,26 @@ describe('computeReadiness', () => {
         expect(load?.delta).toBe(5);
     });
 
+    it('prefers a tracked sleep record over the manual rating', () => {
+        const r = computeReadiness(
+            [{ date: TODAY, sleep_quality: 1 }], // manual says terrible…
+            [],
+            TODAY,
+            { duration_minutes: 8 * 60 + 10 },    // …but the watch tracked 8h10m
+        );
+        const sleep = r.components.find(c => c.name === 'sleep');
+        expect(sleep?.delta).toBe(20); // 8h10m → 5/5
+        expect(sleep?.detail).toBe('slept 8h 10m');
+        expect(r.score).toBe(100);
+    });
+
+    it('penalizes tracked short sleep', () => {
+        const r = computeReadiness([], [], TODAY, { duration_minutes: 5 * 60 + 30 });
+        const sleep = r.components.find(c => c.name === 'sleep');
+        expect(sleep?.delta).toBe(-10); // 5.5h → 2/5
+        expect(r.score).toBe(90);
+    });
+
     it('lands in recovery with everything stacked against it', () => {
         const r = computeReadiness(
             [

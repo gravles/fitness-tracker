@@ -7,7 +7,8 @@ import { toast } from 'sonner';
 import { useLanguage } from '@/components/LanguageProvider';
 import { Modal } from '@/components/ui/Modal';
 import { getMonthlyLogs, getWorkoutsRange, upsertDailyLog, DailyLog } from '@/lib/api';
-import { computeReadiness, Readiness } from '@/lib/readiness';
+import { supabase } from '@/lib/supabase';
+import { computeReadiness, Readiness, ReadinessSleepRecord } from '@/lib/readiness';
 
 const BAND_COLOR: Record<Readiness['label'], string> = {
     primed: 'var(--color-gold)',
@@ -35,6 +36,7 @@ export function ReadinessCheckIn({ onLogged }: { onLogged?: () => void }) {
     const [sleep, setSleep] = useState(3);
     const [energy, setEnergy] = useState(3);
     const [drinks, setDrinks] = useState(0);
+    const [storedDrinks, setStoredDrinks] = useState<number | null>(null);
     const [drinksTouched, setDrinksTouched] = useState(false);
 
     const skipKey = `readiness-checkin-skipped`;
@@ -42,17 +44,29 @@ export function ReadinessCheckIn({ onLogged }: { onLogged?: () => void }) {
     const load = useCallback(async (openIfUnlogged: boolean) => {
         try {
             const start = format(subDays(new Date(), 27), 'yyyy-MM-dd');
-            const [logs, workouts] = await Promise.all([
+            const [logs, workouts, sleepRes] = await Promise.all([
                 getMonthlyLogs(start, today),
                 getWorkoutsRange(start, today),
+                supabase
+                    .from('sleep_records')
+                    .select('duration_minutes,deep_minutes,rem_minutes')
+                    .eq('date', today)
+                    .order('duration_minutes', { ascending: false })
+                    .limit(1)
+                    .maybeSingle(),
             ]);
-            setReadiness(computeReadiness(logs, workouts, today));
+            const sleepRecord = (sleepRes.data as ReadinessSleepRecord | null) ?? null;
+            setReadiness(computeReadiness(logs, workouts, today, sleepRecord));
 
             const todayLog = logs.find((l: DailyLog) => l.date === today);
             const yesterdayLog = logs.find((l: DailyLog) => l.date === yesterday);
             if (todayLog?.sleep_quality) setSleep(todayLog.sleep_quality);
             if (todayLog?.energy_level) setEnergy(todayLog.energy_level);
-            if (yesterdayLog?.alcohol_drinks != null) setDrinks(yesterdayLog.alcohol_drinks);
+            // Carry yesterday's drinks over as the starting value
+            if (yesterdayLog?.alcohol_drinks != null) {
+                setDrinks(yesterdayLog.alcohol_drinks);
+                setStoredDrinks(yesterdayLog.alcohol_drinks);
+            }
 
             const skippedToday = typeof window !== 'undefined' && localStorage.getItem(skipKey) === today;
             if (openIfUnlogged && !todayLog?.sleep_quality && !skippedToday) {
@@ -69,7 +83,7 @@ export function ReadinessCheckIn({ onLogged }: { onLogged?: () => void }) {
         setSaving(true);
         try {
             await upsertDailyLog({ date: today, sleep_quality: sleep, energy_level: energy });
-            if (drinksTouched) {
+            if (drinksTouched || drinks !== (storedDrinks ?? 0)) {
                 await upsertDailyLog({ date: yesterday, alcohol_drinks: drinks });
             }
             setShowModal(false);

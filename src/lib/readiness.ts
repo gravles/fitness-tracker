@@ -22,6 +22,12 @@ export interface ReadinessWorkout {
     intensity?: string | null;       // Light | Moderate | Hard
 }
 
+export interface ReadinessSleepRecord {
+    duration_minutes: number;
+    deep_minutes?: number | null;
+    rem_minutes?: number | null;
+}
+
 export interface ReadinessComponent {
     name: string;
     delta: number;
@@ -49,10 +55,21 @@ function shift(dateStr: string, days: number): string {
     return d.toISOString().slice(0, 10);
 }
 
+/** Map tracked sleep duration onto the same 1–5 scale the manual rating uses. */
+function durationQuality(minutes: number): number {
+    const hours = minutes / 60;
+    if (hours < 5) return 1;
+    if (hours < 6) return 2;
+    if (hours < 7) return 3;
+    if (hours <= 9.5) return hours < 8 ? 4 : 5;
+    return 4; // very long sleep is usually a recovery signal, not a win
+}
+
 export function computeReadiness(
     logs: ReadinessDailyLog[],
     workouts: ReadinessWorkout[],
     today: string,
+    sleepRecord?: ReadinessSleepRecord | null,
 ): Readiness {
     const components: ReadinessComponent[] = [];
     let score = 100;
@@ -61,12 +78,21 @@ export function computeReadiness(
     const yesterday = byDate.get(shift(today, -1));
     const todayLog = byDate.get(today);
 
-    // Sleep: logged this morning (today's entry) or, failing that, absent
-    const sleep = todayLog?.sleep_quality ?? null;
-    if (sleep != null) {
-        const delta = (sleep - 3) * 10; // 1→-20 … 5→+20
+    // Sleep: tracked sleep (Health Connect etc.) wins over the manual rating
+    if (sleepRecord != null && sleepRecord.duration_minutes > 0) {
+        const quality = durationQuality(sleepRecord.duration_minutes);
+        const delta = (quality - 3) * 10;
         score += delta;
-        components.push({ name: 'sleep', delta, detail: `sleep quality ${sleep}/5` });
+        const h = Math.floor(sleepRecord.duration_minutes / 60);
+        const m = sleepRecord.duration_minutes % 60;
+        components.push({ name: 'sleep', delta, detail: `slept ${h}h ${m.toString().padStart(2, '0')}m` });
+    } else {
+        const sleep = todayLog?.sleep_quality ?? null;
+        if (sleep != null) {
+            const delta = (sleep - 3) * 10; // 1→-20 … 5→+20
+            score += delta;
+            components.push({ name: 'sleep', delta, detail: `sleep quality ${sleep}/5` });
+        }
     }
 
     // Yesterday's energy as a trailing fatigue signal

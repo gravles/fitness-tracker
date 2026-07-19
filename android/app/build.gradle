@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
 
 // Load keystore credentials from keystore.properties (not committed to git)
 def keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -12,7 +13,7 @@ android {
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.nathandavie.fitnesstracker"
-        minSdkVersion rootProject.ext.minSdkVersion
+        minSdkVersion 26 // Health Connect client requires 26 (module default is 24)
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
@@ -58,6 +59,9 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+    // Health Connect (sleep sync plugin)
+    implementation 'androidx.health.connect:connect-client:1.1.0-alpha07'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0'
 }
 
 apply from: 'capacitor.build.gradle'
