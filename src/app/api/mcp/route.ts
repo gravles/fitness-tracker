@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import crypto from 'crypto';
 import { format, subDays, addDays } from 'date-fns';
 import { computeReadiness } from '@/lib/readiness';
+import { expandRecurrence } from '@/lib/recurrence';
 
 export const maxDuration = 60;
 
@@ -407,6 +408,119 @@ const TOOLS = [
                         fat:      { type: 'number' },
                     },
                 },
+            },
+        },
+    },
+    {
+        name: 'save_supplement',
+        description:
+            "Create or update an entry in the user's supplement & medication catalogue (upserts by name, case-insensitive). " +
+            'Record exactly what the user tells you — never suggest doses, frequencies, or changes to medications; that is between the user and their prescriber. ' +
+            'Example: {"name": "Creatine", "dose_amount": 5, "dose_unit": "g", "form": "powder"}. ' +
+            'Example (medication): {"name": "Levothyroxine", "kind": "medication", "dose_amount": 50, "dose_unit": "mcg", "notes": "take on empty stomach"}.',
+        inputSchema: {
+            type: 'object',
+            required: ['name'],
+            properties: {
+                name:        { type: 'string', description: 'Supplement or medication name. Used as the upsert key.' },
+                kind:        { type: 'string', enum: ['supplement', 'medication'], description: 'Defaults to supplement.' },
+                dose_amount: { type: 'number', description: 'Default dose amount, e.g. 500.' },
+                dose_unit:   { type: 'string', description: 'e.g. mg, mcg, g, IU, ml, capsule, tablet, scoop.' },
+                form:        { type: 'string', description: 'e.g. capsule, tablet, powder, liquid, gummy.' },
+                notes:       { type: 'string', description: 'Optional notes, e.g. "take with food".' },
+            },
+        },
+    },
+    {
+        name: 'get_supplements',
+        description:
+            "List the user's supplement & medication catalogue, each with its current schedule summary (upcoming dose times and weekdays). " +
+            'Use before schedule_supplement or log_supplement to see what exists. Example: {} (no arguments).',
+        inputSchema: { type: 'object', properties: {} },
+    },
+    {
+        name: 'schedule_supplement',
+        description:
+            'Schedule doses of a saved supplement/medication (status starts as planned). Pass multiple times for multi-dose days. ' +
+            'To repeat, pass recurrence with days_of_week and an until date (capped at 90 days from the start date; extra dates are dropped and reported). ' +
+            'A push reminder fires at each dose time by default — pass remind: false to disable. ' +
+            'Only schedule what the user explicitly asks for — never initiate or alter a medication schedule yourself. ' +
+            'Example: {"supplement_name": "Creatine", "date": "2026-07-20", "times": ["08:00"], "recurrence": {"days_of_week": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"], "until": "2026-09-30"}}.',
+        inputSchema: {
+            type: 'object',
+            required: ['supplement_name', 'date'],
+            properties: {
+                supplement_name: { type: 'string', description: 'Name of a catalogue entry (see get_supplements). Create it first with save_supplement.' },
+                date:            { type: 'string', description: 'Start date YYYY-MM-DD. With recurrence, doses are created on matching weekdays from this date.' },
+                times:           { type: 'array', items: { type: 'string' }, description: 'Times of day HH:MM (24h). Defaults to ["08:00"].' },
+                remind:          { type: 'boolean', description: 'Push reminder at each dose time. Defaults to true.' },
+                notes:           { type: 'string', description: 'Optional notes shown on each dose.' },
+                recurrence: {
+                    type: 'object',
+                    required: ['days_of_week', 'until'],
+                    description: 'Repeat on the given weekdays from date through until (inclusive), max 90 days.',
+                    properties: {
+                        days_of_week: {
+                            type: 'array',
+                            items: { type: 'string', enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] },
+                        },
+                        until: { type: 'string', description: 'Last date YYYY-MM-DD (inclusive).' },
+                    },
+                },
+            },
+        },
+    },
+    {
+        name: 'log_supplement',
+        description:
+            'Record that a dose was taken. Pass dose_id (from get_supplement_schedule) to mark a scheduled dose taken, OR supplement_name for an ad-hoc / as-needed intake — unknown names are allowed, pass dose_amount/dose_unit inline for those. ' +
+            'Example (scheduled): {"dose_id": "abc-123"}. ' +
+            'Example (ad-hoc): {"supplement_name": "Ibuprofen", "dose_amount": 400, "dose_unit": "mg"}.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                dose_id:         { type: 'string', description: 'Entry id from get_supplement_schedule. Mutually exclusive with supplement_name.' },
+                supplement_name: { type: 'string', description: 'Name for an ad-hoc intake. A matching catalogue entry supplies the default dose.' },
+                dose_amount:     { type: 'number', description: 'Amount actually taken, when it differs from the default.' },
+                dose_unit:       { type: 'string', description: 'Unit for dose_amount.' },
+                date:            { type: 'string', description: 'Date YYYY-MM-DD. Defaults to today. Ad-hoc only.' },
+                time:            { type: 'string', description: 'Time HH:MM the dose was taken. Optional, ad-hoc only.' },
+                notes:           { type: 'string', description: 'Optional notes.' },
+            },
+        },
+    },
+    {
+        name: 'get_supplement_schedule',
+        description:
+            'Get scheduled and logged supplement/medication doses for a date range, grouped by day, with adherence stats (taken vs missed vs skipped). ' +
+            'Each entry has an id for log_supplement / update_scheduled_supplement. Pass a past range for intake history. ' +
+            'Defaults: start_date = today, end_date = start_date + 6 days. Example: {"start_date": "2026-07-13", "end_date": "2026-07-19"}.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                start_date: { type: 'string', description: 'Start date YYYY-MM-DD. Defaults to today.' },
+                end_date:   { type: 'string', description: 'End date YYYY-MM-DD. Defaults to start_date + 6 days.' },
+            },
+        },
+    },
+    {
+        name: 'update_scheduled_supplement',
+        description:
+            'Change a scheduled dose (get the id from get_supplement_schedule): move it to a new date/time, mark it skipped with a reason, or restore it to planned. ' +
+            'To stop a supplement entirely, pass status "skipped" with apply_to_future_doses true — this deletes that dose and all future planned doses of the same supplement. Confirm with the user before doing that. ' +
+            'Example (skip once): {"dose_id": "abc-123", "status": "skipped", "reason": "stomach upset"}. ' +
+            'Example (move): {"dose_id": "abc-123", "new_time": "21:00"}.',
+        inputSchema: {
+            type: 'object',
+            required: ['dose_id'],
+            properties: {
+                dose_id:  { type: 'string', description: 'Entry id from get_supplement_schedule.' },
+                new_date: { type: 'string', description: 'Move to this date YYYY-MM-DD.' },
+                new_time: { type: 'string', description: 'New time of day HH:MM (24h).' },
+                status:   { type: 'string', enum: ['planned', 'skipped'], description: 'Set skipped (include reason) or restore to planned. Taking happens via log_supplement.' },
+                reason:   { type: 'string', description: 'Why the dose was skipped. Stored and shown in get_supplement_schedule.' },
+                notes:    { type: 'string', description: 'Replace the entry notes.' },
+                apply_to_future_doses: { type: 'boolean', description: 'With status "skipped": also delete all future planned doses of the same supplement (the user stopped taking it). Confirm with the user first.' },
             },
         },
     },
@@ -1648,6 +1762,399 @@ async function updateDailyLog(userId: string, args: Record<string, unknown>, tod
     };
 }
 
+// ─── COACH TOOLS: SUPPLEMENTS ─────────────────────────────────────────────────
+// These tools record what the user reports — they carry no dosing logic, and
+// their descriptions instruct the coach never to suggest or alter medication
+// doses/schedules on its own initiative.
+
+const SUPPLEMENT_KINDS = ['supplement', 'medication'];
+
+async function findSupplementByName(userId: string, name: string) {
+    const { data, error } = await supabaseAdmin
+        .from('supplements')
+        .select('id,name,kind,dose_amount,dose_unit')
+        .eq('user_id', userId);
+    if (error) throw error;
+
+    const items = data ?? [];
+    const match = items.find(s => s.name.toLowerCase() === name.trim().toLowerCase());
+    return { match: match ?? null, names: items.map(s => `"${s.name}"`).join(', ') || 'none' };
+}
+
+async function saveSupplement(userId: string, args: Record<string, unknown>) {
+    const name = (args.name as string)?.trim();
+    if (!name) throw new Error('name is required, e.g. "Creatine"');
+
+    const kind = (args.kind as string) ?? 'supplement';
+    if (!SUPPLEMENT_KINDS.includes(kind)) {
+        throw new Error(`kind must be one of: ${SUPPLEMENT_KINDS.join(', ')}. Got "${kind}".`);
+    }
+
+    const { match } = await findSupplementByName(userId, name);
+    const fields = {
+        name,
+        kind,
+        dose_amount: (args.dose_amount as number) ?? null,
+        dose_unit:   (args.dose_unit as string) ?? null,
+        form:        (args.form as string) ?? null,
+        notes:       (args.notes as string) ?? null,
+        updated_at:  new Date().toISOString(),
+    };
+
+    if (match) {
+        const { data, error } = await supabaseAdmin
+            .from('supplements')
+            .update(fields)
+            .eq('id', match.id)
+            .eq('user_id', userId)
+            .select('id,name,kind')
+            .single();
+        if (error) throw error;
+        return { action: 'updated', supplement_id: data.id, name: data.name, kind: data.kind };
+    }
+
+    const { data, error } = await supabaseAdmin
+        .from('supplements')
+        .insert({ ...fields, user_id: userId })
+        .select('id,name,kind')
+        .single();
+    if (error) throw error;
+    return { action: 'created', supplement_id: data.id, name: data.name, kind: data.kind };
+}
+
+async function getSupplementsTool(userId: string, today: string) {
+    const { data, error } = await supabaseAdmin
+        .from('supplements')
+        .select('id,name,kind,dose_amount,dose_unit,form,notes,updated_at')
+        .eq('user_id', userId)
+        .order('name', { ascending: true });
+    if (error) throw error;
+
+    // Schedule summary from upcoming planned rows: distinct times + weekdays per supplement
+    const { data: upcoming, error: upErr } = await supabaseAdmin
+        .from('supplement_doses')
+        .select('supplement_id,scheduled_date,scheduled_time')
+        .eq('user_id', userId)
+        .eq('status', 'planned')
+        .gte('scheduled_date', today)
+        .not('scheduled_time', 'is', null);
+    if (upErr) throw upErr;
+
+    const byId = new Map<string, { times: Set<string>; days: Set<string>; count: number }>();
+    for (const row of (upcoming ?? [])) {
+        if (!row.supplement_id) continue;
+        const entry = byId.get(row.supplement_id) ?? { times: new Set(), days: new Set(), count: 0 };
+        entry.times.add((row.scheduled_time as string).slice(0, 5));
+        entry.days.add(DOW[new Date(row.scheduled_date + 'T00:00:00').getDay()]);
+        entry.count++;
+        byId.set(row.supplement_id, entry);
+    }
+
+    return (data ?? []).map(s => {
+        const sched = byId.get(s.id);
+        return {
+            ...s,
+            active_schedule: sched
+                ? { times: [...sched.times].sort(), days_of_week: [...sched.days], upcoming_dose_count: sched.count }
+                : null,
+        };
+    });
+}
+
+async function scheduleSupplementTool(userId: string, args: Record<string, unknown>) {
+    const startDate = assertDate(args.date, 'date');
+
+    const supplementName = args.supplement_name as string;
+    if (!supplementName) throw new Error('supplement_name is required — see get_supplements, or create the entry with save_supplement.');
+    const { match, names } = await findSupplementByName(userId, supplementName);
+    if (!match) {
+        throw new Error(`Supplement "${supplementName}" not found. Available: ${names}. Create it first with save_supplement.`);
+    }
+
+    const rawTimes = args.times != null ? args.times : ['08:00'];
+    if (!Array.isArray(rawTimes) || !rawTimes.length) {
+        throw new Error('times must be a non-empty array of HH:MM strings, e.g. ["08:00", "20:00"]');
+    }
+    const times = rawTimes.map((t, i) => assertTime(t, `times[${i}]`));
+
+    // Expand the date list: single date, or recurrence pattern capped at 90 days
+    let dates = [startDate];
+    let truncated = false;
+    const recurrence = args.recurrence as { days_of_week?: unknown; until?: unknown } | undefined;
+    if (recurrence) {
+        const days = recurrence.days_of_week;
+        if (!Array.isArray(days) || !days.length) {
+            throw new Error('recurrence.days_of_week must be a non-empty array of weekdays, e.g. ["mon", "thu"]');
+        }
+        const invalid = days.filter(d => !DOW.includes(d as string));
+        if (invalid.length) {
+            throw new Error(`Invalid days_of_week: ${invalid.join(', ')}. Use: mon, tue, wed, thu, fri, sat, sun.`);
+        }
+        const until = assertDate(recurrence.until, 'recurrence.until');
+        if (until < startDate) throw new Error(`recurrence.until (${until}) is before the start date (${startDate}).`);
+
+        ({ dates, truncated } = expandRecurrence(startDate, days as string[], until, RECURRENCE_CAP_DAYS));
+        if (!dates.length) {
+            throw new Error(`No matching weekdays between ${startDate} and ${until} for days_of_week [${days.join(', ')}].`);
+        }
+    }
+
+    const remind = (args.remind as boolean) !== false;
+    const rows = dates.flatMap(d => times.map(time => ({
+        user_id:        userId,
+        supplement_id:  match.id,
+        name:           match.name,
+        kind:           match.kind,
+        dose_amount:    match.dose_amount,
+        dose_unit:      match.dose_unit,
+        scheduled_date: d,
+        scheduled_time: time,
+        status:         'planned',
+        notes:          (args.notes as string) ?? null,
+        remind_minutes: remind ? 0 : null,
+    })));
+
+    const { data, error } = await supabaseAdmin
+        .from('supplement_doses')
+        .insert(rows)
+        .select('id,scheduled_date,scheduled_time');
+    if (error) throw error;
+
+    return {
+        scheduled_count: data?.length ?? rows.length,
+        supplement_name: match.name,
+        times: times.map(t => t.slice(0, 5)),
+        dates,
+        reminders: remind,
+        ...(truncated ? { note: `Recurrence capped at ${RECURRENCE_CAP_DAYS} days from ${startDate}; dates after that were not scheduled. Call schedule_supplement again later to extend.` } : {}),
+    };
+}
+
+async function logSupplement(userId: string, args: Record<string, unknown>, today: string) {
+    const doseId = args.dose_id as string | undefined;
+    const supplementName = args.supplement_name as string | undefined;
+    if (!!doseId === !!supplementName) {
+        throw new Error('Pass exactly one of dose_id (a scheduled dose from get_supplement_schedule) or supplement_name (an ad-hoc intake).');
+    }
+
+    const takenAt = new Date().toISOString();
+
+    if (doseId) {
+        const patch: Record<string, unknown> = {
+            status: 'taken', taken_at: takenAt, skipped_reason: null, updated_at: takenAt,
+        };
+        if (args.dose_amount != null) patch.dose_amount = args.dose_amount;
+        if (args.dose_unit   != null) patch.dose_unit = args.dose_unit;
+        if (args.notes       != null) patch.notes = args.notes;
+
+        const { data, error } = await supabaseAdmin
+            .from('supplement_doses')
+            .update(patch)
+            .eq('id', doseId)
+            .eq('user_id', userId)
+            .select('id,name,scheduled_date,scheduled_time,dose_amount,dose_unit')
+            .maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error(`Dose "${doseId}" not found. Use get_supplement_schedule to find valid ids.`);
+        return {
+            logged: {
+                id: data.id, name: data.name, date: data.scheduled_date,
+                time: data.scheduled_time?.slice(0, 5) ?? null,
+                dose_amount: data.dose_amount, dose_unit: data.dose_unit,
+            },
+        };
+    }
+
+    // Ad-hoc / PRN: use the catalogue entry as defaults when the name matches,
+    // but allow unknown names so one-off intakes don't require save_supplement.
+    const { match } = await findSupplementByName(userId, supplementName!);
+    const date = args.date != null ? assertDate(args.date, 'date') : today;
+    const time = args.time != null ? assertTime(args.time, 'time') : null;
+
+    const { data, error } = await supabaseAdmin
+        .from('supplement_doses')
+        .insert({
+            user_id:        userId,
+            supplement_id:  match?.id ?? null,
+            name:           match?.name ?? supplementName!.trim(),
+            kind:           match?.kind ?? 'supplement',
+            dose_amount:    (args.dose_amount as number) ?? match?.dose_amount ?? null,
+            dose_unit:      (args.dose_unit as string) ?? match?.dose_unit ?? null,
+            scheduled_date: date,
+            scheduled_time: time,
+            status:         'taken',
+            taken_at:       takenAt,
+            notes:          (args.notes as string) ?? null,
+        })
+        .select('id,name,scheduled_date,scheduled_time,dose_amount,dose_unit')
+        .single();
+    if (error) throw error;
+
+    return {
+        logged: {
+            id: data.id, name: data.name, date: data.scheduled_date,
+            time: data.scheduled_time?.slice(0, 5) ?? null,
+            dose_amount: data.dose_amount, dose_unit: data.dose_unit,
+        },
+        ...(match ? {} : { note: `"${data.name}" is not in the catalogue — call save_supplement to add it if the user takes it regularly.` }),
+    };
+}
+
+async function getSupplementSchedule(userId: string, args: Record<string, unknown>, today: string) {
+    const start = args.start_date != null ? assertDate(args.start_date, 'start_date') : today;
+    const end   = args.end_date   != null ? assertDate(args.end_date, 'end_date') : shiftDate(start, 6);
+    if (end < start) throw new Error(`end_date (${end}) is before start_date (${start}).`);
+
+    const { data, error } = await supabaseAdmin
+        .from('supplement_doses')
+        .select('id,supplement_id,name,kind,dose_amount,dose_unit,scheduled_date,scheduled_time,status,taken_at,skipped_reason,notes')
+        .eq('user_id', userId)
+        .gte('scheduled_date', start)
+        .lte('scheduled_date', end)
+        .order('scheduled_date', { ascending: true })
+        .order('scheduled_time', { ascending: true });
+    if (error) throw error;
+
+    const rows = data ?? [];
+    const byDate = new Map<string, typeof rows>();
+    for (const r of rows) {
+        const list = byDate.get(r.scheduled_date) ?? [];
+        list.push(r);
+        byDate.set(r.scheduled_date, list);
+    }
+
+    // Adherence: taken / (taken + skipped + planned doses already in the past).
+    // Future planned doses are "upcoming" and excluded from the denominator.
+    const totals = { taken: 0, skipped: 0, missed: 0, upcoming: 0 };
+    const tally = (entries: typeof rows) => {
+        const c = { taken: 0, skipped: 0, missed: 0, upcoming: 0 };
+        for (const e of entries) {
+            if (e.status === 'taken') c.taken++;
+            else if (e.status === 'skipped') c.skipped++;
+            else if (e.scheduled_date < today) c.missed++;
+            else c.upcoming++;
+        }
+        return c;
+    };
+    const pct = (c: typeof totals) => {
+        const denom = c.taken + c.skipped + c.missed;
+        return denom ? Math.round((100 * c.taken) / denom) : null;
+    };
+
+    const days = [];
+    for (let d = start; d <= end; d = shiftDate(d, 1)) {
+        const entries = byDate.get(d) ?? [];
+        if (!entries.length) continue;
+        const counts = tally(entries);
+        totals.taken += counts.taken;
+        totals.skipped += counts.skipped;
+        totals.missed += counts.missed;
+        totals.upcoming += counts.upcoming;
+        days.push({
+            date: d,
+            entries: entries.map(e => ({
+                id:             e.id,
+                name:           e.name,
+                kind:           e.kind,
+                dose_amount:    e.dose_amount,
+                dose_unit:      e.dose_unit,
+                time:           e.scheduled_time?.slice(0, 5) ?? null,
+                status:         e.status,
+                taken_at:       e.taken_at,
+                skipped_reason: e.skipped_reason,
+                notes:          e.notes,
+            })),
+            adherence_pct: pct(counts),
+        });
+    }
+
+    return { days, summary: { ...totals, adherence_pct: pct(totals) } };
+}
+
+async function updateScheduledSupplement(userId: string, args: Record<string, unknown>) {
+    const id = args.dose_id as string;
+    if (!id) throw new Error('dose_id is required — get it from get_supplement_schedule.');
+
+    // "Stopped taking it": delete this and every future planned dose of the supplement
+    if (args.apply_to_future_doses === true) {
+        if (args.status !== 'skipped') {
+            throw new Error('apply_to_future_doses requires status: "skipped" (it means the user stopped taking this supplement).');
+        }
+        const { data: dose, error: doseErr } = await supabaseAdmin
+            .from('supplement_doses')
+            .select('id,supplement_id,name,scheduled_date')
+            .eq('id', id)
+            .eq('user_id', userId)
+            .maybeSingle();
+        if (doseErr) throw doseErr;
+        if (!dose) throw new Error(`Dose "${id}" not found. Use get_supplement_schedule to list entries and their ids.`);
+
+        let del = supabaseAdmin
+            .from('supplement_doses')
+            .delete()
+            .eq('user_id', userId)
+            .eq('status', 'planned')
+            .gte('scheduled_date', dose.scheduled_date);
+        del = dose.supplement_id ? del.eq('supplement_id', dose.supplement_id) : del.eq('name', dose.name);
+        const { data: deleted, error: delErr } = await del.select('id');
+        if (delErr) throw delErr;
+
+        return {
+            stopped: dose.name,
+            deleted_planned_doses: deleted?.length ?? 0,
+            from_date: dose.scheduled_date,
+            note: 'The catalogue entry and past history were kept. Use save_supplement/schedule_supplement to restart.',
+        };
+    }
+
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (args.new_date != null) patch.scheduled_date = assertDate(args.new_date, 'new_date');
+    if (args.new_time != null) patch.scheduled_time = assertTime(args.new_time, 'new_time');
+    if (args.notes    != null) patch.notes = args.notes;
+
+    if (args.status != null) {
+        const status = args.status as string;
+        if (status === 'skipped') {
+            patch.status = 'skipped';
+            patch.skipped_reason = (args.reason as string) ?? null;
+        } else if (status === 'planned') {
+            patch.status = 'planned';
+            patch.skipped_reason = null;
+            patch.taken_at = null;
+        } else {
+            throw new Error(`status must be "planned" or "skipped", got "${status}". Taking happens via log_supplement.`);
+        }
+    } else if (args.reason != null) {
+        throw new Error('reason is only used together with status: "skipped".');
+    }
+
+    if (Object.keys(patch).length === 1) {
+        throw new Error('Nothing to update — pass at least one of new_date, new_time, status, or notes.');
+    }
+
+    const { data, error } = await supabaseAdmin
+        .from('supplement_doses')
+        .update(patch)
+        .eq('id', id)
+        .eq('user_id', userId)
+        .select('id,name,scheduled_date,scheduled_time,status,skipped_reason,notes')
+        .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error(`Dose "${id}" not found. Use get_supplement_schedule to list entries and their ids.`);
+
+    return {
+        updated: {
+            id:             data.id,
+            name:           data.name,
+            date:           data.scheduled_date,
+            time:           data.scheduled_time?.slice(0, 5) ?? null,
+            status:         data.status,
+            skipped_reason: data.skipped_reason,
+            notes:          data.notes,
+        },
+    };
+}
+
 // ─── MAIN HANDLER ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -1719,6 +2226,12 @@ export async function POST(req: NextRequest) {
                 case 'get_meal_plan':      result = await getMealPlan(userId, args, today);        break;
                 case 'update_planned_meal': result = await updatePlannedMeal(userId, args); break;
                 case 'log_planned_meal':   result = await logPlannedMeal(userId, args, today);     break;
+                case 'save_supplement':             result = await saveSupplement(userId, args);                break;
+                case 'get_supplements':             result = await getSupplementsTool(userId, today);           break;
+                case 'schedule_supplement':         result = await scheduleSupplementTool(userId, args);        break;
+                case 'log_supplement':              result = await logSupplement(userId, args, today);          break;
+                case 'get_supplement_schedule':     result = await getSupplementSchedule(userId, args, today);  break;
+                case 'update_scheduled_supplement': result = await updateScheduledSupplement(userId, args);     break;
                 default:
                     return rpcError(id, -32601, `Unknown tool: ${name}`);
             }

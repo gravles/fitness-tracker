@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import {
     Bot, Trophy, Users, Camera, Scale, Calendar, CircleHelp, Settings,
-    ChevronRight, type LucideIcon,
+    Pill, ChevronRight, type LucideIcon,
 } from 'lucide-react';
 
 interface HubItem {
@@ -24,9 +24,10 @@ const SECTIONS: { heading: string; items: HubItem[] }[] = [
     {
         heading: 'Progress',
         items: [
-            { href: '/progress', icon: Camera,   title: 'Progress Photos', sub: 'Visual journey & comparisons' },
-            { href: '/metrics',  icon: Scale,    title: 'Body Metrics',    sub: 'Weight & measurements' },
-            { href: '/calendar', icon: Calendar, title: 'History',         sub: 'Monthly activity calendar' },
+            { href: '/progress',    icon: Camera,   title: 'Progress Photos',   sub: 'Visual journey & comparisons' },
+            { href: '/metrics',     icon: Scale,    title: 'Body Metrics',      sub: 'Weight & measurements' },
+            { href: '/supplements', icon: Pill,     title: 'Supplements & Meds', sub: 'Doses, schedules & reminders' },
+            { href: '/calendar',    icon: Calendar, title: 'History',           sub: 'Monthly activity calendar' },
         ],
     },
     {
