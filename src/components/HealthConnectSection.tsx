@@ -7,6 +7,7 @@ import {
     healthConnectStatus,
     connectHealthConnect,
     syncSleep,
+    syncDailyMetrics,
     HealthConnectStatus,
 } from '@/lib/health-connect';
 
@@ -44,8 +45,13 @@ export function HealthConnectSection() {
     async function syncNow() {
         setBusy(true);
         try {
-            const n = await syncSleep();
-            toast.success(n > 0 ? `Synced ${n} sleep session${n === 1 ? '' : 's'}` : 'Already up to date');
+            const sleep = await syncSleep();
+            const daily = await syncDailyMetrics();
+            const parts = [
+                sleep > 0 ? `${sleep} sleep session${sleep === 1 ? '' : 's'}` : null,
+                daily > 0 ? `${daily} day${daily === 1 ? '' : 's'} of steps/HR` : null,
+            ].filter(Boolean);
+            toast.success(parts.length ? `Synced ${parts.join(' + ')}` : 'Already up to date');
         } finally {
             setBusy(false);
         }
@@ -63,8 +69,8 @@ export function HealthConnectSection() {
                 </h3>
             </div>
             <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                Pull your watch&apos;s sleep tracking (via Samsung Health) into your readiness score — no manual
-                sleep rating needed on tracked nights.
+                Pull your watch&apos;s sleep tracking, daily steps, and resting heart rate (via Samsung Health)
+                into your readiness score — no manual sleep rating needed on tracked nights.
             </p>
 
             {status === 'connected' ? (

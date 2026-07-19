@@ -5,7 +5,10 @@ import androidx.activity.result.ActivityResult
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.RestingHeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import com.getcapacitor.JSArray
@@ -20,6 +23,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDateTime
+import java.time.Period
+import java.time.ZoneId
 
 /**
  * Minimal Health Connect bridge for the WebView app: availability check,
@@ -30,7 +36,11 @@ import java.time.Instant
 @CapacitorPlugin(name = "HealthConnect")
 class HealthConnectPlugin : Plugin() {
 
-    private val permissions = setOf(HealthPermission.getReadPermission(SleepSessionRecord::class))
+    private val permissions = setOf(
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
+        HealthPermission.getReadPermission(StepsRecord::class),
+        HealthPermission.getReadPermission(RestingHeartRateRecord::class),
+    )
     private val scope = CoroutineScope(Dispatchers.IO)
 
     private fun available(): Boolean =
@@ -80,6 +90,60 @@ class HealthConnectPlugin : Plugin() {
                 call.resolve(JSObject().put("granted", granted.containsAll(permissions)))
             } catch (e: Exception) {
                 call.resolve(JSObject().put("granted", false))
+            }
+        }
+    }
+
+    /** Per-day steps (aggregated across sources) + resting heart rate. */
+    @PluginMethod
+    fun readDailyMetrics(call: PluginCall) {
+        if (!available()) {
+            call.reject("Health Connect is not available")
+            return
+        }
+        val days = (call.getInt("days") ?: 14).coerceIn(1, 30)
+
+        scope.launch {
+            try {
+                val client = HealthConnectClient.getOrCreate(context)
+                val end = LocalDateTime.now()
+                val start = end.minusDays(days.toLong()).toLocalDate().atStartOfDay()
+                val byDate = LinkedHashMap<String, JSObject>()
+
+                val buckets = client.aggregateGroupByPeriod(
+                    AggregateGroupByPeriodRequest(
+                        metrics = setOf(StepsRecord.COUNT_TOTAL),
+                        timeRangeFilter = TimeRangeFilter.between(start, end),
+                        timeRangeSlicer = Period.ofDays(1),
+                    ),
+                )
+                buckets.forEach { bucket ->
+                    val steps = bucket.result[StepsRecord.COUNT_TOTAL] ?: return@forEach
+                    val date = bucket.startTime.toLocalDate().toString()
+                    byDate.getOrPut(date) { JSObject().put("date", date) }.put("steps", steps)
+                }
+
+                val rhr = client.readRecords(
+                    ReadRecordsRequest(
+                        recordType = RestingHeartRateRecord::class,
+                        timeRangeFilter = TimeRangeFilter.after(
+                            start.atZone(ZoneId.systemDefault()).toInstant(),
+                        ),
+                    ),
+                )
+                rhr.records.forEach { r ->
+                    val date = r.time.atZone(ZoneId.systemDefault()).toLocalDate().toString()
+                    byDate.getOrPut(date) { JSObject().put("date", date) }
+                        .put("restingHeartrate", r.beatsPerMinute)
+                }
+
+                val daysArr = JSArray()
+                byDate.values.forEach { daysArr.put(it) }
+                call.resolve(JSObject().put("days", daysArr))
+            } catch (e: SecurityException) {
+                call.reject("Steps/heart-rate read permission not granted")
+            } catch (e: Exception) {
+                call.reject(e.message ?: "Health Connect read failed")
             }
         }
     }

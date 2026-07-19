@@ -29,6 +29,7 @@ export function ReadinessCheckIn({ onLogged }: { onLogged?: () => void }) {
     const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
 
     const [readiness, setReadiness] = useState<Readiness | null>(null);
+    const [todaySteps, setTodaySteps] = useState<number | null>(null);
     const [showModal, setShowModal] = useState(false);
     const [showWhy, setShowWhy] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -60,6 +61,7 @@ export function ReadinessCheckIn({ onLogged }: { onLogged?: () => void }) {
 
             const todayLog = logs.find((l: DailyLog) => l.date === today);
             const yesterdayLog = logs.find((l: DailyLog) => l.date === yesterday);
+            setTodaySteps(todayLog?.steps ?? null);
             if (todayLog?.sleep_quality) setSleep(todayLog.sleep_quality);
             if (todayLog?.energy_level) setEnergy(todayLog.energy_level);
             // Carry yesterday's drinks over as the starting value
@@ -124,6 +126,11 @@ export function ReadinessCheckIn({ onLogged }: { onLogged?: () => void }) {
                             </div>
                             <p className="text-sm mt-1" style={{ color: 'var(--color-text)' }}>
                                 {readiness.recommendation}
+                                {todaySteps != null && (
+                                    <span style={{ color: 'var(--color-text-muted)' }}>
+                                        {' '}· {todaySteps.toLocaleString()} steps today
+                                    </span>
+                                )}
                             </p>
                             {readiness.components.length > 0 && (
                                 <button
