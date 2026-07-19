@@ -780,7 +780,17 @@ async function getReadiness(userId: string, today: string) {
         .lte('date', today);
     if (wErr) throw wErr;
 
-    return computeReadiness(logs ?? [], workouts ?? [], today);
+    // Last night's tracked sleep (Health Connect etc.), if any
+    const { data: sleepRecord } = await supabaseAdmin
+        .from('sleep_records')
+        .select('duration_minutes,deep_minutes,rem_minutes')
+        .eq('user_id', userId)
+        .eq('date', today)
+        .order('duration_minutes', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    return computeReadiness(logs ?? [], workouts ?? [], today, sleepRecord ?? null);
 }
 
 async function getUserProfile(userId: string) {

@@ -40,6 +40,11 @@ export function CapacitorProvider({ children }: { children: React.ReactNode }) {
             // ── Splash screen ────────────────────────────────────────────────
             await SplashScreen.hide({ fadeOutDuration: 300 });
 
+            // ── Health Connect sleep sync (Android, fire-and-forget) ─────────
+            import('@/lib/health-connect')
+                .then(({ syncSleep }) => syncSleep())
+                .catch(() => { /* optional capability */ });
+
             // ── Push notifications ───────────────────────────────────────────
             // Request permission (iOS shows system prompt; Android auto-grants on 12-)
             const perm = await PushNotifications.requestPermissions();
