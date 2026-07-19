@@ -23,6 +23,7 @@ import { getSettings } from '@/lib/api';
 import { DashboardSkeleton } from '@/components/Skeleton';
 import { LoadError } from '@/components/ui';
 import { TodayHero } from '@/components/TodayHero';
+import { ReadinessCheckIn } from '@/components/ReadinessCheckIn';
 import { NextWorkoutTile } from '@/components/NextWorkoutTile';
 import { PlannedMealsCard } from '@/components/PlannedMealsCard';
 import { WhatsNewModal, useWhatsNew } from '@/components/WhatsNewModal';
@@ -209,6 +210,8 @@ export default function Dashboard() {
         <>
           {/* Today hero — rings for protein / calories / checklist */}
           <TodayHero todayLog={todayLog} settings={settings} stagger={0} />
+
+          <ReadinessCheckIn />
 
           {/* Bento row — level + next workout */}
           <div className="grid grid-cols-2 gap-3">
