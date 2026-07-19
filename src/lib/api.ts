@@ -170,6 +170,48 @@ export async function upsertDailyLog(log: Partial<DailyLog>) {
 }
 
 
+/**
+ * Merge-safe full-day save (for DailyLogForm): three-way merge of food_items
+ * against a fresh server read, so a stale client can never wipe items logged
+ * from another device. `baseFoodItems` is the list this client originally
+ * loaded. Totals are adjusted for any items preserved from elsewhere.
+ */
+export async function upsertDailyLogMerged(log: Partial<DailyLog>, baseFoodItems: any[]) {
+    const { mergeFoodItems, foodTotals } = await import('./food-merge');
+    const server = log.date ? await getDailyLog(log.date).catch(() => null) : null;
+    const { merged, extras } = mergeFoodItems(
+        baseFoodItems ?? [],
+        (log.food_items as any[]) ?? [],
+        (server?.food_items as any[]) ?? [],
+    );
+    const patch: Partial<DailyLog> = { ...log, food_items: merged };
+    if (extras.length) {
+        const extraTotals = foodTotals(extras);
+        if (patch.calories != null) patch.calories += extraTotals.calories;
+        if (patch.protein_grams != null) patch.protein_grams += extraTotals.protein;
+        if (patch.carbs_grams != null) patch.carbs_grams += extraTotals.carbs;
+        if (patch.fat_grams != null) patch.fat_grams += extraTotals.fat;
+    }
+    return upsertDailyLog(patch);
+}
+
+/** Append food items to a day using a fresh server read (never page state). */
+export async function appendFoodItems(date: string, newItems: any[]) {
+    const { foodTotals } = await import('./food-merge');
+    const server = await getDailyLog(date).catch(() => null);
+    const merged = [...((server?.food_items as any[]) ?? []), ...newItems];
+    const totals = foodTotals(merged);
+    return upsertDailyLog({
+        date,
+        food_items: merged,
+        calories: totals.calories,
+        protein_grams: totals.protein,
+        carbs_grams: totals.carbs,
+        fat_grams: totals.fat,
+        nutrition_logged: true,
+    });
+}
+
 export async function getMonthlyLogs(startDate: string, endDate: string) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');

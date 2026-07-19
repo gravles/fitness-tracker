@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getDailyLog, upsertDailyLog, getWorkouts, Workout, getFavoriteFoods, FavoriteFood, addWorkout, getSettings, getStreak, getUserBadges, getMonthlyLogs, awardBadge, getLifetimeLogCount } from '@/lib/api';
+import { getDailyLog, upsertDailyLog, upsertDailyLogMerged, getWorkouts, Workout, getFavoriteFoods, FavoriteFood, addWorkout, getSettings, getStreak, getUserBadges, getMonthlyLogs, awardBadge, getLifetimeLogCount } from '@/lib/api';
 import { getNewlyEarnedBadges } from '@/lib/gamification';
 import { format, subDays } from 'date-fns';
 import { Loader2, Utensils, Activity, Heart, Check } from 'lucide-react';
@@ -69,6 +69,9 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
     // Autosave & Concurrency Refs
     const autosaveTimeout = useRef<NodeJS.Timeout | null>(null);
     const isFirstLoad = useRef(true);
+    // Snapshot of food_items as loaded from the server — the merge base that
+    // lets saves preserve items logged from other devices (watch, other tabs)
+    const baseFoodItems = useRef<any[]>([]);
     const isSavingRef = useRef(false);
     const pendingSaveRef = useRef(false);
 
@@ -121,7 +124,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 const offsetDate = new Date(s.date.getTime() - (s.date.getTimezoneOffset() * 60000));
                 const dateStr = offsetDate.toISOString().split('T')[0];
 
-                upsertDailyLog({
+                upsertDailyLogMerged({
                     date: dateStr,
                     movement_completed: s.movementCompleted ?? undefined,
                     movement_duration: s.totalDuration,
@@ -142,7 +145,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     daily_note: s.subjective.note,
                     habits: s.habits,
                     menstrual_flow: s.menstrualFlow,
-                }).catch(console.error);
+                }, baseFoodItems.current).catch(console.error);
             }
         };
     }, []);
@@ -200,6 +203,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                     logged: log.nutrition_logged ?? false,
                 });
                 setFoodItems(log.food_items || []);
+                baseFoodItems.current = log.food_items || [];
                 setAlcohol(log.alcohol_drinks ?? 0);
                 setSubjective({
                     sleep: log.sleep_quality ?? 3,
@@ -216,6 +220,7 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 setMovementCompleted(null);
                 setNutrition({ protein: 0, carbs: 0, fat: 0, calories: 0, windowStart: '', windowEnd: '', logged: true });
                 setFoodItems([]);
+                baseFoodItems.current = [];
                 setAlcohol(0);
                 setSubjective({ sleep: 3, energy: 3, motivation: 3, stress: 3, note: '' });
                 setHabits([]);
@@ -309,7 +314,13 @@ export function DailyLogForm({ date }: DailyLogFormProps) {
                 menstrual_flow: s.menstrualFlow,
             };
 
-            await upsertDailyLog(logData);
+            const saved = await upsertDailyLogMerged(logData, baseFoodItems.current);
+            // The merge may have preserved items logged elsewhere — adopt them
+            const savedItems = (saved?.food_items as any[]) ?? logData.food_items ?? [];
+            baseFoodItems.current = savedItems;
+            if (savedItems.length !== (logData.food_items?.length ?? 0)) {
+                setFoodItems(savedItems);
+            }
 
             if (isManualLog) {
                 haptics.success();

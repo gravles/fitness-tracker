@@ -19,7 +19,7 @@ import {
     getPantryItems, addPantryItem, deletePantryItem,
     getMealPlan, saveMealPlan,
     getNutritionPrefs, saveNutritionPrefs,
-    getSettings, getDailyLog, upsertDailyLog,
+    getSettings, getDailyLog, upsertDailyLog, appendFoodItems,
     getSavedMeals, createSavedMeal, deleteSavedMeal,
     PantryItem, PlannedMeal, NutritionPrefs, DEFAULT_NUTRITION_PREFS, SavedMeal, isAuthError } from '@/lib/api';
 import { getPlannedMealsForRange, logPlannedMealAsEaten, PlannedMeal as CoachPlannedMeal } from '@/lib/meal-plan-api';
@@ -367,8 +367,6 @@ export default function NutritionPage() {
 
         setLoggingMeal(k);
         try {
-            const existing = (await getDailyLog(date)) ?? {} as import('@/lib/api').DailyLog;
-            const existingItems: any[] = existing.food_items ?? [];
             const newItem = {
                 name: meal.name,
                 calories: meal.macros.calories,
@@ -376,26 +374,7 @@ export default function NutritionPage() {
                 carbs: meal.macros.carbs,
                 fat: meal.macros.fat,
             };
-            const updated = [...existingItems, newItem];
-            const totals = updated.reduce(
-                (acc, item) => ({
-                    calories: acc.calories + (item.calories || 0),
-                    protein: acc.protein + (item.protein || 0),
-                    carbs: acc.carbs + (item.carbs || 0),
-                    fat: acc.fat + (item.fat || 0),
-                }),
-                { calories: 0, protein: 0, carbs: 0, fat: 0 }
-            );
-
-            await upsertDailyLog({
-                date,
-                food_items: updated,
-                calories: totals.calories,
-                protein_grams: totals.protein,
-                carbs_grams: totals.carbs,
-                fat_grams: totals.fat,
-                nutrition_logged: true,
-            });
+            await appendFoodItems(date, [newItem]);
             toast.success(`${meal.name} logged!`);
         } catch {
             toast.error('Failed to log meal');
@@ -849,17 +828,7 @@ export default function NutritionPage() {
                                             onClick={async () => {
                                                 try {
                                                     const today = format(new Date(), 'yyyy-MM-dd');
-                                                    const log = await getDailyLog(today) ?? {} as any;
-                                                    const existing = log.food_items || [];
-                                                    await upsertDailyLog({
-                                                        date: today,
-                                                        food_items: [...existing, ...meal.food_items],
-                                                        nutrition_logged: true,
-                                                        calories: (log.calories || 0) + meal.total_calories,
-                                                        protein_grams: (log.protein_grams || 0) + meal.total_protein,
-                                                        carbs_grams: (log.carbs_grams || 0) + meal.total_carbs,
-                                                        fat_grams: (log.fat_grams || 0) + meal.total_fat,
-                                                    });
+                                                    await appendFoodItems(today, meal.food_items);
                                                     // bump use count
                                                     const { supabase: sb } = await import('@/lib/supabase');
                                                     await sb.from('saved_meals').update({ use_count: (meal.use_count || 0) + 1 }).eq('id', meal.id);
