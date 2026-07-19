@@ -81,6 +81,11 @@ const en = {
     logAsPlanned: 'Log as planned',
     mealLogged: 'Logged',
     mealSkipped: 'Skipped',
+    supplementDoses: "Today's supplements",
+    doseTake: 'Take',
+    doseSkip: 'Skip',
+    doseTaken: 'Taken',
+    doseSkipped: 'Skipped',
   },
   goalTracker: {
     title: 'On Track Today?',
@@ -557,6 +562,11 @@ const fr: typeof en = {
     logAsPlanned: 'Journaliser comme prévu',
     mealLogged: 'Journalisé',
     mealSkipped: 'Ignoré',
+    supplementDoses: 'Suppléments du jour',
+    doseTake: 'Prendre',
+    doseSkip: 'Passer',
+    doseTaken: 'Pris',
+    doseSkipped: 'Passé',
   },
   goalTracker: {
     title: "En bonne voie aujourd'hui ?",

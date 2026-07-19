@@ -239,6 +239,67 @@ export async function GET(request: NextRequest) {
             }
         }
 
+        // ── 3b. Supplement dose reminders ─────────────────────────────────
+        // Unlike the workout block, users come from the dose rows themselves
+        // (not tokensByUser) so web-push-only subscribers get reminders too;
+        // sendPushToUser covers web push + APNs + FCM in one call.
+        {
+            const todayUtc    = now.toISOString().slice(0, 10);
+            const tomorrowUtc = new Date(now.getTime() + 86_400_000).toISOString().slice(0, 10);
+
+            const { data: pendingDoses } = await supabase
+                .from('supplement_doses')
+                .select('id, user_id, scheduled_date, scheduled_time, name, dose_amount, dose_unit, remind_minutes')
+                .in('scheduled_date', [todayUtc, tomorrowUtc])
+                .eq('status', 'planned')
+                .eq('reminder_sent', false)
+                .not('remind_minutes', 'is', null)
+                .not('scheduled_time', 'is', null);
+
+            if (pendingDoses && pendingDoses.length > 0) {
+                const doseUserIds = Array.from(new Set(pendingDoses.map(d => d.user_id)));
+                const { data: doseUserSettings } = await supabase
+                    .from('user_settings')
+                    .select('user_id, timezone')
+                    .in('user_id', doseUserIds);
+
+                const doseTzByUser: Record<string, string> = {};
+                for (const us of (doseUserSettings ?? [])) {
+                    doseTzByUser[us.user_id] = us.timezone ?? 'UTC';
+                }
+
+                const notifiedDoseIds: string[] = [];
+                for (const dose of pendingDoses) {
+                    const tz       = doseTzByUser[dose.user_id] ?? 'UTC';
+                    const doseUtc  = localToUtcDate(dose.scheduled_date, dose.scheduled_time, tz);
+                    const notifyAt = doseUtc.getTime() - (dose.remind_minutes ?? 0) * 60_000;
+                    const nowMs    = now.getTime();
+
+                    // Fire if we're within this 60-second cron window
+                    if (nowMs >= notifyAt && nowMs < notifyAt + 60_000) {
+                        const doseLabel = dose.dose_amount != null
+                            ? ` (${dose.dose_amount}${dose.dose_unit ? ` ${dose.dose_unit}` : ''})`
+                            : '';
+                        const { sent: s, failed: f } = await sendPushToUser(supabase, dose.user_id, {
+                            title: `💊 ${dose.name}`,
+                            body: `Time to take ${dose.name}${doseLabel}`,
+                            url: '/supplements',
+                            tag: `dose-${dose.id}`,
+                        });
+                        sent += s; failed += f;
+                        notifiedDoseIds.push(dose.id);
+                    }
+                }
+
+                if (notifiedDoseIds.length > 0) {
+                    await supabase
+                        .from('supplement_doses')
+                        .update({ reminder_sent: true })
+                        .in('id', notifiedDoseIds);
+                }
+            }
+        }
+
         // ── 4. Partner streak-at-risk nudges (hourly) ─────────────────────
         // At 20:00 local time, if a user logged yesterday but nothing today,
         // ping their workout partner(s) so they can send encouragement.

@@ -26,6 +26,7 @@ import { TodayHero } from '@/components/TodayHero';
 import { ReadinessCheckIn } from '@/components/ReadinessCheckIn';
 import { NextWorkoutTile } from '@/components/NextWorkoutTile';
 import { PlannedMealsCard } from '@/components/PlannedMealsCard';
+import { SupplementDosesCard } from '@/components/SupplementDosesCard';
 import { WhatsNewModal, useWhatsNew } from '@/components/WhatsNewModal';
 import { PartnerCard } from '@/components/PartnerCard';
 import { ensureMyProfile } from '@/lib/partner-api';
@@ -226,6 +227,9 @@ export default function Dashboard() {
 
           {/* Today's coach-planned meals — hidden entirely when none are planned */}
           <PlannedMealsCard stagger={150} onLogged={loadData} />
+
+          {/* Today's supplement/medication doses — hidden when none are scheduled */}
+          <SupplementDosesCard stagger={160} />
 
           {/* Workout partners — hidden when there are no partnerships or invites */}
           <PartnerCard stagger={165} />
