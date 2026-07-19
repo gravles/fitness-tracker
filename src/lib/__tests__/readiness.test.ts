@@ -97,6 +97,30 @@ describe('computeReadiness', () => {
         expect(r.score).toBe(90);
     });
 
+    it('penalizes an elevated resting heart rate against the personal baseline', () => {
+        const logs = [
+            ...[1, 2, 3, 4, 5].map(n => ({ date: `2026-07-1${n}`, resting_heartrate: 60 })),
+            { date: TODAY, resting_heartrate: 70 }, // ~17% above baseline
+        ];
+        const r = computeReadiness(logs, [], TODAY);
+        const rhr = r.components.find(c => c.name === 'resting_hr');
+        expect(rhr?.delta).toBe(-12);
+        expect(r.score).toBe(88);
+    });
+
+    it('gives a small bonus for resting HR at or below baseline, and needs 5+ days of history', () => {
+        const base = [1, 2, 3, 4, 5].map(n => ({ date: `2026-07-1${n}`, resting_heartrate: 60 }));
+        const good = computeReadiness([...base, { date: TODAY, resting_heartrate: 58 }], [], TODAY);
+        expect(good.components.find(c => c.name === 'resting_hr')?.delta).toBe(3);
+
+        const sparse = computeReadiness(
+            [{ date: '2026-07-15', resting_heartrate: 60 }, { date: TODAY, resting_heartrate: 75 }],
+            [],
+            TODAY,
+        );
+        expect(sparse.components.find(c => c.name === 'resting_hr')).toBeUndefined();
+    });
+
     it('lands in recovery with everything stacked against it', () => {
         const r = computeReadiness(
             [

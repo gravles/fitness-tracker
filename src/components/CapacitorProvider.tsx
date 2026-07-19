@@ -40,9 +40,9 @@ export function CapacitorProvider({ children }: { children: React.ReactNode }) {
             // ── Splash screen ────────────────────────────────────────────────
             await SplashScreen.hide({ fadeOutDuration: 300 });
 
-            // ── Health Connect sleep sync (Android, fire-and-forget) ─────────
+            // ── Health Connect sync: sleep + steps + resting HR (Android) ────
             import('@/lib/health-connect')
-                .then(({ syncSleep }) => syncSleep())
+                .then(({ syncHealth }) => syncHealth())
                 .catch(() => { /* optional capability */ });
 
             // ── Push notifications ───────────────────────────────────────────

@@ -21,11 +21,18 @@ interface HCSleepSession {
     awakeMinutes: number;
 }
 
+interface HCDailyMetrics {
+    date: string; // YYYY-MM-DD
+    steps?: number;
+    restingHeartrate?: number;
+}
+
 interface HCPlugin {
     isAvailable(): Promise<{ available: boolean }>;
     hasPermissions(): Promise<{ granted: boolean }>;
     requestHealthPermissions(): Promise<{ granted: boolean }>;
     readSleepSessions(opts: { since?: string }): Promise<{ sessions: HCSleepSession[] }>;
+    readDailyMetrics(opts: { days?: number }): Promise<{ days: HCDailyMetrics[] }>;
 }
 
 const LAST_SYNC_KEY = 'health-connect-last-sync';
@@ -63,6 +70,49 @@ export async function connectHealthConnect(): Promise<boolean> {
         return granted;
     } catch {
         return false;
+    }
+}
+
+/** Everything we mirror from Health Connect, fire-and-forget on app open. */
+export async function syncHealth(): Promise<void> {
+    await syncSleep();
+    await syncDailyMetrics();
+}
+
+/** Per-day steps + resting HR into daily_logs (only columns we own). */
+export async function syncDailyMetrics(): Promise<number> {
+    const hc = native();
+    if (!hc) return 0;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return 0;
+
+    try {
+        const { granted } = await hc.hasPermissions();
+        if (!granted) return 0;
+
+        const { days } = await hc.readDailyMetrics({ days: 14 });
+        const rows = days
+            .filter(d => d.steps != null || d.restingHeartrate != null)
+            .map(d => ({
+                user_id: session.user.id,
+                date: d.date,
+                ...(d.steps != null ? { steps: Math.round(d.steps) } : {}),
+                ...(d.restingHeartrate != null ? { resting_heartrate: Math.round(d.restingHeartrate) } : {}),
+                updated_at: new Date().toISOString(),
+            }));
+
+        // Upsert one-by-one so a row missing `steps` never nulls an existing value
+        for (const row of rows) {
+            const { error } = await supabase
+                .from('daily_logs')
+                .upsert(row, { onConflict: 'user_id,date' });
+            if (error) throw error;
+        }
+        return rows.length;
+    } catch (e) {
+        console.error('[HealthConnect] daily metrics sync failed', e);
+        return 0;
     }
 }
 

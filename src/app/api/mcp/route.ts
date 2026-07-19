@@ -766,7 +766,7 @@ async function getReadiness(userId: string, today: string) {
     const start = shiftDate(today, -27);
     const { data: logs, error } = await supabaseAdmin
         .from('daily_logs')
-        .select('date,sleep_quality,energy_level,alcohol_drinks')
+        .select('date,sleep_quality,energy_level,alcohol_drinks,resting_heartrate')
         .eq('user_id', userId)
         .gte('date', start)
         .lte('date', today);

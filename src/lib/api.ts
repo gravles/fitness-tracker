@@ -31,6 +31,8 @@ export interface DailyLog {
     xp_earned?: number | null;
     food_items?: any[] | null; // { name, calories, protein, carbs, fat }
     menstrual_flow?: string | null;
+    steps?: number | null;             // Health Connect daily total
+    resting_heartrate?: number | null; // bpm, Health Connect
     created_at?: string;
     updated_at?: string;
 }

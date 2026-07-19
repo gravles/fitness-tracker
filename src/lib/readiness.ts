@@ -14,6 +14,7 @@ export interface ReadinessDailyLog {
     sleep_quality?: number | null;   // 1–5
     energy_level?: number | null;    // 1–5
     alcohol_drinks?: number | null;
+    resting_heartrate?: number | null; // bpm, from Health Connect
 }
 
 export interface ReadinessWorkout {
@@ -109,6 +110,28 @@ export function computeReadiness(
         const delta = -Math.min(drinks * 7, 21);
         score += delta;
         components.push({ name: 'alcohol', delta, detail: `${drinks} drink${drinks === 1 ? '' : 's'} last night` });
+    }
+
+    // Resting heart rate vs personal baseline (needs a few days of history)
+    const todayRhr = todayLog?.resting_heartrate ?? null;
+    if (todayRhr != null) {
+        const history = logs
+            .filter(l => l.date !== today && l.resting_heartrate != null)
+            .map(l => l.resting_heartrate as number);
+        if (history.length >= 5) {
+            const baseline = history.reduce((a, b) => a + b, 0) / history.length;
+            const ratio = todayRhr / baseline;
+            let delta = 0;
+            if (ratio > 1.12) delta = -12;
+            else if (ratio > 1.07) delta = -7;
+            else if (ratio <= 1.0) delta = 3;
+            if (delta !== 0) score += delta;
+            components.push({
+                name: 'resting_hr',
+                delta,
+                detail: `resting HR ${todayRhr} vs ${Math.round(baseline)} baseline`,
+            });
+        }
     }
 
     // Training load: last 3 days vs the 28-day norm scaled to 3 days
