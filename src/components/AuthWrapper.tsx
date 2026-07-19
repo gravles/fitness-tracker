@@ -1,12 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Auth } from '@/components/Auth';
 import { BottomNav } from '@/components/BottomNav';
 import { Loader2 } from 'lucide-react';
 
+// Pages reachable without an account (e.g. the privacy policy, which Play
+// Store reviewers must be able to open cold)
+const PUBLIC_PATHS = ['/privacy'];
+
 export function AuthWrapper({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname();
     const [session, setSession] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
@@ -32,6 +38,10 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
 
         return () => subscription.unsubscribe();
     }, []);
+
+    if (pathname && PUBLIC_PATHS.includes(pathname)) {
+        return <>{children}</>;
+    }
 
     if (loading) {
         return (
