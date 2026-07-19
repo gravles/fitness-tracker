@@ -72,9 +72,27 @@ export function SyncManager() {
 
     const processItem = async (item: RequestQueueItem) => {
         switch (item.type) {
-            case 'LOG_DAILY':
-                await upsertDailyLog(item.payload);
+            case 'LOG_DAILY': {
+                // A queued payload may be a stale full-day snapshot — union its
+                // food items with whatever the server has now instead of
+                // replacing, so replays never wipe items logged elsewhere.
+                const payload = { ...item.payload };
+                if (Array.isArray(payload.food_items)) {
+                    const [{ getDailyLog }, { unionFoodItems, foodTotals }] = await Promise.all([
+                        import('@/lib/api'),
+                        import('@/lib/food-merge'),
+                    ]);
+                    const server = payload.date ? await getDailyLog(payload.date).catch(() => null) : null;
+                    payload.food_items = unionFoodItems(server?.food_items ?? [], payload.food_items);
+                    const totals = foodTotals(payload.food_items);
+                    payload.calories = totals.calories;
+                    payload.protein_grams = totals.protein;
+                    payload.carbs_grams = totals.carbs;
+                    payload.fat_grams = totals.fat;
+                }
+                await upsertDailyLog(payload);
                 break;
+            }
             case 'ADD_WORKOUT':
                 // Remove the temp ID we generated before sending to server
                 const { id, ...cleanPayload } = item.payload;
