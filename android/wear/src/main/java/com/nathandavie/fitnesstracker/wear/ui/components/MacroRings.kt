@@ -44,12 +44,13 @@ fun MacroRings(
         val gap = 4.dp.toPx()
         val edge = 3.dp.toPx()
 
-        ring(radiusInset = edge + stroke / 2, stroke = stroke, fraction = calsAnim, color = Brand.Gold)
-        ring(radiusInset = edge + stroke + gap + stroke / 2, stroke = stroke, fraction = proteinAnim, color = Brand.Blue)
+        // Over-target calories = warning red; over-target protein = still a win, stay blue
+        ring(radiusInset = edge + stroke / 2, stroke = stroke, fraction = calsAnim, color = Brand.Gold, overColor = Brand.Danger)
+        ring(radiusInset = edge + stroke + gap + stroke / 2, stroke = stroke, fraction = proteinAnim, color = Brand.Blue, overColor = Brand.Blue)
     }
 }
 
-private fun DrawScope.ring(radiusInset: Float, stroke: Float, fraction: Float, color: Color) {
+private fun DrawScope.ring(radiusInset: Float, stroke: Float, fraction: Float, color: Color, overColor: Color) {
     val diameter = size.minDimension - radiusInset * 2
     val topLeft = Offset((size.width - diameter) / 2, (size.height - diameter) / 2)
     val arcSize = Size(diameter, diameter)
@@ -66,7 +67,7 @@ private fun DrawScope.ring(radiusInset: Float, stroke: Float, fraction: Float, c
     // Progress
     if (sweep > 0f) {
         drawArc(
-            color = if (over) Brand.Danger else color,
+            color = if (over) overColor else color,
             startAngle = -90f, sweepAngle = sweep, useCenter = false,
             topLeft = topLeft, size = arcSize,
             style = Stroke(width = stroke, cap = StrokeCap.Round),
