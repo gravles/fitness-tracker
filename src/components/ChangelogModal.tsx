@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen } from 'lucide-react';
+import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen, Watch, HeartPulse, Users, Pill } from 'lucide-react';
 import { Modal } from './ui/Modal';
 
 interface ChangelogModalProps {
@@ -12,6 +12,18 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
     if (!isOpen) return null;
 
     const changes = [
+        {
+            version: "v3.0 — Watch, Readiness & Partners",
+            date: "July 20, 2026",
+            features: [
+                { icon: <Watch className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "New WearOS companion app: live workout sessions, voice logging, tiles, and watch-face complications." },
+                { icon: <HeartPulse className="w-4 h-4 text-[var(--color-success)]" />, text: "Readiness Score: a daily 0-100 score from sleep, energy, alcohol, and training load, with a morning check-in." },
+                { icon: <Dna className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Health Connect for Android: sync steps, resting heart rate, and sleep automatically." },
+                { icon: <Users className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Workout Partners: link with a partner, share progress, send nudges, and join group challenges." },
+                { icon: <Pill className="w-4 h-4 text-[var(--color-success)]" />, text: "Supplement & medication tracking with schedules, reminders, and adherence history." },
+                { icon: <Bug className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />, text: "Fixed a bug where a stale browser tab could overwrite a day's food log after logging from another device." },
+            ]
+        },
         {
             version: "v2.0 — Native Apps & Calendar",
             date: "May 24, 2026",
