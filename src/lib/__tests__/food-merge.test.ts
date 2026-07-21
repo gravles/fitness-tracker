@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeFoodItems, unionFoodItems, foodFingerprint } from '../food-merge';
+import { mergeFoodItems, unionFoodItems, foodFingerprint, foodTotals } from '../food-merge';
 
 const coffee = { name: 'coffee', calories: 5 };
 const bun = { name: 'bun', calories: 190 };
@@ -52,6 +52,28 @@ describe('mergeFoodItems (three-way)', () => {
         expect(foodFingerprint(a)).not.toBe(foodFingerprint(b));
         const { extras } = mergeFoodItems([a], [a], [a, b]);
         expect(extras).toEqual([b]);
+    });
+});
+
+describe('foodTotals', () => {
+    it('scales by the portion quantity (the whole-tub bug)', () => {
+        const totals = foodTotals([
+            { name: 'cream cheese brick', calories: 1120, protein: 32, carbs: 48, fat: 96, quantity: '.06' },
+            { name: 'yogurt tub', calories: 585, protein: 59, carbs: 65, fat: 13, quantity: '.3' },
+            { name: 'lager', calories: 252, protein: 0, carbs: 18, fat: 0 }, // no quantity → 1
+        ]);
+        expect(totals.calories).toBe(Math.round(1120 * 0.06 + 585 * 0.3 + 252)); // 495
+        expect(totals.protein).toBe(Math.round(32 * 0.06 + 59 * 0.3));           // 20
+    });
+
+    it('treats missing, empty, or invalid quantities as 1', () => {
+        const totals = foodTotals([
+            { calories: 100, quantity: '' },
+            { calories: 100, quantity: 'abc' },
+            { calories: 100, quantity: 0 },
+            { calories: 100 },
+        ]);
+        expect(totals.calories).toBe(400);
     });
 });
 

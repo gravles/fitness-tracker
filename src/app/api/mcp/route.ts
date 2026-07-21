@@ -843,15 +843,27 @@ async function logFood(userId: string, args: Record<string, unknown>, today: str
         .maybeSingle();
 
     const items = [...((existing?.food_items as any[]) ?? []), item];
-    const totals = items.reduce(
+    // Items carry base macros plus an optional portion quantity ("1", ".3") —
+    // totals must respect it or a watch/connector log resets user-adjusted portions
+    const qty = (i: { quantity?: unknown }) => {
+        const parsed = parseFloat(String(i.quantity ?? '1'));
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+    };
+    const raw = items.reduce(
         (a, i) => ({
-            calories:     a.calories     + (i.calories ?? 0),
-            protein_grams: a.protein_grams + (i.protein  ?? 0),
-            carbs_grams:  a.carbs_grams  + (i.carbs    ?? 0),
-            fat_grams:    a.fat_grams    + (i.fat      ?? 0),
+            calories:      a.calories      + (i.calories ?? 0) * qty(i),
+            protein_grams: a.protein_grams + (i.protein  ?? 0) * qty(i),
+            carbs_grams:   a.carbs_grams   + (i.carbs    ?? 0) * qty(i),
+            fat_grams:     a.fat_grams     + (i.fat      ?? 0) * qty(i),
         }),
         { calories: 0, protein_grams: 0, carbs_grams: 0, fat_grams: 0 }
     );
+    const totals = {
+        calories:      Math.round(raw.calories),
+        protein_grams: Math.round(raw.protein_grams),
+        carbs_grams:   Math.round(raw.carbs_grams),
+        fat_grams:     Math.round(raw.fat_grams),
+    };
 
     const { error } = await supabaseAdmin
         .from('daily_logs')

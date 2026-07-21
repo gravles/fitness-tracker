@@ -85,14 +85,31 @@ export function unionFoodItems(server: FoodItemLike[], payload: FoodItemLike[]):
     return [...server, ...additions];
 }
 
+/** Portion multiplier: items store base macros and an optional quantity ("1", ".3", 2). */
+export function itemQuantity(item: FoodItemLike): number {
+    const raw = (item as { quantity?: unknown }).quantity;
+    if (raw === undefined || raw === null || raw === '') return 1;
+    const parsed = parseFloat(String(raw));
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
 export function foodTotals(items: FoodItemLike[]): { calories: number; protein: number; carbs: number; fat: number } {
-    return items.reduce<{ calories: number; protein: number; carbs: number; fat: number }>(
-        (acc, item) => ({
-            calories: acc.calories + (item.calories || 0),
-            protein: acc.protein + (item.protein || 0),
-            carbs: acc.carbs + (item.carbs || 0),
-            fat: acc.fat + (item.fat || 0),
-        }),
+    const totals = items.reduce<{ calories: number; protein: number; carbs: number; fat: number }>(
+        (acc, item) => {
+            const q = itemQuantity(item);
+            return {
+                calories: acc.calories + (item.calories || 0) * q,
+                protein: acc.protein + (item.protein || 0) * q,
+                carbs: acc.carbs + (item.carbs || 0) * q,
+                fat: acc.fat + (item.fat || 0) * q,
+            };
+        },
         { calories: 0, protein: 0, carbs: 0, fat: 0 },
     );
+    return {
+        calories: Math.round(totals.calories),
+        protein: Math.round(totals.protein),
+        carbs: Math.round(totals.carbs),
+        fat: Math.round(totals.fat),
+    };
 }

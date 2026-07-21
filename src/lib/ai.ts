@@ -117,7 +117,7 @@ export async function processVoiceIntent(transcript: string) {
 
 Rules:
 - If the user describes food/drink, intent="log_food". Return data={"items": [{ "name": "name", "calories": number, "protein": number, "carbs": number, "fat": number, "alcohol_units": number }]}.
-  - ESTIMATE macros.
+  - ESTIMATE macros for ONE typical eaten serving unless the user states a quantity or size. NEVER assume a whole package, tub, brick, or container (e.g. "cream cheese" = ~2 tbsp, not the brick; "greek yogurt" = one bowl, not the tub).
   - ESTIMATE "alcohol_units" for alcoholic drinks (1 beer/wine/shot = 1 unit).
 - If the user describes exercise, intent="log_workout". Return data={"activity": "name", "duration": number_minutes, "intensity": "Light"|"Moderate"|"Hard"}.
 - If the user describes a SET (reps/weight), intent="log_set". Return data={"exercise": "name" (optional if implied), "reps": number, "weight": number, "weight_unit": "lbs"|"kg" (default lbs)}.
