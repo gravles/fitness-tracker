@@ -73,7 +73,7 @@ export function WhatsNewModal({ onClose }: WhatsNewModalProps) {
         <Modal
             isOpen
             onClose={dismiss}
-            aria-label="What's new in Life Logger"
+            aria-label="What's new in Kinetic"
             size="sm"
             padding={false}
             className="overflow-hidden"

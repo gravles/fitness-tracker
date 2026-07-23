@@ -15,7 +15,7 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: "Life Logger",
+  title: "Kinetic",
   description: "Daily fitness and nutrition tracker",
   manifest: "/manifest.json",
   icons: {
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Life Logger",
+    title: "Kinetic",
   },
 };
 
@@ -80,7 +80,8 @@ export default function RootLayout({
               },
             }}
           />
-          <div className="max-w-2xl mx-auto min-h-dvh pb-24 relative border-x border-[var(--color-border-light)] shadow-2xl bg-[var(--color-bg)]">
+          {/* pb-32: clearance for the floating glass pill nav (~62px) + its 14px inset */}
+          <div className="max-w-2xl mx-auto min-h-dvh pb-32 relative border-x border-[var(--color-border-light)] shadow-2xl bg-[var(--color-bg)]">
             {children}
           </div>
           </CapacitorProvider>

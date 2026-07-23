@@ -72,6 +72,18 @@
   --z-nav:       50;   /* bottom nav, sticky headers */
   --z-modal:     100;  /* standard dialogs/sheets */
   --z-modal-top: 300;  /* confirm dialogs & pickers opened above another modal */
+
+  /* Kinetic — floating glass nav, gold FAB, bento gradients */
+  --gradient-fab: linear-gradient(135deg, var(--color-gold-light), var(--color-gold));
+  --shadow-fab: 0 8px 28px rgba(224, 179, 90, 0.25);
+  --glass-nav-bg:     rgba(255, 255, 255, 0.78);
+  --glass-nav-solid:  #ffffff;
+  --glass-nav-border: rgba(6, 10, 19, 0.08);
+  --shadow-nav: 0 12px 48px rgba(6, 10, 19, 0.18);
+  --gradient-rail: linear-gradient(180deg, var(--color-gold), var(--color-primary));
+  --gradient-tile: linear-gradient(160deg, #ffffff, #f2f4f8);
+  --gradient-greeting: linear-gradient(90deg, #0b1220, #3d4f63);
+  --ease-kinetic: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /*
@@ -111,6 +123,13 @@ html.dark {
   --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.3);
   --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.35), 0 2px 4px -1px rgb(0 0 0 / 0.2);
   --shadow-lg: 0 10px 25px -4px rgb(0 0 0 / 0.45), 0 4px 8px -2px rgb(0 0 0 / 0.25);
+
+  --glass-nav-bg:     rgba(16, 26, 44, 0.72);
+  --glass-nav-solid:  #101a2c;
+  --glass-nav-border: rgba(255, 255, 255, 0.12);
+  --shadow-nav: 0 12px 48px rgba(0, 0, 0, 0.4);
+  --gradient-tile: linear-gradient(160deg, #101a2c, #0c1322);
+  --gradient-greeting: linear-gradient(90deg, #ffffff, #97a5b8);
 }
 
 /* Force light — overrides OS dark preference */
@@ -145,6 +164,13 @@ html.light {
   --shadow-sm: 0 1px 3px 0 rgb(6 10 19 / 0.07);
   --shadow-md: 0 4px 12px -2px rgb(6 10 19 / 0.09), 0 2px 4px -1px rgb(6 10 19 / 0.05);
   --shadow-lg: 0 10px 25px -4px rgb(6 10 19 / 0.12), 0 4px 8px -2px rgb(6 10 19 / 0.06);
+
+  --glass-nav-bg:     rgba(255, 255, 255, 0.78);
+  --glass-nav-solid:  #ffffff;
+  --glass-nav-border: rgba(6, 10, 19, 0.08);
+  --shadow-nav: 0 12px 48px rgba(6, 10, 19, 0.18);
+  --gradient-tile: linear-gradient(160deg, #ffffff, #f2f4f8);
+  --gradient-greeting: linear-gradient(90deg, #0b1220, #3d4f63);
 }
 
 /* =====================================================
@@ -188,6 +214,61 @@ textarea:focus-visible,
   outline: none;
   box-shadow: 0 0 0 3px rgba(224, 179, 90, 0.35);
   border-radius: 4px;
+}
+
+/* Kinetic glass surface — floating nav & capture sheet */
+.glass-nav {
+  background: var(--glass-nav-bg);
+  border: 1px solid var(--glass-nav-border);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow-nav);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-nav {
+    background: var(--glass-nav-solid);
+  }
+}
+
+/* Denser glass — for floating surfaces that sit over scrolling text */
+.glass-dense {
+  background: color-mix(in srgb, var(--glass-nav-solid) 92%, transparent);
+}
+
+/* Bottom scrim — fades scrolling content out under the floating nav stack */
+.bottom-scrim {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, var(--color-bg) 60%);
+  z-index: calc(var(--z-nav, 50) - 1);
+}
+
+/* Kinetic motion — lifts, no bounce */
+.transition-kinetic {
+  transition: all 0.3s var(--ease-kinetic);
+}
+
+/* Sparkline draw-in — disabled by the global reduced-motion rule */
+@keyframes spark-draw {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+
+.spark-draw {
+  stroke-dasharray: 1;
+  animation: spark-draw 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Gradient greeting text (Kinetic Home) */
+.text-gradient-greeting {
+  background: var(--gradient-greeting);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* Gold rule — decorative horizontal divider */

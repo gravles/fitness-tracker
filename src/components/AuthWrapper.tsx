@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Auth } from '@/components/Auth';
 import { BottomNav } from '@/components/BottomNav';
+import { KineticFabProvider } from '@/components/kinetic/FabContext';
 import { Loader2 } from 'lucide-react';
 
 // Pages reachable without an account (e.g. the privacy policy, which Play
@@ -56,9 +57,9 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <>
+        <KineticFabProvider>
             {children}
             <BottomNav />
-        </>
+        </KineticFabProvider>
     );
 }

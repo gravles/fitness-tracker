@@ -287,14 +287,14 @@ export default function TrendsPage() {
 
     return (
         <main className="p-6 pt-12 pb-24 space-y-6 max-w-2xl mx-auto">
-            {/* Header */}
-            <div className="flex justify-between items-center">
+            {/* Header — Kinetic. Wraps on narrow screens: actions drop to a second row. */}
+            <div className="flex flex-wrap justify-between items-center gap-y-2.5">
                 <div className="flex items-center gap-3">
                     <h1
-                        className="text-3xl font-bold"
-                        style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
+                        className="text-2xl font-extrabold"
+                        style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}
                     >
-                        Trends
+                        Trends<span style={{ color: 'var(--color-gold)' }}>.</span>
                     </h1>
                     {/* Unit Toggle */}
                     <div
@@ -305,7 +305,7 @@ export default function TrendsPage() {
                             onClick={() => toggleUnit('imperial')}
                             className="px-2.5 py-1 transition-all"
                             style={unit === 'imperial'
-                                ? { background: 'var(--color-navy)', color: 'var(--color-gold)' }
+                                ? { background: 'var(--color-gold-muted)', color: 'var(--color-gold-text)' }
                                 : { background: 'transparent', color: 'var(--color-text-muted)' }
                             }
                         >lbs</button>
@@ -313,33 +313,47 @@ export default function TrendsPage() {
                             onClick={() => toggleUnit('metric')}
                             className="px-2.5 py-1 transition-all"
                             style={unit === 'metric'
-                                ? { background: 'var(--color-navy)', color: 'var(--color-gold)' }
+                                ? { background: 'var(--color-gold-muted)', color: 'var(--color-gold-text)' }
                                 : { background: 'transparent', color: 'var(--color-text-muted)' }
                             }
                         >kg</button>
                     </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 ml-auto">
+                    {/* Quick Withings sync — pulls the latest scale weight into today */}
+                    <button
+                        onClick={handleSyncWithings}
+                        disabled={syncingWithings}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-kinetic active:scale-95 disabled:opacity-50 focus-ring"
+                        style={{ background: 'var(--color-primary-muted)', color: 'var(--color-primary)', border: '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)' }}
+                        aria-label="Sync weight from Withings"
+                        title="Sync weight from Withings"
+                    >
+                        {syncingWithings
+                            ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                            : <RefreshCw className="w-4 h-4" aria-hidden="true" />}
+                        Withings
+                    </button>
                     <Link
                         href="/progress"
-                        className="p-2 rounded-lg transition-all"
-                        style={{ background: 'var(--color-gold-muted)', color: 'var(--color-gold)' }}
+                        className="p-2 rounded-full transition-all focus-ring"
+                        style={{ background: 'var(--color-gold-muted)', color: 'var(--color-gold-text)' }}
                         aria-label="Progress Photos"
                     >
-                        <Camera className="w-5 h-5" />
+                        <Camera className="w-5 h-5" aria-hidden="true" />
                     </Link>
                     <Link
                         href="/calendar"
-                        className="p-2 rounded-lg transition-all"
-                        style={{ background: 'rgba(77,137,226,0.1)', color: 'var(--color-primary)' }}
+                        className="p-2 rounded-full transition-all focus-ring"
+                        style={{ background: 'var(--color-primary-muted)', color: 'var(--color-primary)' }}
                         aria-label="History"
                     >
-                        <Calendar className="w-5 h-5" />
+                        <Calendar className="w-5 h-5" aria-hidden="true" />
                     </Link>
                     <Link
                         href="/metrics"
-                        className="text-xs font-bold px-3 py-2 rounded-lg focus-ring"
-                        style={{ background: 'var(--color-navy)', color: 'var(--color-gold)', border: '1px solid var(--color-gold-border)' }}
+                        className="text-xs font-bold px-3 py-2 rounded-full focus-ring flex items-center"
+                        style={{ background: 'var(--color-gold-muted)', color: 'var(--color-gold-text)', border: '1px solid var(--color-gold-border)' }}
                     >
                         Log Body
                     </Link>
@@ -506,22 +520,7 @@ export default function TrendsPage() {
                     {activeTab === 'body' && (
                         <div className="space-y-6 animate-in fade-in duration-300">
 
-                            {/* Sync Withings button */}
-                            <div className="flex justify-end">
-                                <button
-                                    onClick={handleSyncWithings}
-                                    disabled={syncingWithings}
-                                    className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl transition-all active:scale-95 disabled:opacity-50"
-                                    style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-primary)', border: '1px solid var(--color-border)' }}
-                                >
-                                    {syncingWithings
-                                        ? <Loader2 className="w-4 h-4 animate-spin" />
-                                        : <RefreshCw className="w-4 h-4" />}
-                                    Sync Withings
-                                </button>
-                            </div>
-
-                            {/* Latest Withings summary card */}
+                            {/* Latest Withings summary card (sync moved to the page header) */}
                             {latestBodyComp ? (
                                 <section
                                     className="p-5 rounded-2xl border space-y-3"

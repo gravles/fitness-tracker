@@ -1,4 +1,4 @@
-# Life Logger
+# Kinetic (formerly Life Logger)
 
 A personal fitness and nutrition tracker with AI coaching, native iOS/Android apps, and deep health integrations.
 

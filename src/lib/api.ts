@@ -1,6 +1,24 @@
 import { supabase } from './supabase';
 import { subDays, format, parseISO } from 'date-fns';
 
+/** How a food item was captured — stamped at log time; legacy items have neither field. */
+export type FoodSource = 'voice' | 'photo' | 'barcode' | 'manual' | 'plan';
+
+export interface FoodItem {
+    name: string;
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+    quantity?: number | string;
+    portion_estimate?: string;
+    /** ISO timestamp of when the item was logged (absent on legacy items) */
+    logged_at?: string;
+    source?: FoodSource;
+    /** Items are free-form JSON — AI flows attach extra fields (e.g. alcohol_units) */
+    [key: string]: unknown;
+}
+
 export interface DailyLog {
     id?: string;
     user_id?: string;
@@ -29,7 +47,7 @@ export interface DailyLog {
     habits_completed?: string[] | null;
     available_habits?: string[] | null;
     xp_earned?: number | null;
-    food_items?: any[] | null; // { name, calories, protein, carbs, fat }
+    food_items?: FoodItem[] | null;
     menstrual_flow?: string | null;
     steps?: number | null;             // Health Connect daily total
     resting_heartrate?: number | null; // bpm, Health Connect
@@ -184,7 +202,7 @@ export async function upsertDailyLogMerged(log: Partial<DailyLog>, baseFoodItems
         (log.food_items as any[]) ?? [],
         (server?.food_items as any[]) ?? [],
     );
-    const patch: Partial<DailyLog> = { ...log, food_items: merged };
+    const patch: Partial<DailyLog> = { ...log, food_items: merged as FoodItem[] };
     if (extras.length) {
         const extraTotals = foodTotals(extras);
         if (patch.calories != null) patch.calories += extraTotals.calories;
@@ -196,10 +214,16 @@ export async function upsertDailyLogMerged(log: Partial<DailyLog>, baseFoodItems
 }
 
 /** Append food items to a day using a fresh server read (never page state). */
-export async function appendFoodItems(date: string, newItems: any[]) {
+export async function appendFoodItems(date: string, newItems: FoodItem[]) {
     const { foodTotals } = await import('./food-merge');
     const server = await getDailyLog(date).catch(() => null);
-    const merged = [...((server?.food_items as any[]) ?? []), ...newItems];
+    // Stamp capture metadata unless the caller already set it
+    const stamped = newItems.map(item => ({
+        logged_at: new Date().toISOString(),
+        source: 'plan' as FoodSource,
+        ...item,
+    }));
+    const merged = [...((server?.food_items as FoodItem[]) ?? []), ...stamped];
     const totals = foodTotals(merged);
     return upsertDailyLog({
         date,

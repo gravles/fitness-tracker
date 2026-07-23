@@ -1,7 +1,7 @@
 {
-    "name": "Life Logger",
+    "name": "Kinetic",
     "id": "/",
-    "short_name": "Life",
+    "short_name": "Kinetic",
     "description": "Daily fitness and nutrition tracker",
     "start_url": "/",
     "display": "standalone",
@@ -26,7 +26,7 @@
             "name": "Snap Meal",
             "short_name": "Snap",
             "description": "Take a photo of your food",
-            "url": "/log?action=camera",
+            "url": "/nutrition?action=camera",
             "icons": [
                 {
                     "src": "/icon-192.png",
@@ -39,7 +39,7 @@
             "name": "Voice Log",
             "short_name": "Voice",
             "description": "Log food by voice",
-            "url": "/log?action=voice",
+            "url": "/nutrition?action=voice",
             "icons": [
                 {
                     "src": "/icon-192.png",
@@ -52,7 +52,7 @@
             "name": "Scan Menu",
             "short_name": "Menu",
             "description": "Scan a menu for healthy options",
-            "url": "/log?action=scan",
+            "url": "/nutrition?action=scan",
             "icons": [
                 {
                     "src": "/icon-192.png",
