@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import {
     Bot, Trophy, Users, Camera, Scale, Calendar, CircleHelp, Settings,
-    Pill, ChevronRight, type LucideIcon,
+    Pill, ChevronRight, Zap, UtensilsCrossed, type LucideIcon,
 } from 'lucide-react';
+import { useXpRowEnabled, setXpRowEnabled } from '@/components/kinetic/XpRow';
 
 interface HubItem {
     href: string;
@@ -19,6 +20,7 @@ const SECTIONS: { heading: string; items: HubItem[] }[] = [
         items: [
             { href: '/coach',    icon: Bot,    title: 'AI Coach',    sub: 'Chat, plans & weekly insights' },
             { href: '/programs', icon: Trophy, title: 'Programs',    sub: '12-week training plans' },
+            { href: '/nutrition/planner', icon: UtensilsCrossed, title: 'Meal Planner', sub: 'AI meal plans, saved meals & pantry' },
         ],
     },
     {
@@ -45,6 +47,46 @@ const SECTIONS: { heading: string; items: HubItem[] }[] = [
     },
 ];
 
+function XpHomeToggle() {
+    const enabled = useXpRowEnabled();
+
+    function toggle() {
+        setXpRowEnabled(!enabled);
+    }
+
+    return (
+        <button
+            onClick={toggle}
+            role="switch"
+            aria-checked={enabled}
+            className="w-full flex items-center gap-4 p-4 transition-colors hover:bg-[var(--color-bg-subtle)] focus-ring text-left"
+        >
+            <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'var(--color-gold-muted)', color: 'var(--color-gold-text)' }}
+            >
+                <Zap className="w-5 h-5" aria-hidden="true" />
+            </div>
+            <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>Show XP on Home</p>
+                <p className="text-xs truncate" style={{ color: 'var(--color-text-muted)' }}>
+                    Compact level & XP row on the dashboard
+                </p>
+            </div>
+            <span
+                aria-hidden="true"
+                className="w-11 h-6 rounded-full p-0.5 flex-shrink-0 transition-colors"
+                style={{ background: enabled ? 'var(--color-gold)' : 'var(--color-bg-muted)' }}
+            >
+                <span
+                    className="block w-5 h-5 rounded-full bg-white shadow transition-transform"
+                    style={{ transform: enabled ? 'translateX(20px)' : 'translateX(0)' }}
+                />
+            </span>
+        </button>
+    );
+}
+
 export default function MorePage() {
     return (
         <main className="p-6 pt-12 pb-28 space-y-6 max-w-2xl mx-auto">
@@ -59,6 +101,18 @@ export default function MorePage() {
                     Everything that isn&apos;t on the main tabs
                 </p>
             </header>
+
+            <section aria-label="Preferences">
+                <h2 className="text-xs font-bold uppercase tracking-widest mb-2 px-1" style={{ color: 'var(--color-text-muted)' }}>
+                    Preferences
+                </h2>
+                <div
+                    className="rounded-2xl border overflow-hidden shadow-sm"
+                    style={{ background: 'var(--color-surface-elevated)', borderColor: 'var(--color-border-light)' }}
+                >
+                    <XpHomeToggle />
+                </div>
+            </section>
 
             {SECTIONS.map(({ heading, items }) => (
                 <section key={heading} aria-label={heading}>

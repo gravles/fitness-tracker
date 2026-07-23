@@ -59,6 +59,26 @@ export async function getTodaysPlannedMeals(): Promise<PlannedMeal[]> {
 }
 
 /**
+ * Mark a planned meal as skipped — the "off plan" action. The entry stops
+ * appearing as a suggestion but stays in the plan history.
+ */
+export async function skipPlannedMeal(id: string, reason?: string): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { error } = await supabase
+        .from('planned_meals')
+        .update({
+            status: 'skipped',
+            skipped_reason: reason ?? 'off plan',
+            updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .eq('user_id', session.user.id);
+    if (error) throw error;
+}
+
+/**
  * Convert a planned meal into an actual logged food entry — the one-tap
  * "log as planned" action. Mirrors the MCP log_food(planned_meal_id) path:
  * copies the plan's macros as defaults, applies any overrides, appends to
@@ -72,12 +92,14 @@ export async function logPlannedMealAsEaten(
     if (!session) throw new Error('Not authenticated');
 
     const item = {
-        id:       crypto.randomUUID(),
-        name:     overrides?.name     ?? entry.name,
-        calories: overrides?.calories ?? entry.calories,
-        protein:  overrides?.protein  ?? entry.protein,
-        carbs:    overrides?.carbs    ?? entry.carbs,
-        fat:      overrides?.fat      ?? entry.fat,
+        id:        crypto.randomUUID(),
+        name:      overrides?.name     ?? entry.name,
+        calories:  overrides?.calories ?? entry.calories,
+        protein:   overrides?.protein  ?? entry.protein,
+        carbs:     overrides?.carbs    ?? entry.carbs,
+        fat:       overrides?.fat      ?? entry.fat,
+        logged_at: new Date().toISOString(),
+        source:    'plan',
     };
 
     const { data: existing } = await supabase

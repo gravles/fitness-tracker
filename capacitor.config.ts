@@ -2,7 +2,7 @@ import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.nathandavie.fitnesstracker',
-  appName: 'FitnessTracker',
+  appName: 'Kinetic',
   // webDir is required by Capacitor CLI but unused at runtime when server.url is set
   webDir: 'out',
   server: {

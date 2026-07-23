@@ -103,7 +103,7 @@ export async function generateMetadata({ params }: PageProps) {
     const data = achievement.achievement_data as { title: string; subtitle?: string };
 
     return {
-        title: `${data.title} | Life Logger`,
+        title: `${data.title} | Kinetic`,
         description: data.subtitle || 'Check out this fitness achievement!',
         openGraph: {
             title: data.title,

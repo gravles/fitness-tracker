@@ -3,12 +3,31 @@
 import { useState, useEffect, useRef } from 'react';
 import { Timer, X } from 'lucide-react';
 
-export function RestTimer() {
+interface RestTimerProps {
+    /** 'bar' renders the running state as the Kinetic 6px gradient bar (in-card) */
+    variant?: 'chip' | 'bar';
+    /** Increment to auto-start a rest countdown (e.g. after logging a set) */
+    startSignal?: number;
+    defaultSeconds?: number;
+}
+
+export function RestTimer({ variant = 'chip', startSignal = 0, defaultSeconds = 90 }: RestTimerProps) {
     const [timeLeft, setTimeLeft] = useState(0);
+    const [total, setTotal] = useState(0);
     const [isRunning, setIsRunning] = useState(false);
     const [showControls, setShowControls] = useState(false);
 
     const PRESETS = [30, 60, 90, 180];
+
+    // Auto-start when the parent signals (logging a set)
+    const lastSignal = useRef(startSignal);
+    useEffect(() => {
+        if (startSignal !== lastSignal.current) {
+            lastSignal.current = startSignal;
+            if (startSignal > 0) startTimer(defaultSeconds);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [startSignal]);
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -56,6 +75,7 @@ export function RestTimer() {
     const startTimer = async (seconds: number) => {
         await requestPermission();
         setTimeLeft(seconds);
+        setTotal(seconds);
         setIsRunning(true);
         setShowControls(false);
     };
@@ -65,6 +85,42 @@ export function RestTimer() {
         const s = secs % 60;
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
+
+    if (timeLeft > 0 && variant === 'bar') {
+        const elapsedPct = total > 0 ? ((total - timeLeft) / total) * 100 : 0;
+        return (
+            <div className="flex items-center gap-2.5 w-full">
+                <div
+                    className="flex-1 h-1.5 rounded-full overflow-hidden"
+                    style={{ background: 'var(--color-bg-muted)' }}
+                    role="progressbar"
+                    aria-label="Rest timer"
+                    aria-valuenow={Math.round(elapsedPct)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                >
+                    <div
+                        className="h-full rounded-full transition-all duration-1000 ease-linear"
+                        style={{
+                            width: `${elapsedPct}%`,
+                            background: 'linear-gradient(90deg, var(--color-gold), var(--color-primary))',
+                        }}
+                    />
+                </div>
+                <span className="text-[11px] font-bold tabular-nums shrink-0" style={{ color: 'var(--color-gold-text)' }}>
+                    Rest {formatTime(timeLeft)}
+                </span>
+                <button
+                    onClick={() => { setIsRunning(false); setTimeLeft(0); }}
+                    aria-label="Cancel rest timer"
+                    className="p-1 -m-1 rounded-full shrink-0"
+                    style={{ color: 'var(--color-text-muted)' }}
+                >
+                    <X className="w-3.5 h-3.5" aria-hidden="true" />
+                </button>
+            </div>
+        );
+    }
 
     if (timeLeft > 0) {
         return (

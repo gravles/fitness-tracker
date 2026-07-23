@@ -15,8 +15,8 @@ android {
         applicationId "com.nathandavie.fitnesstracker"
         minSdkVersion 26 // Health Connect client requires 26 (module default is 24)
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "2.3"
+        versionCode 3
+        versionName "2.4"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -73,4 +73,18 @@ try {
     }
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
+
+// Without google-services.json the app builds fine but crashes right after
+// login (push registration hits an uninitialized FirebaseApp). The file is
+// gitignored, so fresh checkouts/worktrees silently lack it — fail release
+// builds instead of shipping a crasher.
+gradle.taskGraph.whenReady { graph ->
+    def releaseRequested = graph.allTasks.any { it.name in ['bundleRelease', 'assembleRelease'] }
+    if (releaseRequested && !file('google-services.json').exists()) {
+        throw new GradleException(
+            'google-services.json is missing from android/app/. Release builds crash on push ' +
+            'registration without it. Copy it from the Firebase console or another checkout.'
+        )
+    }
 }

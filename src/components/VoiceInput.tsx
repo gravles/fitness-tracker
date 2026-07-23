@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Capacitor } from '@capacitor/core';
+import { SpeechRecognition as NativeSpeech } from '@capacitor-community/speech-recognition';
 import { authHeaders } from '@/lib/supabase';
 
 interface VoiceInputProps {
@@ -12,14 +14,31 @@ interface VoiceInputProps {
     onStateChange?: (listening: boolean, processing: boolean) => void;
 }
 
+type Engine = 'native' | 'web' | 'none';
+
+/**
+ * Voice capture → /api/ai/process-intent.
+ *
+ * Engine selection:
+ * - Capacitor native app → @capacitor-community/speech-recognition (the
+ *   Android WebView exposes webkitSpeechRecognition but its speech service
+ *   doesn't work, which is why voice silently failed on the phone).
+ * - Browser with a working Web Speech API → webkitSpeechRecognition.
+ * - Neither → the trigger stays visible and explains itself on tap.
+ */
 export function VoiceInput({ onIntentDetected, autoStart = false, customTrigger, onStateChange }: VoiceInputProps) {
     const [isListening, setIsListening] = useState(false);
     const [transcript, setTranscript] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
-    const [recognition, setRecognition] = useState<any>(null);
+    const [webRecognition, setWebRecognition] = useState<any>(null);
+    const engineRef = useRef<Engine>('none');
     const hasAutoStarted = useRef(false);
 
     useEffect(() => {
+        if (Capacitor.isNativePlatform()) {
+            engineRef.current = 'native';
+            return;
+        }
         if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
             // @ts-ignore
             const recognition = new window.webkitSpeechRecognition();
@@ -33,43 +52,117 @@ export function VoiceInput({ onIntentDetected, autoStart = false, customTrigger,
                 handleProcess(text);
             };
 
+            recognition.onerror = (event: any) => {
+                setIsListening(false);
+                onStateChange?.(false, false);
+                // 'no-speech' just means silence — not worth an error toast
+                if (event.error && event.error !== 'no-speech' && event.error !== 'aborted') {
+                    toast.error(`Voice input failed (${event.error}). Check microphone permission.`);
+                }
+            };
+
             recognition.onend = () => {
                 setIsListening(false);
                 // onStateChange will be set to processing next, so don't call here
             };
 
-            setRecognition(recognition);
+            engineRef.current = 'web';
+            setWebRecognition(recognition);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    useEffect(() => {
-        if (autoStart && recognition && !isListening && !isProcessing && !hasAutoStarted.current) {
-            try {
-                recognition.start();
-                setIsListening(true);
-                setTranscript('');
-                hasAutoStarted.current = true;
-            } catch (e) {
-                console.warn("Auto-start failed", e);
+    async function startNative() {
+        try {
+            const { available } = await NativeSpeech.available();
+            if (!available) {
+                toast.error('Speech recognition is not available on this device.');
+                return;
             }
-        }
-    }, [autoStart, recognition, isListening, isProcessing]);
-
-    const toggleListening = () => {
-        if (!recognition) {
-            toast.error("Voice input not supported in this browser.");
-            return;
-        }
-
-        if (isListening) {
-            recognition.stop();
-        } else {
-            recognition.start();
+            const perm = await NativeSpeech.requestPermissions();
+            if (perm.speechRecognition !== 'granted') {
+                toast.error('Microphone permission is needed for voice logging.');
+                return;
+            }
             setIsListening(true);
             onStateChange?.(true, false);
             setTranscript('');
+            const result = await NativeSpeech.start({
+                language: 'en-US',
+                partialResults: false,
+                popup: false,
+            });
+            setIsListening(false);
+            const text = result?.matches?.[0];
+            if (text) {
+                setTranscript(text);
+                await handleProcess(text);
+            } else {
+                onStateChange?.(false, false);
+                toast("Didn't catch that — try again.");
+            }
+        } catch (e: any) {
+            setIsListening(false);
+            onStateChange?.(false, false);
+            console.error('Native speech error', e);
+            const msg = String(e?.message ?? e);
+            if (!/cancel/i.test(msg)) {
+                toast.error('Voice input failed: ' + msg);
+            }
         }
+    }
+
+    async function stopNative() {
+        try {
+            await NativeSpeech.stop();
+        } catch { /* already stopped */ }
+        setIsListening(false);
+        onStateChange?.(false, false);
+    }
+
+    const toggleListening = () => {
+        const engine = engineRef.current;
+
+        if (engine === 'native') {
+            if (isListening) stopNative();
+            else startNative();
+            return;
+        }
+
+        if (engine === 'web' && webRecognition) {
+            if (isListening) {
+                webRecognition.stop();
+            } else {
+                webRecognition.start();
+                setIsListening(true);
+                onStateChange?.(true, false);
+                setTranscript('');
+            }
+            return;
+        }
+
+        toast.error('Voice input is not supported in this browser.');
     };
+
+    // Deep-link auto start (/log?action=voice)
+    useEffect(() => {
+        if (!autoStart || hasAutoStarted.current || isListening || isProcessing) return;
+        const engine = engineRef.current;
+        if (engine === 'native') {
+            hasAutoStarted.current = true;
+            startNative();
+        } else if (engine === 'web' && webRecognition) {
+            hasAutoStarted.current = true;
+            try {
+                webRecognition.start();
+                setIsListening(true);
+                setTranscript('');
+            } catch (e) {
+                console.warn('Auto-start failed', e);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoStart, webRecognition, isListening, isProcessing]);
 
     const handleProcess = async (text: string) => {
         setIsProcessing(true);
@@ -89,8 +182,6 @@ export function VoiceInput({ onIntentDetected, autoStart = false, customTrigger,
             onStateChange?.(false, false);
         }
     };
-
-    if (!recognition) return null;
 
     if (customTrigger) {
         return <>{customTrigger(toggleListening, isListening, isProcessing)}</>;

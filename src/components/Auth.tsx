@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Loader2, ArrowLeft, Mail } from 'lucide-react';
 import { toast } from 'sonner';
+import { Logomark } from '@/components/kinetic/Logomark';
 
 export function Auth() {
     const [loading, setLoading] = useState(false);
@@ -133,26 +134,15 @@ export function Auth() {
             <div className="w-full max-w-xs relative">
                 {/* Wordmark */}
                 <div className="mb-10 text-center">
-                    <div
-                        className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-5"
-                        style={{
-                            background: 'var(--color-gold-muted)',
-                            border: '1px solid var(--color-gold-border)',
-                        }}
-                    >
-                        <span
-                            className="text-xl font-bold"
-                            style={{ color: 'var(--color-gold)', fontFamily: 'var(--font-display)' }}
-                        >
-                            L
-                        </span>
+                    <div className="mb-5">
+                        <Logomark size={48} />
                     </div>
 
                     <h1
                         className="text-4xl font-bold text-[var(--color-text)]"
                         style={{ fontFamily: 'var(--font-display)' }}
                     >
-                        Life Logger
+                        Kinetic
                     </h1>
 
                     <div className="gold-rule w-12 mt-3 mb-1 mx-auto" />

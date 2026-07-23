@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Flame, Mic, Camera, Barcode, Menu } from 'lucide-react';
 import { useLanguage } from '@/components/LanguageProvider';
 import { format, subDays } from 'date-fns';
 import { getStreak, getMonthlyLogs, getBodyMetricsHistory, DailyLog, UserSettings, isAuthError } from '@/lib/api';
@@ -11,25 +9,27 @@ import { supabase } from '@/lib/supabase';
 import { checkReminders, checkScheduledWorkouts } from '@/lib/notifications';
 import { SmartCoach } from '@/components/SmartCoach';
 import { OnboardingModal } from '@/components/OnboardingModal';
-import { WeeklySummary } from '@/components/WeeklySummary';
-import { RecentLogs } from '@/components/RecentLogs';
 import { AIWeeklyInsightModal } from '@/components/AIWeeklyInsightModal';
 import { FeatureTutorial } from '@/components/FeatureTutorial';
 import { getSmartAdvice, CoachingTip } from '@/lib/smartCoach';
-import { LevelProgress } from '@/components/LevelProgress';
 import { XPHistoryModal } from '@/components/XPHistoryModal';
 import { ShareModal } from '@/components/ShareModal';
 import { getSettings } from '@/lib/api';
 import { DashboardSkeleton } from '@/components/Skeleton';
 import { LoadError } from '@/components/ui';
-import { TodayHero } from '@/components/TodayHero';
 import { ReadinessCheckIn } from '@/components/ReadinessCheckIn';
-import { NextWorkoutTile } from '@/components/NextWorkoutTile';
 import { PlannedMealsCard } from '@/components/PlannedMealsCard';
 import { SupplementDosesCard } from '@/components/SupplementDosesCard';
 import { WhatsNewModal, useWhatsNew } from '@/components/WhatsNewModal';
 import { PartnerCard } from '@/components/PartnerCard';
 import { ensureMyProfile } from '@/lib/partner-api';
+import { HomeHeader } from '@/components/kinetic/HomeHeader';
+import { WellnessCheckIn } from '@/components/kinetic/WellnessCheckIn';
+import { NutritionBentoTile } from '@/components/kinetic/NutritionBentoTile';
+import { MetricBentoTile } from '@/components/kinetic/MetricBentoTile';
+import { UpNextCard } from '@/components/kinetic/UpNextCard';
+import { HabitStrip } from '@/components/kinetic/HabitStrip';
+import { XpRow } from '@/components/kinetic/XpRow';
 
 export default function Dashboard() {
   const today = new Date();
@@ -39,13 +39,18 @@ export default function Dashboard() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [streak, setStreak] = useState(0);
-  const [logs, setLogs] = useState<any[]>([]);
+  const [streak, setStreak] = useState<number | null>(null);
+  const [logs, setLogs] = useState<DailyLog[]>([]);
   const [advice, setAdvice] = useState<CoachingTip | null>(null);
-  const [weeklyStats, setWeeklyStats] = useState({ avgWeight: 0, totalMovement: 0, avgProtein: 0, totalAlcohol: 0 });
   const [todayLog, setTodayLog] = useState<DailyLog | null>(null);
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [greeting, setGreeting] = useState('');
+
+  // Bento tiles — 7-day series
+  const [weightSeries, setWeightSeries] = useState<number[]>([]);
+  const [latestWeight, setLatestWeight] = useState<number | null>(null);
+  const [movementSeries, setMovementSeries] = useState<number[]>([]);
+  const [weeklyMovement, setWeeklyMovement] = useState(0);
 
   // Gamification State
   const [userLevel, setUserLevel] = useState({ level: 1, xp: 0 });
@@ -120,20 +125,18 @@ export default function Dashboard() {
         });
       }
 
-      // Calculate Weekly Stats
-      const totalMoved = recentLogs.reduce((acc, log) => acc + (log.movement_duration || 0), 0);
-      const proteinLogs = recentLogs.filter(l => (l.protein_grams || 0) > 0);
-      const totalProtein = proteinLogs.reduce((acc, log) => acc + (log.protein_grams || 0), 0);
-      const totalAlcohol = recentLogs.reduce((acc, log) => acc + (log.alcohol_drinks || 0), 0);
-      const weights = recentMetrics.map(m => m.weight).filter(w => w) as number[];
-      const avgWeight = weights.length > 0 ? weights.reduce((a, b) => a + b, 0) / weights.length : 0;
+      // Bento series — weight sparkline + latest, per-day movement minutes
+      const weights = recentMetrics.map(m => m.weight).filter((w): w is number => !!w);
+      setWeightSeries(weights);
+      setLatestWeight(weights.length > 0 ? weights[weights.length - 1] : null);
 
-      setWeeklyStats({
-        avgWeight: parseFloat(avgWeight.toFixed(1)),
-        totalMovement: totalMoved,
-        avgProtein: proteinLogs.length > 0 ? Math.round(totalProtein / proteinLogs.length) : 0,
-        totalAlcohol: totalAlcohol
+      const logByDate = new Map(recentLogs.map(l => [l.date, l]));
+      const perDayMovement = Array.from({ length: 7 }, (_, i) => {
+        const d = format(subDays(today, 6 - i), 'yyyy-MM-dd');
+        return logByDate.get(d)?.movement_duration || 0;
       });
+      setMovementSeries(perDayMovement);
+      setWeeklyMovement(perDayMovement.reduce((a, b) => a + b, 0));
 
       // Check if any reminders should be sent
       checkReminders();
@@ -148,12 +151,6 @@ export default function Dashboard() {
       setIsLoading(false);
     }
   }
-
-  const quickActions = [
-    { href: '/log?action=voice', icon: Mic, label: t.dashboard.voiceLog, ariaLabel: 'Log with voice' },
-    { href: '/log?action=camera', icon: Camera, label: t.dashboard.snapMeal, ariaLabel: 'Snap a photo of your meal' },
-    { href: '/log?action=barcode', icon: Barcode, label: t.dashboard.barcode, ariaLabel: 'Scan a barcode' },
-  ];
 
   return (
     <>
@@ -173,34 +170,36 @@ export default function Dashboard() {
     {!showOnboarding && showWhatsNew && (
       <WhatsNewModal onClose={dismissWhatsNew} />
     )}
-    <main className="p-6 pt-12 pb-28 space-y-5 max-w-2xl mx-auto">
-      {/* Header */}
-      <header className="flex justify-between items-start mb-2">
-        <div>
-          <p className="text-sm font-medium text-[var(--color-text-muted)] mb-0.5">{format(today, 'EEEE, MMMM d')}</p>
-          <h1 className="text-2xl font-semibold text-[var(--color-text)]">{greeting}</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          {!isLoading && (
-            <div
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-              style={{ background: 'var(--color-gold-muted)', border: '1px solid var(--color-gold-border)' }}
-              aria-label={`${t.dashboard.streak.label}: ${streak} ${t.dashboard.streak.days}`}
-              title={streak === 0 ? t.dashboard.streak.zero : streak < 7 ? t.dashboard.streak.low : streak < 30 ? t.dashboard.streak.mid : t.dashboard.streak.high}
-            >
-              <Flame className="w-4 h-4" style={{ color: 'var(--color-gold-text)' }} aria-hidden="true" />
-              <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--color-gold-text)' }}>{streak}</span>
-            </div>
-          )}
-          <Link
-            href="/more"
-            className="p-2.5 bg-[var(--color-surface-elevated)] rounded-full border border-[var(--color-border-light)] shadow-sm text-[var(--color-text-muted)] hover:text-[var(--color-gold-text)] transition-all focus-ring tap-target"
-            aria-label="More — coach, partners, progress, settings"
-          >
-            <Menu className="w-5 h-5" aria-hidden="true" />
-          </Link>
-        </div>
-      </header>
+    <main className="relative overflow-hidden p-4 pt-11 space-y-2.5 max-w-2xl mx-auto">
+      {/* Ambient gold glow, top-right (mock 2a) */}
+      <div
+        aria-hidden="true"
+        className="absolute pointer-events-none"
+        style={{
+          top: -80,
+          right: -80,
+          width: 260,
+          height: 260,
+          background: 'radial-gradient(circle, color-mix(in srgb, var(--color-gold) 10%, transparent), transparent 65%)',
+        }}
+      />
+
+      <HomeHeader streak={isLoading ? null : streak} />
+
+      <div className="px-1 pb-0.5">
+        <p
+          className="text-[11px] font-semibold uppercase"
+          style={{ letterSpacing: '0.12em', color: 'var(--color-gold-text)' }}
+        >
+          {format(today, 'EEEE · MMM d')}
+        </p>
+        <h1
+          className="mt-0.5 text-[22px] font-extrabold text-gradient-greeting"
+          style={{ letterSpacing: '-0.03em' }}
+        >
+          {greeting}
+        </h1>
+      </div>
 
       {/* Loading State */}
       {isLoading ? (
@@ -209,21 +208,46 @@ export default function Dashboard() {
         <LoadError onRetry={loadData} />
       ) : (
         <>
-          {/* Today hero — rings for protein / calories / checklist */}
-          <TodayHero todayLog={todayLog} settings={settings} stagger={0} />
+          {/* Bento grid — nutrition rings + weight/movement sparklines */}
+          <div className="grid gap-2.5" style={{ gridTemplateColumns: '1.4fr 1fr' }}>
+            <NutritionBentoTile todayLog={todayLog} settings={settings} />
+            <MetricBentoTile
+              label={t.dashboard.weight}
+              value={latestWeight !== null ? latestWeight.toFixed(1) : '—'}
+              points={weightSeries}
+              sparkColor="var(--color-gold)"
+              href="/trends"
+              aria-label="Weight trend — open trends"
+            />
+            <MetricBentoTile
+              label={t.dashboard.movement}
+              value={
+                <>
+                  {weeklyMovement}
+                  <span className="text-[11px] font-normal text-[var(--color-text-muted)]"> min/wk</span>
+                </>
+              }
+              points={movementSeries}
+              sparkColor="var(--color-primary)"
+              href="/trends"
+              aria-label="Movement trend — open trends"
+            />
+          </div>
+
+          <UpNextCard />
+
+          <HabitStrip logs={logs} />
+
+          {/* Smart Coach */}
+          <SmartCoach tip={advice} onWeeklyAnalysis={() => setShowInsightModal(true)} stagger={120} />
+
+          {/* Compact XP row — off by default, toggle lives in /more */}
+          <XpRow level={userLevel.level} xp={userLevel.xp} onClick={() => setShowXPModal(true)} />
 
           <ReadinessCheckIn />
 
-          {/* Bento row — level + next workout */}
-          <div className="grid grid-cols-2 gap-3">
-            <LevelProgress
-              level={userLevel.level}
-              xp={userLevel.xp}
-              onClick={() => setShowXPModal(true)}
-              stagger={60}
-            />
-            <NextWorkoutTile stagger={120} />
-          </div>
+          {/* Evening wellness check-in — the old /log Wellness tab lives here now */}
+          <WellnessCheckIn stagger={140} />
 
           {/* Today's coach-planned meals — hidden entirely when none are planned */}
           <PlannedMealsCard stagger={150} onLogged={loadData} />
@@ -233,39 +257,6 @@ export default function Dashboard() {
 
           {/* Workout partners — hidden when there are no partnerships or invites */}
           <PartnerCard stagger={165} />
-
-          {/* Smart Coach */}
-          <SmartCoach tip={advice} onWeeklyAnalysis={() => setShowInsightModal(true)} stagger={180} />
-
-          {/* Quick Actions */}
-          <section aria-labelledby="quick-add-heading" className="animate-in" style={{ ['--stagger' as string]: '240ms' }}>
-            <h3 id="quick-add-heading" className="font-semibold text-sm text-[var(--color-text)] uppercase tracking-wide mb-3 px-1">{t.dashboard.quickAdd}</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {quickActions.map(({ href, icon: Icon, label, ariaLabel }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="group p-4 flex flex-col items-center justify-center gap-2 border border-[var(--color-border-light)] bg-[var(--color-surface-elevated)] shadow-sm active:scale-[0.97] hover:border-[var(--color-gold-border)] transition-all focus-ring tap-target"
-                  style={{ borderRadius: 'var(--radius-card)' }}
-                  aria-label={ariaLabel}
-                >
-                  <div
-                    className="w-11 h-11 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform"
-                    style={{ background: 'var(--color-gold-muted)', color: 'var(--color-gold-text)' }}
-                  >
-                    <Icon className="w-5 h-5" aria-hidden="true" />
-                  </div>
-                  <span className="font-semibold text-xs text-[var(--color-text-secondary)]">{label}</span>
-                </Link>
-              ))}
-            </div>
-          </section>
-
-          {/* Weekly Summary */}
-          <WeeklySummary stats={weeklyStats} />
-
-          {/* Recent Activity */}
-          <RecentLogs logs={logs} />
 
           <XPHistoryModal
             isOpen={showXPModal}

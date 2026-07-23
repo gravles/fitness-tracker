@@ -60,7 +60,7 @@ self.addEventListener('push', (event) => {
     };
 
     event.waitUntil(
-        self.registration.showNotification(data.title || 'Life Logger', options)
+        self.registration.showNotification(data.title || 'Kinetic', options)
     );
 });
 

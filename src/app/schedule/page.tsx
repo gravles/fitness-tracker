@@ -23,6 +23,7 @@ import { useTabParam } from '@/lib/useTabParam';
 import Link from 'next/link';
 import { haptics } from '@/lib/haptics';
 import { useLanguage } from '@/components/LanguageProvider';
+import { TodayActivitySection } from '@/components/kinetic/workout/TodayActivitySection';
 
 type Tab = 'schedule' | 'templates' | 'discover' | 'programs';
 type WorkoutCategoryFilter = WorkoutCategory | 'all';
@@ -171,7 +172,7 @@ export default function WorkoutHubPage() {
         switch (type) {
             case 'cardio':   return { color: 'var(--chart-5)', bgAlpha: 'rgba(249,115,22,0.06)',  iconBg: 'rgba(249,115,22,0.12)' };
             case 'mobility': return { color: 'var(--chart-3)', bgAlpha: 'rgba(168,85,247,0.06)', iconBg: 'rgba(168,85,247,0.12)' };
-            default:         return { color: 'var(--color-primary)', bgAlpha: 'rgba(77,137,226,0.06)', iconBg: 'rgba(77,137,226,0.12)' };
+            default:         return { color: 'var(--color-primary)', bgAlpha: 'color-mix(in srgb, var(--color-primary) 6%, transparent)', iconBg: 'color-mix(in srgb, var(--color-primary) 12%, transparent)' };
         }
     }
 
@@ -396,22 +397,22 @@ export default function WorkoutHubPage() {
 
     return (
         <>
-        <main className="p-6 pt-12 pb-24 space-y-6 max-w-2xl mx-auto">
-            {/* Header */}
+        <main className="p-5 pt-11 pb-24 space-y-5 max-w-2xl mx-auto">
+            {/* Header — Kinetic */}
             <header className="flex items-center justify-between">
                 <h1
-                    className="text-3xl font-bold"
-                    style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}
+                    className="text-2xl font-extrabold"
+                    style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}
                 >
-                    Workout
+                    Workout<span style={{ color: 'var(--color-gold)' }}>.</span>
                 </h1>
                 {activeTab === 'schedule' && (
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handleSyncStrava}
                             disabled={syncingStrava}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-medium transition-all active:scale-[0.98] disabled:opacity-50"
-                            style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }}
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full font-medium transition-kinetic active:scale-[0.98] disabled:opacity-50 focus-ring"
+                            style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border-light)' }}
                             title="Sync Strava"
                         >
                             {syncingStrava
@@ -421,14 +422,13 @@ export default function WorkoutHubPage() {
                         </button>
                         <button
                             onClick={() => { setSelectedDate(new Date()); setShowScheduleModal(true); }}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium shadow-lg transition-all active:scale-[0.98]"
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white transition-kinetic active:scale-[0.98] focus-ring"
                             style={{
                                 background: 'var(--color-primary)',
-                                color: 'white',
-                                boxShadow: '0 4px 16px rgba(77,137,226,0.3)',
+                                boxShadow: '0 6px 20px rgba(91, 156, 246, 0.3)',
                             }}
                         >
-                            <Plus className="w-5 h-5" />
+                            <Plus className="w-4 h-4" />
                             Schedule
                         </button>
                     </div>
@@ -436,41 +436,46 @@ export default function WorkoutHubPage() {
                 {activeTab === 'templates' && (
                     <button
                         onClick={openCreateModal}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium shadow-lg transition-all active:scale-[0.98]"
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white transition-kinetic active:scale-[0.98] focus-ring"
                         style={{
-                            background: 'var(--color-success)',
-                            color: 'white',
-                            boxShadow: '0 4px 16px rgba(34,197,94,0.25)',
+                            background: 'var(--color-primary)',
+                            boxShadow: '0 6px 20px rgba(91, 156, 246, 0.3)',
                         }}
                     >
-                        <Plus className="w-5 h-5" />
+                        <Plus className="w-4 h-4" />
                         Template
                     </button>
                 )}
             </header>
 
-            {/* AI Coach CTA */}
+            {/* AI Coach CTA — same gold-tint banner as the Home coach strip */}
             <Link
                 href="/coach"
-                className="flex items-center justify-between px-4 py-3 rounded-2xl transition-all active:scale-[0.98]"
-                style={{ background: 'var(--color-navy)' }}
+                className="flex items-center justify-between px-3.5 py-3 transition-kinetic active:scale-[0.98] focus-ring"
+                style={{
+                    background: 'color-mix(in srgb, var(--color-gold) 8%, transparent)',
+                    border: '1px solid color-mix(in srgb, var(--color-gold) 25%, transparent)',
+                    borderRadius: 'var(--radius-card)',
+                }}
             >
                 <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-gold-border)' }}>
-                        <Bot className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-gold-muted)' }}>
+                        <Bot className="w-4 h-4" style={{ color: 'var(--color-gold-text)' }} aria-hidden="true" />
                     </div>
                     <div>
-                        <p className="font-bold text-sm text-white leading-tight">AI Coach</p>
-                        <p className="text-xs leading-tight" style={{ color: 'rgba(255,255,255,0.55)' }}>Personalised plans &amp; weekly insights</p>
+                        <p className="font-bold text-sm leading-tight" style={{ color: 'var(--color-text)' }}>AI Coach</p>
+                        <p className="text-xs leading-tight" style={{ color: 'var(--color-text-secondary)' }}>Personalised plans &amp; weekly insights</p>
                     </div>
                 </div>
-                <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.4)' }} />
+                <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} aria-hidden="true" />
             </Link>
 
-            {/* Tabs */}
+            {/* Tabs — Kinetic segmented pill */}
             <div
-                className="flex rounded-xl p-1"
-                style={{ background: 'var(--color-bg-subtle)' }}
+                className="flex rounded-full p-1"
+                style={{ background: 'var(--color-bg-muted)', border: '1px solid var(--color-border-light)' }}
+                role="tablist"
+                aria-label="Workout hub sections"
             >
                 {(['schedule', 'templates', 'discover', 'programs'] as Tab[]).map((tab) => {
                     const labels = { schedule: 'Schedule', templates: 'Templates', discover: 'Discover', programs: 'Programs' };
@@ -481,18 +486,21 @@ export default function WorkoutHubPage() {
                         <button
                             key={tab}
                             onClick={() => { haptics.tap(); setActiveTab(tab); }}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg font-medium transition-all text-sm"
+                            role="tab"
+                            aria-selected={active}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full transition-kinetic text-sm"
                             style={
                                 active
                                     ? {
-                                        background: 'var(--color-surface-elevated)',
-                                        color: 'var(--color-text)',
-                                        boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                                        background: 'var(--color-gold-muted)',
+                                        border: '1px solid var(--color-gold-border)',
+                                        color: 'var(--color-gold-text)',
+                                        fontWeight: 700,
                                     }
-                                    : { color: 'var(--color-text-muted)' }
+                                    : { color: 'var(--color-text-muted)', border: '1px solid transparent', fontWeight: 500 }
                             }
                         >
-                            <Icon className="w-4 h-4" />
+                            <Icon className="w-4 h-4 max-[380px]:hidden" aria-hidden="true" />
                             {labels[tab]}
                         </button>
                     );
@@ -505,6 +513,9 @@ export default function WorkoutHubPage() {
             {/* ========== SCHEDULE TAB ========== */}
             {!loadError && activeTab === 'schedule' && (
                 <>
+                    {/* Today's activity — moved here when the /log screen was dissolved */}
+                    <TodayActivitySection />
+
                     {/* Week Navigation */}
                     <div
                         className="flex items-center justify-between p-4 rounded-2xl border shadow-sm"
@@ -555,7 +566,7 @@ export default function WorkoutHubPage() {
                                     className="p-3 text-center border-r last:border-r-0 transition-colors"
                                     style={{
                                         borderColor: 'var(--color-border-light)',
-                                        background: isToday(day) ? 'rgba(77,137,226,0.08)' : 'transparent',
+                                        background: isToday(day) ? 'color-mix(in srgb, var(--color-primary) 8%, transparent)' : 'transparent',
                                     }}
                                 >
                                     <div
@@ -614,12 +625,12 @@ export default function WorkoutHubPage() {
                                                         className="flex items-center justify-between p-3 rounded-xl border"
                                                         style={{
                                                             background: isDone
-                                                                ? 'rgba(34,197,94,0.06)'
+                                                                ? 'color-mix(in srgb, var(--color-success) 6%, transparent)'
                                                                 : isSkipped
                                                                 ? 'var(--color-bg-subtle)'
                                                                 : accent.bgAlpha,
                                                             borderColor: isDone
-                                                                ? 'rgba(34,197,94,0.2)'
+                                                                ? 'color-mix(in srgb, var(--color-success) 20%, transparent)'
                                                                 : isSkipped
                                                                 ? 'var(--color-border)'
                                                                 : accent.color + '40',
@@ -628,7 +639,7 @@ export default function WorkoutHubPage() {
                                                         }}
                                                     >
                                                         <div className="flex items-center gap-3 min-w-0">
-                                                            <div className="p-2 rounded-lg flex-shrink-0" style={{ background: isDone ? 'rgba(34,197,94,0.1)' : accent.iconBg }}>
+                                                            <div className="p-2 rounded-lg flex-shrink-0" style={{ background: isDone ? 'color-mix(in srgb, var(--color-success) 10%, transparent)' : accent.iconBg }}>
                                                                 <SessionTypeIcon
                                                                     type={session.session_type}
                                                                     className="w-4 h-4"
@@ -697,7 +708,7 @@ export default function WorkoutHubPage() {
                                                     className="flex items-center justify-between p-3 rounded-xl border"
                                                     style={
                                                         workout.status === 'completed'
-                                                            ? { background: 'rgba(34,197,94,0.06)', borderColor: 'rgba(34,197,94,0.2)' }
+                                                            ? { background: 'color-mix(in srgb, var(--color-success) 6%, transparent)', borderColor: 'color-mix(in srgb, var(--color-success) 20%, transparent)' }
                                                             : workout.status === 'skipped'
                                                             ? { background: 'var(--color-bg-subtle)', borderColor: 'var(--color-border)', opacity: 0.6 }
                                                             : { background: 'var(--color-bg-subtle)', borderColor: 'var(--color-border)' }
@@ -708,7 +719,7 @@ export default function WorkoutHubPage() {
                                                             className="p-2 rounded-lg"
                                                             style={{
                                                                 background: workout.status === 'completed'
-                                                                    ? 'rgba(34,197,94,0.1)'
+                                                                    ? 'color-mix(in srgb, var(--color-success) 10%, transparent)'
                                                                     : 'var(--color-gold-muted)',
                                                             }}
                                                         >
@@ -797,7 +808,7 @@ export default function WorkoutHubPage() {
                     <div className="grid grid-cols-3 gap-3">
                         <div
                             className="p-4 rounded-2xl border"
-                            style={{ background: 'rgba(34,197,94,0.06)', borderColor: 'rgba(34,197,94,0.2)' }}
+                            style={{ background: 'color-mix(in srgb, var(--color-success) 6%, transparent)', borderColor: 'color-mix(in srgb, var(--color-success) 20%, transparent)' }}
                         >
                             <div className="text-2xl font-black" style={{ color: 'var(--color-success)' }}>
                                 {scheduledWorkouts.filter(w => w.status === 'completed').length
@@ -807,7 +818,7 @@ export default function WorkoutHubPage() {
                         </div>
                         <div
                             className="p-4 rounded-2xl border"
-                            style={{ background: 'rgba(77,137,226,0.06)', borderColor: 'rgba(77,137,226,0.2)' }}
+                            style={{ background: 'color-mix(in srgb, var(--color-primary) 6%, transparent)', borderColor: 'color-mix(in srgb, var(--color-primary) 20%, transparent)' }}
                         >
                             <div className="text-2xl font-black" style={{ color: 'var(--color-primary)' }}>
                                 {programSessions.filter(s => s.status === 'upcoming' || s.status === 'rescheduled').length}
@@ -1121,7 +1132,7 @@ export default function WorkoutHubPage() {
                                         <div className="flex items-center gap-3 flex-1 min-w-0">
                                             <div
                                                 className="p-2 rounded-xl flex-shrink-0"
-                                                style={{ background: template.is_featured ? 'var(--color-gold-muted)' : 'rgba(77,137,226,0.1)' }}
+                                                style={{ background: template.is_featured ? 'var(--color-gold-muted)' : 'color-mix(in srgb, var(--color-primary) 10%, transparent)' }}
                                             >
                                                 {template.is_featured
                                                     ? <Star className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
@@ -1136,7 +1147,7 @@ export default function WorkoutHubPage() {
                                                             className="px-2 py-0.5 rounded-full text-xs"
                                                             style={
                                                                 template.difficulty === 'beginner'
-                                                                    ? { background: 'rgba(34,197,94,0.1)', color: 'var(--color-success)' }
+                                                                    ? { background: 'color-mix(in srgb, var(--color-success) 10%, transparent)', color: 'var(--color-success)' }
                                                                     : template.difficulty === 'intermediate'
                                                                     ? { background: 'rgba(234,179,8,0.1)', color: 'var(--color-warning)' }
                                                                     : { background: 'rgba(239,68,68,0.1)', color: 'var(--color-danger)' }
@@ -1173,8 +1184,8 @@ export default function WorkoutHubPage() {
                                                 className="p-2 rounded-lg transition-colors"
                                                 style={
                                                     copiedId === template.id
-                                                        ? { background: 'rgba(34,197,94,0.1)', color: 'var(--color-success)' }
-                                                        : { background: 'rgba(77,137,226,0.1)', color: 'var(--color-primary)' }
+                                                        ? { background: 'color-mix(in srgb, var(--color-success) 10%, transparent)', color: 'var(--color-success)' }
+                                                        : { background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', color: 'var(--color-primary)' }
                                                 }
                                             >
                                                 {copiedId === template.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -1281,7 +1292,7 @@ export default function WorkoutHubPage() {
                                             <div className="flex items-center gap-3">
                                                 <div
                                                     className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm"
-                                                    style={{ background: 'rgba(77,137,226,0.1)', color: 'var(--color-primary)' }}
+                                                    style={{ background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', color: 'var(--color-primary)' }}
                                                 >
                                                     {idx + 1}
                                                 </div>

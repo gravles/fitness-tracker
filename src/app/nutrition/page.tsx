@@ -1,1268 +1,367 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
-import {
-    Plus, Trash2, Loader2, Sparkles, ChevronLeft, ChevronRight,
-    Clock, CheckCircle2, RefreshCw, Settings2, UtensilsCrossed,
-    Camera, Mic, MicOff, X, BookMarked, PlayCircle,
-    Sunrise, Sun, Moon, Apple, Soup, ShoppingCart, Share2,
-} from 'lucide-react';
-import { ShareToPartnerSheet } from '@/components/ShareToPartnerSheet';
+import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { format, parseISO, isValid } from 'date-fns';
+import { CalendarRange } from 'lucide-react';
 import { toast } from 'sonner';
-import { confirm } from '@/components/ConfirmDialog';
-import { LoadError, Modal, Button } from '@/components/ui';
-import { useTabParam } from '@/lib/useTabParam';
-import { TabPageSkeleton } from '@/components/Skeleton';
-import { supabase } from '@/lib/supabase';
 import {
-    getPantryItems, addPantryItem, deletePantryItem,
-    getMealPlan, saveMealPlan,
-    getNutritionPrefs, saveNutritionPrefs,
-    getSettings, getDailyLog, upsertDailyLog, appendFoodItems,
-    getSavedMeals, createSavedMeal, deleteSavedMeal,
-    PantryItem, PlannedMeal, NutritionPrefs, DEFAULT_NUTRITION_PREFS, SavedMeal, isAuthError } from '@/lib/api';
-import { getPlannedMealsForRange, logPlannedMealAsEaten, PlannedMeal as CoachPlannedMeal } from '@/lib/meal-plan-api';
-import { PlannedMealRow } from '@/components/PlannedMealsCard';
+  getDailyLog, upsertDailyLog, appendFoodItems, getWorkouts, getSettings, addFavoriteFood,
+  DailyLog, FoodItem, Workout, UserSettings, isAuthError,
+} from '@/lib/api';
+import { foodTotals } from '@/lib/food-merge';
+import { getPlannedMealsForRange, logPlannedMealAsEaten, skipPlannedMeal, PlannedMeal } from '@/lib/meal-plan-api';
+import { useLanguage } from '@/components/LanguageProvider';
+import { confirm } from '@/components/ConfirmDialog';
+import { haptics } from '@/lib/haptics';
+import { checkAndAwardBadges } from '@/lib/badges';
+import { DateNavigator } from '@/components/DateNavigator';
+import { FoodItemEditModal } from '@/components/daily-log/FoodItemEditModal';
+import { GoalChips, buildGoalChips } from '@/components/kinetic/eat/GoalChips';
+import { Timeline, FeedEntry } from '@/components/kinetic/eat/Timeline';
+import { EatCapture, CaptureAction } from '@/components/kinetic/eat/EatCapture';
+import { DayDetailsCard } from '@/components/kinetic/eat/DayDetailsCard';
+import { LoadError } from '@/components/ui';
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+const CAPTURE_ACTIONS: CaptureAction[] = ['voice', 'camera', 'barcode', 'text', 'scan', 'favorites'];
 
-const CATEGORIES = ['Protein', 'Carbs', 'Vegetables', 'Dairy', 'Fats', 'Other'] as const;
-const PREP_TIMES = [
-    { value: 'no-prep', label: 'No prep', desc: 'Ready to eat' },
-    { value: 'quick', label: 'Quick', desc: '5–15 min' },
-    { value: 'standard', label: 'Standard', desc: '15–30 min' },
-    { value: 'extended', label: 'Extended', desc: '30+ min' },
-] as const;
-const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
-const MEAL_LABELS: Record<string, string> = {
-    breakfast: 'Breakfast',
-    lunch: 'Lunch',
-    dinner: 'Dinner',
-    snack: 'Snack',
-};
-const MEAL_ICONS: Record<string, typeof Sunrise> = {
-    breakfast: Sunrise,
-    lunch: Sun,
-    dinner: Moon,
-    snack: Apple,
-};
+export default function EatPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { t } = useLanguage();
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type ScanItem = {
-    name: string;
-    category: PantryItem['category'];
-    prep_time: PantryItem['prep_time'];
-    notes: string;
-    selected: boolean;
-};
-
-// ─── Helper ───────────────────────────────────────────────────────────────────
-
-function getMondayOfWeek(d: Date): Date {
-    return startOfWeek(d, { weekStartsOn: 1 });
-}
-
-function mealKey(date: string, mealType: string) {
-    return `${date}_${mealType}`;
-}
-
-function macroColor(pct: number) {
-    if (pct >= 90) return 'var(--color-success)';
-    if (pct >= 60) return 'var(--color-gold)';
-    return 'var(--color-danger)';
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function MacroPill({ label, value, target }: { label: string; value: number; target: number }) {
-    const pct = target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0;
-    return (
-        <div className="flex-1 text-center">
-            <div className="text-xs font-bold" style={{ color: macroColor(pct) }}>{value}g</div>
-            <div className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{label}</div>
-        </div>
-    );
-}
-
-function MealCard({
-    mealType, meal, onLog, onRegenerate, isLogging, isRegenerating,
-}: {
-    mealType: string;
-    meal: PlannedMeal | null;
-    onLog: () => void;
-    onRegenerate: () => void;
-    isLogging: boolean;
-    isRegenerating: boolean;
-}) {
-    if (!meal) {
-        return (
-            <div
-                className="p-3 rounded-xl border border-dashed flex items-center justify-between"
-                style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg-subtle)' }}
-            >
-                <span className="text-sm text-[var(--color-text-muted)] flex items-center gap-1.5">
-                    {(() => { const MealIcon = MEAL_ICONS[mealType]; return MealIcon ? <MealIcon className="w-3.5 h-3.5" aria-hidden="true" /> : null; })()}
-                    {MEAL_LABELS[mealType]}
-                </span>
-                <button onClick={onRegenerate} disabled={isRegenerating} className="text-xs font-medium" style={{ color: 'var(--color-primary)' }}>
-                    {isRegenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Generate'}
-                </button>
-            </div>
-        );
+  // ?date= deep links (habit strip, calendar) land on that day's feed
+  const [date, setDate] = useState(() => {
+    const q = searchParams.get('date');
+    if (q) {
+      const parsed = parseISO(q);
+      if (isValid(parsed)) return parsed;
     }
+    return new Date();
+  });
+  const [initialAction] = useState<CaptureAction | null>(() => {
+    const a = searchParams.get('action');
+    return CAPTURE_ACTIONS.includes(a as CaptureAction) ? (a as CaptureAction) : null;
+  });
 
-    return (
-        <div
-            className="p-3 rounded-xl border space-y-2"
-            style={{ background: 'var(--color-surface-elevated)', borderColor: 'var(--color-border-light)' }}
+  const [log, setLog] = useState<DailyLog | null>(null);
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [planned, setPlanned] = useState<PlannedMeal[]>([]);
+  const [settings, setSettings] = useState<UserSettings | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState(false);
+
+  // Legacy deep links: /nutrition?tab=… belongs to the Meal Planner
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) router.replace(`/nutrition/planner?tab=${tab}`);
+  }, [searchParams, router]);
+
+  const dateStr = format(date, 'yyyy-MM-dd');
+
+  const loadDay = useCallback(async () => {
+    try {
+      const [dayLog, dayWorkouts, dayPlanned, userSettings] = await Promise.all([
+        getDailyLog(dateStr).catch(() => null),
+        getWorkouts(dateStr).catch(() => []),
+        getPlannedMealsForRange(dateStr, dateStr),
+        getSettings().catch(() => null),
+      ]);
+      setLoadError(false);
+      setLog(dayLog);
+      setWorkouts(dayWorkouts);
+      setPlanned(dayPlanned);
+      setSettings(userSettings);
+    } catch (error) {
+      console.error(error);
+      if (!isAuthError(error)) setLoadError(true);
+    }
+  }, [dateStr]);
+
+  useEffect(() => {
+    // Async data fetch — state updates land after the awaits, not synchronously
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadDay();
+  }, [loadDay]);
+
+  const foodItems: FoodItem[] = log?.food_items ?? [];
+
+  /** Persist a full replacement of the day's food items with recomputed totals. */
+  async function saveFoodItems(items: FoodItem[]) {
+    const totals = foodTotals(items);
+    await upsertDailyLog({
+      date: dateStr,
+      food_items: items,
+      calories: totals.calories,
+      protein_grams: totals.protein,
+      carbs_grams: totals.carbs,
+      fat_grams: totals.fat,
+    });
+    await loadDay();
+  }
+
+  async function handleDuplicate(item: FoodItem) {
+    try {
+      // Duplicates always land in TODAY's log, keeping the original entry's
+      // time of day (duplicate yesterday's 08:10 breakfast → today 08:10).
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      const copy: FoodItem = { ...item, source: item.source ?? 'manual' };
+      if (item.logged_at) {
+        copy.logged_at = new Date(`${todayStr}T${format(new Date(item.logged_at), 'HH:mm:ss')}`).toISOString();
+      } else {
+        delete copy.logged_at; // legacy item — appendFoodItems stamps "now"
+      }
+      await appendFoodItems(todayStr, [copy]);
+      haptics.success();
+      const time = copy.logged_at ? format(new Date(copy.logged_at), 'HH:mm') : null;
+      toast.success(
+        dateStr === todayStr
+          ? `Duplicated '${item.name}'`
+          : `Added '${item.name}' to today${time ? ` at ${time}` : ''}`
+      );
+      await loadDay();
+      checkAndAwardBadges();
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to duplicate item');
+    }
+  }
+
+  async function handleDelete(index: number) {
+    const item = foodItems[index];
+    if (!item) return;
+    if (!await confirm({ title: 'Delete entry', message: `Remove '${item.name}' from this day?` })) return;
+    try {
+      await saveFoodItems(foodItems.filter((_, i) => i !== index));
+      haptics.tap();
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to delete item');
+    }
+  }
+
+  async function handleFavorite(item: FoodItem) {
+    try {
+      await addFavoriteFood({
+        name: item.name,
+        calories: item.calories ?? 0,
+        protein: item.protein ?? 0,
+        carbs: item.carbs ?? 0,
+        fat: item.fat ?? 0,
+        portion_estimate: item.portion_estimate,
+      });
+      haptics.tap();
+      toast.success(`Saved '${item.name}' to favorites`);
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to save favorite');
+    }
+  }
+
+  async function handleSaveEdit(updated: FoodItem, targetDate?: string) {
+    if (editingIndex === null) return;
+    try {
+      if (targetDate && targetDate !== dateStr) {
+        // Entry moved to another day: remove here, append there (with its edits)
+        await saveFoodItems(foodItems.filter((_, i) => i !== editingIndex));
+        await appendFoodItems(targetDate, [{ ...updated, source: updated.source ?? 'manual' }]);
+        toast.success(`Moved '${updated.name}' to ${format(new Date(`${targetDate}T00:00:00`), 'EEE, MMM d')}`);
+      } else {
+        const items = [...foodItems];
+        items[editingIndex] = updated;
+        await saveFoodItems(items);
+      }
+      setEditingIndex(null);
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to save changes');
+    }
+  }
+
+  async function handleLogPlanned(meal: PlannedMeal) {
+    try {
+      await logPlannedMealAsEaten(meal);
+      haptics.success();
+      toast.success(`Logged '${meal.name}'`);
+      await loadDay();
+      checkAndAwardBadges();
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to log planned meal');
+    }
+  }
+
+  async function handleSkipPlanned(meal: PlannedMeal) {
+    try {
+      await skipPlannedMeal(meal.id);
+      haptics.tap();
+      toast(`Skipped '${meal.name}' — off plan`);
+      await loadDay();
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to skip planned meal');
+    }
+  }
+
+  async function handleSkipAllPlanned(meals: PlannedMeal[]) {
+    if (!await confirm({
+      title: 'Off plan today?',
+      message: `Skip the ${meals.length} remaining planned meals for this day? They stay in your plan history as skipped.`,
+    })) return;
+    try {
+      await Promise.all(meals.map(m => skipPlannedMeal(m.id)));
+      haptics.tap();
+      toast(`Skipped ${meals.length} planned meals`);
+      await loadDay();
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to skip planned meals');
+    }
+  }
+
+  // Build the timeline: timed entries in order, legacy (un-stamped) food first
+  const timed: { at: string; entry: FeedEntry }[] = [];
+  const legacy: FeedEntry[] = [];
+
+  foodItems.forEach((item, index) => {
+    const entry: FeedEntry = { kind: 'food', item, index };
+    if (item.logged_at) timed.push({ at: item.logged_at, entry });
+    else legacy.push(entry);
+  });
+  workouts.forEach(w => {
+    if (w.created_at) timed.push({ at: w.created_at, entry: { kind: 'workout', workout: w } });
+    else legacy.push({ kind: 'workout', workout: w });
+  });
+  timed.sort((a, b) => a.at.localeCompare(b.at));
+
+  // Un-logged planned meals trail the feed as gold suggestions —
+  // actual logged food always comes first
+  const pendingPlanned = planned.filter(m => m.status === 'planned');
+  const plannedEntries: FeedEntry[] = pendingPlanned.map(meal => ({ kind: 'planned', meal }));
+
+  const entries: FeedEntry[] = [...legacy, ...timed.map(x => x.entry), ...plannedEntries];
+
+  const protein = log?.protein_grams ?? 0;
+  const calories = log?.calories ?? 0;
+  const movementMin = workouts.reduce((a, w) => a + (w.duration || 0), 0) || (log?.movement_duration ?? 0);
+  const chips = buildGoalChips({
+    protein,
+    targetProtein: settings?.target_protein ?? 0,
+    calories,
+    targetCalories: settings?.target_calories ?? 0,
+    movementMin,
+    movementDone: !!log?.movement_completed,
+    labels: { protein: t.nutrition.protein, calories: t.nutrition.calories, movement: t.dashboard.movement },
+  });
+  const goalsMet = chips.filter(c => c.met).length;
+
+  return (
+    <main className="p-5 pt-11 pb-56 max-w-2xl mx-auto">
+      <header className="flex justify-between items-center mb-3.5">
+        <h1
+          className="text-2xl font-extrabold text-[var(--color-text)]"
+          style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}
         >
-            <div className="flex items-start justify-between gap-2">
-                <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
-                        {(() => { const MealIcon = MEAL_ICONS[mealType]; return MealIcon ? <MealIcon className="w-3 h-3" aria-hidden="true" /> : null; })()}
-                        {MEAL_LABELS[mealType]}
-                    </p>
-                    <p className="font-bold text-sm text-[var(--color-text)] mt-0.5">{meal.name}</p>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
-                    <button
-                        onClick={onRegenerate}
-                        disabled={isRegenerating}
-                        className="p-1.5 rounded-lg transition-colors"
-                        style={{ color: 'var(--color-text-muted)', background: 'var(--color-bg-subtle)' }}
-                        title="Regenerate this meal"
-                    >
-                        {isRegenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                    </button>
-                    <button
-                        onClick={onLog}
-                        disabled={isLogging}
-                        className="px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all active:scale-95"
-                        style={{ background: 'var(--color-primary)', color: 'white' }}
-                    >
-                        {isLogging ? <Loader2 className="w-3 h-3 animate-spin" /> : <><CheckCircle2 className="w-3 h-3" /> Log</>}
-                    </button>
-                </div>
-            </div>
-
-            {/* Ingredients */}
-            <p className="text-xs text-[var(--color-text-muted)]">{meal.ingredients.slice(0, 3).join(' · ')}{meal.ingredients.length > 3 ? ` +${meal.ingredients.length - 3} more` : ''}</p>
-
-            {/* Prep time + macros */}
-            <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor: 'var(--color-border-light)' }}>
-                <div className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
-                    <Clock className="w-3 h-3" />
-                    {meal.prep_time_min} min
-                </div>
-                <div className="flex gap-3 text-[10px]">
-                    <span style={{ color: 'var(--color-primary)' }}><b>{meal.macros.protein}g</b> P</span>
-                    <span style={{ color: 'var(--color-text-muted)' }}><b>{meal.macros.carbs}g</b> C</span>
-                    <span style={{ color: 'var(--color-text-muted)' }}><b>{meal.macros.fat}g</b> F</span>
-                    <span style={{ color: 'var(--color-gold)' }}><b>{meal.macros.calories}</b> cal</span>
-                </div>
-            </div>
+          Eat<span style={{ color: 'var(--color-gold)' }}>.</span>
+        </h1>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold" style={{ color: 'var(--color-text-secondary)' }}>
+            {format(date, 'EEE MMM d')} · {goalsMet} of 3 goals
+          </span>
+          {/* Meal planning entry point — labeled so it reads as "plan", not "calendar" */}
+          <Link
+            href="/nutrition/planner"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-kinetic focus-ring"
+            style={{ background: 'var(--color-gold-muted)', border: '1px solid var(--color-gold-border)', color: 'var(--color-gold-text)' }}
+            aria-label="Open meal planner"
+          >
+            <CalendarRange className="w-4 h-4" aria-hidden="true" />
+            Plan
+          </Link>
         </div>
-    );
-}
+      </header>
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+      <DateNavigator date={date} setDate={setDate} />
 
-export default function NutritionPage() {
-    const today = new Date();
-    const [tab, setTab] = useTabParam(['today', 'plan', 'meals', 'pantry'] as const, 'today');
+      {loadError ? (
+        <LoadError onRetry={loadDay} />
+      ) : (
+        <>
+          <div className="mb-4">
+            <GoalChips chips={chips} />
+          </div>
 
-    // Data
-    const [pantry, setPantry] = useState<PantryItem[]>([]);
-    const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
-    const [shareMeal, setShareMeal] = useState<SavedMeal | null>(null);
-    const [meals, setMeals] = useState<Record<string, PlannedMeal | null>>({});
-    // Coach-planned meals pushed via the MCP tools (planned_meals table)
-    const [coachMeals, setCoachMeals] = useState<CoachPlannedMeal[]>([]);
-    const [loggingCoachId, setLoggingCoachId] = useState<string | null>(null);
-    const [prefs, setPrefs] = useState<NutritionPrefs>(DEFAULT_NUTRITION_PREFS);
-    const [settings, setSettings] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [loadError, setLoadError] = useState(false);
-
-    // Week navigation (Plan tab)
-    const [weekStart, setWeekStart] = useState(getMondayOfWeek(today));
-    const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-
-    // Generation state
-    const [generating, setGenerating] = useState<string | null>(null); // 'week' | dateStr
-    const [loggingMeal, setLoggingMeal] = useState<string | null>(null); // mealKey
-
-    // Pantry form
-    const [showAddItem, setShowAddItem] = useState(false);
-    const [newItem, setNewItem] = useState<Partial<PantryItem>>({ category: 'Protein', prep_time: 'quick' });
-    const [addingItem, setAddingItem] = useState(false);
-
-    // Prefs form
-    const [showPrefs, setShowPrefs] = useState(false);
-    const [editPrefs, setEditPrefs] = useState<NutritionPrefs>(DEFAULT_NUTRITION_PREFS);
-    const [savingPrefs, setSavingPrefs] = useState(false);
-
-    // Smart pantry scanning
-    const [scanning, setScanning] = useState(false);
-    const [recording, setRecording] = useState(false);
-    const [voiceTranscript, setVoiceTranscript] = useState('');
-    const [reviewItems, setReviewItems] = useState<ScanItem[]>([]);
-    const [showReview, setShowReview] = useState(false);
-    const [bulkAdding, setBulkAdding] = useState(false);
-    const photoInputRef = useRef<HTMLInputElement>(null);
-    const recognitionRef = useRef<any>(null);
-
-    useEffect(() => {
-        loadAll();
-    }, []);
-
-    useEffect(() => {
-        loadMealPlan();
-    }, [weekStart]);
-
-    async function loadAll() {
-        setIsLoading(true);
-        setLoadError(false);
-        try {
-            const [p, pr, s, sm] = await Promise.all([
-                getPantryItems(),
-                getNutritionPrefs(),
-                getSettings(),
-                getSavedMeals(),
-            ]);
-            setPantry(p);
-            setPrefs(pr);
-            setEditPrefs(pr);
-            setSettings(s);
-            setSavedMeals(sm);
-        } catch (e) {
-            console.error('Error loading nutrition data:', e);
-            if (!isAuthError(e)) setLoadError(true);
-        } finally {
-            setIsLoading(false);
-        }
-    }
-
-    async function loadMealPlan() {
-        const weekStr = format(weekStart, 'yyyy-MM-dd');
-        const plan = await getMealPlan(weekStr);
-        setMeals(plan?.meals ?? {});
-
-        // Coach-planned meals for the visible week, widened to always include today
-        const todayStr = format(new Date(), 'yyyy-MM-dd');
-        const weekEndStr = format(addDays(weekStart, 6), 'yyyy-MM-dd');
-        const start = weekStr < todayStr ? weekStr : todayStr;
-        const end = weekEndStr > todayStr ? weekEndStr : todayStr;
-        try {
-            setCoachMeals(await getPlannedMealsForRange(start, end));
-        } catch (e) {
-            console.error('Error loading coach meal plan:', e);
-        }
-    }
-
-    async function handleLogCoachMeal(entry: CoachPlannedMeal) {
-        setLoggingCoachId(entry.id);
-        try {
-            await logPlannedMealAsEaten(entry);
-            setCoachMeals(prev => prev.map(m => m.id === entry.id ? { ...m, status: 'logged' } : m));
-            toast.success(`${entry.name} logged!`);
-        } catch {
-            toast.error('Failed to log meal');
-        } finally {
-            setLoggingCoachId(null);
-        }
-    }
-
-    // ── Meal generation ────────────────────────────────────────────────────────
-
-    async function getAuthHeader(): Promise<Record<string, string>> {
-        const { data: { session } } = await supabase.auth.getSession();
-        return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
-    }
-
-    async function generateMeals(dates: string[]) {
-        if (pantry.length === 0) {
-            toast.error('Add some pantry items first so I know what to cook with!');
-            setTab('pantry');
-            return;
-        }
-
-        const key = dates.length === 1 ? dates[0] : 'week';
-        setGenerating(key);
-        try {
-            const authHeaders = await getAuthHeader();
-            const res = await fetch('/api/nutrition/meal-plan/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...authHeaders },
-                body: JSON.stringify({
-                    dates,
-                    prefs,
-                    targetProtein: settings?.target_protein || 150,
-                    targetCalories: settings?.target_calories || 2500,
-                    pantryItems: pantry,
-                }),
-            });
-
-            if (!res.ok) throw new Error(await res.text());
-            const { meals: newMeals } = await res.json();
-
-            const merged = { ...meals };
-            for (const [date, dayMeals] of Object.entries(newMeals as Record<string, any>)) {
-                for (const mealType of MEAL_TYPES) {
-                    const k = mealKey(date, mealType);
-                    merged[k] = dayMeals[mealType] ?? null;
-                }
-            }
-
-            setMeals(merged);
-            await saveMealPlan(format(weekStart, 'yyyy-MM-dd'), merged);
-            toast.success(dates.length === 1 ? 'Meal updated!' : `${dates.length}-day plan ready!`);
-        } catch (e) {
-            console.error(e);
-            toast.error('Failed to generate meals — check your pantry has enough items');
-        } finally {
-            setGenerating(null);
-        }
-    }
-
-    async function regenerateSingleMeal(date: string, mealType: string) {
-        const k = mealKey(date, mealType);
-        setGenerating(k);
-        try {
-            const authHeaders = await getAuthHeader();
-            const res = await fetch('/api/nutrition/meal-plan/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...authHeaders },
-                body: JSON.stringify({
-                    dates: [date],
-                    prefs,
-                    targetProtein: settings?.target_protein || 150,
-                    targetCalories: settings?.target_calories || 2500,
-                    pantryItems: pantry,
-                }),
-            });
-
-            if (!res.ok) throw new Error();
-            const { meals: newMeals } = await res.json();
-            const newMeal = newMeals[date]?.[mealType] ?? null;
-
-            const merged = { ...meals, [k]: newMeal };
-            setMeals(merged);
-            await saveMealPlan(format(weekStart, 'yyyy-MM-dd'), merged);
-        } catch {
-            toast.error('Failed to regenerate — try again');
-        } finally {
-            setGenerating(null);
-        }
-    }
-
-    // ── Log a meal to daily log ────────────────────────────────────────────────
-
-    async function logMeal(date: string, mealType: string) {
-        const k = mealKey(date, mealType);
-        const meal = meals[k];
-        if (!meal) return;
-
-        setLoggingMeal(k);
-        try {
-            const newItem = {
-                name: meal.name,
-                calories: meal.macros.calories,
-                protein: meal.macros.protein,
-                carbs: meal.macros.carbs,
-                fat: meal.macros.fat,
-            };
-            await appendFoodItems(date, [newItem]);
-            toast.success(`${meal.name} logged!`);
-        } catch {
-            toast.error('Failed to log meal');
-        } finally {
-            setLoggingMeal(null);
-        }
-    }
-
-    // ── Pantry management ──────────────────────────────────────────────────────
-
-    async function handleAddItem() {
-        if (!newItem.name?.trim()) return;
-        setAddingItem(true);
-        try {
-            const added = await addPantryItem({
-                name: newItem.name.trim(),
-                category: (newItem.category as PantryItem['category']) || 'Other',
-                prep_time: (newItem.prep_time as PantryItem['prep_time']) || 'quick',
-                notes: newItem.notes || null,
-                calories_per_100g: null,
-                protein_per_100g: null,
-                carbs_per_100g: null,
-                fat_per_100g: null,
-            });
-            setPantry(prev => [...prev, added].sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)));
-            setNewItem({ category: 'Protein', prep_time: 'quick' });
-            setShowAddItem(false);
-            toast.success(`${added.name} added to pantry`);
-        } catch {
-            toast.error('Failed to add item');
-        } finally {
-            setAddingItem(false);
-        }
-    }
-
-    async function handleDeleteItem(id: string) {
-        await deletePantryItem(id);
-        setPantry(prev => prev.filter(i => i.id !== id));
-    }
-
-    // ── Prefs save ─────────────────────────────────────────────────────────────
-
-    async function handleSavePrefs() {
-        setSavingPrefs(true);
-        try {
-            await saveNutritionPrefs(editPrefs);
-            setPrefs(editPrefs);
-            setShowPrefs(false);
-            toast.success('Preferences saved');
-        } finally {
-            setSavingPrefs(false);
-        }
-    }
-
-    // ── Smart pantry scan ──────────────────────────────────────────────────────
-
-    async function processScan(imageBase64?: string, imageMimeType?: string, transcript?: string) {
-        setScanning(true);
-        try {
-            const authHeaders = await getAuthHeader();
-            const body = imageBase64
-                ? { image: imageBase64, mimeType: imageMimeType || 'image/jpeg' }
-                : { transcript };
-            const res = await fetch('/api/nutrition/pantry/scan', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...authHeaders },
-                body: JSON.stringify(body),
-            });
-            if (!res.ok) throw new Error(await res.text());
-            const { items } = await res.json();
-            if (!items?.length) { toast.error('No food items detected — try again'); return; }
-            setReviewItems(items.map((item: any) => ({ ...item, notes: item.notes || '', selected: true })));
-            setShowReview(true);
-        } catch (e) {
-            console.error(e);
-            toast.error('Scan failed — try again');
-        } finally {
-            setScanning(false);
-        }
-    }
-
-    function handlePhotoScan(e: React.ChangeEvent<HTMLInputElement>) {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        e.target.value = '';
-        const reader = new FileReader();
-        reader.onload = () => {
-            const dataUrl = reader.result as string;
-            const base64 = dataUrl.split(',')[1];
-            processScan(base64, file.type);
-        };
-        reader.readAsDataURL(file);
-    }
-
-    function handleVoiceToggle() {
-        if (recording) {
-            recognitionRef.current?.stop();
-            setRecording(false);
-            const transcript = voiceTranscript;
-            setVoiceTranscript('');
-            if (transcript.trim()) processScan(undefined, undefined, transcript);
-        } else {
-            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-            if (!SpeechRecognition) {
-                toast.error('Voice input not supported in this browser. Try Chrome or Safari.');
-                return;
-            }
-            const recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = 'en-US';
-
-            let finalTranscript = '';
-            recognition.onresult = (event: any) => {
-                let interim = '';
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript + ' ';
-                    else interim += event.results[i][0].transcript;
-                }
-                setVoiceTranscript(finalTranscript + interim);
-            };
-            recognition.onerror = () => {
-                setRecording(false);
-                toast.error('Voice error — check microphone permission');
-            };
-            recognition.onend = () => setRecording(false);
-
-            recognitionRef.current = recognition;
-            finalTranscript = '';
-            recognition.start();
-            setRecording(true);
-            setVoiceTranscript('');
-        }
-    }
-
-    async function handleBulkAdd() {
-        const toAdd = reviewItems.filter(i => i.selected && i.name.trim());
-        if (!toAdd.length) return;
-        setBulkAdding(true);
-        try {
-            for (const item of toAdd) {
-                await addPantryItem({
-                    name: item.name.trim(),
-                    category: item.category,
-                    prep_time: item.prep_time,
-                    notes: item.notes || null,
-                    calories_per_100g: null,
-                    protein_per_100g: null,
-                    carbs_per_100g: null,
-                    fat_per_100g: null,
-                });
-            }
-            const updated = await getPantryItems();
-            setPantry(updated);
-            setShowReview(false);
-            toast.success(`Added ${toAdd.length} item${toAdd.length !== 1 ? 's' : ''} to pantry!`);
-        } catch {
-            toast.error('Failed to add some items');
-        } finally {
-            setBulkAdding(false);
-        }
-    }
-
-    // ─── Today tab ─────────────────────────────────────────────────────────────
-
-    const todayStr = format(today, 'yyyy-MM-dd');
-    const todayCoachMeals = coachMeals.filter(m => m.scheduled_date === todayStr);
-    const todayMeals = MEAL_TYPES.map(t => ({ type: t, meal: meals[mealKey(todayStr, t)] ?? null }));
-    const todayTotals = todayMeals.reduce(
-        (acc, { meal }) => ({
-            calories: acc.calories + (meal?.macros.calories || 0),
-            protein: acc.protein + (meal?.macros.protein || 0),
-            carbs: acc.carbs + (meal?.macros.carbs || 0),
-            fat: acc.fat + (meal?.macros.fat || 0),
-        }),
-        { calories: 0, protein: 0, carbs: 0, fat: 0 }
-    );
-    const hasTodayPlan = todayMeals.some(m => m.meal !== null);
-
-    // ─── Grouped pantry ────────────────────────────────────────────────────────
-
-    const pantryByCategory = CATEGORIES.reduce((acc, cat) => {
-        acc[cat] = pantry.filter(i => i.category === cat);
-        return acc;
-    }, {} as Record<string, PantryItem[]>);
-
-    const PREP_BADGE: Record<string, { label: string; color: string }> = {
-        'no-prep': { label: 'No prep', color: 'var(--color-success)' },
-        'quick': { label: 'Quick', color: 'var(--color-primary)' },
-        'standard': { label: 'Standard', color: 'var(--color-gold)' },
-        'extended': { label: 'Extended', color: '#9b72cf' },
-    };
-
-    if (isLoading) {
-        return (
-            <main className="p-6 pt-12 pb-24 space-y-5 max-w-2xl mx-auto">
-                <TabPageSkeleton cards={4} />
-            </main>
-        );
-    }
-
-    if (loadError) {
-        return (
-            <main className="p-6 pt-12 pb-24 max-w-2xl mx-auto">
-                <LoadError onRetry={loadAll} className="my-10" />
-            </main>
-        );
-    }
-
-    return (
-        <main className="p-6 pt-12 pb-24 space-y-5 max-w-2xl mx-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-[var(--color-text)]" style={{ fontFamily: 'var(--font-display)' }}>
-                        Meal Planner
-                    </h1>
-                    <p className="text-sm text-[var(--color-text-muted)]">Built around your pantry</p>
-                </div>
+          {entries.length > 0 ? (
+            <>
+              <Timeline
+                entries={entries}
+                onDuplicate={handleDuplicate}
+                onEdit={setEditingIndex}
+                onDelete={handleDelete}
+                onFavorite={handleFavorite}
+                onLogPlanned={handleLogPlanned}
+                onSkipPlanned={handleSkipPlanned}
+              />
+              {pendingPlanned.length >= 2 && (
                 <button
-                    onClick={() => { setShowPrefs(true); setEditPrefs(prefs); }}
-                    className="p-2.5 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface-elevated)]"
-                    style={{ color: 'var(--color-text-muted)' }}
+                  onClick={() => handleSkipAllPlanned(pendingPlanned)}
+                  className="mt-3 w-full text-center text-xs font-semibold tap-target focus-ring rounded-xl"
+                  style={{ color: 'var(--color-text-muted)' }}
                 >
-                    <Settings2 className="w-5 h-5" />
+                  Off plan today? Skip the {pendingPlanned.length} remaining planned meals
                 </button>
+              )}
+            </>
+          ) : (
+            <div
+              className="text-center text-sm px-4 py-10"
+              style={{
+                border: '1.5px dashed var(--color-border)',
+                borderRadius: 16,
+                color: 'var(--color-text-muted)',
+              }}
+            >
+              Nothing logged {dateStr === format(new Date(), 'yyyy-MM-dd') ? 'yet today' : 'this day'} — capture a meal below.
             </div>
+          )}
 
-            {/* Tabs */}
-            <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--color-bg-subtle)' }}>
-                {(['today', 'plan', 'meals', 'pantry'] as const).map(t => (
-                    <button
-                        key={t}
-                        onClick={() => setTab(t)}
-                        className="flex-1 py-2 rounded-lg text-xs font-semibold capitalize transition-all"
-                        style={tab === t
-                            ? { background: 'var(--color-surface-elevated)', color: 'var(--color-text)', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
-                            : { color: 'var(--color-text-muted)' }
-                        }
-                    >
-                        {t === 'today' ? 'Today' : t === 'plan' ? 'Week' : t === 'meals' ? `Meals${savedMeals.length > 0 ? ` (${savedMeals.length})` : ''}` : `Pantry`}
-                    </button>
-                ))}
-            </div>
+          <div className="mt-4">
+            <DayDetailsCard dateStr={dateStr} log={log} onSaved={loadDay} />
+          </div>
+        </>
+      )}
 
-            {/* ── TODAY TAB ─────────────────────────────────────────────────────── */}
-            {tab === 'today' && (
-                <div className="space-y-4">
-                    {/* Macro summary */}
-                    {hasTodayPlan && (
-                        <div className="p-4 rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-surface-elevated)]">
-                            <div className="flex items-center justify-between mb-3">
-                                <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Planned today</span>
-                                <span className="text-sm font-bold" style={{ color: 'var(--color-gold)' }}>{todayTotals.calories} cal</span>
-                            </div>
-                            <div className="flex gap-2">
-                                <MacroPill label="Protein" value={todayTotals.protein} target={settings?.target_protein || 150} />
-                                <MacroPill label="Carbs" value={todayTotals.carbs} target={Math.round((settings?.target_calories || 2500) * 0.45 / 4)} />
-                                <MacroPill label="Fat" value={todayTotals.fat} target={Math.round((settings?.target_calories || 2500) * 0.30 / 9)} />
-                            </div>
-                        </div>
-                    )}
+      {editingIndex !== null && foodItems[editingIndex] && (
+        <FoodItemEditModal
+          item={foodItems[editingIndex]}
+          entryDate={dateStr}
+          allowDateMove
+          onSave={handleSaveEdit}
+          onClose={() => setEditingIndex(null)}
+        />
+      )}
 
-                    {/* Coach-planned meals (pushed by the AI coach via MCP) */}
-                    {todayCoachMeals.length > 0 && (
-                        <div className="space-y-2">
-                            <p className="text-xs font-bold uppercase tracking-widest px-1" style={{ color: 'var(--color-text-muted)' }}>Coach Plan</p>
-                            {todayCoachMeals.map(m => (
-                                <PlannedMealRow
-                                    key={m.id}
-                                    meal={m}
-                                    isLogging={loggingCoachId === m.id}
-                                    onLog={() => handleLogCoachMeal(m)}
-                                />
-                            ))}
-                        </div>
-                    )}
+      {/* Taller scrim: this page's floating stack is capture bar + nav */}
+      <div aria-hidden="true" className="bottom-scrim" style={{ height: 210 }} />
 
-                    {/* Generate today button */}
-                    {!hasTodayPlan && (
-                        <Button
-                            variant="brand"
-                            fullWidth
-                            onClick={() => generateMeals([todayStr])}
-                            disabled={!!generating}
-                            className="py-4"
-                            style={{ borderRadius: '16px' }}
-                        >
-                            {generating === todayStr
-                                ? <><Loader2 className="w-5 h-5 animate-spin" /> Planning your meals…</>
-                                : <><Sparkles className="w-5 h-5" /> Plan Today's Meals</>
-                            }
-                        </Button>
-                    )}
-
-                    {/* Meal cards */}
-                    <div className="space-y-2">
-                        {todayMeals.map(({ type, meal }) => (
-                            <MealCard
-                                key={type}
-                                mealType={type}
-                                meal={meal}
-                                onLog={() => logMeal(todayStr, type)}
-                                onRegenerate={() => regenerateSingleMeal(todayStr, type)}
-                                isLogging={loggingMeal === mealKey(todayStr, type)}
-                                isRegenerating={generating === mealKey(todayStr, type)}
-                            />
-                        ))}
-                    </div>
-
-                    {hasTodayPlan && (
-                        <button
-                            onClick={() => generateMeals([todayStr])}
-                            disabled={!!generating}
-                            className="w-full py-3 rounded-2xl text-sm font-semibold border transition-all"
-                            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
-                        >
-                            {generating === todayStr ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Regenerate all meals'}
-                        </button>
-                    )}
-                </div>
-            )}
-
-            {/* ── PLAN TAB ──────────────────────────────────────────────────────── */}
-            {tab === 'plan' && (
-                <div className="space-y-4">
-                    {/* Week nav + generate */}
-                    <div className="flex items-center justify-between">
-                        <button onClick={() => setWeekStart(w => addDays(w, -7))} className="p-2 rounded-xl" style={{ background: 'var(--color-bg-subtle)' }}>
-                            <ChevronLeft className="w-5 h-5 text-[var(--color-text-muted)]" />
-                        </button>
-                        <span className="text-sm font-bold text-[var(--color-text)]">
-                            {format(weekStart, 'MMM d')} – {format(addDays(weekStart, 6), 'MMM d, yyyy')}
-                        </span>
-                        <button onClick={() => setWeekStart(w => addDays(w, 7))} className="p-2 rounded-xl" style={{ background: 'var(--color-bg-subtle)' }}>
-                            <ChevronRight className="w-5 h-5 text-[var(--color-text-muted)]" />
-                        </button>
-                    </div>
-
-                    <Button
-                        variant="brand"
-                        fullWidth
-                        onClick={() => generateMeals(weekDays.map(d => format(d, 'yyyy-MM-dd')))}
-                        disabled={!!generating}
-                        className="py-3.5"
-                        style={{ borderRadius: '16px' }}
-                    >
-                        {generating === 'week'
-                            ? <><Loader2 className="w-5 h-5 animate-spin" /> Building week plan…</>
-                            : <><Sparkles className="w-5 h-5" /> Generate Full Week</>
-                        }
-                    </Button>
-
-                    {/* Day-by-day list */}
-                    {weekDays.map(day => {
-                        const dateStr = format(day, 'yyyy-MM-dd');
-                        const isToday = isSameDay(day, today);
-                        const dayMeals = MEAL_TYPES.map(t => ({ type: t, meal: meals[mealKey(dateStr, t)] ?? null }));
-                        const hasMeals = dayMeals.some(m => m.meal);
-                        const dayCoachMeals = coachMeals.filter(m => m.scheduled_date === dateStr);
-
-                        return (
-                            <div key={dateStr} className="rounded-2xl border overflow-hidden" style={{ borderColor: isToday ? 'var(--color-primary)' : 'var(--color-border-light)' }}>
-                                {/* Day header */}
-                                <div
-                                    className="px-4 py-2.5 flex items-center justify-between"
-                                    style={{ background: isToday ? 'rgba(77,137,226,0.08)' : 'var(--color-bg-subtle)' }}
-                                >
-                                    <div>
-                                        <span className="font-bold text-sm text-[var(--color-text)]">{format(day, 'EEEE')}</span>
-                                        <span className="text-xs text-[var(--color-text-muted)] ml-2">{format(day, 'MMM d')}</span>
-                                        {isToday && <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--color-primary)', color: 'white' }}>Today</span>}
-                                    </div>
-                                    <button
-                                        onClick={() => generateMeals([dateStr])}
-                                        disabled={!!generating}
-                                        className="text-xs font-semibold flex items-center gap-1"
-                                        style={{ color: hasMeals ? 'var(--color-text-muted)' : 'var(--color-primary)' }}
-                                    >
-                                        {generating === dateStr
-                                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                            : hasMeals ? <RefreshCw className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />
-                                        }
-                                        {hasMeals ? 'Redo' : 'Plan day'}
-                                    </button>
-                                </div>
-
-                                {/* Meals */}
-                                {(hasMeals || dayCoachMeals.length > 0) && (
-                                    <div className="p-3 space-y-2 bg-[var(--color-surface-elevated)]">
-                                        {dayCoachMeals.map(m => (
-                                            <PlannedMealRow
-                                                key={m.id}
-                                                meal={m}
-                                                isLogging={loggingCoachId === m.id}
-                                                onLog={() => handleLogCoachMeal(m)}
-                                            />
-                                        ))}
-                                        {dayMeals.filter(m => m.meal).map(({ type, meal }) => (
-                                            <MealCard
-                                                key={type}
-                                                mealType={type}
-                                                meal={meal}
-                                                onLog={() => logMeal(dateStr, type)}
-                                                onRegenerate={() => regenerateSingleMeal(dateStr, type)}
-                                                isLogging={loggingMeal === mealKey(dateStr, type)}
-                                                isRegenerating={generating === mealKey(dateStr, type)}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-
-            {/* ── MEALS TAB ─────────────────────────────────────────────────────── */}
-            {tab === 'meals' && (
-                <div className="space-y-4">
-                    {savedMeals.length === 0 ? (
-                        <div className="text-center py-12 space-y-3">
-                            <Soup className="w-12 h-12 mx-auto text-[var(--color-text-muted)]" aria-hidden="true" />
-                            <p className="font-bold text-[var(--color-text)]">No saved meals yet</p>
-                            <p className="text-sm text-[var(--color-text-muted)] max-w-xs mx-auto">
-                                In your daily log, select multiple food items and tap "Save as Meal" to create a one-tap bundle.
-                            </p>
-                        </div>
-                    ) : (
-                        savedMeals.map(meal => (
-                            <div
-                                key={meal.id}
-                                className="p-4 rounded-2xl border space-y-3"
-                                style={{ background: 'var(--color-surface-elevated)', borderColor: 'var(--color-border-light)' }}
-                            >
-                                <div className="flex items-start justify-between gap-2">
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <BookMarked className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-gold)' }} />
-                                            <h3 className="font-bold text-[var(--color-text)]">{meal.name}</h3>
-                                        </div>
-                                        <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-                                            {meal.total_calories} cal · {meal.total_protein}g P · {meal.total_carbs}g C · {meal.total_fat}g F
-                                        </p>
-                                        <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                                            {meal.food_items.length} item{meal.food_items.length !== 1 ? 's' : ''}{meal.use_count > 0 ? ` · logged ${meal.use_count}×` : ''}
-                                        </p>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={async () => {
-                                                try {
-                                                    const today = format(new Date(), 'yyyy-MM-dd');
-                                                    await appendFoodItems(today, meal.food_items);
-                                                    // bump use count
-                                                    const { supabase: sb } = await import('@/lib/supabase');
-                                                    await sb.from('saved_meals').update({ use_count: (meal.use_count || 0) + 1 }).eq('id', meal.id);
-                                                    setSavedMeals(prev => prev.map(m => m.id === meal.id ? { ...m, use_count: m.use_count + 1 } : m));
-                                                    toast.success(`"${meal.name}" logged to today!`);
-                                                } catch (e) {
-                                                    toast.error('Failed to log meal');
-                                                }
-                                            }}
-                                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
-                                            style={{ background: 'var(--color-primary)', color: 'white' }}
-                                        >
-                                            <PlayCircle className="w-3.5 h-3.5" /> Log today
-                                        </button>
-                                        <button
-                                            onClick={() => setShareMeal(meal)}
-                                            className="p-2 rounded-xl transition-all"
-                                            style={{ color: 'var(--color-primary)', background: 'rgba(77,137,226,0.08)' }}
-                                            title="Send to partner"
-                                        >
-                                            <Share2 className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={async () => {
-                                                if (!await confirm({ title: 'Delete Meal', message: `Delete "${meal.name}"?`, danger: true })) return;
-                                                await deleteSavedMeal(meal.id);
-                                                setSavedMeals(prev => prev.filter(m => m.id !== meal.id));
-                                                toast.success('Meal deleted');
-                                            }}
-                                            className="p-2 rounded-xl transition-all"
-                                            style={{ color: 'var(--color-danger)', background: 'rgba(239,68,68,0.08)' }}
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                                {/* Ingredient pills */}
-                                <div className="flex flex-wrap gap-1.5">
-                                    {meal.food_items.slice(0, 5).map((item: any, i: number) => (
-                                        <span
-                                            key={i}
-                                            className="text-[11px] px-2 py-0.5 rounded-full"
-                                            style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
-                                        >
-                                            {item.name}
-                                        </span>
-                                    ))}
-                                    {meal.food_items.length > 5 && (
-                                        <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}>
-                                            +{meal.food_items.length - 5} more
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
-            )}
-
-            {/* ── PANTRY TAB ────────────────────────────────────────────────────── */}
-            {tab === 'pantry' && (
-                <div className="space-y-5">
-                    {pantry.length === 0 && !showAddItem && (
-                        <div className="text-center py-8 space-y-2">
-                            <ShoppingCart className="w-12 h-12 mx-auto text-[var(--color-text-muted)]" aria-hidden="true" />
-                            <p className="font-bold text-[var(--color-text)]">Your pantry is empty</p>
-                            <p className="text-sm text-[var(--color-text-muted)] max-w-xs mx-auto">Scan a photo or read out what's in your fridge — AI will categorise everything for you.</p>
-                        </div>
-                    )}
-
-                    {/* Hidden file input for camera */}
-                    <input
-                        ref={photoInputRef}
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        className="hidden"
-                        onChange={handlePhotoScan}
-                    />
-
-                    {/* Smart add buttons */}
-                    {!showAddItem && (
-                        <div className="space-y-2">
-                            <div className="grid grid-cols-2 gap-2">
-                                <Button
-                                    variant="brand"
-                                    onClick={() => photoInputRef.current?.click()}
-                                    disabled={scanning || recording}
-                                    className="py-3.5"
-                                    style={{ borderRadius: '16px' }}
-                                >
-                                    {scanning ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
-                                    {scanning ? 'Scanning…' : 'Scan Photo'}
-                                </Button>
-                                <button
-                                    onClick={handleVoiceToggle}
-                                    disabled={scanning}
-                                    className="py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                                    style={recording
-                                        ? { background: 'var(--color-danger)', color: 'white' }
-                                        : { background: 'var(--color-surface-elevated)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }
-                                    }
-                                >
-                                    {recording ? <><MicOff className="w-5 h-5" /> Done</> : <><Mic className="w-5 h-5" /> Voice</>}
-                                </button>
-                            </div>
-
-                            {/* Live transcript preview */}
-                            {recording && (
-                                <div className="px-4 py-3 rounded-xl flex items-start gap-2" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
-                                    <div className="w-2 h-2 rounded-full bg-red-500 mt-1.5 animate-pulse flex-shrink-0" />
-                                    <p className="text-sm text-[var(--color-text)] italic min-h-[20px]">
-                                        {voiceTranscript || 'Listening… say your food items'}
-                                    </p>
-                                </div>
-                            )}
-
-                            <button
-                                onClick={() => setShowAddItem(true)}
-                                className="w-full py-2.5 rounded-2xl text-sm font-semibold flex items-center justify-center gap-1.5 border border-dashed transition-all"
-                                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
-                            >
-                                <Plus className="w-3.5 h-3.5" /> Add manually
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Add item form (manual) */}
-                    {showAddItem && (
-                        <div className="p-4 rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-surface-elevated)] space-y-3">
-                            <p className="font-bold text-[var(--color-text)]">Add Item</p>
-
-                            <input
-                                type="text"
-                                placeholder="e.g. Chicken Breast, Greek Yogurt, Rice…"
-                                value={newItem.name || ''}
-                                onChange={e => setNewItem(p => ({ ...p, name: e.target.value }))}
-                                className="w-full p-3 rounded-xl text-sm outline-none"
-                                style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
-                                autoFocus
-                            />
-
-                            {/* Category */}
-                            <div>
-                                <p className="text-xs font-semibold text-[var(--color-text-muted)] mb-1.5">Category</p>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {CATEGORIES.map(cat => (
-                                        <button
-                                            key={cat}
-                                            onClick={() => setNewItem(p => ({ ...p, category: cat }))}
-                                            className="px-3 py-1 rounded-full text-xs font-semibold transition-all"
-                                            style={newItem.category === cat
-                                                ? { background: 'var(--color-primary)', color: 'white' }
-                                                : { background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }
-                                            }
-                                        >
-                                            {cat}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Prep time */}
-                            <div>
-                                <p className="text-xs font-semibold text-[var(--color-text-muted)] mb-1.5">How long to prepare?</p>
-                                <div className="grid grid-cols-2 gap-1.5">
-                                    {PREP_TIMES.map(pt => (
-                                        <button
-                                            key={pt.value}
-                                            onClick={() => setNewItem(p => ({ ...p, prep_time: pt.value }))}
-                                            className="py-2 px-3 rounded-xl text-left transition-all border"
-                                            style={newItem.prep_time === pt.value
-                                                ? { background: 'var(--color-primary)', borderColor: 'var(--color-primary)', color: 'white' }
-                                                : { background: 'var(--color-bg-subtle)', borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }
-                                            }
-                                        >
-                                            <p className="text-xs font-bold">{pt.label}</p>
-                                            <p className="text-[10px]">{pt.desc}</p>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Notes */}
-                            <input
-                                type="text"
-                                placeholder="Notes (optional, e.g. 'I buy the pre-cooked kind')"
-                                value={newItem.notes || ''}
-                                onChange={e => setNewItem(p => ({ ...p, notes: e.target.value }))}
-                                className="w-full p-3 rounded-xl text-sm outline-none"
-                                style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
-                            />
-
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => { setShowAddItem(false); setNewItem({ category: 'Protein', prep_time: 'quick' }); }}
-                                    className="flex-1 py-2.5 rounded-xl font-semibold text-sm"
-                                    style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleAddItem}
-                                    disabled={addingItem || !newItem.name?.trim()}
-                                    className="flex-1 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5"
-                                    style={{ background: 'var(--color-primary)', color: 'white' }}
-                                >
-                                    {addingItem ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add to Pantry'}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Grouped pantry list */}
-                    {CATEGORIES.filter(cat => pantryByCategory[cat]?.length > 0).map(cat => (
-                        <div key={cat}>
-                            <p className="text-xs font-bold uppercase tracking-widest mb-2 px-1" style={{ color: 'var(--color-text-muted)' }}>{cat}</p>
-                            <div className="space-y-1.5">
-                                {pantryByCategory[cat].map(item => {
-                                    const badge = PREP_BADGE[item.prep_time];
-                                    return (
-                                        <div
-                                            key={item.id}
-                                            className="flex items-center gap-3 p-3 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-surface-elevated)]"
-                                        >
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-medium text-sm text-[var(--color-text)] truncate">{item.name}</p>
-                                                {item.notes && <p className="text-xs text-[var(--color-text-muted)] truncate">{item.notes}</p>}
-                                            </div>
-                                            <span
-                                                className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-                                                style={{ background: `${badge?.color}18`, color: badge?.color }}
-                                            >
-                                                {badge?.label}
-                                            </span>
-                                            <button
-                                                onClick={() => handleDeleteItem(item.id)}
-                                                className="p-1.5 rounded-lg flex-shrink-0"
-                                                style={{ color: 'var(--color-text-muted)' }}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* ── REVIEW MODAL (scan results) ───────────────────────────────────── */}
-            {showReview && (
-                <div role="dialog" aria-modal="true" aria-label="Review scanned items" className="fixed inset-0 flex flex-col" style={{ background: 'var(--color-bg)', zIndex: 'var(--z-modal)' }}>
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-4 py-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
-                        <div>
-                            <h2 className="font-bold text-lg text-[var(--color-text)]">Review Items</h2>
-                            <p className="text-sm text-[var(--color-text-muted)]">
-                                {reviewItems.filter(i => i.selected).length} of {reviewItems.length} selected
-                                {' · '}
-                                <button
-                                    onClick={() => setReviewItems(items => items.map(i => ({ ...i, selected: true })))}
-                                    className="font-semibold"
-                                    style={{ color: 'var(--color-primary)' }}
-                                >
-                                    Select all
-                                </button>
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => setShowReview(false)}
-                            className="p-2 rounded-xl"
-                            style={{ background: 'var(--color-bg-subtle)' }}
-                        >
-                            <X className="w-5 h-5 text-[var(--color-text-muted)]" />
-                        </button>
-                    </div>
-
-                    {/* Items list */}
-                    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-                        {reviewItems.map((item, idx) => (
-                            <div
-                                key={idx}
-                                className="p-3 rounded-2xl border transition-all"
-                                style={{
-                                    background: item.selected ? 'var(--color-surface-elevated)' : 'var(--color-bg-subtle)',
-                                    borderColor: item.selected ? 'var(--color-primary)' : 'var(--color-border-light)',
-                                    opacity: item.selected ? 1 : 0.45,
-                                }}
-                            >
-                                <div className="flex items-start gap-3">
-                                    {/* Checkbox */}
-                                    <button
-                                        onClick={() => setReviewItems(its => its.map((it, i) => i === idx ? { ...it, selected: !it.selected } : it))}
-                                        className="mt-0.5 flex-shrink-0"
-                                    >
-                                        {item.selected
-                                            ? <CheckCircle2 className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
-                                            : <div className="w-5 h-5 rounded-full border-2" style={{ borderColor: 'var(--color-border)' }} />
-                                        }
-                                    </button>
-
-                                    <div className="flex-1 min-w-0">
-                                        {/* Editable name */}
-                                        <input
-                                            type="text"
-                                            value={item.name}
-                                            onChange={e => setReviewItems(its => its.map((it, i) => i === idx ? { ...it, name: e.target.value } : it))}
-                                            className="w-full font-semibold text-sm bg-transparent outline-none text-[var(--color-text)] border-b border-transparent focus:border-[var(--color-border)]"
-                                        />
-
-                                        {/* Category chips */}
-                                        <div className="flex flex-wrap gap-1 mt-1.5">
-                                            {CATEGORIES.map(cat => (
-                                                <button
-                                                    key={cat}
-                                                    onClick={() => setReviewItems(its => its.map((it, i) => i === idx ? { ...it, category: cat } : it))}
-                                                    className="px-2 py-0.5 rounded-full text-[10px] font-bold transition-all"
-                                                    style={item.category === cat
-                                                        ? { background: 'var(--color-primary)', color: 'white' }
-                                                        : { background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border-light)' }
-                                                    }
-                                                >
-                                                    {cat}
-                                                </button>
-                                            ))}
-                                        </div>
-
-                                        {/* Prep time pills */}
-                                        <div className="flex gap-1 mt-1">
-                                            {PREP_TIMES.map(pt => (
-                                                <button
-                                                    key={pt.value}
-                                                    onClick={() => setReviewItems(its => its.map((it, i) => i === idx ? { ...it, prep_time: pt.value } : it))}
-                                                    className="px-2 py-0.5 rounded-full text-[10px] font-bold transition-all"
-                                                    style={item.prep_time === pt.value
-                                                        ? { background: 'var(--color-gold)', color: 'white' }
-                                                        : { background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border-light)' }
-                                                    }
-                                                >
-                                                    {pt.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Footer — sits above the bottom nav */}
-                    <div className="px-4 pt-4 pb-6 border-t flex-shrink-0" style={{ borderColor: 'var(--color-border)' }}>
-                        <Button
-                            variant="brand"
-                            fullWidth
-                            onClick={handleBulkAdd}
-                            disabled={bulkAdding || reviewItems.filter(i => i.selected).length === 0}
-                            className="py-3.5"
-                            style={{ borderRadius: '16px' }}
-                        >
-                            {bulkAdding
-                                ? <><Loader2 className="w-5 h-5 animate-spin" /> Adding…</>
-                                : <><Plus className="w-5 h-5" /> Add {reviewItems.filter(i => i.selected).length} Items to Pantry</>
-                            }
-                        </Button>
-                    </div>
-                </div>
-            )}
-
-            {/* ── PREFS BOTTOM SHEET ─────────────────────────────────────────────── */}
-            {showPrefs && (
-                <Modal isOpen onClose={() => setShowPrefs(false)} title="Meal Planning Preferences" size="lg" className="space-y-5">
-
-                        <p className="text-sm text-[var(--color-text-muted)]">Set how much time you have to prep each meal. The AI will only suggest meals that fit.</p>
-
-                        {[
-                            { key: 'breakfast_prep_min' as keyof NutritionPrefs, label: 'Breakfast prep time', options: [5, 10, 15, 20] },
-                            { key: 'lunch_prep_min' as keyof NutritionPrefs, label: 'Lunch prep time', options: [5, 10, 15, 30] },
-                            { key: 'dinner_prep_min' as keyof NutritionPrefs, label: 'Dinner prep time', options: [15, 30, 45, 60] },
-                        ].map(({ key, label, options }) => (
-                            <div key={key}>
-                                <p className="text-sm font-semibold text-[var(--color-text)] mb-2">{label}</p>
-                                <div className="flex gap-2">
-                                    {options.map(mins => (
-                                        <button
-                                            key={mins}
-                                            onClick={() => setEditPrefs(p => ({ ...p, [key]: mins }))}
-                                            className="flex-1 py-2 rounded-xl text-sm font-bold transition-all"
-                                            style={editPrefs[key] === mins
-                                                ? { background: 'var(--color-primary)', color: 'white' }
-                                                : { background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }
-                                            }
-                                        >
-                                            {mins}m
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-
-                        <div>
-                            <p className="text-sm font-semibold text-[var(--color-text)] mb-2">Dietary notes</p>
-                            <textarea
-                                value={editPrefs.dietary_notes}
-                                onChange={e => setEditPrefs(p => ({ ...p, dietary_notes: e.target.value }))}
-                                placeholder="e.g. no red meat, low dairy, high fibre, I meal prep on Sundays…"
-                                rows={2}
-                                className="w-full p-3 rounded-xl text-sm outline-none resize-none"
-                                style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
-                            />
-                        </div>
-
-                        <Button
-                            variant="brand"
-                            fullWidth
-                            onClick={handleSavePrefs}
-                            disabled={savingPrefs}
-                            className="py-3.5"
-                            style={{ borderRadius: '16px' }}
-                        >
-                            {savingPrefs ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Preferences'}
-                        </Button>
-                </Modal>
-            )}
-
-            {shareMeal && (
-                <ShareToPartnerSheet
-                    open={!!shareMeal}
-                    onClose={() => setShareMeal(null)}
-                    itemType="saved_meal"
-                    payload={{ name: shareMeal.name, food_items: shareMeal.food_items }}
-                />
-            )}
-        </main>
-    );
+      {/* Persistent capture bar, docked above the glass nav */}
+      <div
+        className="fixed inset-x-0 max-w-2xl mx-auto px-3.5 pointer-events-none"
+        style={{ bottom: 'calc(max(14px, env(safe-area-inset-bottom)) + 68px)', zIndex: 'var(--z-nav, 50)' }}
+      >
+        <div
+          className="glass-nav glass-dense pointer-events-auto px-4 pt-2 pb-3"
+          style={{ borderRadius: 22 }}
+        >
+          <div
+            aria-hidden="true"
+            className="mx-auto mb-2"
+            style={{ width: 36, height: 4, borderRadius: 100, background: 'var(--color-bg-muted)' }}
+          />
+          <EatCapture dateStr={dateStr} initialAction={initialAction} onLogged={loadDay} />
+        </div>
+      </div>
+    </main>
+  );
 }

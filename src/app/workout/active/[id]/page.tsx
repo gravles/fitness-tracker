@@ -18,6 +18,8 @@ import { RestTimer } from '@/components/RestTimer';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { ExerciseHistoryModal } from '@/components/ExerciseHistoryModal';
 import { Modal } from '@/components/ui';
+import { SetPills } from '@/components/kinetic/workout/SetPills';
+import { useFabAction } from '@/components/kinetic/FabContext';
 
 const DRAFT_KEY = 'workout_active_draft';
 
@@ -53,6 +55,11 @@ export default function ActiveWorkoutPage() {
     const [lastSets, setLastSets] = useState<Record<string, { date: string; sets: any[] } | null>>({});
     const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null);
     const prevOneRMsRef = useRef<Record<string, number>>({});
+
+    // Kinetic session UI: rest auto-start signal + expanded queue cards
+    const [restSignal, setRestSignal] = useState(0);
+    const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+    const { setFabAction } = useFabAction();
 
     // ── Autosave state ────────────────────────────────────────────────────────
     // liveWorkoutId: null = not yet created in DB; uuid = workout record exists
@@ -338,6 +345,38 @@ export default function ActiveWorkoutPage() {
         autosaveSet(exIndex, setIndex, copy);
     };
 
+    // ── Kinetic "Log set" CTA — completes the current set, prefilling from the
+    //    last session's ghost values, and auto-starts the rest timer ────────────
+    const currentExIndex = exercises.findIndex(e => e.sets.some(s => !s.completed));
+    const currentSetIndex = currentExIndex >= 0
+        ? exercises[currentExIndex].sets.findIndex(s => !s.completed)
+        : -1;
+
+    const logCurrentSet = () => {
+        if (currentExIndex < 0 || currentSetIndex < 0) return;
+        const ex = exercises[currentExIndex];
+        const set = ex.sets[currentSetIndex];
+        const ghost = lastSets[ex.name]?.sets?.[currentSetIndex];
+        const copy = [...exercises];
+        copy[currentExIndex].sets[currentSetIndex] = {
+            ...set,
+            weight: set.weight || (ghost ? String(ghost.weight) : set.weight),
+            reps: set.reps || (ghost ? String(ghost.reps) : set.reps),
+            completed: true,
+        };
+        setExercises(copy);
+        autosaveSet(currentExIndex, currentSetIndex, copy);
+        setRestSignal(s => s + 1);
+    };
+
+    // Context-aware FAB: while a session is active, the gold FAB logs the set
+    const logSetRef = useRef(logCurrentSet);
+    logSetRef.current = logCurrentSet;
+    useEffect(() => {
+        setFabAction({ label: 'Log set', onPress: () => logSetRef.current() });
+        return () => setFabAction(null);
+    }, [setFabAction]);
+
     const updateSet = (exIndex: number, setIndex: number, field: 'weight' | 'reps', val: string) => {
         const copy = [...exercises];
         copy[exIndex].sets[setIndex] = { ...copy[exIndex].sets[setIndex], [field]: val };
@@ -582,37 +621,57 @@ export default function ActiveWorkoutPage() {
 
     return (
         <main className="h-screen flex flex-col" style={{ background: 'var(--color-bg)' }}>
-            {/* Header */}
+            {/* Header — Kinetic session header (mock 2c) */}
             <div
-                className="p-4 border-b flex justify-between items-center sticky top-0 z-10 shadow-sm"
+                className="p-4 pb-3 border-b sticky top-0 z-10 shadow-sm"
                 style={{
                     background: 'var(--color-surface-elevated)',
                     borderColor: 'var(--color-border)',
                 }}
             >
-                <div className="flex-1 min-w-0">
-                    <input
-                        value={title}
-                        onChange={e => setTitle(e.target.value)}
-                        className="font-bold text-xl bg-transparent outline-none w-full"
-                        style={{ color: 'var(--color-text)' }}
-                    />
-                    <div className="flex items-center gap-2">
-                        <div
-                            className="flex items-center gap-2 font-mono text-sm transition-colors"
-                            style={{ color: isPaused ? 'var(--chart-5)' : 'var(--color-primary)' }}
+                <div className="flex justify-between items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                        <p
+                            className="text-[10px] font-bold uppercase"
+                            style={{ letterSpacing: '0.12em', color: 'var(--color-primary)' }}
                         >
-                            <Clock className="w-3 h-3" />
-                            {formatTime(elapsedSeconds)}
-                            {isPaused && (
-                                <span
-                                    className="text-xs font-bold uppercase border px-1 rounded"
-                                    style={{ borderColor: '#fed7aa', background: '#fff7ed', color: 'var(--chart-5)' }}
-                                >
-                                    Paused
-                                </span>
-                            )}
-                        </div>
+                            Active session
+                        </p>
+                        <input
+                            value={title}
+                            onChange={e => setTitle(e.target.value)}
+                            aria-label="Workout title"
+                            className="font-extrabold text-2xl bg-transparent outline-none w-full"
+                            style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}
+                        />
+                    </div>
+                    <span
+                        className="shrink-0 mt-1 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-bold tabular-nums"
+                        style={{
+                            background: 'var(--color-primary-muted)',
+                            border: '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)',
+                            color: isPaused ? 'var(--chart-5)' : 'var(--color-primary)',
+                        }}
+                        aria-label={`Elapsed time ${formatTime(elapsedSeconds)}${isPaused ? ', paused' : ''}`}
+                    >
+                        <Clock className="w-3.5 h-3.5" aria-hidden="true" />
+                        {formatTime(elapsedSeconds)}
+                    </span>
+                </div>
+
+                <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                        {isPaused && (
+                            <span
+                                className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded"
+                                style={{
+                                    background: 'color-mix(in srgb, var(--chart-5) 12%, transparent)',
+                                    color: 'var(--chart-5)',
+                                }}
+                            >
+                                Paused
+                            </span>
+                        )}
                         {/* Autosave status chip */}
                         {saveStatus === 'saving' && (
                             <span className="text-xs flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
@@ -632,38 +691,38 @@ export default function ActiveWorkoutPage() {
                             </span>
                         )}
                     </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setIsPaused(!isPaused)}
-                        className="p-2 rounded-full transition-colors"
-                        style={
-                            isPaused
-                                ? { background: '#fff7ed', color: 'var(--chart-5)' }
-                                : { background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }
-                        }
-                    >
-                        {isPaused ? <Play className="w-5 h-5 fill-current" /> : <Pause className="w-5 h-5 fill-current" />}
-                    </button>
-                    <RestTimer />
-                    <WorkoutSpotter onSetDetected={handleSetDetected} />
-                    {params.id && params.id !== 'new' && (
+                    <div className="flex items-center gap-2">
                         <button
-                            onClick={handleDeleteWorkout}
+                            onClick={() => setIsPaused(!isPaused)}
+                            aria-label={isPaused ? 'Resume workout' : 'Pause workout'}
                             className="p-2 rounded-full transition-colors"
-                            style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171' }}
-                            title="Delete Workout"
+                            style={
+                                isPaused
+                                    ? { background: 'color-mix(in srgb, var(--chart-5) 12%, transparent)', color: 'var(--chart-5)' }
+                                    : { background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)' }
+                            }
                         >
-                            <Trash2 className="w-5 h-5" />
+                            {isPaused ? <Play className="w-5 h-5 fill-current" /> : <Pause className="w-5 h-5 fill-current" />}
                         </button>
-                    )}
-                    <button
-                        onClick={finishWorkout}
-                        className="px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition-all active:scale-[0.98]"
-                        style={{ background: 'var(--color-primary)', color: 'white' }}
-                    >
-                        Finish
-                    </button>
+                        <WorkoutSpotter onSetDetected={handleSetDetected} />
+                        {params.id && params.id !== 'new' && (
+                            <button
+                                onClick={handleDeleteWorkout}
+                                className="p-2 rounded-full transition-colors"
+                                style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171' }}
+                                title="Delete Workout"
+                            >
+                                <Trash2 className="w-5 h-5" />
+                            </button>
+                        )}
+                        <button
+                            onClick={finishWorkout}
+                            className="px-4 py-2 rounded-full font-bold text-sm shadow-sm transition-all active:scale-[0.98]"
+                            style={{ background: 'var(--color-primary)', color: 'white' }}
+                        >
+                            Finish
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -700,70 +759,110 @@ export default function ActiveWorkoutPage() {
                 </div>
             )}
 
+            {/* Rest timer slot — always mounted so the countdown survives exercise changes */}
+            <div className="px-4 pt-3 flex-shrink-0">
+                <RestTimer variant="bar" startSignal={restSignal} />
+            </div>
+
             {/* Exercise List */}
             <div
-                className={`flex-1 overflow-y-auto p-4 space-y-6 pb-32 transition-opacity ${isPaused ? 'opacity-50 grayscale-[50%]' : ''}`}
+                className={`flex-1 overflow-y-auto p-4 space-y-3 pb-32 transition-opacity ${isPaused ? 'opacity-50 grayscale-[50%]' : ''}`}
             >
                 {exercises.map((ex, i) => {
                     const prev = lastSets[ex.name];
+                    const isCurrent = i === currentExIndex;
+                    const allDone = ex.sets.length > 0 && ex.sets.every(s => s.completed);
+                    const nextIndex = currentExIndex >= 0
+                        ? exercises.findIndex((e, idx) => idx > currentExIndex && e.sets.some(s => !s.completed))
+                        : -1;
+                    const isExpanded = isCurrent || !!expanded[i];
+                    const ghost = prev?.sets?.[0];
+                    const queueMeta = allDone
+                        ? { label: 'Done', color: 'var(--chart-2)' }
+                        : i === nextIndex
+                            ? { label: 'Up next', color: 'var(--color-primary)' }
+                            : { label: 'Queued', color: 'var(--color-text-muted)' };
+
+                    const headerButtons = (
+                        <div className="flex items-center gap-0.5">
+                            <button
+                                onClick={() => setHistoryExercise(ex.name)}
+                                className="p-2 rounded-full transition-colors focus-ring"
+                                style={{ color: 'var(--color-text-muted)' }}
+                                title="Exercise History"
+                                aria-label={`History for ${ex.name}`}
+                            >
+                                <History className="w-4 h-4" aria-hidden="true" />
+                            </button>
+                            <button
+                                onClick={() => deleteExercise(i)}
+                                className="p-2 rounded-full transition-colors focus-ring"
+                                style={{ color: 'var(--color-text-muted)' }}
+                                title="Delete Exercise"
+                                aria-label={`Delete ${ex.name}`}
+                            >
+                                <X className="w-4 h-4" aria-hidden="true" />
+                            </button>
+                            {!isCurrent && (
+                                <button
+                                    onClick={() => setExpanded(p => ({ ...p, [i]: !p[i] }))}
+                                    aria-expanded={isExpanded}
+                                    aria-label={`${isExpanded ? 'Collapse' : 'Edit'} ${ex.name}`}
+                                    className="px-2.5 py-1.5 rounded-full text-[11px] font-bold transition-colors focus-ring"
+                                    style={{ background: 'var(--color-bg-subtle)', color: 'var(--color-text-secondary)' }}
+                                >
+                                    {isExpanded ? 'Close' : 'Edit'}
+                                </button>
+                            )}
+                        </div>
+                    );
+
                     return (
-                        <div key={i}>
-                            <div className="flex justify-between items-center mb-1">
-                                <h3 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>{ex.name}</h3>
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        onClick={() => setHistoryExercise(ex.name)}
-                                        className="p-2 rounded-full transition-colors"
-                                        style={{ color: 'var(--color-text-muted)' }}
-                                        onMouseEnter={e => {
-                                            e.currentTarget.style.background = 'rgba(77,137,226,0.1)';
-                                            e.currentTarget.style.color = 'var(--color-primary)';
-                                        }}
-                                        onMouseLeave={e => {
-                                            e.currentTarget.style.background = '';
-                                            e.currentTarget.style.color = 'var(--color-text-muted)';
-                                        }}
-                                        title="Exercise History"
+                        <div
+                            key={i}
+                            className={isCurrent ? 'p-4' : 'px-3.5 py-3'}
+                            style={
+                                isCurrent
+                                    ? { background: 'var(--gradient-tile)', border: '1px solid var(--color-gold-border)', borderRadius: 'var(--radius-card)' }
+                                    : { background: 'var(--color-surface)', border: '1px solid var(--color-border-light)', borderRadius: 16 }
+                            }
+                        >
+                            <div className="flex justify-between items-center gap-2">
+                                <div className="min-w-0 flex-1">
+                                    <h3
+                                        className={isCurrent ? 'font-bold text-base truncate' : 'font-bold text-[13px] truncate'}
+                                        style={{ color: 'var(--color-text)', fontFamily: isCurrent ? 'var(--font-display)' : undefined }}
                                     >
-                                        <History className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => deleteExercise(i)}
-                                        className="p-2 rounded-full transition-colors"
-                                        style={{ color: 'var(--color-text-muted)' }}
-                                        onMouseEnter={e => {
-                                            e.currentTarget.style.background = 'rgba(239,68,68,0.08)';
-                                            e.currentTarget.style.color = 'var(--color-danger)';
-                                        }}
-                                        onMouseLeave={e => {
-                                            e.currentTarget.style.background = '';
-                                            e.currentTarget.style.color = 'var(--color-text-muted)';
-                                        }}
-                                        title="Delete Exercise"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
+                                        {ex.name}
+                                    </h3>
+                                    {!isCurrent && (
+                                        <p className="mt-px text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                                            {ex.sets.length} sets
+                                            {prev && prev.sets.length > 0 && ` · last: ${prev.sets.map((s: any) => `${s.weight}×${s.reps}`).join(' | ')}`}
+                                        </p>
+                                    )}
                                 </div>
+                                {isCurrent && ghost && (
+                                    <span className="shrink-0 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                                        last: {ghost.weight} × {ghost.reps}
+                                    </span>
+                                )}
+                                {!isCurrent && (
+                                    <span className="shrink-0 text-[11px] font-bold" style={{ color: queueMeta.color }}>
+                                        {queueMeta.label}
+                                    </span>
+                                )}
+                                {headerButtons}
                             </div>
 
-                            {prev && prev.sets.length > 0 && (
-                                <div
-                                    className="mb-2 px-2 py-1.5 rounded-lg"
-                                    style={{ background: 'rgba(77,137,226,0.08)' }}
-                                >
-                                    <p
-                                        className="text-[10px] font-bold uppercase tracking-wide mb-0.5"
-                                        style={{ color: 'var(--color-primary)' }}
-                                    >
-                                        Last session
-                                    </p>
-                                    <p className="text-xs font-medium" style={{ color: 'var(--color-primary)' }}>
-                                        {prev.sets.map((s: any) => `${s.weight}×${s.reps}`).join(' | ')}
-                                    </p>
+                            {isCurrent && (
+                                <div className="mt-2.5 mb-3">
+                                    <SetPills sets={ex.sets} prevSets={prev?.sets} />
                                 </div>
                             )}
 
-                            <div className="space-y-2">
+                            {isExpanded && (
+                            <div className="space-y-2 mt-2">
                                 <div
                                     className="grid grid-cols-12 gap-2 text-xs font-bold uppercase tracking-wider text-center mb-1 px-1"
                                     style={{ color: 'var(--color-text-muted)' }}
@@ -885,6 +984,24 @@ export default function ActiveWorkoutPage() {
                                     <Plus className="w-3 h-3" /> Add Set
                                 </button>
                             </div>
+                            )}
+
+                            {/* Kinetic CTA — logs the current set with ghost-value prefill */}
+                            {isCurrent && currentSetIndex >= 0 && (() => {
+                                const cur = ex.sets[currentSetIndex];
+                                const g = prev?.sets?.[currentSetIndex];
+                                const w = cur.weight || (g ? String(g.weight) : '?');
+                                const r = cur.reps || (g ? String(g.reps) : '?');
+                                return (
+                                    <button
+                                        onClick={logCurrentSet}
+                                        className="mt-3 w-full text-center py-3 rounded-full text-[13px] font-bold text-white transition-all active:scale-[0.98] focus-ring"
+                                        style={{ background: 'var(--color-primary)', boxShadow: '0 6px 20px rgba(91, 156, 246, 0.3)' }}
+                                    >
+                                        Log set {currentSetIndex + 1} — {w} lb × {r}
+                                    </button>
+                                );
+                            })()}
                         </div>
                     );
                 })}

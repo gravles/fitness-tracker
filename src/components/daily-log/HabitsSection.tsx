@@ -30,7 +30,7 @@ export function HabitsSection({ habits, setHabits, availableHabits }: HabitsSect
                 <div className="text-center py-6">
                     <p className="text-[var(--color-text-muted)] mb-3">{t.habits.noHabits}</p>
                     <Link
-                        href="/profile#habits"
+                        href="/settings"
                         className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-colors text-[var(--color-text)]"
                         style={{ background: 'var(--color-bg-subtle)' }}
                     >
