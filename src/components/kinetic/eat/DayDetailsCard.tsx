@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Plus, Minus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '@/components/LanguageProvider';
@@ -25,29 +25,37 @@ export function DayDetailsCard({ dateStr, log, onSaved }: Props) {
   const [drinks, setDrinks] = useState(0);
   const [windowStart, setWindowStart] = useState('');
   const [windowEnd, setWindowEnd] = useState('');
-  const hydrated = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // True while a local edit hasn't reached the server yet — blocks re-hydration
+  // from clobbering taps that are still debouncing
+  const dirtyRef = useRef(false);
 
-  // Hydrate from the loaded log; re-sync when the viewed day changes
-  useEffect(() => {
+  // Re-sync from the loaded log whenever it changes (day switch, voice-logged
+  // drinks, morning check-in, another device) — unless a local edit is pending.
+  // State is adjusted during render (the React-sanctioned pattern), not in an effect.
+  const [syncedLog, setSyncedLog] = useState<DailyLog | null | undefined>(undefined);
+  if (syncedLog !== log && !dirtyRef.current) {
+    setSyncedLog(log);
     setLogged(!!log?.nutrition_logged);
     setDrinks(log?.alcohol_drinks ?? 0);
     setWindowStart(log?.eating_window_start ?? '');
     setWindowEnd(log?.eating_window_end ?? '');
-    hydrated.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateStr, log?.id]);
+  }
 
   function queueSave(patch: Partial<DailyLog>) {
+    dirtyRef.current = true;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
         await upsertDailyLog({ date: dateStr, ...patch });
+        dirtyRef.current = false;
         await onSaved();
         checkAndAwardBadges();
       } catch (e) {
         console.error(e);
         toast.error('Failed to save');
+        // Server truth wins after a failure — next reload re-syncs the card
+        dirtyRef.current = false;
       }
     }, 700);
   }
