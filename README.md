@@ -1,12 +1,12 @@
-# Kinetic (formerly Life Logger)
+# Kinetic
 
-A personal fitness and nutrition tracker with AI coaching, native iOS/Android apps, and deep health integrations.
+A personal fitness and nutrition tracker with AI coaching, native iOS/Android/WearOS apps, and deep health integrations.
 
 ## Features
 
 **Daily Logging**
 - Food diary with calories, macros (protein / carbs / fat), and alcohol
-- Voice logging and AI-powered camera meal recognition
+- Voice logging (native speech recognition) and AI-powered camera meal recognition
 - Movement, sleep, and custom habit tracking
 - Autosave with live macro status bar
 
@@ -15,12 +15,34 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - AI Weekly Analysis: narrative breakdown of nutrition, movement, and trends
 - AI-generated and editable 12-week training programs
 - AI Nutrition Planner: generates meal plans from your pantry
+- MCP tools so an AI coach (e.g. Claude with the Kinetic connector) can push scheduled workouts and meal plans directly — see [`docs/mcp-tools.md`](./docs/mcp-tools.md)
 
 **Workout Tracking**
 - Active workout logger with real-time set / rep tracking and rest timer
 - AI Coach builds and saves workouts from natural language
 - Schedule workouts on a calendar with per-session reminders
 - 1RM estimation (Epley), PR notifications, and progress analytics
+- Progressive-overload weight suggestions carried through to the watch app
+
+**WearOS Companion App**
+- Standalone Wear OS app — pairs directly to your account, no phone nearby required
+- Today tile with calorie/protein rings, readiness score, and one-tap voice logging
+- Live workout sessions with rotary set logging, rest timer, and continuous heart-rate capture
+- Voice food and set logging; crash-proof session drafts; watch-face complications
+
+**Health Connect & Readiness**
+- Syncs sleep, steps, and resting heart rate from Health Connect (Android)
+- Daily readiness score (0–100) with a plain-language recommendation and factor breakdown
+- Morning check-in for sleep quality, energy, and drinks
+
+**Workout Partners**
+- Link a partner, share weekly progress, send encouragement nudges
+- Share workout templates, meals, and favorite foods
+- Head-to-head challenges (streak, protein-days, workout count)
+
+**Supplement & Medication Tracking**
+- Daily stack with dose scheduling, Take/Skip/Undo, and 30-day adherence history
+- Optional reminder notifications before a scheduled dose
 
 **Health Integrations**
 - Strava: automatic activity sync
@@ -33,7 +55,7 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 
 **Body Metrics & Progress**
 - Weight history chart (lbs or kg)
-- Progress photos with before/after comparison
+- Progress photos with before/after comparison (camera or gallery, auto-compressed)
 - Withings body-composition overlaid on trends
 
 **Gamification**
@@ -42,12 +64,13 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - Streak tracking
 
 **Native Apps**
-- iOS (App Store) and Android (Play Store) via Capacitor
+- iOS (App Store), Android (Play Store), and WearOS via Capacitor + native Wear module
 - FCM push notifications for reminders
 - Native haptics, swipe-back navigation on iOS
 
 **Customisation**
 - Light / System / Dark theme
+- English / French language toggle (also applied to AI Coach responses)
 - Custom nutrition targets, habits list, available equipment
 - Accountability partners with weekly email summaries
 
@@ -55,8 +78,8 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 
 - **Framework**: Next.js 14 (App Router)
 - **Database**: Supabase (Postgres + Storage + Auth)
-- **AI**: Claude (Anthropic) — coaching, meal recognition, program generation
-- **Native**: Capacitor (iOS + Android), Firebase Cloud Messaging
+- **AI**: Claude (Anthropic) — coaching, meal recognition, program generation, MCP tool server
+- **Native**: Capacitor (iOS + Android), native WearOS module, Health Connect, Firebase Cloud Messaging
 - **Styling**: Tailwind CSS with CSS custom properties
 - **Email**: Resend
 

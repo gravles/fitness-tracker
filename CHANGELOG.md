@@ -4,18 +4,76 @@ All notable changes to Life Logger are documented here.
 
 ## [Unreleased]
 
+## [3.0.0] — 2026-07-23
+
+### Kinetic Rebrand
+- Renamed from Life Logger to **Kinetic**, with a full visual and structural overhaul in two stages: a design-language refresh (new navy/gold/blue palette, Sora/Inter typography, Lucide icons, shared Card/Button/ProgressRing primitives) followed by a new information architecture
+- Floating glass "pill" navigation with a context-aware gold FAB that opens a capture sheet, replacing the old raised nav button
+- Bento-style Home screen: nutrition rings, weight/movement sparklines, habit strip, coach banner, and wellness check-in front and center; XP/gamification moved behind the `/more` hub
+- **Eat** (`/nutrition`) is now the primary food logger (voice / snap / barcode / type / menu / favorites) with a skippable timeline; the AI meal planner moved to `/nutrition/planner`; `/log` deep links redirect into the new tab bar
+- Native voice logging fix: Android/iOS now use a real native speech engine (`@capacitor-community/speech-recognition`) instead of the WebView's Web Speech API, which never actually worked on-device
+
+### WearOS Companion App
+- New standalone Wear OS app — pair a watch from Settings → Pair a Device with a 6-character code; the watch talks directly to the backend, no phone nearby required
+- **Today tile**: dual progress rings (calories / protein), readiness score at a glance, one-tap "say food" voice logging, and a chip that launches straight into the next scheduled workout
+- **Live workout sessions** on the watch: today's scheduled workouts front and center, rotary/±  set logging (half-pound increments), full-screen rest timer with haptics, continuous heart-rate capture, and progressive-overload weight prefill with a callout when it's time to go up in weight
+- Crash-proof sessions — an in-progress workout is saved as a draft and resumes exactly where it left off if the watch app is killed
+- Voice food logging and voice set logging ("185 for 8"), transcribed on-device with cloud fallback
+- Watch-face complications: calories-remaining, plus shortcuts straight into voice food logging or the workout picker; tiles refresh instantly after any log instead of waiting on the periodic refresh
+
+### Health Connect & Readiness Score
+- Connect Health Connect (Settings, Android) to sync sleep sessions (with sleep-stage breakdown), daily steps, and resting heart rate from the watch
+- New **readiness score** (0–100, primed / ready / steady / recovery) computed from sleep, energy, alcohol, resting-heart-rate baseline, and training load, shown as a dashboard card with an expandable "why?" breakdown and inline on the watch
+- Daily **morning check-in** modal (dashboard + watch) captures sleep quality, energy, and last night's drinks when not already logged, feeding the readiness score
+
 ### AI Coach MCP Tools
 - New MCP tools so an AI coach can push training plans, not just log activity: `save_workout_template` (upsert by name, with a shortened `fallback_exercises` version), `get_workout_templates`, `schedule_workout` (single date or recurring weekday pattern, capped at 90 days), `get_schedule` (derived planned / completed / missed / skipped statuses), `update_scheduled_workout` (move date, swap template, switch to fallback, skip with reason)
-- `log_workout` extended with strength logging (`exercises` with per-set reps and weight) and automatic completion of the day's scheduled entry
+- `log_workout` extended with strength logging (`exercises` with per-set reps and weight) and automatic completion of the day's scheduled entry; a same-day auto-link safety net catches sessions started from the Schedule page that would otherwise read as "missed"
 - Coach-scheduled workouts use the existing `scheduled_workouts` / `workout_templates` tables, so they appear on the dashboard and Schedule page with no UI changes
 - Migration: `coach_scheduling_migration.sql` (template fallbacks, skip reasons, fallback flag on scheduled entries)
 - Meal-planning counterpart: `save_meal` (upsert by name), `get_meals`, `plan_meal` (saved meal or ad-hoc, single date or recurring, capped at 90 days, configurable meal slots), `get_meal_plan` (per-day entries plus planned-vs-logged macro totals), `update_planned_meal` (move, swap meal, skip with reason)
 - `log_food` extended with `planned_meal_id` (copies plan macros as defaults, any field can be overridden with what was actually eaten, marks the entry logged) and a new `log_planned_meal` convenience tool for one-call "ate what I planned"
 - Planned meals never count toward `get_daily_logs` totals until logged — no double counting
 - New dedicated tables `mcp_meals` / `planned_meals` (kept separate from the existing pantry/AI-meal-generator tables, which model an unrelated feature)
-- Dashboard: new "Today's meal plan" card showing today's planned meals with slot/time and a one-tap "Log as planned" action (hidden entirely on days with no coach plan)
+- Dashboard "Today's meal plan" card and a "Coach Plan" section on the Meal Planner page itself, both with a one-tap "Log as planned" action (hidden entirely on days with no coach plan)
 - Migration: `coach_meal_planning_migration.sql`
 - Tool reference: `docs/mcp-tools.md`
+
+### Workout Partners
+- Invite a partner by email from the new Partners hub; accept/decline, pause, or end a partnership at any time
+- Weekly shared-progress dashboard per partner: streak, days logged, workout count, protein-goal days, average sleep quality, level
+- Two visibility tiers — Summary (stat tiles only) or Full (also shows recent workouts and nutrition logs)
+- One-tap encouragement nudges, plus automatic nudges when a partner hasn't logged
+- Share saved workout templates, saved meals, or favorite foods directly to a partner's shared inbox
+- Partner challenges: streak, protein-days-hit, or workout-count targets over a date range, tracked side-by-side
+
+### Supplement & Medication Tracking
+- New Supplements page: add supplements or prescription medications to a personal stack with dose, form, and notes (medications get an "Rx" badge)
+- Today tab with Take / Skip / Undo on scheduled doses, plus ad-hoc logging outside the schedule
+- History tab with 30-day adherence percentage and a day-by-day taken / skipped / missed log
+- Optional reminder notifications before a scheduled dose (web push, APNs, FCM)
+
+### Language Support
+- English/French toggle in Settings → Customisation, translating the full core UI
+- Selected language is passed to every Claude-powered feature (weekly insights, workout chat, AI coach, goal wizard, workout recommendations) so AI responses come back in the chosen language
+
+### Progress Photos
+- Upload flow now offers "Choose from Gallery" alongside the camera
+- Photos are automatically downscaled and re-encoded before upload, fixing failures on large HEIC photos from iPhone
+
+### Accessibility & Navigation
+- Consistent error states with retry, accessible modal dialogs (focus trap, Escape, ARIA), larger touch targets, and WCAG AA contrast fixes
+- Navigation reorganized into a `/more` hub consolidating Coach, Programs, Progress, Metrics, History, Partners, and Settings
+
+### Play Store Release Readiness
+- Public privacy policy and a Health Connect health-data declaration (Data Safety form, Limited Use compliance) required for the new Health Connect permissions
+- Android release bumped to 2.4 with a Wear OS R8/ProGuard build fix; release builds now fail loudly if `google-services.json` is missing rather than shipping broken
+
+### Bug Fixes
+- Food portion quantities (e.g. a partial package) are now respected everywhere daily totals are computed — a watch or connector log no longer silently resets a day's calories/macros to full-package amounts
+- The Eat day-details drink counter now re-syncs live when drinks are logged elsewhere (voice, morning check-in, another device) instead of only after a full page reload
+- Logging food from a second device (e.g. the watch) no longer overwrites food already logged elsewhere that day — writes are merged instead of replaced
+- All AI API routes now require authentication
 
 ## [2.0.0] — 2026-05-24
 
