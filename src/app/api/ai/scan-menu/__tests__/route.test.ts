@@ -90,6 +90,17 @@ describe('POST /api/ai/scan-menu', () => {
         expect(mockedScanMenu).toHaveBeenCalledWith('base64-menu-image');
     });
 
+    it('forwards PDF data URLs to scanMenu', async () => {
+        mockedScanMenu.mockResolvedValueOnce([]);
+
+        const pdfDataUrl = 'data:application/pdf;base64,JVBERi0xLjQ=';
+        const req = createRequest({ image: pdfDataUrl });
+        const response = await POST(req);
+
+        expect(response.status).toBe(200);
+        expect(mockedScanMenu).toHaveBeenCalledWith(pdfDataUrl);
+    });
+
     it('handles empty recommendations', async () => {
         mockedScanMenu.mockResolvedValueOnce([]);
 
