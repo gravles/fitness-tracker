@@ -23,6 +23,21 @@ function extractBase64(base64Image: string): { data: string; media_type: "image/
     return { data: base64Image, media_type: 'image/jpeg' };
 }
 
+function buildMenuContentBlock(base64Input: string): Anthropic.ImageBlockParam | Anthropic.DocumentBlockParam {
+    if (base64Input.startsWith('data:application/pdf')) {
+        const data = base64Input.split(',')[1] ?? '';
+        return {
+            type: "document",
+            source: { type: "base64", media_type: "application/pdf", data },
+        };
+    }
+    const { data, media_type } = extractBase64(base64Input);
+    return {
+        type: "image",
+        source: { type: "base64", media_type, data },
+    };
+}
+
 export interface FoodAnalysis {
     name: string;
     calories: number;
@@ -186,12 +201,12 @@ export async function scanMenu(base64Image: string): Promise<MenuRecommendation[
         ]), 2000));
     }
 
-    const { data, media_type } = extractBase64(base64Image);
+    const contentBlock = buildMenuContentBlock(base64Image);
 
     const response = await anthropic.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 1000,
-        system: `You are a nutritionist assistant. Analyze the restaurant menu image.
+        system: `You are a nutritionist assistant. Analyze the restaurant menu (photo or PDF).
 Identify the TOP 3 healthiest, high-protein options. AVOID deep fried items or heavy cream sauces if possible.
 
 For each option, ESTIMATE the nutritional content for a standard serving size.
@@ -214,10 +229,7 @@ Return ONLY a valid JSON object with this exact structure, no markdown:
             {
                 role: "user",
                 content: [
-                    {
-                        type: "image",
-                        source: { type: "base64", media_type, data },
-                    },
+                    contentBlock,
                     { type: "text", text: "Find the best high-protein meals." },
                 ],
             },

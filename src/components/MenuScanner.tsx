@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Camera, X, Check, ChefHat, Sparkles } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Camera, X, Check, ChefHat, Sparkles, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import { FoodCamera } from './FoodCamera';
 import { authHeaders } from '@/lib/supabase';
+
+// Vercel rejects request bodies over ~4.5MB; base64 inflates by ~33%
+const MAX_PDF_BYTES = 3 * 1024 * 1024;
 
 interface MenuScannerProps {
     onClose: () => void;
@@ -15,6 +18,27 @@ interface MenuScannerProps {
 export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
     const [step, setStep] = useState<'camera' | 'analyzing' | 'results'>('camera');
     const [recommendations, setRecommendations] = useState<any[]>([]);
+    const pdfInputRef = useRef<HTMLInputElement>(null);
+
+    function handlePdfSelect(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+
+        if (file.type !== 'application/pdf') {
+            toast.error('Please choose a PDF file.');
+            return;
+        }
+        if (file.size > MAX_PDF_BYTES) {
+            toast.error('PDF is too large (max 3MB). Try a photo of the menu instead.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => handleCapture(reader.result as string);
+        reader.onerror = () => toast.error('Could not read the PDF. Please try again.');
+        reader.readAsDataURL(file);
+    }
 
     async function handleCapture(imageSrc: string) {
         setStep('analyzing');
@@ -78,6 +102,21 @@ export function MenuScanner({ onClose, onLog }: MenuScannerProps) {
                     <span className="bg-black/60 text-white px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md">
                         Scan Menu for Healthy Options
                     </span>
+                </div>
+                <div className="absolute bottom-10 left-0 right-0 flex justify-center">
+                    <button
+                        onClick={() => pdfInputRef.current?.click()}
+                        className="flex items-center gap-2 bg-white/10 text-white px-5 py-3 rounded-full text-sm font-bold backdrop-blur-md border border-white/20 active:scale-95 transition-all"
+                    >
+                        <FileText className="w-4 h-4" /> Upload PDF Menu
+                    </button>
+                    <input
+                        ref={pdfInputRef}
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        className="hidden"
+                        onChange={handlePdfSelect}
+                    />
                 </div>
             </div>
         );
