@@ -7,6 +7,7 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 **Daily Logging**
 - Food diary with calories, macros (protein / carbs / fat), and alcohol
 - Voice logging and AI-powered camera meal recognition
+- Menu scanner: snap a photo or upload a PDF menu for AI-suggested picks
 - Movement, sleep, and custom habit tracking
 - Autosave with live macro status bar
 
@@ -15,17 +16,35 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - AI Weekly Analysis: narrative breakdown of nutrition, movement, and trends
 - AI-generated and editable 12-week training programs
 - AI Nutrition Planner: generates meal plans from your pantry
+- MCP tools so an external AI coach can push training plans, schedule/log meals, and manage a supplement stack directly — see [docs/mcp-tools.md](./docs/mcp-tools.md)
 
 **Workout Tracking**
 - Active workout logger with real-time set / rep tracking and rest timer
 - AI Coach builds and saves workouts from natural language
 - Schedule workouts on a calendar with per-session reminders
 - 1RM estimation (Epley), PR notifications, and progress analytics
+- Progressive-overload weight suggestions based on your last 90 days of sets
+
+**Readiness & Wellness**
+- Daily 0–100 readiness score (primed / ready / steady / recovery) from sleep, energy, alcohol, and training load, with a "why?" breakdown
+- Quick morning check-in (sleep, energy, drinks) feeding the readiness score
+- Supplement & medication tracking: catalogue, recurring/as-needed dosing, push reminders, and 30-day adherence history
+
+**Workout Partners**
+- Link partners by email; see shared weekly stats at a "Summary" or "Full" share level
+- One-tap nudges plus automatic streak-at-risk alerts
+- Share workout templates, meals, and favorite foods
+- Group challenges (streak / protein-days / workout-count) with a leaderboard
+
+**WearOS Companion App**
+- Native watch app: voice/dial workout logging, voice food logging, calorie/protein rings, next-workout and readiness tiles, watch-face complications
+- Crash-proof sessions and instant tile refresh after logging
 
 **Health Integrations**
 - Strava: automatic activity sync
 - Withings: body-composition sync (weight, fat %, muscle, bone)
 - Oura: readiness and activity sync
+- Health Connect (Android): steps, resting heart rate, and sleep sync feeding the readiness score
 
 **Calendar Feed**
 - Subscribe to a personal `webcal://` URL in Apple Calendar, Google Calendar, or any iCal app
@@ -33,7 +52,7 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 
 **Body Metrics & Progress**
 - Weight history chart (lbs or kg)
-- Progress photos with before/after comparison
+- Progress photos with before/after comparison (camera or gallery, auto-compressed)
 - Withings body-composition overlaid on trends
 
 **Gamification**
@@ -44,10 +63,12 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 **Native Apps**
 - iOS (App Store) and Android (Play Store) via Capacitor
 - FCM push notifications for reminders
-- Native haptics, swipe-back navigation on iOS
+- Native haptics, swipe-back navigation on iOS, native voice recognition
+- WearOS companion app (see above)
 
 **Customisation**
 - Light / System / Dark theme
+- English / French language toggle (UI and AI responses)
 - Custom nutrition targets, habits list, available equipment
 - Accountability partners with weekly email summaries
 
@@ -57,6 +78,7 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - **Database**: Supabase (Postgres + Storage + Auth)
 - **AI**: Claude (Anthropic) — coaching, meal recognition, program generation
 - **Native**: Capacitor (iOS + Android), Firebase Cloud Messaging
+- **Wearable**: Native Kotlin/Compose WearOS companion app (`wear/`), synced via Health Connect
 - **Styling**: Tailwind CSS with CSS custom properties
 - **Email**: Resend
 

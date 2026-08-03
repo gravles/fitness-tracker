@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen } from 'lucide-react';
+import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen, Watch, Users, Pill, Gauge, Globe } from 'lucide-react';
 import { Modal } from './ui/Modal';
 
 interface ChangelogModalProps {
@@ -12,6 +12,50 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
     if (!isOpen) return null;
 
     const changes = [
+        {
+            version: "v3.0 — Kinetic Rebrand",
+            date: "July 22, 2026",
+            features: [
+                { icon: <Sparkles className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Life Logger is now Kinetic — new name, logomark, and a floating glass navigation bar." },
+                { icon: <Rocket className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Home redesigned as a Bento layout; Eat tab is now the primary food-logging surface with its own Meal Planner page." },
+                { icon: <Brain className="w-4 h-4 text-[var(--color-success)]" />, text: "Native voice logging fixed on iOS and Android — no more silent failures." },
+            ]
+        },
+        {
+            version: "v2.4 — Wear, Readiness & Supplements",
+            date: "July 19, 2026",
+            features: [
+                { icon: <Watch className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "WearOS companion app: log workouts and food by voice or dial, calorie/protein rings, and watch-face complications." },
+                { icon: <Gauge className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Daily readiness score and a quick morning check-in, powered by Health Connect sleep, steps, and resting heart rate on Android." },
+                { icon: <Pill className="w-4 h-4 text-[var(--color-success)]" />, text: "Supplement & medication tracking with recurring reminders and 30-day adherence history." },
+                { icon: <Dumbbell className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Progressive-overload weight suggestions in the workout logger." },
+            ]
+        },
+        {
+            version: "v2.3 — Workout Partners",
+            date: "July 14, 2026",
+            features: [
+                { icon: <Users className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Link workout partners, share progress, send nudges, and run group challenges." },
+                { icon: <Rocket className="w-4 h-4 text-[var(--color-success)]" />, text: "Progress photos: pick from your gallery, not just the camera." },
+                { icon: <Sparkles className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Accessibility and navigation polish across the app, plus a new More hub." },
+            ]
+        },
+        {
+            version: "v2.2 — AI Coach Scheduling",
+            date: "July 5, 2026",
+            features: [
+                { icon: <Brain className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Your AI coach can now schedule workouts and meal plans directly onto your calendar and Meal Planner." },
+            ]
+        },
+        {
+            version: "v2.1 — Language & Reliability",
+            date: "May 28, 2026",
+            features: [
+                { icon: <Globe className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "English / French language toggle for the app and AI features." },
+                { icon: <Dumbbell className="w-4 h-4 text-[var(--color-success)]" />, text: "Workout logger autosave per set, plus editing completed workouts." },
+                { icon: <Bug className="w-4 h-4 text-[var(--color-text-muted)]" />, text: "Fixed camera capture and AI Weekly Analysis reliability issues." },
+            ]
+        },
         {
             version: "v2.0 — Native Apps & Calendar",
             date: "May 24, 2026",
