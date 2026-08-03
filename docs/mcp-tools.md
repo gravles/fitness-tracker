@@ -22,6 +22,8 @@ Tool errors come back as MCP tool results with `isError: true` and a plain-Engli
 | `get_schedule` | Planned workouts with derived status | `start_date` (today), `end_date` (start + 6 days) |
 | `get_meals` | Saved meals with macros, tags, ingredients | none |
 | `get_meal_plan` | Planned meals per day, with plan-vs-actual totals | `start_date` (today), `end_date` (start + 6 days) |
+| `get_supplements` | Supplement & medication catalogue, each with its schedule summary | none |
+| `get_supplement_schedule` | Scheduled/logged doses per day, with adherence stats | `start_date` (today), `end_date` (start + 6 days) |
 
 ## Write tools
 
@@ -155,6 +157,50 @@ dated to the plan's own date. `planned_meal_id`*, `adjustments` (partial overrid
 ```json
 { "planned_meal_id": "abc-123", "adjustments": { "calories": 700 } }
 ```
+
+### `save_supplement`
+Create or update an entry in the user's supplement & medication catalogue. **Upserts by name,
+case-insensitive.** Record exactly what the user tells you — never suggest doses, frequencies, or
+changes to medications; that's between the user and their prescriber.
+
+- `name`* — used as the upsert key
+- `kind` (`supplement`, default) or `medication`
+- `dose_amount`, `dose_unit` (mg, mcg, g, IU, ml, capsule, tablet, scoop…)
+- `form` (capsule, tablet, powder, liquid, gummy…), `notes`
+
+### `schedule_supplement`
+Schedule doses of a saved supplement/medication (status starts as **planned**). Only schedule what
+the user explicitly asks for — never initiate or alter a medication schedule yourself.
+
+- `supplement_name`* — a catalogue entry (see `get_supplements`); create it first with `save_supplement`
+- `date`* — start date YYYY-MM-DD
+- `times` — `HH:MM` list for multi-dose days (default `["08:00"]`)
+- `remind` — push reminder at each dose time (default `true`)
+- `notes`, and optional `recurrence: { days_of_week: [...], until: "YYYY-MM-DD" }`, capped at
+  **90 days** same as `schedule_workout`.
+
+### `log_supplement`
+Record that a dose was taken. Pass `dose_id` (from `get_supplement_schedule`) for a scheduled dose,
+or `supplement_name` for an ad-hoc/as-needed intake (`dose_amount`/`dose_unit` inline, unknown names
+allowed). Optional `date` (today), `time`, `notes`.
+
+### `get_supplement_schedule`
+Returns entries grouped by day with `id`, `date`, `time`, `name`, `dose_amount`, `dose_unit`,
+`status` (`planned`/`taken`/`skipped`), `skipped_reason`, `notes`, plus adherence stats
+(taken vs. missed vs. skipped) for the range. Pass a past range for intake history.
+
+### `update_scheduled_supplement`
+Change one scheduled dose by `dose_id`* (from `get_supplement_schedule`):
+
+- `new_date`, `new_time` — move it
+- `status: "skipped"` + `reason`, or `status: "planned"` to restore
+- `apply_to_future_doses: true` with `status: "skipped"` — stop the supplement entirely by deleting
+  all future planned doses of the same item (confirm with the user first)
+- `notes`
+
+Supplements live in `supplements`, scheduled/logged doses in `supplement_doses` — the same tables
+the `/supplements` page reads, so coach-scheduled doses and reminders appear there immediately.
+DB migration: [`supplement_tracking_migration.sql`](../supplement_tracking_migration.sql).
 
 ## Storage
 
