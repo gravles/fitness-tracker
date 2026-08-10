@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen } from 'lucide-react';
+import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen, Watch, HeartPulse, Pill, Users } from 'lucide-react';
 import { Modal } from './ui/Modal';
 
 interface ChangelogModalProps {
@@ -12,6 +12,18 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
     if (!isOpen) return null;
 
     const changes = [
+        {
+            version: "v3.0 — Kinetic",
+            date: "July 28, 2026",
+            features: [
+                { icon: <Rocket className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Rebranded to Kinetic with a new look: glass bottom nav, gold FAB, and a redesigned Home and Eat experience." },
+                { icon: <Watch className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "WearOS companion app: live workout logging with rest timers and heart-rate capture, voice logging, and watch-face complications." },
+                { icon: <HeartPulse className="w-4 h-4 text-[var(--color-success)]" />, text: "Readiness Score on your dashboard and watch — sleep, energy, alcohol, and training load, no wearable required. Health Connect syncs sleep, steps, and heart rate automatically." },
+                { icon: <Users className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Workout Partners: link with a friend, share progress and templates, and join group challenges." },
+                { icon: <Pill className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Supplement & medication tracking with dose schedules, adherence history, and reminders." },
+                { icon: <Dumbbell className="w-4 h-4 text-[var(--color-success)]" />, text: "Progressive-overload suggestions: your next lift's target weight, based on your last 90 days." },
+            ]
+        },
         {
             version: "v2.0 — Native Apps & Calendar",
             date: "May 24, 2026",
