@@ -156,6 +156,57 @@ dated to the plan's own date. `planned_meal_id`*, `adjustments` (partial overrid
 { "planned_meal_id": "abc-123", "adjustments": { "calories": 700 } }
 ```
 
+### `save_supplement`
+Create or update an entry in the user's supplement & medication catalogue. **Upserts by name, case-insensitive.**
+
+- `name`* — used as the upsert key, e.g. `"Creatine"`
+- `kind` (`supplement`|`medication`, default `supplement`)
+- `dose_amount`, `dose_unit` (e.g. `mg`, `mcg`, `g`, `IU`, `ml`, `capsule`, `tablet`, `scoop`), `form` (e.g. `capsule`, `powder`, `liquid`), `notes`
+
+Record exactly what the user states — never suggest doses, frequencies, or medication changes.
+
+```json
+{ "name": "Levothyroxine", "kind": "medication", "dose_amount": 50, "dose_unit": "mcg", "notes": "take on empty stomach" }
+```
+
+### `get_supplements`
+List the catalogue, each with a schedule summary (upcoming dose times/weekdays). No arguments.
+
+### `schedule_supplement`
+Schedule doses of a saved supplement/medication (status starts as **planned**).
+
+- `supplement_name`* (a `get_supplements` entry — create with `save_supplement` first), `date`*
+- `times` — array of `HH:MM`, for multi-dose days (default `["08:00"]`)
+- `remind` (default `true`) — push reminder at each dose time
+- `notes`, and optional `recurrence: { days_of_week: [...], until: "YYYY-MM-DD" }`, capped at
+  **90 days** same as `schedule_workout` — extra dates are dropped and reported in the response
+
+Only schedule what the user explicitly asks for — never initiate or alter a medication schedule.
+
+```json
+{ "supplement_name": "Creatine", "date": "2026-07-20", "times": ["08:00"],
+  "recurrence": { "days_of_week": ["mon","tue","wed","thu","fri","sat","sun"], "until": "2026-09-30" } }
+```
+
+### `log_supplement`
+Record a dose taken. Pass `dose_id` (from `get_supplement_schedule`) for a scheduled dose, or
+`supplement_name` for an ad-hoc/as-needed intake (unknown names allowed; pass `dose_amount`/`dose_unit`
+inline). Also: `dose_amount`, `dose_unit`, `date` (today, ad-hoc only), `time` (ad-hoc only), `notes`.
+
+### `get_supplement_schedule`
+Scheduled and logged doses for a date range, grouped by day, with adherence stats (taken vs. missed
+vs. skipped). Each entry has an id for `log_supplement`/`update_scheduled_supplement`.
+`start_date` (today), `end_date` (start + 6 days).
+
+### `update_scheduled_supplement`
+Change a scheduled dose by `dose_id`* (from `get_supplement_schedule`):
+
+- `new_date`, `new_time` — move it
+- `status: "skipped"` + `reason`, or `status: "planned"` to restore (taking happens via `log_supplement`)
+- `apply_to_future_doses: true` with `status: "skipped"` — deletes that dose and all future planned
+  doses of the same supplement (the user stopped taking it). Confirm with the user before doing this.
+- `notes`
+
 ## Storage
 
 Templates live in `workout_templates` (JSONB `exercises` / `fallback_exercises`), schedule entries in
@@ -168,3 +219,8 @@ feature, kept separate from the existing pantry/AI-meal-generator tables (`meal_
 `saved_meals`, `pantry_items`), which model a different feature (weekly JSONB meal blobs generated
 from pantry contents) with no per-entry status or logging-link fields. DB migration:
 [`coach_meal_planning_migration.sql`](../coach_meal_planning_migration.sql).
+
+The supplement/medication catalogue lives in `supplements`, scheduled/logged doses in
+`supplement_doses` (denormalized name/dose snapshots on each dose row, so history reads correctly
+even after the catalogue entry is later edited). Same tables back both the `/supplements` page and
+these MCP tools. DB migration: [`supplement_tracking_migration.sql`](../supplement_tracking_migration.sql).

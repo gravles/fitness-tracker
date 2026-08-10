@@ -2,7 +2,9 @@
 
 **Author:** Claude
 **Date:** 2026-07-17
-**Status:** Design proposal — no code exists yet. Decision-grade document for whether to build.
+**Status:** ✅ Shipped. This document is now historical — it describes the original design proposal.
+The companion app was built largely as designed; see [CHANGELOG.md](../CHANGELOG.md) for what shipped
+and `android/wear/` (module `:wear`, sideload instructions in `android/wear/README.md`) for the code.
 **Target hardware:** Samsung Galaxy Watch Ultra (WearOS 5). Apple Watch covered as future work only (§9).
 
 ---
