@@ -15,17 +15,39 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - AI Weekly Analysis: narrative breakdown of nutrition, movement, and trends
 - AI-generated and editable 12-week training programs
 - AI Nutrition Planner: generates meal plans from your pantry
+- MCP server (`/api/mcp`) so an external AI coach can read your logs and push training/meal plans directly — see [`docs/mcp-tools.md`](docs/mcp-tools.md)
 
 **Workout Tracking**
 - Active workout logger with real-time set / rep tracking and rest timer
 - AI Coach builds and saves workouts from natural language
 - Schedule workouts on a calendar with per-session reminders
 - 1RM estimation (Epley), PR notifications, and progress analytics
+- Progressive overload suggestions on freestyle and template sets, based on your last 90 days of logged weights
+
+**Kinetic Watch (WearOS Companion App)**
+- Live workout sessions on the wrist: crown-adjustable reps/weight, haptics, rest-timer ring, crash-proof session resume
+- Voice logging for food and mid-workout sets
+- Today tile and watch-face complications (calories ring, quick-log shortcuts)
+- Heart-rate capture during workouts; morning check-in on the watch
+- See [`docs/watch-companion-design.md`](docs/watch-companion-design.md)
+
+**Readiness & Recovery**
+- Daily 0–100 readiness score from sleep, energy, alcohol, resting heart rate vs. baseline, and training load
+- Morning check-in modal (dashboard and watch) with a "why?" breakdown of the score
 
 **Health Integrations**
 - Strava: automatic activity sync
 - Withings: body-composition sync (weight, fat %, muscle, bone)
 - Oura: readiness and activity sync
+- Health Connect (Android): automatic steps, resting heart rate, and sleep sync
+
+**Supplement & Medication Tracking**
+- Build a stack, schedule doses (including recurring multi-time-per-day schedules), and log intake
+- Adherence tracking, history, and push reminders — tracking-only, not medical advice
+
+**Workout Partners**
+- Mutual partner linking with configurable share level (summary or full)
+- Shared progress, encouragement nudges, sending workouts/meals, and group challenges
 
 **Calendar Feed**
 - Subscribe to a personal `webcal://` URL in Apple Calendar, Google Calendar, or any iCal app
@@ -97,3 +119,12 @@ NEXT_PUBLIC_APP_URL=
 ## Changelog
 
 See [CHANGELOG.md](./CHANGELOG.md) for the full version history.
+
+## Further Documentation
+
+- [`docs/mcp-tools.md`](docs/mcp-tools.md) — MCP server tool reference for AI coach integrations
+- [`docs/watch-companion-design.md`](docs/watch-companion-design.md) — Kinetic Watch (WearOS) design background
+- [`docs/push-notifications-setup.md`](docs/push-notifications-setup.md) — FCM / web-push configuration
+- [`docs/optimistic-ui-guide.md`](docs/optimistic-ui-guide.md) — optimistic-update patterns used across the app
+- [`docs/play-release-checklist.md`](docs/play-release-checklist.md) — Play Store release checklist
+- [`ONBOARDING.md`](ONBOARDING.md) — new-contributor onboarding guide
