@@ -2,7 +2,9 @@
 
 **Author:** Claude
 **Date:** 2026-07-17
-**Status:** Design proposal — no code exists yet. Decision-grade document for whether to build.
+**Status:** Shipped 2026-07-18 as the "Kinetic Watch" companion app (`android/wear/`). This document
+is kept as the original design rationale; it no longer reflects a proposal, it reflects why the
+shipped app is shaped the way it is. See `CHANGELOG.md` [3.0.0] for the user-facing feature list.
 **Target hardware:** Samsung Galaxy Watch Ultra (WearOS 5). Apple Watch covered as future work only (§9).
 
 ---
