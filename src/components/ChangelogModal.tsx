@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen } from 'lucide-react';
+import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen, Watch, HeartPulse, Pill, Users, Accessibility } from 'lucide-react';
 import { Modal } from './ui/Modal';
 
 interface ChangelogModalProps {
@@ -12,6 +12,26 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
     if (!isOpen) return null;
 
     const changes = [
+        {
+            version: "v3.0 — Kinetic",
+            date: "July 28, 2026",
+            features: [
+                { icon: <Sparkles className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Rebranded from Life Logger to Kinetic, with a redesigned nav, Bento-style home screen, and a new \"Eat\" tab for food logging." },
+                { icon: <Watch className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "New WearOS companion app: live workouts with heart-rate capture, voice logging, and watch-face complications — no phone needed nearby." },
+                { icon: <HeartPulse className="w-4 h-4 text-[var(--color-success)]" />, text: "Daily readiness score and morning check-in, on both the dashboard and the watch. Android Health Connect syncs steps, resting heart rate, and sleep automatically." },
+                { icon: <Pill className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Supplement & medication tracking with recurring or as-needed dosing and push reminders." },
+                { icon: <Users className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Workout partners: mutual linking, shared progress, nudges, sharing, and group challenges." },
+                { icon: <Accessibility className="w-4 h-4 text-[var(--color-success)]" />, text: "Accessibility & polish pass: keyboard/screen-reader-friendly modals, retry states, WCAG AA contrast." },
+            ]
+        },
+        {
+            version: "v2.1 — AI Coach Scheduling",
+            date: "July 5, 2026",
+            features: [
+                { icon: <Brain className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Your AI coach can now schedule workouts and plan meals for you, not just log them — appears on the dashboard and Schedule page automatically." },
+                { icon: <BookOpen className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "New \"Today's meal plan\" dashboard card with one-tap \"Log as planned\"." },
+            ]
+        },
         {
             version: "v2.0 — Native Apps & Calendar",
             date: "May 24, 2026",
