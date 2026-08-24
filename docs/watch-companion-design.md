@@ -2,7 +2,7 @@
 
 **Author:** Claude
 **Date:** 2026-07-17
-**Status:** Design proposal — no code exists yet. Decision-grade document for whether to build.
+**Status:** Shipped in v3.0 (2026-07-28) as the `wear/` module. This document is retained for the original design rationale; see [CHANGELOG.md](../CHANGELOG.md) for what actually shipped.
 **Target hardware:** Samsung Galaxy Watch Ultra (WearOS 5). Apple Watch covered as future work only (§9).
 
 ---

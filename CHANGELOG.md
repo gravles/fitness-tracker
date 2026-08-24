@@ -4,6 +4,73 @@ All notable changes to Life Logger are documented here.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [3.0.0] — 2026-07-28
+
+### Kinetic Rebrand
+- App renamed from Life Logger to **Kinetic**: new "K" logomark, navy/gold visual identity, floating glass-pill bottom nav
+- Navigation restructured: Nutrition tab renamed **Eat** and rebuilt as the primary food-logging surface (inline voice / photo / barcode / text / menu / favorites capture); Meal Planner moved to its own **Plan** route; Home redesigned as a "Bento" layout (nutrition rings, weight/movement sparklines, habit strip, coach banner); XP/gamification moved into the **More** hub; bottom-nav "Train" renamed **Workout**; old `/log` and `/workout` deep links redirect so bookmarks keep working
+- New gold floating action button for quick logging from anywhere
+- Fixed native voice logging on Android — it was silently failing inside the WebView; now uses the device's native speech engine
+
+### WearOS Companion App
+- New standalone Kinetic watch app for WearOS (Galaxy Watch Ultra) that talks to the server directly — no phone needs to be nearby
+- One-time 6-digit pairing code entered in Settings on phone/web
+- Live workout sessions on the wrist: per-set logging, haptic feedback on set completion, full-screen rest timer, continuous heart-rate capture recorded with the workout
+- Voice food logging and voice set logging ("185 for 8") right from the watch
+- Today tile with calories/protein rings and the next scheduled workout; watch-face complications for calories remaining and one-tap log shortcuts, with instant refresh after logging
+- Progressive-overload weight suggestions pre-filled per exercise, based on past performance
+- Half-pound (2.5 lb) weight increments to match real plates and dumbbells
+- Crash-proof sessions — a killed or crashed workout resumes exactly where it left off
+
+### Readiness Score & Morning Check-In
+- New daily readiness score (0–100) with a plain-language band (primed / ready / steady / recovery) and a training recommendation — shown on the dashboard and the watch
+- Morning check-in for sleep, energy, and drinks feeds the readiness score, on web and on the watch
+
+### Health Connect (Android)
+- Automatic sync of steps, resting heart rate, and sleep (with sleep stages) from Android Health Connect
+- Tracked sleep now overrides the old manual 1–5 rating when available; resting heart rate is compared against a personal 28-day baseline as a readiness input
+
+### Supplement & Medication Tracking
+- New **Supplements** page (Today / My Stack / History with adherence %)
+- Log supplements or medications with dose, unit, and form (capsule, tablet, liquid, etc.); schedule recurring doses (including multiple times a day) or log ad-hoc / as-needed doses
+- Push reminders fire per scheduled dose; a "Today's doses" dashboard card and a More-hub entry surface it everywhere
+- Available in English and French
+
+### Workout Partners
+- Mutual partner linking by email (both sides must accept) — separate from the existing email-only accountability partners
+- Shared progress with per-side privacy controls (summary vs. full detail), a partner hub, and per-partner weekly stats
+- One-tap nudges plus automatic "hasn't logged today" alerts
+- Send a workout template, saved meal, or favorite food directly to a partner
+- Group challenges (streak / protein-days / workout-count) with anonymous-by-default membership and target-reached notifications
+
+### UI/UX Overhaul
+- Failed page loads now show a retry card instead of a blank screen
+- All modals are keyboard- and screen-reader-accessible (focus trap, Escape to close, focus restored on close)
+- Larger touch targets and numeric keyboards for in-workout inputs
+- Text contrast fixed to WCAG AA in both light and dark themes
+- Emoji icons replaced with a consistent icon set; skeleton loading states added to nutrition, trends, settings, and schedule pages
+
+### Other New Features
+- Menu Scanner now accepts PDF menu uploads, not just photos
+- Progress photo upload adds a "Choose from Gallery" option alongside the camera, with automatic compression for large photos
+- Coach-planned meals appear directly in the Meal Planner with a one-tap "Log as planned" action
+
+### Bug Fixes
+- Fixed drink counts on the Eat day-details card going stale until a full reload
+- Fixed food-portion adjustments (e.g. "half a package") sometimes being ignored in daily totals
+- Fixed food log entries being lost when logging from multiple devices around the same time
+
+### Under the Hood
+- All AI API routes now require authentication
+- Play Store release prep: public privacy policy page, health-data declaration checklist
+- Android release bumped to 2.4; fixed a wear-specific release build failure; release builds now fail fast if required native config is missing
+
+---
+
+## [2.1.0] — 2026-07-05
+
 ### AI Coach MCP Tools
 - New MCP tools so an AI coach can push training plans, not just log activity: `save_workout_template` (upsert by name, with a shortened `fallback_exercises` version), `get_workout_templates`, `schedule_workout` (single date or recurring weekday pattern, capped at 90 days), `get_schedule` (derived planned / completed / missed / skipped statuses), `update_scheduled_workout` (move date, swap template, switch to fallback, skip with reason)
 - `log_workout` extended with strength logging (`exercises` with per-set reps and weight) and automatic completion of the day's scheduled entry
@@ -16,6 +83,8 @@ All notable changes to Life Logger are documented here.
 - Dashboard: new "Today's meal plan" card showing today's planned meals with slot/time and a one-tap "Log as planned" action (hidden entirely on days with no coach plan)
 - Migration: `coach_meal_planning_migration.sql`
 - Tool reference: `docs/mcp-tools.md`
+
+---
 
 ## [2.0.0] — 2026-05-24
 

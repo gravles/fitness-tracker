@@ -7,6 +7,7 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 **Daily Logging**
 - Food diary with calories, macros (protein / carbs / fat), and alcohol
 - Voice logging and AI-powered camera meal recognition
+- Menu Scanner: scan a restaurant menu (photo or PDF) for nutrition estimates
 - Movement, sleep, and custom habit tracking
 - Autosave with live macro status bar
 
@@ -26,6 +27,21 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - Strava: automatic activity sync
 - Withings: body-composition sync (weight, fat %, muscle, bone)
 - Oura: readiness and activity sync
+- Health Connect (Android): automatic steps, resting heart rate, and sleep sync
+
+**Readiness & Wellness**
+- Daily readiness score (0–100) with a plain-language band and training recommendation
+- Morning check-in for sleep, energy, and drinks — on web and on the watch
+- Supplement & medication tracking with recurring or as-needed dosing and push reminders
+
+**Watch Companion (WearOS)**
+- Standalone watch app that talks to the server directly — no phone required nearby
+- Live workout sessions with heart-rate capture, voice food/set logging, and progressive-overload weight suggestions
+- Today tile, watch-face complications, and one-time phone/web pairing
+
+**Workout Partners**
+- Mutual partner linking with shared progress, nudges, and sharing of workouts/meals/foods
+- Group challenges (streak, protein-days, workout-count) with anonymous-by-default membership
 
 **Calendar Feed**
 - Subscribe to a personal `webcal://` URL in Apple Calendar, Google Calendar, or any iCal app
@@ -33,7 +49,7 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 
 **Body Metrics & Progress**
 - Weight history chart (lbs or kg)
-- Progress photos with before/after comparison
+- Progress photos with before/after comparison (camera or gallery)
 - Withings body-composition overlaid on trends
 
 **Gamification**
@@ -57,6 +73,7 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - **Database**: Supabase (Postgres + Storage + Auth)
 - **AI**: Claude (Anthropic) — coaching, meal recognition, program generation
 - **Native**: Capacitor (iOS + Android), Firebase Cloud Messaging
+- **Wearable**: WearOS companion app (Kotlin / Jetpack Compose for Wear OS) — see [`wear/`](./wear)
 - **Styling**: Tailwind CSS with CSS custom properties
 - **Email**: Resend
 
