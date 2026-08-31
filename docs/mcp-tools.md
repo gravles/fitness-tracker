@@ -22,6 +22,8 @@ Tool errors come back as MCP tool results with `isError: true` and a plain-Engli
 | `get_schedule` | Planned workouts with derived status | `start_date` (today), `end_date` (start + 6 days) |
 | `get_meals` | Saved meals with macros, tags, ingredients | none |
 | `get_meal_plan` | Planned meals per day, with plan-vs-actual totals | `start_date` (today), `end_date` (start + 6 days) |
+| `get_supplements` | Supplement/medication catalogue, with each item's active-schedule summary | none |
+| `get_supplement_schedule` | Scheduled doses grouped by day, with adherence stats | `start_date` (today), `end_date` (start + 6 days) |
 
 ## Write tools
 
@@ -156,6 +158,35 @@ dated to the plan's own date. `planned_meal_id`*, `adjustments` (partial overrid
 { "planned_meal_id": "abc-123", "adjustments": { "calories": 700 } }
 ```
 
+### `save_supplement`
+Create or update a catalogue entry. **Upserts by name, case-insensitive.**
+
+- `name`* — e.g. `"Vitamin D3"`
+- `kind`* — `supplement` or `medication`
+- `dose`, `notes`
+
+### `schedule_supplement`
+Assign a supplement/medication to one or more times of day. `supplement_name`* (from
+`get_supplements`), `times`* (array of `HH:MM`), `date`*, `remind_minutes` (optional reminder lead
+time), and optional `recurrence: { days_of_week: [...], until: "YYYY-MM-DD" }`, capped at **90 days**
+same as `schedule_workout` — anything beyond is dropped and reported in the response `note`.
+
+### `log_supplement`
+Record a dose as taken or skipped. Either `scheduled_dose_id` (from `get_supplement_schedule`) for
+a planned dose, or `supplement_name` + `date`/`time` for an ad-hoc / PRN dose. `status`
+(`taken` default, or `skipped` + `reason`).
+
+### `update_scheduled_supplement`
+Change one scheduled dose by `scheduled_dose_id`* (from `get_supplement_schedule`):
+
+- `new_date`, `new_time` — move it
+- `status: "skipped"` + `reason`, or `status: "planned"` to restore
+- `apply_to_future_doses: true` — stop a supplement going forward instead of editing one dose
+
+The coach tools are deliberately narrow: they log and reschedule what the user explicitly states,
+and never suggest a dose or independently alter a medication schedule. The `/supplements` page
+carries a "not medical advice" disclaimer.
+
 ## Storage
 
 Templates live in `workout_templates` (JSONB `exercises` / `fallback_exercises`), schedule entries in
@@ -168,3 +199,7 @@ feature, kept separate from the existing pantry/AI-meal-generator tables (`meal_
 `saved_meals`, `pantry_items`), which model a different feature (weekly JSONB meal blobs generated
 from pantry contents) with no per-entry status or logging-link fields. DB migration:
 [`coach_meal_planning_migration.sql`](../coach_meal_planning_migration.sql).
+
+Supplements/medications live in `supplements` (catalogue) and `supplement_doses` (per-day
+instances, with denormalized name/dose snapshots so history survives a catalogue edit or delete).
+DB migration: [`supplement_tracking_migration.sql`](../supplement_tracking_migration.sql).
