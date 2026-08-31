@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen } from 'lucide-react';
+import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen, FileText, Wine, Palette, Watch, Gauge, ShieldCheck, Pill, HeartPulse, Users, Heart, Gift, Trophy, Image as ImageIcon, Accessibility, Languages, Link2, Save } from 'lucide-react';
 import { Modal } from './ui/Modal';
 
 interface ChangelogModalProps {
@@ -12,6 +12,70 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
     if (!isOpen) return null;
 
     const changes = [
+        {
+            version: "v2.7 — Menu Scanning & Sync Fixes",
+            date: "July 28, 2026",
+            features: [
+                { icon: <FileText className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Menu scanner now accepts a PDF menu, not just a photo." },
+                { icon: <Wine className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Fixed a stale drink count on the Eat day-details card." },
+            ]
+        },
+        {
+            version: "v2.6 — Kinetic Rebrand",
+            date: "July 22, 2026",
+            features: [
+                { icon: <Palette className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Life Logger is now Kinetic — new branding, a redesigned Home, and a single Eat screen for food logging." },
+                { icon: <Zap className="w-4 h-4 text-[var(--color-success)]" />, text: "Native voice logging fixed on Android." },
+            ]
+        },
+        {
+            version: "v2.5 — Supplement & Medication Tracking",
+            date: "July 19, 2026",
+            features: [
+                { icon: <Pill className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Schedule supplements and medications with reminders and adherence tracking on the new Supplements page." },
+                { icon: <Brain className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "AI Coach can log doses you mention, but never changes your schedule on its own." },
+            ]
+        },
+        {
+            version: "v2.4 — Watch Companion, Readiness & Health Connect",
+            date: "July 19, 2026",
+            features: [
+                { icon: <Watch className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Native WearOS companion app: live workout sessions, voice food logging, and a Today tile." },
+                { icon: <Gauge className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Daily readiness score (0–100) from sleep, energy, alcohol, and training load — no wearable required." },
+                { icon: <HeartPulse className="w-4 h-4 text-[var(--color-success)]" />, text: "Health Connect syncs steps, resting heart rate, and sleep from a paired Galaxy Watch." },
+                { icon: <ShieldCheck className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Fixed a multi-device sync bug and locked down every AI API route behind authentication." },
+            ]
+        },
+        {
+            version: "v2.3 — UI/UX Audit",
+            date: "July 15, 2026",
+            features: [
+                { icon: <Accessibility className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Accessible modals, visible error states with retry, and better contrast in both themes." },
+                { icon: <Rocket className="w-4 h-4 text-[var(--color-success)]" />, text: "New /more hub for Coach, Programs, Progress Photos, Partners, and Settings." },
+            ]
+        },
+        {
+            version: "v2.2 — Workout Partners & Challenges",
+            date: "July 14, 2026",
+            features: [
+                { icon: <Users className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Invite a friend as a workout partner — see each other's weekly stats and streaks, with privacy you each control." },
+                { icon: <Heart className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Send one-tap encouragement 💪 and get alerts when your partner's streak is at risk." },
+                { icon: <Gift className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Share workout templates and saved meals — your partner saves them to their library with one tap." },
+                { icon: <Trophy className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Group challenges (2–8 people) with an anonymous leaderboard." },
+                { icon: <ImageIcon className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Progress photos can now be picked from your phone's gallery." },
+            ]
+        },
+        {
+            version: "v2.1 — Visual Refresh, Languages & AI Coach Planning",
+            date: "July 10, 2026",
+            features: [
+                { icon: <Palette className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Visual refresh — new typography, colors, and a redesigned dashboard." },
+                { icon: <Languages className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "English / French language toggle in Settings, including AI coach responses." },
+                { icon: <Brain className="w-4 h-4 text-green-500" />, text: "AI Coach can now build training schedules and meal plans directly." },
+                { icon: <Link2 className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Connect your own Claude.ai account to your data with a personal API key in Settings → Claude AI Connector." },
+                { icon: <Save className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Workout logger autosaves every set and lets you edit completed workouts." },
+            ]
+        },
         {
             version: "v2.0 — Native Apps & Calendar",
             date: "May 24, 2026",
