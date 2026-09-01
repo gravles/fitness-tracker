@@ -4,6 +4,61 @@ All notable changes to Life Logger are documented here.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [3.0.0] — 2026-07-20
+
+### WearOS Companion App
+- Standalone Kotlin/Compose app for Galaxy Watch Ultra and other Wear OS devices, built on the existing MCP API (`android/wear/README.md` for sideloading)
+- Secure short-code pairing: the watch generates its own key locally and only a SHA-256 hash ever leaves the device (`pairing_requests` table, `/api/pair/start|claim|poll`, Settings → "Pair a Device")
+- Today screen: concentric gold-calories / blue-protein rings, remaining values, next scheduled workout, readiness score
+- Live workout sessions: one screen per set with reps/weight steppers (crown/bezel adjustable), haptic on set complete, full-screen rest-timer countdown, heart-rate capture during the session (avg/max logged), intensity picker, half-pound (2.5 lb) weight increments
+- Crash-proof sessions: an in-progress workout is drafted to disk after every set and resumes at the first incomplete exercise on relaunch, even after a force-stop
+- Voice food logging and voice set logging via in-app speech capture (pulsing mic indicator, live partial transcript, auto-submit on pause), with the system speech sheet as a fallback
+- Morning check-in on the watch (sleep / energy / drinks, prefilled from existing logs)
+- Progressive-overload weight prefill: each exercise pre-fills the suggested weight with a hint ("185 → 190 lbs, you earned it")
+- Tiles: dual gold/blue rings with one-tap "food" and "lift" quick actions, refreshing instantly after a log instead of waiting out the 30-minute cycle
+- Watch-face complications: calories-remaining progress arc, plus "food" and "lift" shortcuts
+
+### Readiness Score
+- New transparent 0–100 readiness score computed from logged data only — no wearable required — combining sleep quality, yesterday's energy, alcohol, and acute:chronic training load, with a `primed` / `ready` / `steady` / `recovery` label, training recommendation, and a "why?" component breakdown
+- Dashboard readiness card, plus a first-visit-of-the-day morning check-in modal (sleep/energy/drinks) that feeds it
+- `get_readiness` MCP tool so an AI coach can factor it into recommendations
+- Tracked sleep (via Health Connect) and resting heart rate feed directly into the score once connected, taking priority over the manual 1–5 rating
+
+### Health Connect Integration (Android)
+- Sleep sync: native Health Connect plugin reads sleep sessions with per-stage minutes (`sleep_records` table); readiness uses tracked duration over the manual rating when available
+- Steps and resting heart rate sync, both shown on the dashboard readiness card
+- Settings → Health Connect card (Android app only) with connect + sync-now, alongside the existing Strava / Withings / Oura integrations
+
+### Workout Partners & Group Challenges
+- Mutual workout-partner system: invite by email, per-partner share level (summary vs. full), pause/end
+- Partner hub with weekly stats, streaks, one-tap encouragement pushes, and a shared-items inbox
+- Send workout templates and saved meals directly to a partner
+- Group challenges (2–8 members): create/join/decline/leave, anonymous-by-default leaderboard, progress computed from daily logs and workouts
+- Existing email-only accountability partners are unchanged and continue to work alongside this
+
+### Supplement & Medication Tracking
+- Supplement/medication catalogue with scheduled dosing (recurrence, multi-time days), ad-hoc/PRN logging, and adherence tracking
+- `/supplements` page: Today / My Stack / History tabs with adherence percentage, plus a dashboard "Today's doses" card
+- Push reminders per scheduled dose
+- Six new MCP coach tools — see `docs/mcp-tools.md`
+- Tracking-only disclaimer; this is not medical advice
+
+### Also in this release
+- Progress photos: gallery picker (in addition to camera capture) with automatic image compression for large HEIC originals
+- UI/UX pass: accessible modal primitive (focus trap, Escape, ARIA) across all dialogs, shared error/retry states on every page loader, WCAG AA contrast fixes, larger touch targets for gym use, new `/more` hub for secondary pages
+- Coach-planned meals now appear directly in the Meal Planner page (Today and Week views), not just the dashboard card
+
+### Fixes
+- **Multi-device food log**: fixed a bug where a stale phone browser tab could silently overwrite a day's food log after the watch logged to it — daily logs now merge across devices instead of one writer clobbering another
+- Evening logs (after ~8 PM Eastern) no longer land on the wrong day — MCP tools now resolve "today" in the user's stored timezone instead of the server's UTC clock
+- All AI API routes now require authentication (previously several were open)
+- Completing a workout started from the schedule now reliably marks the scheduled entry done
+
+### Release
+- Public privacy policy at `/privacy` and a Play Store health-declaration checklist (`docs/play-release-checklist.md`) ahead of wider release
+
 ### AI Coach MCP Tools
 - New MCP tools so an AI coach can push training plans, not just log activity: `save_workout_template` (upsert by name, with a shortened `fallback_exercises` version), `get_workout_templates`, `schedule_workout` (single date or recurring weekday pattern, capped at 90 days), `get_schedule` (derived planned / completed / missed / skipped statuses), `update_scheduled_workout` (move date, swap template, switch to fallback, skip with reason)
 - `log_workout` extended with strength logging (`exercises` with per-set reps and weight) and automatic completion of the day's scheduled entry
@@ -16,6 +71,8 @@ All notable changes to Life Logger are documented here.
 - Dashboard: new "Today's meal plan" card showing today's planned meals with slot/time and a one-tap "Log as planned" action (hidden entirely on days with no coach plan)
 - Migration: `coach_meal_planning_migration.sql`
 - Tool reference: `docs/mcp-tools.md`
+
+---
 
 ## [2.0.0] — 2026-05-24
 
