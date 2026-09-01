@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen } from 'lucide-react';
+import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen, Palette, Watch, HeartPulse, Users, Pill, Languages } from 'lucide-react';
 import { Modal } from './ui/Modal';
 
 interface ChangelogModalProps {
@@ -12,6 +12,18 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
     if (!isOpen) return null;
 
     const changes = [
+        {
+            version: "v3.0 — Kinetic, Wear OS & Readiness",
+            date: "July 23, 2026",
+            features: [
+                { icon: <Palette className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Rebranded to Kinetic with a brand-new look: floating pill navigation, a bento-style home screen, and a redesigned Eat tab." },
+                { icon: <Watch className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "New WearOS companion app: log workouts and meals by voice, live heart-rate capture, and watch-face complications." },
+                { icon: <HeartPulse className="w-4 h-4 text-[var(--color-success)]" />, text: "Health Connect sync (sleep, steps, resting heart rate) powers a new daily readiness score." },
+                { icon: <Users className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Workout Partners: share progress, send nudges, share workouts/meals, and run challenges together." },
+                { icon: <Pill className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Supplement & medication tracking with dose scheduling and adherence history." },
+                { icon: <Languages className="w-4 h-4 text-[var(--color-success)]" />, text: "English/French toggle — now including AI Coach responses." },
+            ]
+        },
         {
             version: "v2.0 — Native Apps & Calendar",
             date: "May 24, 2026",

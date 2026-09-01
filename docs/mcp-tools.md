@@ -91,6 +91,8 @@ top of the rep range last time) or `repeat`.
 
 Status is derived: `planned` → `completed` (via `log_workout`) / `skipped` (via
 `update_scheduled_workout`) / `missed` (still planned after the day has passed with no logged session).
+A same-day auto-link safety net retroactively matches completed sessions to a planned entry by
+activity type / template name if the link wasn't made at completion time.
 
 ### `update_scheduled_workout`
 Change one scheduled entry by `scheduled_workout_id`* (from `get_schedule`):
@@ -168,3 +170,6 @@ feature, kept separate from the existing pantry/AI-meal-generator tables (`meal_
 `saved_meals`, `pantry_items`), which model a different feature (weekly JSONB meal blobs generated
 from pantry contents) with no per-entry status or logging-link fields. DB migration:
 [`coach_meal_planning_migration.sql`](../coach_meal_planning_migration.sql).
+
+Coach-planned meals appear on the dashboard "Today's meal plan" card and as a "Coach Plan" section
+on the Meal Planner page (`/nutrition/planner`) itself, both sharing the same "Log as planned" action.
