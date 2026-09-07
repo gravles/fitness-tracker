@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen } from 'lucide-react';
+import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen, Watch, HeartPulse, Users, Pill, Gauge, Mic, FileText, Languages, Wand2 } from 'lucide-react';
 import { Modal } from './ui/Modal';
 
 interface ChangelogModalProps {
@@ -12,6 +12,43 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
     if (!isOpen) return null;
 
     const changes = [
+        {
+            version: "v2.4 — Kinetic Rebrand",
+            date: "July 28, 2026",
+            features: [
+                { icon: <Sparkles className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Life Logger is now Kinetic — new name, logo, and a floating nav with a one-tap capture button." },
+                { icon: <Mic className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Native voice logging fixed on Android — it now actually captures your voice reliably." },
+                { icon: <FileText className="w-4 h-4 text-[var(--color-success)]" />, text: "Menu Scanner accepts an uploaded PDF menu, not just a photo." },
+            ]
+        },
+        {
+            version: "v2.3 — Wear OS, Health Connect & Readiness",
+            date: "July 19, 2026",
+            features: [
+                { icon: <Watch className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "New Wear OS companion app: voice logging, live guided workouts, and rings on your wrist." },
+                { icon: <HeartPulse className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Health Connect sync (Android): sleep, steps, and resting heart rate — no manual entry." },
+                { icon: <Gauge className="w-4 h-4 text-[var(--color-success)]" />, text: "Daily Readiness Score with a plain-language breakdown, plus progressive-overload weight suggestions." },
+                { icon: <Pill className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Supplement & medication tracking with dose scheduling and reminders." },
+            ]
+        },
+        {
+            version: "v2.2 — AI Autopilot & Partners",
+            date: "July 14, 2026",
+            features: [
+                { icon: <Brain className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "AI Coach can now build and schedule entire training and meal plans, not just log activity." },
+                { icon: <Users className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Workout Partners: link up, share progress, send nudges, and run group challenges." },
+                { icon: <Rocket className="w-4 h-4 text-[var(--color-success)]" />, text: "Progress photos now support picking from your gallery, not just the camera." },
+            ]
+        },
+        {
+            version: "v2.1 — Visual Refresh & Français",
+            date: "June 11, 2026",
+            features: [
+                { icon: <Wand2 className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "New color palette, typography, and dashboard design — the first step toward Kinetic." },
+                { icon: <Languages className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Full English/French language toggle, including AI coach responses." },
+                { icon: <Zap className="w-4 h-4 text-[var(--color-success)]" />, text: "Connect your own Claude to your fitness data with a personal AI connector key." },
+            ]
+        },
         {
             version: "v2.0 — Native Apps & Calendar",
             date: "May 24, 2026",
