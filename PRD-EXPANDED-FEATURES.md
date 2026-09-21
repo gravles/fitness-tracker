@@ -14,6 +14,8 @@ This document proposes six major feature pillars, each with full specifications,
 
 **2026-07-14 update:** Since this was written, Nutrition Planning, Periodisation, and the Accountability Layer have all shipped (and the Accountability Layer went further than specced). Withings and Oura integrations are live. Every Quick Win in the appendix is done. The two pillars that matter most and remain untouched are **Correlation Engine** and **Recovery & Readiness Score** — see "What's Outstanding" below. A new "Brainstorm — New Feature Ideas" section has been added at the end for review; nothing in it has been built.
 
+**2026-07-28 update:** Recovery & Readiness Score has now shipped (`src/lib/readiness.ts`, `get_readiness` MCP tool, dashboard readiness card, morning check-in) along with the `sleep_records` table this section flagged as a prerequisite. Android Health Connect (steps, resting heart rate, sleep) and a full Wear OS companion app also shipped in the same window, well beyond what this PRD scoped for wearables. Outside this document's original six pillars, supplement/medication tracking and a Kinetic rebrand (new IA, redesigned Home/Eat flows) also shipped — see `CHANGELOG.md` v3.0.0. **Correlation Engine is now the sole remaining pillar and the clear next priority.**
+
 ---
 
 ## Current State (What Exists) — corrected 2026-07-14
@@ -34,10 +36,10 @@ This document proposes six major feature pillars, each with full specifications,
 | Body metrics | ✅ Real photo upload (Supabase Storage) |
 | Social / sharing | ✅ Full accountability + workout-partner system (partnerships, nudges, challenges) — see note on duplication below |
 | Nutrition planning | ✅ `/nutrition` page — weekly planner, AI generation, saved meals, pantry scan. Missing: grocery list export |
-| Periodisation / progressive overload | ✅ `/programs` — AI 12-week programs, Epley 1RM, deload weeks. Missing: overload *suggestion* on freestyle (non-program) sets |
-| Recovery / readiness | 🔴 Still not started — highest-priority gap |
-| Correlation / insight engine | 🔴 Still not started — highest-priority gap |
-| Wearable integrations | 🟡 Withings + Oura done; Apple Health / Google Fit absent (native-app blocker, as originally scoped) |
+| Periodisation / progressive overload | ✅ `/programs` — AI 12-week programs, Epley 1RM, deload weeks. Freestyle (non-program) overload suggestions also shipped 2026-07-18, server-computed and surfaced on the watch |
+| Recovery / readiness | ✅ Shipped 2026-07-17/18 — see "2026-07-28 update" below |
+| Correlation / insight engine | 🔴 Still not started — the one remaining pillar |
+| Wearable integrations | 🟡 Withings + Oura done; Android Health Connect (steps, resting HR, sleep) shipped 2026-07-18 and a Wear OS companion app shipped 2026-07-17; Apple Health / Apple Watch remain unbuilt |
 
 **Known tech debt (not a feature, flagging for awareness):** there are now two parallel accountability systems — the original lightweight `accountability_partners` (email summary only) from this PRD, and a newer, richer `partnerships`/`challenges` system built later. They overlap in purpose. Worth consolidating at some point, but not urgent.
 

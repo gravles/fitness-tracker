@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen } from 'lucide-react';
+import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen, Watch, Pill, HeartPulse, Users } from 'lucide-react';
 import { Modal } from './ui/Modal';
 
 interface ChangelogModalProps {
@@ -12,6 +12,18 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
     if (!isOpen) return null;
 
     const changes = [
+        {
+            version: "v3.0 — Kinetic & Wear OS",
+            date: "July 28, 2026",
+            features: [
+                { icon: <Sparkles className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Rebranded to Kinetic with a redesigned Home, floating nav, and a new Eat capture flow." },
+                { icon: <Watch className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "New Wear OS companion app: live workout sessions, voice food logging, and watch-face complications." },
+                { icon: <HeartPulse className="w-4 h-4 text-[var(--color-success)]" />, text: "Daily Readiness Score, morning check-in, and Android Health Connect sync (steps, HR, sleep)." },
+                { icon: <Pill className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Supplement & medication tracking with schedules, adherence, and reminders." },
+                { icon: <Users className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Workout partners and group challenges — link up, nudge each other, and compete." },
+                { icon: <Brain className="w-4 h-4 text-[var(--color-success)]" />, text: "AI coach can now push training plans and meal plans directly via new MCP tools." },
+            ]
+        },
         {
             version: "v2.0 — Native Apps & Calendar",
             date: "May 24, 2026",
