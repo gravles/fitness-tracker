@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronRight, Smartphone, Calendar, BookOpen, Dna, Sparkles } from 'lucide-react';
+import { ChevronRight, Sparkles, Watch, HeartPulse, Pill, Users } from 'lucide-react';
 import { Modal } from './ui/Modal';
 
-const APP_VERSION = '2.0';
+const APP_VERSION = '3.0';
 const STORAGE_KEY = 'lifelogger_seen_version';
 
 interface Slide {
@@ -16,34 +16,34 @@ interface Slide {
 
 const SLIDES: Slide[] = [
     {
-        icon: <Smartphone className="w-6 h-6" />,
-        title: 'Now on iOS & Android',
-        body: 'Download the native app for push notifications, haptic feedback, and swipe-back navigation.',
-        accent: 'var(--color-primary)',
-    },
-    {
-        icon: <Calendar className="w-6 h-6" />,
-        title: 'Workout Calendar Feed',
-        body: 'Subscribe to your personal webcal:// link and see every scheduled workout in Apple Calendar or Google Calendar.',
+        icon: <Sparkles className="w-6 h-6" />,
+        title: 'Welcome to Kinetic',
+        body: 'Life Logger has a new name and a new look: a redesigned Home, a floating nav, and a faster Eat capture flow.',
         accent: 'var(--color-gold)',
     },
     {
-        icon: <BookOpen className="w-6 h-6" />,
-        title: '12-Week Training Programs',
-        body: 'AI builds a periodised program for your goal. Target weights, 1RM tracking, PR notifications, and a full adherence calendar.',
+        icon: <Watch className="w-6 h-6" />,
+        title: 'Now on Wear OS',
+        body: 'Pair your Galaxy Watch for live workout sessions, voice food logging, and watch-face complications — right from your wrist.',
+        accent: 'var(--color-primary)',
+    },
+    {
+        icon: <HeartPulse className="w-6 h-6" />,
+        title: 'Readiness Score',
+        body: 'A daily 0–100 readiness score from your sleep, energy, and training load — plus a morning check-in and Health Connect sync.',
         accent: 'var(--chart-2)',
     },
     {
-        icon: <Dna className="w-6 h-6" />,
-        title: 'Health Integrations',
-        body: 'Connect Strava, Withings, and Oura under Settings → Health Integrations to sync activities and body composition automatically.',
-        accent: 'var(--color-primary)',
+        icon: <Pill className="w-6 h-6" />,
+        title: 'Supplement & Medication Tracking',
+        body: 'Schedule doses, track adherence, and get reminders — right alongside your food and workout logs.',
+        accent: 'var(--color-gold)',
     },
     {
-        icon: <Sparkles className="w-6 h-6" />,
-        title: 'AI Nutrition Planner',
-        body: 'Build a pantry, set prep-time limits, and let AI generate a weekly meal plan. Log meals straight to your diary.',
-        accent: 'var(--color-gold)',
+        icon: <Users className="w-6 h-6" />,
+        title: 'Workout Partners & Challenges',
+        body: 'Link up with a partner, share progress, send nudges, and compete in group challenges.',
+        accent: 'var(--color-primary)',
     },
 ];
 

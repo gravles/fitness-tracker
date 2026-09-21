@@ -1,21 +1,72 @@
 # Changelog
 
-All notable changes to Life Logger are documented here.
+All notable changes to Kinetic (formerly Life Logger) are documented here.
 
 ## [Unreleased]
 
-### AI Coach MCP Tools
+## [3.0.0] — 2026-07-28
+
+### Kinetic Rebrand & Redesign
+- Renamed Life Logger → **Kinetic**: new K logomark, app metadata, manifest, and app-store listing name
+- Floating glass pill nav with a context-aware gold FAB and capture sheet
+- New Bento-style Home: nutrition rings, weight/movement sparklines, habit strip, coach banner, and wellness check-in front and center; XP/gamification moved behind a `/more` toggle
+- `Eat` (`/nutrition`) is now the primary food logger: inline voice / photo / barcode / typed / menu-scan / favorites capture, a timeline with skippable planned meals, and date/time editing with a live proportional macro preview
+- Meal Planner moved to `/nutrition/planner` (a "Plan" pill in the Eat header)
+- Workout hub restyled with today's activity surfaced at the top; active session screen redesigned (set pills, ghost values, rest bar, log-set CTA)
+- The old `/log` page dissolved into the tab bar; old deep links still redirect correctly
+- Native voice logging switched to on-device speech recognition (`@capacitor-community/speech-recognition`) since the Android WebView's Web Speech API never worked reliably
+
+### WearOS Companion App
+- New standalone Wear OS app (Kotlin/Compose) for Galaxy Watch and other Wear OS devices — see `android/wear/README.md` for sideloading
+- Secure short-code device pairing (the watch's key never leaves the device; only its hash is sent)
+- Live workout sessions on the watch: set-by-set logging with crown/bezel input, haptic feedback, a full-screen rest-timer ring, and live heart-rate capture during the session
+- Voice food logging directly from the watch, with an in-app speech recognizer and pulsing listening UI
+- "Say set" voice logging during an active session (e.g. "185 for 8")
+- Crash-proof sessions: an in-progress workout is persisted to disk and resumes automatically after the watch app is killed or restarted
+- Today tile and watch-face complications: calories/protein rings, next scheduled workout, one-tap shortcuts into voice logging or the workout picker, calories-remaining complication
+- Progressive overload suggestions carry through to the watch (server-computed target-weight prefill with a "you earned it" hint on an increase)
+- Morning check-in (sleep, energy, drinks) available on the watch, mirroring the phone flow
+
+### Readiness Score & Health Connect
+- New daily Readiness Score (0–100): primed / ready / steady / recovery, computed from sleep quality, yesterday's energy, alcohol, and training load — no wearable required. Exposed to the AI coach via the new `get_readiness` MCP tool
+- Dashboard readiness card with a score ring, band label, recommendation, and a "why?" breakdown of contributing factors
+- Morning check-in modal on first dashboard visit of the day (sleep, energy, drinks — skippable, syncs with the watch's version)
+- Android Health Connect integration: syncs steps, resting heart rate, and sleep sessions (with per-stage detail) automatically; tracked sleep now feeds the Readiness Score ahead of the manual 1–5 rating when available
+
+### Supplement & Medication Tracking
+- New `/supplements` page: Today / My Stack / History tabs with adherence percentage
+- Schedule recurring or one-off doses (multiple times per day supported), or log ad-hoc/PRN intake
+- Push reminders at each scheduled dose time
+- Six new AI coach MCP tools (`save_supplement`, `get_supplements`, `schedule_supplement`, `log_supplement`, `get_supplement_schedule`, `update_scheduled_supplement`) — the coach records exactly what it's told and never suggests or alters doses
+- Dashboard "Today's doses" card
+
+### Workout Partners & Group Challenges
+- Mutual workout-partner linking (invite by email, accept, pause/end) alongside the existing email-only accountability partners
+- Per-partner dashboard with weekly stats, streaks, and one-tap encouragement nudges; configurable share level (summary vs. full)
+- Send workout templates and saved meals directly to a partner
+- Group challenges (2–8 members): anonymous-by-default leaderboard, progress computed from logs and workouts, join/decline/leave
+
+### AI Coach MCP Tools — Training & Meal Planning
 - New MCP tools so an AI coach can push training plans, not just log activity: `save_workout_template` (upsert by name, with a shortened `fallback_exercises` version), `get_workout_templates`, `schedule_workout` (single date or recurring weekday pattern, capped at 90 days), `get_schedule` (derived planned / completed / missed / skipped statuses), `update_scheduled_workout` (move date, swap template, switch to fallback, skip with reason)
 - `log_workout` extended with strength logging (`exercises` with per-set reps and weight) and automatic completion of the day's scheduled entry
-- Coach-scheduled workouts use the existing `scheduled_workouts` / `workout_templates` tables, so they appear on the dashboard and Schedule page with no UI changes
-- Migration: `coach_scheduling_migration.sql` (template fallbacks, skip reasons, fallback flag on scheduled entries)
 - Meal-planning counterpart: `save_meal` (upsert by name), `get_meals`, `plan_meal` (saved meal or ad-hoc, single date or recurring, capped at 90 days, configurable meal slots), `get_meal_plan` (per-day entries plus planned-vs-logged macro totals), `update_planned_meal` (move, swap meal, skip with reason)
 - `log_food` extended with `planned_meal_id` (copies plan macros as defaults, any field can be overridden with what was actually eaten, marks the entry logged) and a new `log_planned_meal` convenience tool for one-call "ate what I planned"
-- Planned meals never count toward `get_daily_logs` totals until logged — no double counting
-- New dedicated tables `mcp_meals` / `planned_meals` (kept separate from the existing pantry/AI-meal-generator tables, which model an unrelated feature)
-- Dashboard: new "Today's meal plan" card showing today's planned meals with slot/time and a one-tap "Log as planned" action (hidden entirely on days with no coach plan)
-- Migration: `coach_meal_planning_migration.sql`
+- Dashboard: "Today's meal plan" card showing today's planned meals with slot/time and a one-tap "Log as planned" action
 - Tool reference: `docs/mcp-tools.md`
+
+### Other Additions
+- PDF menu upload in the menu scanner (alongside photo capture), capped at 3 MB
+- Progress photos: pick an existing photo from the gallery, not just the camera; images are downscaled/re-encoded client-side before upload
+- Accessibility & design-system audit: shared error-with-retry card on every page loader, an accessible modal primitive (focus trap, Escape, `aria-modal`) across all 16 dialogs, 44px gym-friendly tap targets, WCAG AA contrast fixes, consistent `--color-danger` / brand button usage
+- Navigation: `/more` hub for Coach, Programs, Progress, Metrics, History, Partners, Settings, and Help; tabs deep-linkable via `?tab=`
+
+### Fixes & Reliability
+- Fixed a multi-device data-loss bug where a stale phone session could overwrite food items logged elsewhere (watch, other device) — daily logs now merge instead of overwrite
+- Food totals (dashboard, MCP `log_food`) now correctly respect per-item portion-quantity multipliers instead of always using full-package macros
+- "Today" now resolves in the user's own timezone across all MCP tools instead of the server's UTC clock, fixing evening logs landing on the wrong day
+- All AI API routes now require authentication
+- Fixed a stale drink count on the Eat page's day-details card
+- Android release builds now fail fast if the Firebase config is missing, instead of shipping a build that crashes on login
 
 ## [2.0.0] — 2026-05-24
 

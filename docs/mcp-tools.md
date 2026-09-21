@@ -22,6 +22,8 @@ Tool errors come back as MCP tool results with `isError: true` and a plain-Engli
 | `get_schedule` | Planned workouts with derived status | `start_date` (today), `end_date` (start + 6 days) |
 | `get_meals` | Saved meals with macros, tags, ingredients | none |
 | `get_meal_plan` | Planned meals per day, with plan-vs-actual totals | `start_date` (today), `end_date` (start + 6 days) |
+| `get_supplements` | Supplement/medication catalogue with schedule summaries | none |
+| `get_supplement_schedule` | Scheduled + logged doses per day, with adherence stats | `start_date` (today), `end_date` (start + 6 days) |
 
 ## Write tools
 
@@ -156,6 +158,53 @@ dated to the plan's own date. `planned_meal_id`*, `adjustments` (partial overrid
 { "planned_meal_id": "abc-123", "adjustments": { "calories": 700 } }
 ```
 
+### `get_readiness`
+Today's readiness score, 0–100, with `label` (`primed`/`ready`/`steady`/`recovery`), a training
+recommendation, and the contributing components (sleep quality, yesterday's energy, alcohol,
+acute-vs-chronic training load). Computed entirely from logged data — no wearable required.
+No arguments.
+
+## Supplements & Medications
+
+Mirrors the coach meal-planning architecture: a catalogue plus scheduled/logged doses.
+**The coach records exactly what the user tells it — it never suggests, initiates, or alters a
+dose or schedule; that stays between the user and their prescriber.**
+
+### `save_supplement`
+Create or update a catalogue entry. **Upserts by name, case-insensitive.**
+`name`*, `kind` (`supplement`|`medication`, default `supplement`), `dose_amount`, `dose_unit`
+(e.g. `mg`, `mcg`, `g`, `IU`, `ml`, `capsule`, `tablet`, `scoop`), `form`, `notes`.
+
+### `schedule_supplement`
+Schedule doses of a saved catalogue entry (status starts `planned`). Pass multiple `times` for
+multi-dose days.
+
+- `supplement_name`*, `date`* (start date; with `recurrence`, doses land on matching weekdays)
+- `times` — `HH:MM` list, default `["08:00"]`
+- `remind` — push reminder at each dose time, default `true`
+- `recurrence: { days_of_week: [...], until: "YYYY-MM-DD" }` — capped at **90 days**, same as
+  `schedule_workout`; anything beyond is dropped and reported in the response `note`
+
+```json
+{ "supplement_name": "Creatine", "date": "2026-07-20", "times": ["08:00"],
+  "recurrence": { "days_of_week": ["mon","tue","wed","thu","fri","sat","sun"], "until": "2026-09-30" } }
+```
+
+### `log_supplement`
+Record that a dose was taken. Pass `dose_id` (from `get_supplement_schedule`) for a scheduled
+dose, or `supplement_name` for an ad-hoc/as-needed intake (unknown names allowed, with
+`dose_amount`/`dose_unit` inline). `date` (today) and `time` are ad-hoc only.
+
+### `get_supplement_schedule`
+Scheduled and logged doses for a date range, grouped by day, with adherence stats (taken vs.
+missed vs. skipped). Each entry has an `id` for `log_supplement` / `update_scheduled_supplement`.
+
+### `update_scheduled_supplement`
+Change a scheduled dose by `dose_id`*: `new_date`/`new_time` to move it, `status: "skipped"` +
+`reason` to skip once, `status: "planned"` to restore. To stop a supplement entirely, pass
+`status: "skipped"` with `apply_to_future_doses: true` — deletes that dose and all future planned
+doses of the same supplement (confirm with the user first).
+
 ## Storage
 
 Templates live in `workout_templates` (JSONB `exercises` / `fallback_exercises`), schedule entries in
@@ -168,3 +217,8 @@ feature, kept separate from the existing pantry/AI-meal-generator tables (`meal_
 `saved_meals`, `pantry_items`), which model a different feature (weekly JSONB meal blobs generated
 from pantry contents) with no per-entry status or logging-link fields. DB migration:
 [`coach_meal_planning_migration.sql`](../coach_meal_planning_migration.sql).
+
+Supplement/medication catalogue entries live in `supplements`, scheduled and logged doses in
+`supplement_doses` (denormalized dose snapshots, so history survives a catalogue entry being
+deleted). DB migration:
+[`supplement_tracking_migration.sql`](../supplement_tracking_migration.sql).
