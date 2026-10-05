@@ -7,6 +7,7 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 **Daily Logging**
 - Food diary with calories, macros (protein / carbs / fat), and alcohol
 - Voice logging and AI-powered camera meal recognition
+- Menu scanner (photo or PDF)
 - Movement, sleep, and custom habit tracking
 - Autosave with live macro status bar
 
@@ -15,6 +16,14 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - AI Weekly Analysis: narrative breakdown of nutrition, movement, and trends
 - AI-generated and editable 12-week training programs
 - AI Nutrition Planner: generates meal plans from your pantry
+
+**Readiness & Recovery**
+- 0-100 readiness score from sleep, energy, alcohol, and training load
+- Morning check-in and dashboard readiness card
+- Progressive-overload weight suggestions
+
+**Supplements & Medications**
+- Scheduled doses with reminders, as-needed logging, and adherence history
 
 **Workout Tracking**
 - Active workout logger with real-time set / rep tracking and rest timer
@@ -26,6 +35,7 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - Strava: automatic activity sync
 - Withings: body-composition sync (weight, fat %, muscle, bone)
 - Oura: readiness and activity sync
+- Health Connect (Android): sleep, steps, and resting heart rate
 
 **Calendar Feed**
 - Subscribe to a personal `webcal://` URL in Apple Calendar, Google Calendar, or any iCal app
@@ -45,6 +55,7 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - iOS (App Store) and Android (Play Store) via Capacitor
 - FCM push notifications for reminders
 - Native haptics, swipe-back navigation on iOS
+- Wear OS companion: dual-ring tile, voice food and set logging, morning check-in
 
 **Customisation**
 - Light / System / Dark theme
