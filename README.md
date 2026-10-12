@@ -6,7 +6,7 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 
 **Daily Logging**
 - Food diary with calories, macros (protein / carbs / fat), and alcohol
-- Voice logging and AI-powered camera meal recognition
+- Voice logging, AI-powered camera meal recognition, and PDF/photo menu scanning
 - Movement, sleep, and custom habit tracking
 - Autosave with live macro status bar
 
@@ -26,6 +26,19 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - Strava: automatic activity sync
 - Withings: body-composition sync (weight, fat %, muscle, bone)
 - Oura: readiness and activity sync
+
+**Readiness & Health Connect**
+- Morning check-in and readiness score with a "why?" breakdown
+- Android Health Connect sync of sleep, steps, and resting heart rate
+
+**Supplements & Medication**
+- Schedule doses, log adherence, and get per-dose reminders
+
+**Workout Partners**
+- Mutual partner linking, shared progress, nudges, and group challenges
+
+**WearOS Companion (preview)**
+- Today tile, live workout logging, and voice food logging from your watch
 
 **Calendar Feed**
 - Subscribe to a personal `webcal://` URL in Apple Calendar, Google Calendar, or any iCal app
