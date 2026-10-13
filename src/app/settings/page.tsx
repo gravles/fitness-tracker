@@ -17,6 +17,7 @@ import { NotificationSettings } from '@/components/NotificationSettings';
 import { ClaudeConnectorSection } from '@/components/ClaudeConnectorSection';
 import { PairDeviceSection } from '@/components/PairDeviceSection';
 import { HealthConnectSection } from '@/components/HealthConnectSection';
+import { StartingWeightSection } from '@/components/StartingWeightSection';
 import { haptics } from '@/lib/haptics';
 
 const sectionStyle = {
@@ -445,6 +446,8 @@ export default function SettingsPage() {
                         </div>
                     ))}
                 </div>
+
+                <StartingWeightSection weightUnit={profile.weightUnit} />
             </section>
 
             {/* Customization */}

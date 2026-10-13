@@ -40,16 +40,11 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
         return Math.round((ft * 30.48) + (inches * 2.54));
     }
 
-    function kgFromLbs(lbs: string) {
-        const l = parseFloat(lbs);
-        return isNaN(l) ? null : parseFloat((l * 0.453592).toFixed(1));
-    }
-
     async function handleFinish() {
         setSaving(true);
         try {
             const heightCm = cmFromFtIn() || null;
-            const weightKg = kgFromLbs(weightLbs);
+            const weight = parseFloat(weightLbs);
 
             await updateSettings({
                 display_name:  name.trim() || null,
@@ -59,10 +54,11 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                 target_weight: weightLbs ? parseFloat(weightLbs) : null,
             });
 
-            if (weightKg) {
+            if (weight > 0) {
                 try {
                     const today = new Date().toISOString().slice(0, 10);
-                    await upsertBodyMetrics({ date: today, weight: weightKg });
+                    // body_metrics.weight is stored in lbs app-wide
+                    await upsertBodyMetrics({ date: today, weight });
                 } catch { /* non-fatal */ }
             }
 
