@@ -339,6 +339,52 @@ export async function getBodyMetricsHistory(startDate: string, endDate: string) 
     return data as BodyMetrics[];
 }
 
+/** The user's oldest weigh-ins (weight in lbs), oldest first. */
+export async function getEarliestWeightEntries(limit = 2): Promise<BodyMetrics[]> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+        .from('body_metrics')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .not('weight', 'is', null)
+        .order('date', { ascending: true })
+        .limit(limit);
+
+    if (error) throw error;
+    return data as BodyMetrics[];
+}
+
+/**
+ * Overwrite (or clear, with null) the weight on one day's body_metrics row.
+ * Clearing deletes the row when it holds nothing else, so measurements and
+ * photos logged the same day survive.
+ */
+export async function setBodyWeightForDate(date: string, weightLbs: number | null): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { data: row, error: readError } = await supabase
+        .from('body_metrics')
+        .select('photo_url, measurements')
+        .eq('user_id', session.user.id)
+        .eq('date', date)
+        .maybeSingle();
+    if (readError) throw readError;
+    if (!row) throw new Error('No weigh-in found for that date');
+
+    const hasOtherData = !!row.photo_url
+        || Object.values(row.measurements ?? {}).some(v => v !== null && v !== 0);
+
+    const query = weightLbs === null && !hasOtherData
+        ? supabase.from('body_metrics').delete()
+        : supabase.from('body_metrics').update({ weight: weightLbs });
+
+    const { error } = await query.eq('user_id', session.user.id).eq('date', date);
+    if (error) throw error;
+}
+
 export interface UserSettings {
     user_id?: string;
     target_weight?: number | null;
