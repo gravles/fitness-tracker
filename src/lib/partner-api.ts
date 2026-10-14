@@ -6,7 +6,10 @@
 // enforce share levels with the service-role key.
 import { supabase } from './supabase';
 import { saveAsTemplate, TemplateExercise, WorkoutCategory, WorkoutDifficulty } from './features';
-import { createSavedMeal, addFavoriteFood } from './api';
+import { createSavedMeal, addFavoriteFood, appendFoodItems, addWorkout, upsertDailyLog } from './api';
+import { LoggedMealPayload, LoggedActivityPayload, scaleFoodItems } from './partner-log-share';
+
+export type { LoggedMealPayload, LoggedActivityPayload };
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -73,7 +76,7 @@ export interface PartnerDashboard {
     full?: PartnerFullData;
 }
 
-export type SharedItemType = 'workout_template' | 'saved_meal' | 'favorite_food';
+export type SharedItemType = 'workout_template' | 'saved_meal' | 'favorite_food' | 'logged_meal' | 'logged_activity';
 
 export interface WorkoutTemplatePayload {
     name: string;
@@ -98,13 +101,22 @@ export interface FavoriteFoodPayload {
     portion_estimate?: string;
 }
 
+export type SharedPayload =
+    | WorkoutTemplatePayload | SavedMealPayload | FavoriteFoodPayload
+    | LoggedMealPayload | LoggedActivityPayload;
+
+/** Shares that go into the recipient's log ("Log it") rather than their library ("Save"). */
+export function isLoggedShare(type: SharedItemType): type is 'logged_meal' | 'logged_activity' {
+    return type === 'logged_meal' || type === 'logged_activity';
+}
+
 export interface SharedItem {
     id: string;
     partnership_id: string;
     from_user_id: string;
     to_user_id: string;
     item_type: SharedItemType;
-    payload: WorkoutTemplatePayload | SavedMealPayload | FavoriteFoodPayload;
+    payload: SharedPayload;
     message: string | null;
     status: 'new' | 'saved' | 'dismissed';
     created_at: string;
@@ -248,7 +260,7 @@ export async function getPartnerDashboard(partnershipId: string): Promise<Partne
 export async function shareItemToPartner(
     partnership: Partnership,
     itemType: SharedItemType,
-    payload: WorkoutTemplatePayload | SavedMealPayload | FavoriteFoodPayload,
+    payload: SharedPayload,
     message?: string,
 ): Promise<void> {
     const { data: { session } } = await supabase.auth.getSession();
@@ -274,6 +286,18 @@ export async function shareItemToPartner(
         method: 'POST',
         body: JSON.stringify({ itemId: data.id }),
     }).catch(() => {});
+}
+
+/** Share one snapshot with several partners; partial failures don't block the rest. */
+export async function shareWithPartners(
+    partners: Partnership[],
+    itemType: SharedItemType,
+    payload: SharedPayload,
+): Promise<{ sent: Partnership[]; error: unknown }> {
+    const results = await Promise.allSettled(partners.map(p => shareItemToPartner(p, itemType, payload)));
+    const sent = partners.filter((_, i) => results[i].status === 'fulfilled');
+    const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+    return { sent, error: failed ? failed.reason : null };
 }
 
 export async function getSharedInbox(): Promise<SharedItem[]> {
@@ -304,6 +328,7 @@ export async function getSharedInbox(): Promise<SharedItem[]> {
 
 /** One-tap save: copies the snapshot into my own library, marks the share saved. */
 export async function saveSharedItem(item: SharedItem): Promise<void> {
+    if (isLoggedShare(item.item_type)) throw new Error('Use logSharedItem for logged meals and activities');
     if (item.item_type === 'workout_template') {
         const p = item.payload as WorkoutTemplatePayload;
         await saveAsTemplate(p.name, p.exercises, {
@@ -325,6 +350,40 @@ export async function saveSharedItem(item: SharedItem): Promise<void> {
             fat: p.fat,
             portion_estimate: p.portion_estimate,
         });
+    }
+    await setSharedItemStatus(item.id, 'saved');
+}
+
+export type LogSharedOptions =
+    | { date: string; portion: number }
+    | { date: string; duration: number; calories?: number };
+
+/**
+ * "Log it": copy a partner's meal or activity into my own log for `date`.
+ * Meals are scaled to my portion; activities take my own duration/calories.
+ */
+export async function logSharedItem(item: SharedItem, options: LogSharedOptions): Promise<void> {
+    if (item.item_type === 'logged_meal' && 'portion' in options) {
+        const p = item.payload as LoggedMealPayload;
+        const items = scaleFoodItems(p.food_items, options.portion)
+            .map(i => ({ ...i, source: 'partner' as const }));
+        await appendFoodItems(options.date, items);
+    } else if (item.item_type === 'logged_activity' && 'duration' in options) {
+        const p = item.payload as LoggedActivityPayload;
+        await addWorkout({
+            date: options.date,
+            activity_type: p.activity_type,
+            duration: options.duration,
+            intensity: p.intensity,
+            source: 'manual',
+            ...(p.distance ? { distance: p.distance } : {}),
+            ...(p.elevation_gain ? { elevation_gain: p.elevation_gain } : {}),
+            ...(p.notes ? { notes: p.notes } : {}),
+            ...(options.calories ? { calories: options.calories } : {}),
+        });
+        await upsertDailyLog({ date: options.date, movement_completed: true });
+    } else {
+        throw new Error('This share can’t be logged');
     }
     await setSharedItemStatus(item.id, 'saved');
 }

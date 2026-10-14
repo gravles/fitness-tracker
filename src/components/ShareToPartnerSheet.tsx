@@ -7,8 +7,7 @@ import { useLanguage } from '@/components/LanguageProvider';
 import { Button, Textarea, Modal } from '@/components/ui';
 import { haptics } from '@/lib/haptics';
 import {
-    Partnership, SharedItemType,
-    WorkoutTemplatePayload, SavedMealPayload, FavoriteFoodPayload,
+    Partnership, SharedItemType, SharedPayload,
     getPartnerships, shareItemToPartner,
 } from '@/lib/partner-api';
 
@@ -16,12 +15,13 @@ interface ShareToPartnerSheetProps {
     open: boolean;
     onClose: () => void;
     itemType: SharedItemType;
-    payload: WorkoutTemplatePayload | SavedMealPayload | FavoriteFoodPayload;
+    payload: SharedPayload;
 }
 
 /**
- * Bottom sheet for sending a workout template / meal / food idea to a partner.
- * The payload is a snapshot — the recipient saves a copy into their own library.
+ * Bottom sheet for sending a workout template / meal / food idea — or a meal
+ * eaten or activity done together — to a partner. The payload is a snapshot;
+ * the recipient saves or logs their own copy.
  */
 export function ShareToPartnerSheet({ open, onClose, itemType, payload }: ShareToPartnerSheetProps) {
     const { t } = useLanguage();
@@ -59,7 +59,8 @@ export function ShareToPartnerSheet({ open, onClose, itemType, payload }: ShareT
             onClose();
         } catch (error: any) {
             haptics.error();
-            toast.error(error.message || 'Failed to share');
+            // 23514 = check violation: the logged_* share types need partner_log_share_migration.sql
+            toast.error(error?.code === '23514' ? t.partner.logShare.migrationNeeded : (error.message || 'Failed to share'));
         } finally {
             setSending(false);
         }

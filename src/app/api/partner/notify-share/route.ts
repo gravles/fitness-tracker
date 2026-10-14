@@ -6,7 +6,11 @@ const TYPE_LABELS: Record<string, string> = {
     workout_template: 'a workout',
     saved_meal: 'a meal',
     favorite_food: 'a food idea',
+    logged_meal: 'a meal you ate together',
+    logged_activity: 'an activity you did together',
 };
+
+const LOGGED_TYPES = new Set(['logged_meal', 'logged_activity']);
 
 /**
  * POST /api/partner/notify-share  { itemId }
@@ -38,7 +42,9 @@ export async function POST(req: NextRequest) {
 
         await sendPushToUser(admin, item.to_user_id, {
             title: `🎁 ${senderName} shared ${label}`,
-            body: itemName ? `“${itemName}” — save it to your library with one tap.` : 'Open the app to check it out.',
+            body: !itemName ? 'Open the app to check it out.'
+                : LOGGED_TYPES.has(item.item_type) ? `“${itemName}” — add it to your log with one tap.`
+                : `“${itemName}” — save it to your library with one tap.`,
             url: '/partner',
             tag: 'partner-share',
         });

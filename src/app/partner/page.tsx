@@ -3,7 +3,7 @@
 import { isAuthError } from '@/lib/api';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Loader2, Users, Mail, Inbox, Dumbbell, UtensilsCrossed, Apple, Check, X, Heart, Trophy, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Users, Mail, Inbox, Dumbbell, UtensilsCrossed, Apple, Check, X, Heart, Trophy, Plus, Soup, Bike } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { formatDistanceToNow, parseISO } from 'date-fns';
@@ -14,13 +14,16 @@ import {
     Partnership, SharedItem, Nudge, ChallengeListItem,
     getPartnerships, invitePartner, respondToInvite,
     setPartnershipStatus, ensureMyProfile, getSharedInbox, saveSharedItem,
-    dismissSharedItem, getRecentNudges, getChallenges, respondToChallenge,
+    dismissSharedItem, getRecentNudges, getChallenges, respondToChallenge, isLoggedShare,
 } from '@/lib/partner-api';
+import { LogSharedItemModal } from '@/components/LogSharedItemModal';
 
 const ITEM_ICONS = {
     workout_template: Dumbbell,
     saved_meal: UtensilsCrossed,
     favorite_food: Apple,
+    logged_meal: Soup,
+    logged_activity: Bike,
 } as const;
 
 export default function PartnerPage() {
@@ -34,6 +37,7 @@ export default function PartnerPage() {
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviting, setInviting] = useState(false);
     const [busyId, setBusyId] = useState<string | null>(null);
+    const [loggingItem, setLoggingItem] = useState<SharedItem | null>(null);
 
     const load = useCallback(async () => {
         setLoadError(false);
@@ -147,6 +151,8 @@ export default function PartnerPage() {
     function itemTypeLabel(type: SharedItem['item_type']) {
         return type === 'workout_template' ? t.partner.inbox.workout
             : type === 'saved_meal' ? t.partner.inbox.meal
+            : type === 'logged_meal' ? t.partner.inbox.loggedMeal
+            : type === 'logged_activity' ? t.partner.inbox.loggedActivity
             : t.partner.inbox.food;
     }
 
@@ -301,9 +307,9 @@ export default function PartnerPage() {
                                                             <Button
                                                                 className="!py-2 text-xs"
                                                                 disabled={busyId === item.id}
-                                                                onClick={() => handleSaveItem(item)}
+                                                                onClick={() => isLoggedShare(item.item_type) ? setLoggingItem(item) : handleSaveItem(item)}
                                                             >
-                                                                {t.partner.inbox.save}
+                                                                {isLoggedShare(item.item_type) ? t.partner.inbox.logIt : t.partner.inbox.save}
                                                             </Button>
                                                             <Button
                                                                 variant="ghost"
@@ -450,6 +456,15 @@ export default function PartnerPage() {
                     </>
                 )}
             </div>
+
+            <LogSharedItemModal
+                item={loggingItem}
+                onClose={() => setLoggingItem(null)}
+                onLogged={logged => {
+                    setLoggingItem(null);
+                    setInbox(prev => prev.map(i => i.id === logged.id ? { ...i, status: 'saved' } : i));
+                }}
+            />
         </main>
     );
 }

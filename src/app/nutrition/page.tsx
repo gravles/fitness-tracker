@@ -23,6 +23,10 @@ import { Timeline, FeedEntry } from '@/components/kinetic/eat/Timeline';
 import { EatCapture, CaptureAction } from '@/components/kinetic/eat/EatCapture';
 import { DayDetailsCard } from '@/components/kinetic/eat/DayDetailsCard';
 import { LoadError } from '@/components/ui';
+import { ShareToPartnerSheet } from '@/components/ShareToPartnerSheet';
+import { useActivePartners } from '@/components/useActivePartners';
+import { buildMealPayload, buildActivityPayload } from '@/lib/partner-log-share';
+import type { SharedItemType, SharedPayload } from '@/lib/partner-api';
 
 const CAPTURE_ACTIONS: CaptureAction[] = ['voice', 'camera', 'barcode', 'text', 'scan', 'favorites'];
 
@@ -51,6 +55,8 @@ export default function EatPage() {
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [shareTarget, setShareTarget] = useState<{ itemType: SharedItemType; payload: SharedPayload } | null>(null);
+  const hasPartner = useActivePartners().length > 0;
 
   // Legacy deep links: /nutrition?tab=… belongs to the Meal Planner
   useEffect(() => {
@@ -300,6 +306,8 @@ export default function EatPage() {
                 onEdit={setEditingIndex}
                 onDelete={handleDelete}
                 onFavorite={handleFavorite}
+                onShare={hasPartner ? item => setShareTarget({ itemType: 'logged_meal', payload: buildMealPayload([item], dateStr) }) : undefined}
+                onShareWorkout={hasPartner ? w => setShareTarget({ itemType: 'logged_activity', payload: buildActivityPayload(w) }) : undefined}
                 onLogPlanned={handleLogPlanned}
                 onSkipPlanned={handleSkipPlanned}
               />
@@ -362,6 +370,15 @@ export default function EatPage() {
           <EatCapture dateStr={dateStr} initialAction={initialAction} onLogged={loadDay} />
         </div>
       </div>
+
+      {shareTarget && (
+        <ShareToPartnerSheet
+          open
+          onClose={() => setShareTarget(null)}
+          itemType={shareTarget.itemType}
+          payload={shareTarget.payload}
+        />
+      )}
     </main>
   );
 }

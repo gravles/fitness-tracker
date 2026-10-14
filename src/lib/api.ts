@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { subDays, format, parseISO } from 'date-fns';
 
 /** How a food item was captured — stamped at log time; legacy items have neither field. */
-export type FoodSource = 'voice' | 'photo' | 'barcode' | 'manual' | 'plan';
+export type FoodSource = 'voice' | 'photo' | 'barcode' | 'manual' | 'plan' | 'partner';
 
 export interface FoodItem {
     name: string;
