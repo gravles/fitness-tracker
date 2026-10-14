@@ -1,8 +1,8 @@
 # Fitness Tracker — Expanded Features PRD
 
 **Author:** Claude  
-**Date:** 2026-05-20 (original proposal) — **re-audited against the live codebase on 2026-07-14**  
-**Status:** Living document — 3 of 6 original pillars now shipped; see status table below. New brainstormed ideas added at the bottom for review.
+**Date:** 2026-05-20 (original proposal) — re-audited 2026-07-14 — re-audited against the live codebase on 2026-07-18 — **corrected against shipped code on 2026-07-27**  
+**Status:** Living document — 4 of 6 original pillars now shipped; see status table below. An unplanned WearOS companion app (Pillar 7, outside original scope) shipped 2026-07-18. New brainstormed ideas added at the bottom for review.
 
 ---
 
@@ -14,9 +14,13 @@ This document proposes six major feature pillars, each with full specifications,
 
 **2026-07-14 update:** Since this was written, Nutrition Planning, Periodisation, and the Accountability Layer have all shipped (and the Accountability Layer went further than specced). Withings and Oura integrations are live. Every Quick Win in the appendix is done. The two pillars that matter most and remain untouched are **Correlation Engine** and **Recovery & Readiness Score** — see "What's Outstanding" below. A new "Brainstorm — New Feature Ideas" section has been added at the end for review; nothing in it has been built.
 
+**2026-07-18 update:** A full WearOS companion app shipped (device pairing, live workout tracking with heart-rate capture, voice food logging, a Today tile, and a calories complication) — see new Pillar 7 below. This wasn't part of the original six pillars. Also shipped: a UI/UX audit pass (accessible modals, shared error states, nav IA cleanup) and an auth-hardening pass on the AI API routes (one route, `recommend-workout`, still lacks enforced auth — see New Small Gaps). **Correlation Engine** and **Recovery & Readiness Score** remain the top-priority gaps; none of this work changes that ranking.
+
+**2026-07-27 correction:** The 2026-07-18 audit above was wrong about two things it should have caught — both shipped in commits that landed *before* that audit was written, but got missed. **Recovery & Readiness Score (Pillar 4) is actually shipped**: `computeReadiness()` produces a transparent 0–100 score (sleep, trailing energy, alcohol, resting-HR-vs-baseline, acute:chronic training load) shown on the dashboard via a morning check-in card, with a "why" breakdown instead of the specced AI explanation. **Google Fit / Health Connect (part of Pillar 6) is also shipped**, Android-only — steps, resting heart rate, and sleep sessions (with REM/deep/light staging) sync natively via the same Capacitor app shell built for the WearOS pairing work; Apple HealthKit is still genuinely unbuilt (no iOS native work has happened). This also means the `sleep_records` table already exists — it's populated by Health Connect but *not yet* by Oura, which still squashes its own sleep/readiness data into `daily_logs`' 1–5 fields instead. **Correlation Engine remains the only original pillar with zero code.** Separately, a full "Kinetic" rebrand and UI/IA redesign shipped 2026-07-22 (new nav, Eat/Plan split, XP moved behind `/more`) — a UI change, not a pillar-status change. See corrected sections below.
+
 ---
 
-## Current State (What Exists) — corrected 2026-07-14
+## Current State (What Exists) — corrected 2026-07-27
 
 | Area | Status |
 |---|---|
@@ -33,11 +37,12 @@ This document proposes six major feature pillars, each with full specifications,
 | Progress photos | ✅ Upload + compare |
 | Body metrics | ✅ Real photo upload (Supabase Storage) |
 | Social / sharing | ✅ Full accountability + workout-partner system (partnerships, nudges, challenges) — see note on duplication below |
-| Nutrition planning | ✅ `/nutrition` page — weekly planner, AI generation, saved meals, pantry scan. Missing: grocery list export |
-| Periodisation / progressive overload | ✅ `/programs` — AI 12-week programs, Epley 1RM, deload weeks. Missing: overload *suggestion* on freestyle (non-program) sets |
-| Recovery / readiness | 🔴 Still not started — highest-priority gap |
-| Correlation / insight engine | 🔴 Still not started — highest-priority gap |
-| Wearable integrations | 🟡 Withings + Oura done; Apple Health / Google Fit absent (native-app blocker, as originally scoped) |
+| Nutrition planning | ✅ `/nutrition` (Eat) for logging + `/nutrition/planner` for the weekly meal plan — AI generation, saved meals, pantry scan. Missing: grocery list export |
+| Periodisation / progressive overload | ✅ `/programs` — AI 12-week programs, Epley 1RM, deload weeks. Missing: overload *suggestion* on freestyle (non-program) sets — still just shows last session's numbers as a placeholder |
+| Recovery / readiness | ✅ Shipped (missed by the 2026-07-18 audit) — `computeReadiness()` score (0–100) on the dashboard: sleep, trailing energy, alcohol, resting-HR-vs-baseline, training load ratio; transparent "why" breakdown in place of the specced AI explanation |
+| Correlation / insight engine | 🔴 Still not started — now the sole remaining unbuilt original pillar |
+| Wearable integrations | 🟡 Withings + Oura + Google Health Connect (Android: steps, resting HR, sleep w/ staging) done; Apple Health absent (genuine native-app blocker, iOS only) |
+| WearOS companion app | ✅ Native Kotlin/Compose app (`android/wear/`) — device pairing, live workout session with HR capture, voice food logging, Today tile, calories complication. Sideload-only (no Play Store listing yet); not part of the original six pillars — see Pillar 7 |
 
 **Known tech debt (not a feature, flagging for awareness):** there are now two parallel accountability systems — the original lightweight `accountability_partners` (email summary only) from this PRD, and a newer, richer `partnerships`/`challenges` system built later. They overlap in purpose. Worth consolidating at some point, but not urgent.
 
@@ -45,28 +50,29 @@ This document proposes six major feature pillars, each with full specifications,
 
 ## What's Outstanding — and What's Highest Priority
 
-Of the original six pillars, two remain completely unbuilt, and they're the two the original "Recommended Sprint 1" called out as the best ROI:
+**Ranking changed 2026-07-27:** Recovery & Readiness Score was believed unbuilt but is actually shipped (the 2026-07-18 audit missed commits that landed just before it) — see the correction note above. That leaves only one of the original six pillars with zero code:
 
-1. **Recovery & Readiness Score (Pillar 4)** — This is now *cheaper* to build than when it was written. The Oura integration already pulls real readiness and sleep-staging data server-side (`api/integrations/oura/sync`); it's currently being lossily discarded into `daily_logs.energy_level`/`sleep_quality` instead of surfaced. A first version could ship using data that's already flowing in, no new integration work required, for Oura-connected users — with the original client-side formula as a fallback for everyone else.
-2. **Correlation Engine & Insight Feed (Pillar 1)** — Still zero code beyond the generic AI weekly summary. All the input data (sleep, stress, energy, alcohol, protein, movement) has been sitting in `daily_logs` this whole time, so this remains a pure-software feature — no schema blockers.
+1. **Correlation Engine & Insight Feed (Pillar 1)** — Still zero code beyond the generic AI weekly summary (`generateWeeklyInsights`). All the input data (sleep, stress, energy, alcohol, protein, movement) has been sitting in `daily_logs` this whole time, and the Readiness Score work now sitting alongside it (`src/lib/readiness.ts`) is a useful reference for how to structure signal-scoring logic — so this remains a pure-software feature with no schema blockers and slightly more prior art to build on than when this was last written.
 
-Recommendation: these two are still the highest-leverage next build, in that order (Readiness Score first — it's a daily-visible hook and is now unusually cheap given the unused Oura data).
+Recommendation: this is now the single highest-leverage next build — it's the last piece of the original PRD's core thesis (turn captured data into "why", not just charts) still missing.
 
 Secondary, smaller gaps worth closing opportunistically:
 - Grocery list export (Pillar 2 gap)
 - Freestyle-workout overload suggestion, not just a placeholder (Pillar 3 gap)
-- `sleep_records` table to stop discarding Oura's sleep-staging/HRV detail (Pillar 6 gap — also a prerequisite for a good Readiness Score)
+- Wire Oura's readiness/sleep data into `sleep_records` instead of squashing it into `daily_logs`' 1–5 fields — the table already exists (built for Health Connect) and the Readiness Score already prefers it when present, so this is now a narrower integration task, not a new-table task (Pillar 6 gap)
+- Apple HealthKit — still blocked on iOS-side native work; Android's equivalent (Health Connect) shipped 2026-07-18 riding on the WearOS app's native shell
 
 ---
 
-## The Six Pillars
+## The Six Pillars (+ one unplanned)
 
 1. **Correlation Engine & Insight Feed** 🔴 not built — surface *why* you feel good or bad
 2. **Intelligent Nutrition Planning** ✅ shipped — close the loop from tracking to planning
 3. **Periodisation & Progressive Overload** ✅ shipped — turn workout history into a training program
-4. **Recovery & Readiness Score** 🔴 not built — a daily signal that answers "should I train hard today?"
+4. **Recovery & Readiness Score** ✅ shipped — a daily signal that answers "should I train hard today?"
 5. **Accountability Layer** ✅ shipped (and expanded) — gentle social pressure without the social media toxicity
-6. **Health Platform Integrations** 🟡 partially shipped — Apple Health, Google Fit, Oura, Withings
+6. **Health Platform Integrations** 🟡 partially shipped — Oura, Withings, Google Health Connect done; Apple Health still absent (iOS-only gap)
+7. **WearOS Companion App** ✅ shipped — outside the original scope; see below
 
 Plus an **appendix of quick wins** — bugs and small features that could ship in a day each (✅ all done as of 2026-07-14).
 
@@ -352,7 +358,7 @@ Most fitness apps show you what you lifted. Almost none tell you what to lift ne
 
 ## Pillar 4 — Recovery & Readiness Score
 
-> **Status (2026-07-14): 🔴 Not built.** No `readiness_scores` table, no score anywhere in the app, no dashboard card. Notably, the Oura integration (shipped after this doc was written) already fetches Oura's own readiness and sleep data server-side — it's currently discarded into `daily_logs.energy_level`/`sleep_quality` rather than surfaced. This makes a v1 of this pillar cheaper than originally scoped: Oura-connected users could get real gold-standard readiness immediately, with the client-side formula below as the fallback for everyone else. **This and Pillar 1 are the highest-priority remaining work.**
+> **Status (corrected 2026-07-27): ✅ Shipped** — the 2026-07-14/07-18 audits above were written before this landed (or missed it; the commits are dated 2026-07-18). `src/lib/readiness.ts`'s `computeReadiness()` produces a 0–100 score with a transparent per-component breakdown (sleep — from `sleep_records` when Health Connect has synced it, else the manual 1–5 rating; yesterday's energy; last-night alcohol; resting heart rate vs. a rolling personal baseline; acute:chronic training-load ratio), a `primed/ready/steady/recovery` label, and a plain-language recommendation. It's surfaced on the dashboard via `ReadinessCheckIn.tsx` (a morning check-in modal that prompts for sleep/energy/drinks once a day, plus a persistent score card with an expandable "why" breakdown of each component's delta) and via the MCP layer, so the watch complication and coaching context both see it too. **Deliberate deviation from spec:** instead of a cached AI-generated explanation, the "why" is a deterministic breakdown of the same numbers that fed the score — instant, free, and arguably more trustworthy than an LLM paraphrase. **Real gap vs. spec:** this doesn't yet use Oura's own readiness/sleep model — Oura sync still writes into `daily_logs`' 1–5 fields (see Pillar 6) rather than `sleep_records`, so Oura users get the same homegrown formula as everyone else rather than gold-standard data. Available to every user, not gated behind an Oura connection as originally proposed — the shipped version is broader than the v1 recommendation, at the cost of not yet using Oura's richer signal.
 
 ### The Problem
 
@@ -509,7 +515,7 @@ Accountability is the single biggest predictor of goal adherence in the behaviou
 
 ## Pillar 6 — Health Platform Integrations
 
-> **Status (2026-07-14): 🟡 Partially shipped.** Withings (full OAuth + auto weight/body-comp sync into `body_metrics`) and Oura (full OAuth + sync) are both live in Settings. Apple HealthKit and Google Fit/Health Connect remain entirely unbuilt, as expected — both require a native app shell, which is still the correct reason to defer them. **Gap worth closing:** there's no `sleep_records` table — Oura's sleep-staging and HRV data is being squashed into the existing 1–5 `sleep_quality` field instead of stored raw, which also blocks a good Readiness Score (Pillar 4).
+> **Status (corrected 2026-07-27): 🟡 Partially shipped — more than previously recorded.** Withings (full OAuth + auto weight/body-comp sync into `body_metrics`) and Oura (full OAuth + sync) are both live in Settings, as before. **Google Fit / Health Connect (Android) has since shipped** (`src/lib/health-connect.ts`, `HealthConnectSection.tsx`): once the WearOS work required a native Capacitor Android app shell, Health Connect rode along on top of it — steps, resting heart rate, and full sleep sessions with REM/deep/light/awake staging, read natively and mirrored into a `sleep_records` table that now exists (`sleep_records_migration.sql`) and directly feeds the Readiness Score (Pillar 4). Apple HealthKit remains genuinely unbuilt — no iOS-side native work has happened, and that's still the correct reason to defer it (no native shell has been justified for iOS the way WearOS pairing justified it for Android). **Gap that remains:** Oura's own sleep-staging/HRV/readiness data still isn't written into `sleep_records` — Oura sync squashes it into the existing 1–5 `daily_logs` fields instead, so Oura users don't get their ring's richer data reflected in the Readiness Score. This is now a narrower "wire Oura into the existing table" task rather than a "build the table" task.
 
 ### The Problem
 
@@ -605,6 +611,25 @@ Every extra data source makes the correlation engine, readiness score, and AI co
 
 ---
 
+---
+
+## Pillar 7 — WearOS Companion App (unplanned, shipped 2026-07-18)
+
+> Not part of the original six pillars — added after a feasibility/design doc (`6404094`) prompted a full build-out. Native Kotlin/Compose-for-WearOS app at `android/wear/`, sideloaded via ADB (no Play Store listing yet).
+
+**What shipped:**
+- **Device pairing** — the watch generates a key and sends only its hash to `/api/pair/start`; claimed from Settings → Pair a Device in the web app.
+- **Live workout session** — real-time set/rep tracking with heart-rate capture from the watch's sensor.
+- **Voice food logging** — spoken input routed through `/api/ai/process-intent` into the same `log_food` MCP tool the web app uses.
+- **Today tile** — calories arc + macros remaining, dual rings, one-tap log actions.
+- **Watch-face complication** — calories-remaining, updates every 30 minutes.
+
+Everything writes through the existing MCP tools against the existing `daily_logs`/`workouts` tables — no new nutrition/workout schema. Two new migrations: `pairing_requests` (device pairing) and a `timezone` column on `user_settings` (so "today" resolves correctly on-device).
+
+**Known gap:** `android/wear/README.md` still lists live workout tracking, voice logging, and tiles as "not yet built" — stale, left over from the original scaffold commit.
+
+---
+
 ## Quick Wins Appendix
 
 > **Status (2026-07-14): ✅ All items below — every bug and every small feature — verified fixed/shipped in the current codebase.** Kept here as a record. See "New Small Gaps" underneath for the handful of freshly-identified quick wins that replace this list going forward.
@@ -639,14 +664,15 @@ These are bugs or small features that could each ship in a day or less. Not a pi
 | ✅ Persistent macro summary bar | Sticky mini macro bar (P/C/F/Cal) visible across all log tabs | 2h |
 | ✅ Coach chat history sync | Move coach chat history from localStorage to Supabase for cross-device persistence | 1 day |
 
-### New Small Gaps (identified 2026-07-14 audit — not yet built)
+### New Small Gaps (identified 2026-07-14 / 07-18 / 07-27 audits — not yet built)
 
 | Item | Description | Effort |
 |---|---|---|
 | Smart grocery list export | Consolidate a filled meal plan into a categorized, exportable grocery list (Pillar 2 gap) | 1 day |
-| Freestyle overload suggestion | Show a computed "try +2.5kg" suggestion (not just a placeholder) on ad-hoc workout sets, using the algorithm already specced in Pillar 3 | 1 day |
-| `sleep_records` table | Stop discarding Oura's sleep-staging/HRV detail into the 1–5 `sleep_quality` field; store it raw (Pillar 6 gap, also unblocks a better Readiness Score) | 1 day |
+| Freestyle overload suggestion | Show a computed "try +2.5kg" suggestion (not just a placeholder) on ad-hoc workout sets, using the algorithm already specced in Pillar 3 — the redesigned active-workout screen still only shows last session's numbers as ghost/placeholder values | 1 day |
+| Wire Oura into `sleep_records` | The table already exists and Health Connect already writes to it; Oura sync still squashes its own sleep/readiness data into `daily_logs`' 1–5 fields instead — hook it into the same table so Oura users' Readiness Score uses their ring's real data (Pillar 6 gap) | 1 day |
 | Consolidate accountability systems | Merge/retire the older `accountability_partners` email-only system now that `partnerships` covers its use case, to reduce maintenance surface | 1–2 days |
+| `recommend-workout` route missing enforced auth | Unlike the other 6 AI routes hardened in #31, `/api/ai/recommend-workout` reads an optional Authorization header but never 401s if it's absent — callable unauthenticated (personalization just silently degrades) | <1h |
 
 ---
 
@@ -685,18 +711,18 @@ Total estimated effort: ~7–9 days. This closes out the entire original PRD.
 
 ---
 
-## Brainstorm — New Feature Ideas (2026-07-14, for review — nothing here has been built)
+## Brainstorm — New Feature Ideas (2026-07-14, + item I added 2026-07-18, for review — nothing here has been built)
 
 These go beyond the original six pillars. They're sized as ideas, not full specs — flag which ones (if any) you want turned into a full pillar-style spec before building. Ordered roughly by how directly they build on infrastructure that already exists (cheaper/lower-risk first).
 
 ### A. Cycle-Aware Training & Nutrition
-**Problem:** `enable_cycle_tracking` exists and collects data, but nothing downstream uses it — it's inert. **Idea:** feed cycle phase into the (currently missing) Readiness Score, the AI coach's training suggestions, and program generation — e.g. suggest lower-intensity sessions and iron/protein-forward meals during the luteal/menstrual phase. **Why now:** the data is already being collected and just sitting unused; this is the single highest-leverage way to make that toggle worth having on. Rough effort: Medium (mostly prompt/logic work once Readiness Score exists to hook into).
+**Problem:** `enable_cycle_tracking` exists and collects data, but nothing downstream uses it — it's inert. **Idea:** feed cycle phase into the existing Readiness Score (`src/lib/readiness.ts`), the AI coach's training suggestions, and program generation — e.g. suggest lower-intensity sessions and iron/protein-forward meals during the luteal/menstrual phase. **Why now:** the data is already being collected and just sitting unused, and there's now a real Readiness Score to hook it into; this is the single highest-leverage way to make that toggle worth having on. Rough effort: Medium (mostly prompt/logic work, extending `computeReadiness()`'s existing component list).
 
 ### B. Injury / Pain Log + Smart Substitutions
 **Problem:** no way to flag "my shoulder hurts" — the app will happily keep recommending overhead press. **Idea:** a quick body-map tap to log pain/soreness by region (pre- or post-workout), which the AI coach and program generator then avoid loading for a configurable window, offering substitute exercises automatically. Could also correlate pain spikes against recent volume (ties directly into the Periodisation data already being tracked). **Why now:** injury is a top reason people quit training apps; this is a safety/retention feature most competitors skip. Rough effort: Medium-Large (new table, UI, substitution logic in program generation + AI coach prompt).
 
 ### C. Sleep-Staging Trends & Better Readiness (extends Pillar 4/6 gap)
-**Problem:** already called out as a gap — Oura's rich sleep data is being thrown away. **Idea:** once `sleep_records` exists, add trend charts for REM/deep/light sleep and HRV over time, and let the Readiness Score cite specific stages ("your deep sleep was 40% below average last night") rather than just a single 1–5 number. **Why now:** the data is already flowing in from a live integration — this is pure UI/analysis on top of existing pipes. Rough effort: Small once `sleep_records` exists.
+**Problem:** `sleep_records` now exists and holds real REM/deep/light staging from Health Connect, but nothing surfaces it beyond feeding the Readiness Score's single sleep component — no trend charts, and Oura's own staging still isn't in the table at all. **Idea:** add trend charts for REM/deep/light sleep over time, and let the Readiness Score cite specific stages ("your deep sleep was 40% below average last night") instead of just a duration-derived 1–5 score. **Why now:** the data is already flowing in and stored — this is pure UI/analysis on top of an existing pipe, no longer blocked on a table that doesn't exist. Rough effort: Small.
 
 ### D. Equipment-Aware Workout Generator (photo scan)
 **Problem:** traveling users or anyone in an unfamiliar gym have no fast way to get a session that matches what's actually in front of them. **Idea:** reuse the exact pattern already proven for pantry scanning (`api/nutrition/pantry/scan`) — snap a photo of the equipment rack/gym floor, AI identifies available equipment, generates a session using the existing equipment-tag system. **Why now:** the AI-photo-to-structured-data pattern is already built and working for nutrition; this is the same pattern applied to a new domain, which lowers implementation risk substantially. Rough effort: Medium.
@@ -713,6 +739,13 @@ These go beyond the original six pillars. They're sized as ideas, not full specs
 ### H. Consolidated Grocery + Budget-Aware Meal Planning
 **Problem:** the grocery-list gap (already flagged above) is worth extending rather than doing minimally. **Idea:** beyond a plain categorized list, estimate per-item/total cost and let users set a weekly grocery budget that steers AI meal generation (e.g. "keep this week's plan under $80"). **Why now:** builds directly on the meal-plan generation prompt that already exists; budget-aware planning is a commonly requested feature this app doesn't have any story for yet. Rough effort: Medium.
 
+### I. Workout Heart-Rate Trends (extends WearOS Pillar 7)
+**Problem:** the WearOS app now captures heart rate live during workout sessions, but that data goes nowhere beyond the session itself — no trend view, no use in Progressive Overload or the existing Readiness Score. **Idea:** surface average/max HR per workout in Trends, and eventually weight HR-based intensity (time-in-zone) into overload logic and `computeReadiness()`'s training-load component instead of relying on subjective "hard/moderate/light" self-report. **Why now:** the data is already being captured from a real sensor as of this WearOS ship — same "data exists, nothing reads it" pattern as the Oura sleep-staging gap. Rough effort: Small-Medium.
+
+### Considered / Not Pursued
+
+*(none yet — tracks brainstormed ideas reviewed and explicitly declined, so they aren't re-suggested in future audits.)*
+
 ---
 
-*Document living as of 2026-07-14. Original proposal author: Claude. Status audit and brainstorm section: Claude. Questions, pushback, or which brainstormed ideas to spec out further — flag them and I'll revise.*
+*Document living as of 2026-07-27. Original proposal author: Claude. Status audit and brainstorm section: Claude. Questions, pushback, or which brainstormed ideas to spec out further — flag them and I'll revise.*
