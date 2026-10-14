@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { MoreHorizontal, Copy, Pencil, Trash2, X, Heart } from 'lucide-react';
+import { MoreHorizontal, Copy, Pencil, Trash2, X, Heart, Share2 } from 'lucide-react';
 import { FoodItem, Workout } from '@/lib/api';
 import { PlannedMeal } from '@/lib/meal-plan-api';
 
@@ -17,6 +17,9 @@ interface TimelineProps {
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
   onFavorite?: (item: FoodItem) => void;
+  /** Present only when the user has an active partner */
+  onShare?: (item: FoodItem) => void;
+  onShareWorkout?: (workout: Workout) => void;
   onLogPlanned: (meal: PlannedMeal) => void;
   onSkipPlanned: (meal: PlannedMeal) => void;
 }
@@ -27,6 +30,7 @@ const SOURCE_LABEL: Record<string, string> = {
   barcode: 'barcode scan',
   manual: 'quick add',
   plan: 'from meal plan',
+  partner: 'from your partner',
 };
 
 function entryTime(e: FeedEntry): string | null {
@@ -57,12 +61,14 @@ function FoodCard({
   onEdit,
   onDelete,
   onFavorite,
+  onShare,
 }: {
   entry: Extract<FeedEntry, { kind: 'food' }>;
   onDuplicate: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onFavorite?: () => void;
+  onShare?: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [dragX, setDragX] = useState(0);
@@ -164,6 +170,7 @@ function FoodCard({
             { label: 'Duplicate', icon: Copy, action: onDuplicate },
             { label: 'Edit', icon: Pencil, action: onEdit },
             ...(onFavorite ? [{ label: 'Favorite', icon: Heart, action: onFavorite }] : []),
+            ...(onShare ? [{ label: 'Share with partner', icon: Share2, action: onShare }] : []),
             { label: 'Delete', icon: Trash2, action: onDelete, danger: true },
           ].map(({ label, icon: Icon, action, danger }) => (
             <button
@@ -187,7 +194,7 @@ function FoodCard({
 }
 
 /** Day-feed timeline with the gold→blue rail (Kinetic mock 2b). */
-export function Timeline({ entries, onDuplicate, onEdit, onDelete, onFavorite, onLogPlanned, onSkipPlanned }: TimelineProps) {
+export function Timeline({ entries, onDuplicate, onEdit, onDelete, onFavorite, onShare, onShareWorkout, onLogPlanned, onSkipPlanned }: TimelineProps) {
   return (
     <div className="relative pl-[22px] flex flex-col gap-3">
       <div
@@ -206,6 +213,7 @@ export function Timeline({ entries, onDuplicate, onEdit, onDelete, onFavorite, o
               onEdit={() => onEdit(entry.index)}
               onDelete={() => onDelete(entry.index)}
               onFavorite={onFavorite ? () => onFavorite(entry.item) : undefined}
+              onShare={onShare ? () => onShare(entry.item) : undefined}
             />
           );
         }
@@ -228,9 +236,21 @@ export function Timeline({ entries, onDuplicate, onEdit, onDelete, onFavorite, o
                     {[time, w.source === 'strava' ? 'synced from Strava' : 'workout'].filter(Boolean).join(' · ')}
                   </p>
                 </div>
-                <span className="shrink-0 text-[11px] font-bold" style={{ color }}>
-                  {w.duration} min
-                </span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-[11px] font-bold" style={{ color }}>
+                    {w.duration} min
+                  </span>
+                  {onShareWorkout && (
+                    <button
+                      onClick={() => onShareWorkout(w)}
+                      aria-label={`Share ${w.activity_type} with partner`}
+                      className="p-1.5 rounded-lg tap-target focus-ring"
+                      style={{ color: 'var(--color-text-muted)', minWidth: 32, minHeight: 32 }}
+                    >
+                      <Share2 className="w-4 h-4" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           );

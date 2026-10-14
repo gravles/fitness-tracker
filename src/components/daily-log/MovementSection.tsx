@@ -2,11 +2,16 @@
 
 import { Workout, addWorkout, deleteWorkout, updateWorkout } from '@/lib/api';
 import { confirm } from '@/components/ConfirmDialog';
-import { Loader2, Plus, Dumbbell, Clock, Trash2, Sparkles, Pencil, ChevronDown, ChevronUp, Check, X, BarChart2, Flame, Footprints, Bike, Waves, PersonStanding, Heart, Ruler } from 'lucide-react';
+import { Loader2, Plus, Dumbbell, Clock, Trash2, Sparkles, Pencil, ChevronDown, ChevronUp, Check, X, BarChart2, Flame, Footprints, Bike, Waves, PersonStanding, Heart, Ruler, Share2, Users } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/components/LanguageProvider';
+import { ShareToPartnerSheet } from '@/components/ShareToPartnerSheet';
+import { useActivePartners } from '@/components/useActivePartners';
+import { shareWithPartners } from '@/lib/partner-api';
+import { notifyShareResult } from '@/components/notifyShareResult';
+import { buildActivityPayload } from '@/lib/partner-log-share';
 
 interface MovementSectionProps {
     movementCompleted: boolean | null;
@@ -39,6 +44,17 @@ export function MovementSection({
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editForm, setEditForm] = useState<{ activity_type: string; duration: number; intensity: 'Moderate' | 'Light' | 'Hard' }>({ activity_type: '', duration: 30, intensity: 'Moderate' });
+    const partners = useActivePartners();
+    const [taggedIds, setTaggedIds] = useState<string[]>([]);
+    const [sharingWorkout, setSharingWorkout] = useState<Workout | null>(null);
+
+    /** Send a just-logged workout to everyone tagged with "Did this with…". */
+    async function shareWithTagged(workout: Workout) {
+        const tagged = partners.filter(p => taggedIds.includes(p.id));
+        if (tagged.length === 0) return;
+        const { sent, error } = await shareWithPartners(tagged, 'logged_activity', buildActivityPayload(workout));
+        notifyShareResult(sent, error, t);
+    }
 
     const workoutPresets = [
         { icon: Footprints,     label: t.movement.presets.run,   activity: 'Running',  duration: 30 },
@@ -66,6 +82,8 @@ export function MovementSection({
             setWorkouts([...workouts, added]);
             setNewWorkout({ activity_type: '', duration: 30, intensity: 'Moderate' });
             setShowAddForm(false);
+            await shareWithTagged(added);
+            setTaggedIds([]);
         } catch (error) {
             console.error('Error adding workout', error);
             toast.error('Failed to add workout');
@@ -248,6 +266,16 @@ export function MovementSection({
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-1">
+                                                {partners.length > 0 && (
+                                                    <button
+                                                        onClick={() => setSharingWorkout(workout)}
+                                                        className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-lg transition-colors"
+                                                        title={t.partner.logShare.shareCta}
+                                                        aria-label={`${t.partner.logShare.shareCta}: ${workout.activity_type}`}
+                                                    >
+                                                        <Share2 className="w-4 h-4" />
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => router.push(`/workout/active/${workout.id}`)}
                                                     className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-lg transition-colors"
@@ -353,6 +381,33 @@ export function MovementSection({
                                     </select>
                                 </div>
                             </div>
+                            {partners.length > 0 && (
+                                <div>
+                                    <p className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide mb-1.5">
+                                        {t.partner.logShare.didThisWith}
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {partners.map(p => {
+                                            const on = taggedIds.includes(p.id);
+                                            return (
+                                                <button
+                                                    key={p.id}
+                                                    type="button"
+                                                    aria-pressed={on}
+                                                    onClick={() => setTaggedIds(ids => on ? ids.filter(id => id !== p.id) : [...ids, p.id])}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all"
+                                                    style={on
+                                                        ? { background: 'var(--color-gold-muted)', borderColor: 'var(--color-gold)', color: 'var(--color-gold-text)' }
+                                                        : { background: 'var(--color-surface-elevated)', borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+                                                >
+                                                    {on ? <Check className="w-3.5 h-3.5" aria-hidden="true" /> : <Users className="w-3.5 h-3.5" aria-hidden="true" />}
+                                                    {p.otherName || p.invitee_email}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                             <button
                                 onClick={handleAddWorkout}
                                 disabled={!newWorkout.activity_type || localAdding}
@@ -372,6 +427,15 @@ export function MovementSection({
                         </button>
                     </div>
                 </div>
+            )}
+
+            {sharingWorkout && (
+                <ShareToPartnerSheet
+                    open
+                    onClose={() => setSharingWorkout(null)}
+                    itemType="logged_activity"
+                    payload={buildActivityPayload(sharingWorkout)}
+                />
             )}
         </section>
     );

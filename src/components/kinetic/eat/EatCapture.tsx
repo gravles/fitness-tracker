@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Mic, Camera, Barcode, Keyboard, ChefHat, Heart, Loader2, Brain } from 'lucide-react';
+import { Mic, Camera, Barcode, Keyboard, ChefHat, Heart, Loader2, Brain, Users, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '@/components/LanguageProvider';
 import { Modal } from '@/components/ui';
@@ -16,6 +16,10 @@ import { appendFoodItems, getDailyLog, upsertDailyLog, addWorkout, FoodItem, Foo
 import { checkAndAwardBadges } from '@/lib/badges';
 import { haptics } from '@/lib/haptics';
 import { authHeaders } from '@/lib/supabase';
+import { useActivePartners } from '@/components/useActivePartners';
+import { notifyShareResult } from '@/components/notifyShareResult';
+import { shareWithPartners } from '@/lib/partner-api';
+import { buildMealPayload } from '@/lib/partner-log-share';
 
 export type CaptureAction = 'voice' | 'camera' | 'barcode' | 'text' | 'scan' | 'favorites';
 
@@ -64,6 +68,9 @@ export function EatCapture({ dateStr, initialAction = null, onLogged }: EatCaptu
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [loadingAI, setLoadingAI] = useState(false);
   const appliedAction = useRef(false);
+  const partners = useActivePartners();
+  // Session-scoped on purpose: "eating with" resets when you leave the screen
+  const [eatingWithIds, setEatingWithIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!initialAction || appliedAction.current) return;
@@ -82,6 +89,12 @@ export function EatCapture({ dateStr, initialAction = null, onLogged }: EatCaptu
     haptics.success();
     await onLogged();
     checkAndAwardBadges();
+
+    const eatingWith = partners.filter(p => eatingWithIds.includes(p.id));
+    if (eatingWith.length > 0) {
+      shareWithPartners(eatingWith, 'logged_meal', buildMealPayload(stamped, dateStr))
+        .then(({ sent, error }) => notifyShareResult(sent, error, t));
+    }
   }
 
   /** Bump the day's drink count (voice/photo flows can detect alcohol) */
@@ -139,6 +152,36 @@ export function EatCapture({ dateStr, initialAction = null, onLogged }: EatCaptu
 
   return (
     <>
+      {partners.length > 0 && (
+        <div className="mb-2">
+          <div className="flex items-center flex-wrap gap-1.5">
+            <span className="text-[11px] font-bold" style={{ color: 'var(--color-text-muted)' }}>
+              {t.partner.logShare.eatingWith}:
+            </span>
+            {partners.map(p => {
+              const on = eatingWithIds.includes(p.id);
+              return (
+                <button
+                  key={p.id}
+                  aria-pressed={on}
+                  onClick={() => setEatingWithIds(ids => on ? ids.filter(id => id !== p.id) : [...ids, p.id])}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-kinetic focus-ring"
+                  style={on
+                    ? { background: 'var(--color-gold-muted)', borderColor: 'var(--color-gold)', color: 'var(--color-gold-text)' }
+                    : { background: 'transparent', borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+                >
+                  {on ? <Check className="w-3 h-3" aria-hidden="true" /> : <Users className="w-3 h-3" aria-hidden="true" />}
+                  {p.otherName || p.invitee_email}
+                </button>
+              );
+            })}
+          </div>
+          {eatingWithIds.length > 0 && (
+            <p className="mt-1 text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{t.partner.logShare.eatingWithHint}</p>
+          )}
+        </div>
+      )}
+
       {/* Compact capture bar — voice tile first, with live listening state */}
       <div className="flex justify-between gap-1.5">
         <VoiceInput
