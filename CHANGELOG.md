@@ -2,7 +2,64 @@
 
 All notable changes to Life Logger are documented here.
 
-## [Unreleased]
+## [2.5.0] — 2026-10-19
+
+### Kinetic Redesign
+- Life Logger is now **Kinetic**: new name, K logomark, metadata and manifest
+- Floating glass-pill navigation with a context-aware gold capture button
+- Bento Home: nutrition rings, weight and movement sparklines, habit strip, coach banner and wellness check-in
+- **Eat** (`/nutrition`) is now the food logger: inline voice, snap, barcode, type, menu and favorites capture, a timeline with skippable planned meals, date/time editing with proportional macro preview, and a day-details card
+- Meal Planner moved to `/nutrition/planner` (the "Plan" pill in the Eat header); `/log` folded into the tabs, with old deep links redirected
+- Restyled Workout hub with today's activity at the top; active session gets set pills, ghost values, a rest bar and a log-set button
+- Withings sync button surfaced in the Trends header
+- Native voice logging via the device speech recognizer (Android WebView's Web Speech API never worked) — requires the updated app build
+
+### Readiness & Morning Check-in
+- Transparent 0–100 readiness score from sleep, energy, alcohol and training load, with a recommendation and a "why?" breakdown
+- Morning check-in opens on the first dashboard visit of the day (sleep, energy, drinks last night); skippable once per day
+- Readiness card on the dashboard; also exposed to AI coaches as `get_readiness`
+
+### Health Connect (Android)
+- Sleep sessions sync from Health Connect and override the manual sleep rating in readiness
+- Daily steps and resting heart rate sync; resting HR is compared with your 28-day baseline in readiness
+- Connect and sync-now controls in Settings (Android app only)
+
+### Supplement & Medication Tracking
+- New `/supplements` page: Today, My Stack and History tabs with adherence %
+- Schedule builder with recurrence and multiple times per day; per-dose push reminders
+- Dashboard "Today's doses" card; six new MCP coach tools
+- Migration: `supplement_tracking_migration.sql`
+
+### Workout Partners
+- Link with a partner for shared progress, nudges, sharing and challenges
+- Share a logged meal or activity with a partner; they review and copy it into their own log (choose portion/duration, with a duplicate-workout warning). Tag partners while logging via "Did this with…" chips and an "Eating with" toggle
+- Migration: `partner_log_share_migration.sql` (without it, sharing shows a "not enabled on the server yet" message)
+
+### Wear OS Companion
+- New watch app: Today screen with macro rings, live workout sessions with heart rate, voice food logging, voice set logging, morning check-in
+- Tile with calories arc and one-tap log actions; calories-remaining and shortcut complications
+- Crash-proof workout sessions (draft persistence and resume); 2.5 lb weight steps
+- Progressive-overload suggestions pre-fill each exercise's weight
+
+### Menu Scanner
+- Upload a PDF menu (up to 3 MB) in addition to photos
+
+### Other Improvements
+- Progress photos: gallery picker and image compression
+- Coach-planned meals integrated into the Meal Planner page; scheduled entries link to completed in-app workout sessions
+- Accessible modals, error states and navigation IA from the UI/UX audit
+- Public `/privacy` policy page (Play Store health declaration)
+- Settings → My Targets: starting-weight card with reset
+- MCP "today" now resolves in your timezone; all AI API routes require authentication
+- Android release 2.4
+
+### Fixes
+- Multi-device food-log clobbering: a stale phone state could wipe items logged on the watch; writes now merge safely
+- Portion quantities respected in all daily totals (MCP `log_food`, offline replays)
+- Onboarding saved the first weigh-in in kg instead of lbs, skewing trends
+- Stale drink count on the Eat day-details card
+- `get_workouts` silently dropped strength sets (wrong column name)
+- Android release builds now fail fast if `google-services.json` is missing
 
 ### AI Coach MCP Tools
 - New MCP tools so an AI coach can push training plans, not just log activity: `save_workout_template` (upsert by name, with a shortened `fallback_exercises` version), `get_workout_templates`, `schedule_workout` (single date or recurring weekday pattern, capped at 90 days), `get_schedule` (derived planned / completed / missed / skipped statuses), `update_scheduled_workout` (move date, swap template, switch to fallback, skip with reason)

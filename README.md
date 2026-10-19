@@ -6,7 +6,7 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 
 **Daily Logging**
 - Food diary with calories, macros (protein / carbs / fat), and alcohol
-- Voice logging and AI-powered camera meal recognition
+- Voice logging and AI-powered camera meal recognition, plus PDF/photo menu scanning
 - Movement, sleep, and custom habit tracking
 - Autosave with live macro status bar
 
@@ -35,6 +35,19 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - Weight history chart (lbs or kg)
 - Progress photos with before/after comparison
 - Withings body-composition overlaid on trends
+
+**Readiness & Recovery**
+- Morning check-in (sleep, energy, drinks) and a 0–100 readiness score with breakdown
+- Android Health Connect sync for sleep, steps and resting heart rate
+
+**Supplements & Medication**
+- Schedule doses, per-dose reminders, adherence history
+
+**Workout Partners**
+- Shared progress, nudges, challenges, and sharing meals/activities to log together
+
+**Wear OS**
+- Watch app with macro rings, live workouts, voice logging, tile and complications
 
 **Gamification**
 - XP system, levels, badges, and a Trophy Case
