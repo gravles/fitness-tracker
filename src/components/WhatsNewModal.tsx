@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronRight, Smartphone, Calendar, BookOpen, Dna, Sparkles } from 'lucide-react';
+import { ChevronRight, Users, HeartPulse, Pill, Sparkles } from 'lucide-react';
 import { Modal } from './ui/Modal';
 
-const APP_VERSION = '2.0';
+const APP_VERSION = '3.0';
 const STORAGE_KEY = 'lifelogger_seen_version';
 
 interface Slide {
@@ -16,33 +16,27 @@ interface Slide {
 
 const SLIDES: Slide[] = [
     {
-        icon: <Smartphone className="w-6 h-6" />,
-        title: 'Now on iOS & Android',
-        body: 'Download the native app for push notifications, haptic feedback, and swipe-back navigation.',
-        accent: 'var(--color-primary)',
-    },
-    {
-        icon: <Calendar className="w-6 h-6" />,
-        title: 'Workout Calendar Feed',
-        body: 'Subscribe to your personal webcal:// link and see every scheduled workout in Apple Calendar or Google Calendar.',
+        icon: <Sparkles className="w-6 h-6" />,
+        title: 'Meet the new Kinetic',
+        body: 'A fresh look with a floating nav, a bento Home, and Eat as your one-stop food logger. Find everything else under More.',
         accent: 'var(--color-gold)',
     },
     {
-        icon: <BookOpen className="w-6 h-6" />,
-        title: '12-Week Training Programs',
-        body: 'AI builds a periodised program for your goal. Target weights, 1RM tracking, PR notifications, and a full adherence calendar.',
-        accent: 'var(--chart-2)',
-    },
-    {
-        icon: <Dna className="w-6 h-6" />,
-        title: 'Health Integrations',
-        body: 'Connect Strava, Withings, and Oura under Settings → Health Integrations to sync activities and body composition automatically.',
+        icon: <Users className="w-6 h-6" />,
+        title: 'Workout Partners',
+        body: 'Link up with a friend, send nudges, join group challenges, and share the meals and activities you did together.',
         accent: 'var(--color-primary)',
     },
     {
-        icon: <Sparkles className="w-6 h-6" />,
-        title: 'AI Nutrition Planner',
-        body: 'Build a pantry, set prep-time limits, and let AI generate a weekly meal plan. Log meals straight to your diary.',
+        icon: <HeartPulse className="w-6 h-6" />,
+        title: 'Daily Readiness',
+        body: 'A morning check-in and readiness score, powered by sleep synced from Health Connect on Android.',
+        accent: 'var(--chart-2)',
+    },
+    {
+        icon: <Pill className="w-6 h-6" />,
+        title: 'Supplements & Medication',
+        body: 'Schedule doses, get reminders, and track adherence from the new Supplements page.',
         accent: 'var(--color-gold)',
     },
 ];

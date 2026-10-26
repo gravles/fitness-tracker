@@ -6,7 +6,7 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 
 **Daily Logging**
 - Food diary with calories, macros (protein / carbs / fat), and alcohol
-- Voice logging and AI-powered camera meal recognition
+- Voice logging and AI-powered camera meal recognition; menu scanner supports photos and PDFs
 - Movement, sleep, and custom habit tracking
 - Autosave with live macro status bar
 
@@ -21,6 +21,18 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - AI Coach builds and saves workouts from natural language
 - Schedule workouts on a calendar with per-session reminders
 - 1RM estimation (Epley), PR notifications, and progress analytics
+
+**Readiness & Check-in**
+- Morning check-in and readiness score; Android Health Connect sleep, steps and resting HR
+
+**Supplements & Medication**
+- Scheduled doses, reminders, adherence history
+
+**Workout Partners**
+- Link partners, shared progress, nudges, group challenges, share workouts, meals and activities
+
+**Wear OS Companion (preview)**
+- Today tile, live workouts, voice logging
 
 **Health Integrations**
 - Strava: automatic activity sync
