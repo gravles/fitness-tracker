@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen } from 'lucide-react';
+import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen, Watch, HeartPulse, Pill, Users, ScanLine, Layers } from 'lucide-react';
 import { Modal } from './ui/Modal';
 
 interface ChangelogModalProps {
@@ -12,6 +12,19 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
     if (!isOpen) return null;
 
     const changes = [
+        {
+            version: "v3.0 — Kinetic",
+            date: "Jul 28, 2026",
+            features: [
+                { icon: <Layers className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Rebranded to Kinetic with a new floating-pill nav, Bento Home, and a redesigned Eat tab as the primary food logger." },
+                { icon: <Watch className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "New WearOS companion app for Galaxy Watch: live workout logging, voice food/set logging, tiles, and watch-face complications." },
+                { icon: <HeartPulse className="w-4 h-4 text-[var(--color-success)]" />, text: "Readiness score (0–100) from sleep, energy, alcohol, and training load, with a morning check-in on the dashboard and watch." },
+                { icon: <Pill className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Supplement & medication tracking with adherence stats and dose reminders." },
+                { icon: <Users className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Mutual workout partners: shared dashboards, nudges, and group challenges." },
+                { icon: <Dna className="w-4 h-4 text-[var(--color-success)]" />, text: "Health Connect sync on Android: steps, resting heart rate, and sleep." },
+                { icon: <ScanLine className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Menu scanner now accepts PDF menus, and food totals respect portion quantities everywhere." },
+            ]
+        },
         {
             version: "v2.0 — Native Apps & Calendar",
             date: "May 24, 2026",
