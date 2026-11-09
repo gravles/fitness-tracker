@@ -41,6 +41,14 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - Shareable level-achievement cards
 - Streak tracking
 
+**Supplements & Medications**
+- Stack, recurring schedules, per-dose reminders, adherence history
+
+**Readiness & Wearables**
+- Morning check-in and readiness score (sleep, resting HR, energy)
+- Android Health Connect sync: sleep, steps, resting heart rate
+- WearOS companion: macro rings, voice food logging, live workouts
+
 **Native Apps**
 - iOS (App Store) and Android (Play Store) via Capacitor
 - FCM push notifications for reminders
@@ -49,7 +57,8 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 **Customisation**
 - Light / System / Dark theme
 - Custom nutrition targets, habits list, available equipment
-- Accountability partners with weekly email summaries
+- Accountability partners with weekly email summaries; share meals and activities with a partner
+- Menu scanner accepts photos or PDF menus
 
 ## Tech Stack
 
