@@ -22,6 +22,8 @@ Tool errors come back as MCP tool results with `isError: true` and a plain-Engli
 | `get_schedule` | Planned workouts with derived status | `start_date` (today), `end_date` (start + 6 days) |
 | `get_meals` | Saved meals with macros, tags, ingredients | none |
 | `get_meal_plan` | Planned meals per day, with plan-vs-actual totals | `start_date` (today), `end_date` (start + 6 days) |
+| `get_supplements` | Supplement & medication catalogue with each entry's schedule summary | none |
+| `get_supplement_schedule` | Scheduled and logged doses per day, with adherence stats (taken / missed / skipped) | `start_date` (today), `end_date` (start + 6 days) |
 
 ## Write tools
 
@@ -156,7 +158,40 @@ dated to the plan's own date. `planned_meal_id`*, `adjustments` (partial overrid
 { "planned_meal_id": "abc-123", "adjustments": { "calories": 700 } }
 ```
 
+## Supplement & medication tools
+
+Tracking only: these tools record what the user says they take. A coach must never suggest doses,
+frequencies, or medication changes. See the tool descriptions in `src/app/api/mcp/route.ts` for
+the full argument schemas.
+
+### `save_supplement`
+Create or update a catalogue entry (upsert by `name`*, case-insensitive). Optional `kind`
+(`supplement` default, or `medication`), `dose_amount`, `dose_unit`, `form`, `notes`.
+
+```json
+{ "name": "Creatine", "dose_amount": 5, "dose_unit": "g", "form": "powder" }
+```
+
+### `schedule_supplement`
+Schedule doses of a saved entry: `supplement_name`*, `date`* (start), `times` (default
+`["08:00"]`; several for multi-dose days), `remind` (default `true` — a push reminder at each dose
+time), and `recurrence` (`days_of_week` + `until`, capped at 90 days from the start date).
+
+### `log_supplement`
+Record a dose as taken. Pass `dose_id` (from `get_supplement_schedule`) for a scheduled dose, or
+`supplement_name` for an ad-hoc / as-needed intake (unknown names allowed; `dose_amount`,
+`dose_unit`, `date`, `time`, `notes` optional).
+
+### `update_scheduled_supplement`
+Change one scheduled dose by `dose_id`*: `new_date` / `new_time` to move it, `status: "skipped"` +
+`reason`, or `status: "planned"` to restore. `status: "skipped"` with `apply_to_future_doses: true`
+stops the supplement — it deletes that dose and all future planned doses.
+
 ## Storage
+
+Supplements live in `supplements` (catalogue) and `supplement_doses` (scheduled and logged doses,
+with denormalized dose snapshots so history survives catalogue deletion). DB migration:
+[`supplement_tracking_migration.sql`](../supplement_tracking_migration.sql).
 
 Templates live in `workout_templates` (JSONB `exercises` / `fallback_exercises`), schedule entries in
 `scheduled_workouts` — the same tables the app UI reads, so coach-pushed plans appear on the

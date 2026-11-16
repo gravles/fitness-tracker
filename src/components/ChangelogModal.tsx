@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen } from 'lucide-react';
+import { X, Sparkles, Rocket, Zap, Bug, Dumbbell, Brain, Smartphone, Calendar, Bell, Sun, Moon, Dna, Apple, BarChart2, BookOpen, Users, Scale, FileText, Pill, Activity, Watch, HeartPulse } from 'lucide-react';
 import { Modal } from './ui/Modal';
 
 interface ChangelogModalProps {
@@ -12,6 +12,31 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
     if (!isOpen) return null;
 
     const changes = [
+        {
+            version: "v2.5 — Partner Sharing",
+            date: "October 14, 2026",
+            features: [
+                { icon: <Users className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Share a logged meal or activity with your partner — they pick their own portion or duration and log it in one tap." },
+                { icon: <Sparkles className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Tag partners while logging: \"Did this with…\" on workouts and an \"Eating with\" toggle in Eat." },
+                { icon: <FileText className="w-4 h-4 text-[var(--color-success)]" />, text: "Menu Scanner accepts PDF menus as well as photos." },
+                { icon: <Scale className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Starting weight card in Settings → My Targets: correct or remove your first weigh-in." },
+                { icon: <Bug className="w-4 h-4 text-[var(--color-text-muted)]" />, text: "Fixed onboarding saving your first weigh-in in kg, and a stale drink count on the Eat day card." },
+            ]
+        },
+        {
+            version: "v2.4 — Kinetic",
+            date: "July 22, 2026",
+            features: [
+                { icon: <Rocket className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Life Logger is now Kinetic: new look, floating nav, bento Home, and Eat as the one place to log food." },
+                { icon: <Users className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Workout partners: shared progress, nudges, template and meal sharing, and group challenges." },
+                { icon: <Activity className="w-4 h-4 text-[var(--color-success)]" />, text: "Readiness score and morning check-in — a daily 0–100 score with a training recommendation." },
+                { icon: <Pill className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Supplement & medication tracking with dose schedules, reminders, and adherence history." },
+                { icon: <HeartPulse className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Health Connect on Android: sleep, steps, and resting heart rate sync automatically." },
+                { icon: <Watch className="w-4 h-4 text-[var(--color-success)]" />, text: "Wear OS companion: macro rings, live workout logging, voice logging, tile, and complications." },
+                { icon: <Dumbbell className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />, text: "Progressive-overload weight suggestions, and progress photos from your gallery." },
+                { icon: <Zap className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />, text: "Safer multi-device syncing, native voice logging on Android, and accessibility improvements throughout." },
+            ]
+        },
         {
             version: "v2.0 — Native Apps & Calendar",
             date: "May 24, 2026",
