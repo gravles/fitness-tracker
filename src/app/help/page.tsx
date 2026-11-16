@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronDown, ChevronRight, Mic, Camera, Brain, Dumbbell, Settings, Utensils, UtensilsCrossed } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronRight, Mic, Camera, Brain, Dumbbell, Settings, Utensils, UtensilsCrossed, Users, Activity, Pill } from 'lucide-react';
 
 export default function HelpPage() {
     const [openSection, setOpenSection] = useState<string | null>('quick-start');
@@ -42,9 +42,9 @@ export default function HelpPage() {
                         <p>Welcome! Here is the fastest way to get value from the app:</p>
                         <ol className="list-decimal pl-5 space-y-2">
                             <li><strong style={{ color: 'var(--color-text)' }}>Set your Goals:</strong> Go to Settings to define your target weight and protein.</li>
-                            <li><strong style={{ color: 'var(--color-text)' }}>Log your first Meal:</strong> Tap the big "Log Today" button on the dashboard.</li>
+                            <li><strong style={{ color: 'var(--color-text)' }}>Log your first Meal:</strong> Tap <strong style={{ color: 'var(--color-primary)' }}>Eat</strong> in the bottom nav and use voice, photo, barcode, or text.</li>
                             <li><strong style={{ color: 'var(--color-text)' }}>Track a Workout:</strong> Ask the <strong style={{ color: 'var(--color-primary)' }}>Smart Coach</strong> to build you a routine.</li>
-                            <li><strong style={{ color: 'var(--color-text)' }}>Plan your meals:</strong> Tap <strong style={{ color: 'var(--color-primary)' }}>Eat</strong> in the bottom nav, add pantry items, and generate a week of meals.</li>
+                            <li><strong style={{ color: 'var(--color-text)' }}>Plan your meals:</strong> Tap <strong style={{ color: 'var(--color-primary)' }}>Plan</strong> at the top of Eat, add pantry items, and generate a week of meals.</li>
                         </ol>
                     </div>
                 </Section>
@@ -78,7 +78,7 @@ export default function HelpPage() {
                             icon={<Brain className="w-4 h-4" />}
                             title="Menu Scanner"
                         >
-                            At a restaurant? Scan the physical menu and the AI will recommend the highest-protein options.
+                            At a restaurant? Scan the physical menu — or upload the restaurant&apos;s PDF menu — and the AI will recommend the highest-protein options.
                         </FeatureCard>
                     </div>
                 </Section>
@@ -91,7 +91,7 @@ export default function HelpPage() {
                     onClick={() => toggle('nutrition')}
                 >
                     <div className="space-y-3 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                        <p>Tap <strong style={{ color: 'var(--color-text)' }}>Eat</strong> in the bottom nav to access the Meal Planner.</p>
+                        <p>Tap <strong style={{ color: 'var(--color-text)' }}>Eat</strong> in the bottom nav, then the <strong style={{ color: 'var(--color-text)' }}>Plan</strong> pill at the top, to access the Meal Planner.</p>
                         <ol className="list-decimal pl-5 space-y-2">
                             <li><strong style={{ color: 'var(--color-text)' }}>Build your Pantry:</strong> Add foods you normally have at home. Use <em>Scan Photo</em> to take a picture of your fridge, or tap <em>Voice</em> and read out your ingredients — the AI categorises everything automatically.</li>
                             <li><strong style={{ color: 'var(--color-text)' }}>Generate a Plan:</strong> On the Today or This Week tabs, tap <em>Generate</em> and the AI creates meals using only your pantry items, respecting your prep time limits.</li>
@@ -112,13 +112,76 @@ export default function HelpPage() {
                             <strong style={{ color: 'var(--color-text)' }}>Smart Coach</strong> (Coach tab) is a full coaching session — ask for workout plans, advice, or analysis across your last 30 days of data.
                         </p>
                         <p>
-                            <strong style={{ color: 'var(--color-text)' }}>Quick Workout Builder</strong> (Log tab → Workout icon) creates a single session on the spot, then saves it to your schedule.
+                            <strong style={{ color: 'var(--color-text)' }}>Quick Workout Builder</strong> (Workout tab) creates a single session on the spot, then saves it to your schedule.
                         </p>
                         <p>
                             <strong style={{ color: 'var(--color-text)' }}>Active Tracking:</strong> Go to <strong style={{ color: 'var(--color-text)' }}>Workout</strong> in the bottom nav → tap Start on a template → log your sets/reps in real-time → tap Finish to save.
                         </p>
                         <p>
                             <strong style={{ color: 'var(--color-text)' }}>Voice Spotter:</strong> During an active workout, tap the mic button and call out your sets hands-free: <em>"10 reps at 60 kg"</em>.
+                        </p>
+                    </div>
+                </Section>
+
+                <Section
+                    id="readiness"
+                    title="Readiness & Morning Check-in"
+                    icon={<Activity className="w-5 h-5" style={{ color: 'var(--color-success)' }} />}
+                    isOpen={openSection === 'readiness'}
+                    onClick={() => toggle('readiness')}
+                >
+                    <div className="space-y-3 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                        <p>
+                            <strong style={{ color: 'var(--color-text)' }}>Morning check-in:</strong> The first time you open Home each day, rate your sleep and energy and note any drinks last night. You can skip it.
+                        </p>
+                        <p>
+                            <strong style={{ color: 'var(--color-text)' }}>Readiness score:</strong> A 0–100 score built from your sleep, yesterday&apos;s energy, alcohol, and recent training load, with a recommendation for the day. Tap <em>why?</em> on the card to see what moved it.
+                        </p>
+                        <p>
+                            <strong style={{ color: 'var(--color-text)' }}>Health Connect (Android app):</strong> Connect it in Settings to sync tracked sleep, steps, and resting heart rate automatically — tracked sleep replaces the manual rating.
+                        </p>
+                    </div>
+                </Section>
+
+                <Section
+                    id="partners"
+                    title="Workout Partners"
+                    icon={<Users className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />}
+                    isOpen={openSection === 'partners'}
+                    onClick={() => toggle('partners')}
+                >
+                    <div className="space-y-3 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                        <p>
+                            <strong style={{ color: 'var(--color-text)' }}>Link up:</strong> Go to More → Workout Partners and invite someone by email. Once they accept, you each choose how much to share (summary or full) and can pause or end it at any time.
+                        </p>
+                        <p>
+                            <strong style={{ color: 'var(--color-text)' }}>Share what you did together:</strong> Use <em>Share with partner</em> on a logged meal or workout, tag partners with <em>Did this with…</em> when logging a workout, or switch on <em>Eating with</em> in Eat to share everything you log during a meal.
+                        </p>
+                        <p>
+                            <strong style={{ color: 'var(--color-text)' }}>Log a shared item:</strong> Open your partner inbox and tap <em>Log it</em>. Choose your own portion for meals, or your own duration for activities. Your partner&apos;s heart rate and calories burned are never copied.
+                        </p>
+                        <p>
+                            <strong style={{ color: 'var(--color-text)' }}>Challenges:</strong> Create a group challenge for 2–8 people. The leaderboard is anonymous by default.
+                        </p>
+                    </div>
+                </Section>
+
+                <Section
+                    id="supplements"
+                    title="Supplements & Medications"
+                    icon={<Pill className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />}
+                    isOpen={openSection === 'supplements'}
+                    onClick={() => toggle('supplements')}
+                >
+                    <div className="space-y-3 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                        <p>
+                            Go to More → Supplements &amp; Meds. Add each item to <strong style={{ color: 'var(--color-text)' }}>My Stack</strong> with its dose, then set the days and times you take it.
+                        </p>
+                        <p>
+                            You get a reminder at each dose time. Mark doses taken from the <strong style={{ color: 'var(--color-text)' }}>Today</strong> tab or the card on Home, and check <strong style={{ color: 'var(--color-text)' }}>History</strong> for your adherence.
+                        </p>
+                        <p>
+                            This is for tracking only — the app never recommends doses or changes to medication.
                         </p>
                     </div>
                 </Section>
@@ -133,6 +196,9 @@ export default function HelpPage() {
                     <div className="space-y-3 text-sm" style={{ color: 'var(--color-text-muted)' }}>
                         <p>
                             <strong style={{ color: 'var(--color-text)' }}>Available Equipment:</strong> In Settings, list what you have at home. The AI Coach will only suggest exercises you can perform.
+                        </p>
+                        <p>
+                            <strong style={{ color: 'var(--color-text)' }}>Starting weight:</strong> Under My Targets, the Starting weight card shows your first weigh-in. Reset it if it is wrong — weight trends are measured from it.
                         </p>
                         <p>
                             <strong style={{ color: 'var(--color-text)' }}>Notifications:</strong> Enable daily reminders — add as many as you like, at any time of day.

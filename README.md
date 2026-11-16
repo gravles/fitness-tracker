@@ -7,6 +7,9 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 **Daily Logging**
 - Food diary with calories, macros (protein / carbs / fat), and alcohol
 - Voice logging and AI-powered camera meal recognition
+- Menu Scanner: photograph a restaurant menu or upload a PDF for high-protein picks
+- Supplement & medication tracking with dose schedules, reminders, and adherence history
+- Morning check-in and a transparent 0–100 readiness score with a training recommendation
 - Movement, sleep, and custom habit tracking
 - Autosave with live macro status bar
 
@@ -21,11 +24,18 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - AI Coach builds and saves workouts from natural language
 - Schedule workouts on a calendar with per-session reminders
 - 1RM estimation (Epley), PR notifications, and progress analytics
+- Progressive-overload weight suggestions from your recent sets
+
+**Partners**
+- Mutual workout partners with per-user share levels, weekly stats, streaks, and nudges
+- Share workout templates, saved meals, and logged meals / activities — your partner copies them into their own log
+- Group challenges (2–8 members) with an anonymous-by-default leaderboard
 
 **Health Integrations**
 - Strava: automatic activity sync
 - Withings: body-composition sync (weight, fat %, muscle, bone)
 - Oura: readiness and activity sync
+- Health Connect (Android): sleep, steps, and resting heart rate
 
 **Calendar Feed**
 - Subscribe to a personal `webcal://` URL in Apple Calendar, Google Calendar, or any iCal app
@@ -45,10 +55,15 @@ A personal fitness and nutrition tracker with AI coaching, native iOS/Android ap
 - iOS (App Store) and Android (Play Store) via Capacitor
 - FCM push notifications for reminders
 - Native haptics, swipe-back navigation on iOS
+- Wear OS companion (`android/wear`): macro rings, live workout sessions, voice logging, tile and complications
+
+**AI Coach Connector (MCP)**
+- MCP server so an AI coach can read your data and push workouts, meal plans, and supplement schedules — see [docs/mcp-tools.md](./docs/mcp-tools.md)
 
 **Customisation**
 - Light / System / Dark theme
 - Custom nutrition targets, habits list, available equipment
+- Starting weight card with reset (Settings → My Targets)
 - Accountability partners with weekly email summaries
 
 ## Tech Stack
